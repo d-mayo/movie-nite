@@ -97,6 +97,9 @@ function FilmReveal({ nomination, at, byline, onOutcome, onClose }: FilmRevealPr
   const window = finishWindow(at, nomination.runtime)
   return (
     <>
+      <button type="button" className="reveal-close" aria-label="Close" onClick={onClose}>
+        ×
+      </button>
       <h2 id="reveal-heading">{nomination.title}</h2>
       <p>{byline}</p>
       {nomination.posterPath ? (
@@ -121,9 +124,6 @@ function FilmReveal({ nomination, at, byline, onOutcome, onClose }: FilmRevealPr
       </button>
       <button type="button" onClick={() => onOutcome('tooLong')}>
         Too long
-      </button>
-      <button type="button" onClick={onClose}>
-        Close
       </button>
     </>
   )

@@ -126,3 +126,19 @@ footer p {
   width: 100%;
   text-align: center;
 }
+
+.reveal-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.night-over ul {
+  list-style: none;
+  padding: 0;
+}
