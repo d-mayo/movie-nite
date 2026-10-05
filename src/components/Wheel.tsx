@@ -20,6 +20,11 @@ function clip(text: string): string {
   return text.length > titleMaxChars ? `${text.slice(0, titleMaxChars - 1)}…` : text
 }
 
+// A rough text width in SVG units, enough to size the backing under a label.
+function labelWidth(text: string | null): number {
+  return (text ?? '').length * 3.8
+}
+
 function WedgeShape({ wedge, id }: { wedge: Wedge; id: string }) {
   const { arc, slice, nomination } = wedge
   const mid = (arc.start + arc.end) / 2
@@ -28,6 +33,10 @@ function WedgeShape({ wedge, id }: { wedge: Wedge; id: string }) {
   const imageWidth = Math.max(10, 2 * radius * Math.sin(half))
   const label = slice.kind === 'wildcard' ? 'WILDCARD' : wedge.viewerName
   const showTitle = nomination !== null && width >= titleMinDegrees
+  const backing = Math.max(
+    labelWidth(label),
+    showTitle ? (labelWidth(clip(nomination.title)) * 4) / 6 : 0,
+  )
 
   return (
     <g data-testid="wedge" data-kind={slice.kind}>
@@ -50,7 +59,16 @@ function WedgeShape({ wedge, id }: { wedge: Wedge; id: string }) {
         </g>
       )}
       <g transform={`rotate(${mid - 90})`} fill="#fff" className="wedge-text">
-        <text x={radius - 4} y={showTitle ? -2 : 0} textAnchor="end" dominantBaseline="central" fontSize="6" fontWeight="bold">
+        <rect
+          x={radius - 6 - backing}
+          y={showTitle ? -5 : -3.5}
+          width={backing + 4}
+          height={showTitle ? 13 : 7}
+          rx="1.5"
+          fill="#000"
+          opacity="0.6"
+        />
+        <text x={radius - 4} y={showTitle ? -1.5 : 0} textAnchor="end" dominantBaseline="central" fontSize="6" fontWeight="bold">
           {label}
         </text>
         {showTitle && (

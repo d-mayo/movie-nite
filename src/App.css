@@ -81,3 +81,8 @@ footer p {
   border: 2px solid currentColor;
   border-radius: 12px;
 }
+
+.setup ul {
+  list-style: none;
+  padding: 0;
+}
