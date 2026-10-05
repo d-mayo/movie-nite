@@ -157,3 +157,36 @@ test('a 401 during a spin unlocks setup once a new token is saved', async () => 
   await waitFor(() => expect(screen.getByLabelText('Ann')).toBeEnabled())
   expect(spinButton()).toBeEnabled()
 })
+
+test('the wheel drops viewers whose film has won, and follows ticks', () => {
+  const store = setup(['a', 'b'])
+  store.getState().addViewer('Cy')
+  const cy = store.getState().roster[2].id
+  act(() => store.getState().nominate(cy, film(2)))
+  act(() => store.getState().nominate('a', film(1)))
+  act(() => store.getState().nominate('b', film(1)))
+  expect(screen.getAllByTestId('wedge')).toHaveLength(12)
+  act(() => store.getState().recordOutcome(film(1), 'watch', true))
+  // Cy's 3 slices and 1 wildcard remain.
+  expect(screen.getAllByTestId('wedge')).toHaveLength(4)
+  expect(spinButton()).toBeEnabled()
+
+  fireEvent.click(screen.getByLabelText('Cy'))
+  expect(screen.queryAllByTestId('wedge')).toHaveLength(0)
+  expect(store.getState().night.ended).toBe(false)
+  expect(screen.getByText('Viewers are needed to spin.')).toBeInTheDocument()
+  expect(spinButton()).toBeDisabled()
+  fireEvent.click(screen.getByLabelText('Cy'))
+  expect(screen.getAllByTestId('wedge')).toHaveLength(4)
+})
+
+test('a done viewer does not block Spin, and an ended night disables it', () => {
+  const store = setup(['a', 'b'])
+  act(() => store.getState().nominate('a', film(1)))
+  act(() => store.getState().nominate('b', film(2)))
+  act(() => store.getState().recordOutcome(film(1), 'watch', true))
+  expect(spinButton()).toBeEnabled()
+  act(() => store.getState().endNight())
+  expect(spinButton()).toBeDisabled()
+  expect(screen.getByText('The night is over.')).toBeInTheDocument()
+})

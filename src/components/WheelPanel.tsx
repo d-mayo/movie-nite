@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { viewersOnWheel } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import { cryptoRandom, drawSlice, restRotation } from '../wheel/draw.ts'
 import { buildWedges, type Wedge } from '../wheel/wedges.ts'
@@ -44,13 +45,15 @@ export default function WheelPanel({
   )
 
   const live = buildWedges(night, roster)
-  const missing = night.presentIds
+  const onWheel = viewersOnWheel(night)
+  const missing = onWheel
     .filter((id) => !night.nominations[id])
     .map((id) => roster.find((v) => v.id === id)?.name ?? '')
-  const canSpin = night.presentIds.length > 0 && missing.length === 0
+  const canSpin = !night.ended && onWheel.length > 0 && missing.length === 0
   const wedges = spin?.wedges ?? live
-  const reason =
-    night.presentIds.length === 0
+  const reason = night.ended
+    ? 'The night is over.'
+    : onWheel.length === 0
       ? 'Viewers are needed to spin.'
       : missing.length > 0
         ? `Waiting for ${missing.join(', ')} to nominate.`
