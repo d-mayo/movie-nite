@@ -44,7 +44,7 @@ function setup(random: number, a: Nomination, b: Nomination) {
   fireEvent.click(screen.getByRole('button', { name: 'Spin' }))
 }
 
-// With viewers a and b the layout is A B A W B A B W; 0.1 lands on the first slice (A).
+// With viewers a and b the layout is A B A W B A B W; 0.01 lands on the first slice (A).
 test('a nomination shows everything and fires confetti once', async () => {
   setup(0.01, film(1), film(2))
   const dialog = await screen.findByRole('dialog')

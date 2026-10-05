@@ -31,6 +31,8 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
   // The one place a TmdbAuthError from any TMDB call ends up.
   const handleAuthError = useCallback(() => {
     setMessage(rejectedMessage)
+    // The wheel unmounts with the token, possibly mid-spin, so unlock setup here.
+    setLocked(false)
     setToken(null)
   }, [setToken])
   const client = useMemo(

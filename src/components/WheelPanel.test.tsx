@@ -121,3 +121,31 @@ test('the draw uses crypto.getRandomValues by default', async () => {
   await screen.findByRole('dialog')
   spy.mockRestore()
 })
+
+test('a 401 during a spin unlocks setup once a new token is saved', async () => {
+  const fetchFn = vi.fn((url: RequestInfo | URL) =>
+    Promise.resolve(
+      new Response('{}', { status: String(url).includes('/search/') ? 401 : 200 }),
+    ),
+  )
+  const store = createAppStore(
+    createMemoryPersistence({
+      ...defaultState,
+      settings: { tmdbToken: 'tok' },
+      roster: [{ id: 'a', name: 'Ann' }],
+      night: { presentIds: ['a'], nominations: { a: film(1) } },
+    }),
+  )
+  render(<App store={store} fetchFn={fetchFn as typeof fetch} spinMs={600} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Change film for Ann' }))
+  fireEvent.change(screen.getByLabelText('Search a film for Ann'), {
+    target: { value: 'ab' },
+  })
+  fireEvent.click(spinButton())
+
+  const prompt = await screen.findByLabelText('TMDB Read Access Token')
+  fireEvent.change(prompt, { target: { value: 'new' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(screen.getByLabelText('Ann')).toBeEnabled())
+  expect(spinButton()).toBeEnabled()
+})
