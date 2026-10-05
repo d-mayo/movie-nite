@@ -35,7 +35,7 @@ const ok = () => vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
 test('with no token only the prompt and the footer show', () => {
   setup(ok())
   expect(screen.getByLabelText('TMDB Read Access Token')).toBeInTheDocument()
-  expect(screen.queryByText('Setup')).not.toBeInTheDocument()
+  expect(screen.queryByText("Tonight's viewers")).not.toBeInTheDocument()
   expectFooter()
 })
 
@@ -47,7 +47,7 @@ test('a passing check saves the token and shows setup', async () => {
   })
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   await waitFor(() => expect(store.getState().settings.tmdbToken).toBe('tok'))
-  expect(screen.getByText('Setup')).toBeInTheDocument()
+  expect(screen.getByText("Tonight's viewers")).toBeInTheDocument()
   expect(fetchFn).toHaveBeenCalledTimes(1)
   expectFooter()
 })
@@ -65,4 +65,11 @@ test.each([
   expect(store.getState().settings.tmdbToken).toBeNull()
   expect(screen.getByLabelText('TMDB Read Access Token')).toBeInTheDocument()
   expectFooter()
+})
+
+test('Change TMDB token brings the prompt back', () => {
+  const { store } = setup(ok(), 'tok')
+  fireEvent.click(screen.getByRole('button', { name: 'Change TMDB token' }))
+  expect(store.getState().settings.tmdbToken).toBeNull()
+  expect(screen.getByLabelText('TMDB Read Access Token')).toBeInTheDocument()
 })
