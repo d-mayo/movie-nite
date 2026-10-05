@@ -37,7 +37,11 @@ function setup(random: number, a: Nomination, b: Nomination) {
         { id: 'a', name: 'Ann' },
         { id: 'b', name: 'Bo' },
       ],
-      night: { presentIds: ['a', 'b'], nominations: { a, b } },
+      night: {
+        ...defaultState.night,
+        presentIds: ['a', 'b'],
+        nominations: { a, b },
+      },
     }),
   )
   render(<App store={store} fetchFn={vi.fn()} random={() => random} spinMs={20} />)
@@ -68,12 +72,12 @@ test('no poster gets a placeholder and no runtime says the end is unknown', asyn
   expect(within(dialog).getByText(/End time unknown/)).toBeInTheDocument()
 })
 
-test('a wildcard says so and fires confetti, and Close returns to the wheel', async () => {
+test('a wildcard says so and fires confetti, and Back to the wheel returns to the wheel', async () => {
   setup(0.45, film(1), film(2))
   const dialog = await screen.findByRole('dialog')
   expect(within(dialog).getByText('Wildcard!')).toBeInTheDocument()
   expect(confetti).toHaveBeenCalledTimes(1)
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Back to the wheel' }))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(screen.getByLabelText('Ann')).toBeEnabled()
   expect(screen.getByRole('button', { name: 'Spin' })).toBeEnabled()

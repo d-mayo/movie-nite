@@ -43,7 +43,13 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
   if (!token || !client) return <TokenPrompt message={message} onSubmit={saveToken} />
   return (
     <div className="night">
-      <WheelPanel random={random} spinMs={spinMs} onBusyChange={setLocked} />
+      <WheelPanel
+        random={random}
+        spinMs={spinMs}
+        client={client}
+        onAuthError={handleAuthError}
+        onBusyChange={setLocked}
+      />
       <NightSetup
         client={client}
         onAuthError={handleAuthError}

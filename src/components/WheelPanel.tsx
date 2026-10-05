@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
+import { viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts'
+import type { TmdbClient } from '../tmdb/client.ts'
 import { useApp } from '../state/store.ts'
 import { cryptoRandom, drawSlice, restRotation } from '../wheel/draw.ts'
 import { buildWedges, type Wedge } from '../wheel/wedges.ts'
 import { prefersReducedMotion } from '../wheel/reducedMotion.ts'
+import NightOver from './NightOver.tsx'
 import Reveal from './Reveal.tsx'
 import Wheel from './Wheel.tsx'
 
@@ -19,6 +22,8 @@ interface Spin {
 interface Props {
   random?: () => number
   spinMs?: number
+  client: TmdbClient
+  onAuthError: () => void
   onBusyChange: (busy: boolean) => void
 }
 
@@ -27,9 +32,11 @@ const easeOut = (t: number) => 1 - (1 - t) ** 3
 export default function WheelPanel({
   random = cryptoRandom,
   spinMs,
+  client,
+  onAuthError,
   onBusyChange,
 }: Props) {
-  const { night, roster } = useApp()
+  const { night, roster, recordOutcome, endNight } = useApp()
   const [rotation, setRotation] = useState(0)
   // Fixed when Spin is pressed and dropped on Close, so the wheel, the draw
   // and the reveal agree even if the store changes meanwhile.
@@ -44,13 +51,15 @@ export default function WheelPanel({
   )
 
   const live = buildWedges(night, roster)
-  const missing = night.presentIds
+  const onWheel = viewersOnWheel(night)
+  const missing = onWheel
     .filter((id) => !night.nominations[id])
     .map((id) => roster.find((v) => v.id === id)?.name ?? '')
-  const canSpin = night.presentIds.length > 0 && missing.length === 0
+  const canSpin = !night.ended && onWheel.length > 0 && missing.length === 0
   const wedges = spin?.wedges ?? live
-  const reason =
-    night.presentIds.length === 0
+  const reason = night.ended
+    ? 'The night is over.'
+    : onWheel.length === 0
       ? 'Viewers are needed to spin.'
       : missing.length > 0
         ? `Waiting for ${missing.join(', ')} to nominate.`
@@ -92,6 +101,11 @@ export default function WheelPanel({
     onBusyChange(false)
   }
 
+  function outcome(nomination: Nomination, result: Outcome, fromWheel: boolean) {
+    recordOutcome(nomination, result, fromWheel)
+    close()
+  }
+
   return (
     <div className="wheel-panel">
       <div className="wheel-stage">
@@ -106,10 +120,19 @@ export default function WheelPanel({
         </button>
       </div>
       {reason && <p>{reason}</p>}
+      {!night.ended && spin === null && (
+        <button type="button" onClick={endNight}>
+          End night
+        </button>
+      )}
+      {night.ended && <NightOver />}
       {spin?.revealedAt && (
         <Reveal
           wedge={spin.wedges[spin.drawn]}
           revealedAt={spin.revealedAt}
+          client={client}
+          onAuthError={onAuthError}
+          onOutcome={outcome}
           onClose={close}
         />
       )}

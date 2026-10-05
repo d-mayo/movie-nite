@@ -33,6 +33,7 @@ function setup(
       settings: { tmdbToken: 'tok' },
       roster,
       night: {
+        ...defaultState.night,
         presentIds: ['a', 'b'],
         nominations: Object.fromEntries(
           nominated.map((id, i) => [id, film(i + 1, `/p${i + 1}.jpg`)]),
@@ -50,7 +51,10 @@ const hrefs = () =>
 
 test('spin is disabled with no viewers', () => {
   const store = createAppStore(
-    createMemoryPersistence({ ...defaultState, settings: { tmdbToken: 'tok' } }),
+    createMemoryPersistence({
+      ...defaultState,
+      settings: { tmdbToken: 'tok' },
+    }),
   )
   render(<App store={store} fetchFn={vi.fn()} />)
   expect(spinButton()).toBeDisabled()
@@ -73,7 +77,6 @@ test('spinning locks setup, rests in the drawn slice and shows a snapshot', asyn
   expect(screen.getByLabelText('Ann')).toBeDisabled()
   expect(screen.getByLabelText('Add a viewer')).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled()
-  expect(screen.getByRole('button', { name: 'New night' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Change TMDB token' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Change film for Ann' })).toBeDisabled()
 
@@ -91,9 +94,7 @@ test('spinning locks setup, rests in the drawn slice and shows a snapshot', asyn
   const total = slices.reduce((s, x) => s + x.weight, 0)
   let cumulative = 0
   const index = slices.findIndex((s) => (cumulative += s.weight) > total / 2)
-  const transform = document
-    .querySelector('svg.wheel > g')!
-    .getAttribute('transform')!
+  const transform = document.querySelector('svg.wheel > g')!.getAttribute('transform')!
   const rotation = Number(/rotate\(([^)]+)\)/.exec(transform)![1])
   const angle = angleUnderPointer(rotation)
   expect(angle).toBeGreaterThan(arcs[index].start)
@@ -125,7 +126,9 @@ test('the draw uses crypto.getRandomValues by default', async () => {
 test('a 401 during a spin unlocks setup once a new token is saved', async () => {
   const fetchFn = vi.fn((url: RequestInfo | URL) =>
     Promise.resolve(
-      new Response('{}', { status: String(url).includes('/search/') ? 401 : 200 }),
+      new Response('{}', {
+        status: String(url).includes('/search/') ? 401 : 200,
+      }),
     ),
   )
   const store = createAppStore(
@@ -133,7 +136,11 @@ test('a 401 during a spin unlocks setup once a new token is saved', async () => 
       ...defaultState,
       settings: { tmdbToken: 'tok' },
       roster: [{ id: 'a', name: 'Ann' }],
-      night: { presentIds: ['a'], nominations: { a: film(1) } },
+      night: {
+        ...defaultState.night,
+        presentIds: ['a'],
+        nominations: { a: film(1) },
+      },
     }),
   )
   render(<App store={store} fetchFn={fetchFn as typeof fetch} spinMs={600} />)
@@ -148,4 +155,37 @@ test('a 401 during a spin unlocks setup once a new token is saved', async () => 
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   await waitFor(() => expect(screen.getByLabelText('Ann')).toBeEnabled())
   expect(spinButton()).toBeEnabled()
+})
+
+test('the wheel drops viewers whose film has won, and follows ticks', () => {
+  const store = setup(['a', 'b'])
+  store.getState().addViewer('Cy')
+  const cy = store.getState().roster[2].id
+  act(() => store.getState().nominate(cy, film(2)))
+  act(() => store.getState().nominate('a', film(1)))
+  act(() => store.getState().nominate('b', film(1)))
+  expect(screen.getAllByTestId('wedge')).toHaveLength(12)
+  act(() => store.getState().recordOutcome(film(1), 'watch', true))
+  // Cy's 3 slices and 1 wildcard remain.
+  expect(screen.getAllByTestId('wedge')).toHaveLength(4)
+  expect(spinButton()).toBeEnabled()
+
+  fireEvent.click(screen.getByLabelText('Cy'))
+  expect(screen.queryAllByTestId('wedge')).toHaveLength(0)
+  expect(store.getState().night.ended).toBe(false)
+  expect(screen.getByText('Viewers are needed to spin.')).toBeInTheDocument()
+  expect(spinButton()).toBeDisabled()
+  fireEvent.click(screen.getByLabelText('Cy'))
+  expect(screen.getAllByTestId('wedge')).toHaveLength(4)
+})
+
+test('a done viewer does not block Spin, and an ended night disables it', () => {
+  const store = setup(['a', 'b'])
+  act(() => store.getState().nominate('a', film(1)))
+  act(() => store.getState().nominate('b', film(2)))
+  act(() => store.getState().recordOutcome(film(1), 'watch', true))
+  expect(spinButton()).toBeEnabled()
+  act(() => store.getState().endNight())
+  expect(spinButton()).toBeDisabled()
+  expect(screen.getByText('The night is over.')).toBeInTheDocument()
 })

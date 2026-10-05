@@ -3,14 +3,18 @@ import { useStore } from 'zustand'
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import {
   addViewer,
+  clearHoldover,
   defaultState,
+  endNight,
   newNight,
   nominate,
+  recordOutcome,
   removeViewer,
   setPresent,
   setToken,
   type AppState,
   type Nomination,
+  type Outcome,
 } from './model.ts'
 import type { Persistence } from './persistence.ts'
 
@@ -21,6 +25,9 @@ export interface AppActions {
   setPresent(id: string, present: boolean): void
   nominate(viewerId: string, nomination: Nomination): void
   newNight(): void
+  recordOutcome(nomination: Nomination, outcome: Outcome, fromWheel: boolean): void
+  endNight(): void
+  clearHoldover(): void
 }
 
 export type AppStore = StoreApi<AppState & AppActions>
@@ -42,23 +49,25 @@ function dataOf(full: AppState & AppActions): AppState {
     settings: full.settings,
     roster: full.roster,
     night: full.night,
+    holdover: full.holdover,
   }
 }
 
 export function createAppStore(persistence: Persistence): AppStore {
   const store = createStore<AppState & AppActions>()((set) => {
-    const update = (fn: (s: AppState) => AppState) =>
-      set((full) => fn(dataOf(full)))
+    const update = (fn: (s: AppState) => AppState) => set((full) => fn(dataOf(full)))
     return {
       ...mergeOverDefaults(persistence.load()),
       setToken: (token) => update((s) => setToken(s, token)),
-      addViewer: (name) =>
-        update((s) => addViewer(s, name, crypto.randomUUID())),
+      addViewer: (name) => update((s) => addViewer(s, name, crypto.randomUUID())),
       removeViewer: (id) => update((s) => removeViewer(s, id)),
       setPresent: (id, present) => update((s) => setPresent(s, id, present)),
-      nominate: (viewerId, nomination) =>
-        update((s) => nominate(s, viewerId, nomination)),
+      nominate: (viewerId, nomination) => update((s) => nominate(s, viewerId, nomination)),
       newNight: () => update(newNight),
+      recordOutcome: (nomination, outcome, fromWheel) =>
+        update((s) => recordOutcome(s, nomination, outcome, fromWheel)),
+      endNight: () => update(endNight),
+      clearHoldover: () => update(clearHoldover),
     }
   })
 
@@ -66,7 +75,8 @@ export function createAppStore(persistence: Persistence): AppStore {
     if (
       state.settings !== prev.settings ||
       state.roster !== prev.roster ||
-      state.night !== prev.night
+      state.night !== prev.night ||
+      state.holdover !== prev.holdover
     ) {
       persistence.save(dataOf(state))
     }

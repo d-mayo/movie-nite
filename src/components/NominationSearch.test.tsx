@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import App from '../App.tsx'
-import { addViewer, defaultState, setToken } from '../state/model.ts'
+import { addViewer, defaultState, recordOutcome, setToken } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { AppStoreContext, createAppStore } from '../state/store.ts'
 import { createTmdbClient } from '../tmdb/client.ts'
@@ -168,3 +168,40 @@ test.each([
   expect(store.getState().settings.tmdbToken).toBeNull()
   expect(screen.getByLabelText('TMDB Read Access Token')).toBeInTheDocument()
 })
+
+test('a film that has already won tonight cannot be nominated', async () => {
+  const fetchFn = vi.fn((url: string) =>
+    Promise.resolve(url.includes('/search/') ? searchBody('Alien') : movieBody(1, 'Alien')),
+  )
+  const start = addViewer(initial(), 'Bo', 'b')
+  const won = recordOutcome(start, { ...movieNomination(1) }, 'watch', true)
+  const store = createAppStore(createMemoryPersistence(won))
+  render(
+    <AppStoreContext.Provider value={store}>
+      <NominationSearch
+        viewerId="a"
+        viewerName="Ann"
+        client={createTmdbClient('tok', fetchFn as unknown as typeof fetch)}
+        onAuthError={vi.fn()}
+      />
+    </AppStoreContext.Provider>,
+  )
+  type('alien')
+  await tick(300)
+  fireEvent.click(screen.getByRole('button', { name: 'Pick Alien (1999)' }))
+  await tick(0)
+  expect(screen.getByRole('alert')).toHaveTextContent('Alien has already won tonight')
+  expect(store.getState().night.nominations.a).toBeUndefined()
+})
+
+function movieNomination(id: number) {
+  return {
+    tmdbId: id,
+    title: 'Alien',
+    year: 1999,
+    posterPath: null,
+    overview: '',
+    runtime: 120,
+    genres: [],
+  }
+}
