@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { viewersOnWheel } from '../state/model.ts'
+import { viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts'
+import type { TmdbClient } from '../tmdb/client.ts'
 import { useApp } from '../state/store.ts'
 import { cryptoRandom, drawSlice, restRotation } from '../wheel/draw.ts'
 import { buildWedges, type Wedge } from '../wheel/wedges.ts'
@@ -20,6 +21,8 @@ interface Spin {
 interface Props {
   random?: () => number
   spinMs?: number
+  client: TmdbClient
+  onAuthError: () => void
   onBusyChange: (busy: boolean) => void
 }
 
@@ -28,9 +31,11 @@ const easeOut = (t: number) => 1 - (1 - t) ** 3
 export default function WheelPanel({
   random = cryptoRandom,
   spinMs,
+  client,
+  onAuthError,
   onBusyChange,
 }: Props) {
-  const { night, roster } = useApp()
+  const { night, roster, recordOutcome } = useApp()
   const [rotation, setRotation] = useState(0)
   // Fixed when Spin is pressed and dropped on Close, so the wheel, the draw
   // and the reveal agree even if the store changes meanwhile.
@@ -95,6 +100,11 @@ export default function WheelPanel({
     onBusyChange(false)
   }
 
+  function outcome(nomination: Nomination, result: Outcome, fromWheel: boolean) {
+    recordOutcome(nomination, result, fromWheel)
+    close()
+  }
+
   return (
     <div className="wheel-panel">
       <div className="wheel-stage">
@@ -113,6 +123,9 @@ export default function WheelPanel({
         <Reveal
           wedge={spin.wedges[spin.drawn]}
           revealedAt={spin.revealedAt}
+          client={client}
+          onAuthError={onAuthError}
+          onOutcome={outcome}
           onClose={close}
         />
       )}
