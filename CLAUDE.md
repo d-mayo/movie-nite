@@ -5,7 +5,7 @@ A web app for the FFF movie-night group to pick tonight's film: viewers nominate
 A static single-page app (React, TypeScript, Vite) hosted on GitHub Pages, with no backend.
 
 ## Commands
-<!-- covers: package.json, .github/workflows/*.yml -->
+<!-- covers: package.json, .github/workflows/*.yml; verified: 2026-10-05 -->
 - Run tests: `npm test`
 - Lint: `npm run lint`
 - Dev server: `npm run dev` (serves at http://localhost:5173/movie-nite/)
@@ -14,7 +14,10 @@ A static single-page app (React, TypeScript, Vite) hosted on GitHub Pages, with 
 
 ## Layout
 <!-- covers: src/**, .github/workflows/*.yml -->
-- `src/`: the React app: `src/main.tsx` mounts `src/App.tsx`; `src/assets/` holds the TMDB logo; `src/test/setup.ts` is the Vitest setup
+- `src/`: the React app: `src/main.tsx` builds the store on the `localStorage` persistence and mounts `src/App.tsx`; `src/assets/` holds the TMDB logo; `src/test/setup.ts` is the Vitest setup
+- `src/state/`: the serializable app state (`src/state/model.ts` pure rules, `src/state/persistence.ts` the `Persistence` interface and its `localStorage` and in-memory versions, `src/state/store.ts` the Zustand store and React hook); only `src/state/persistence.ts` touches `localStorage`
+- `src/tmdb/`: the TMDB client (injectable `fetch`, `TmdbAuthError` on 401)
+- `src/components/`: token prompt, night setup and nomination search
 - `.github/workflows/`: `.github/workflows/ci.yml` runs lint, test and build on pull requests and pushes to `main`, and deploys to GitHub Pages on pushes to `main`
 
 ## Conventions
