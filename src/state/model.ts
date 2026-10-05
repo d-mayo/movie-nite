@@ -20,14 +20,25 @@ export interface AppState {
   night: {
     presentIds: string[]
     nominations: Record<string, Nomination>
+    wonFilms: number[]
+    watched: Nomination[]
+    ended: boolean
   }
+  holdover: Nomination | null
 }
 
 export const defaultState: AppState = {
   version: 1,
   settings: { tmdbToken: null },
   roster: [],
-  night: { presentIds: [], nominations: {} },
+  night: {
+    presentIds: [],
+    nominations: {},
+    wonFilms: [],
+    watched: [],
+    ended: false,
+  },
+  holdover: null,
 }
 
 export function setToken(state: AppState, token: string | null): AppState {
@@ -67,14 +78,16 @@ export function removeViewer(state: AppState, id: string): AppState {
   }
 }
 
-export function setPresent(
-  state: AppState,
-  id: string,
-  present: boolean,
-): AppState {
+function hasWon(night: AppState['night'], viewerId: string): boolean {
+  const film = night.nominations[viewerId]
+  return film !== undefined && night.wonFilms.includes(film.tmdbId)
+}
+
+export function setPresent(state: AppState, id: string, present: boolean): AppState {
   if (!state.roster.some((v) => v.id === id)) return state
   const isPresent = state.night.presentIds.includes(id)
   if (present === isPresent) return state
+  const isDone = hasWon(state.night, id)
   return {
     ...state,
     night: {
@@ -82,19 +95,18 @@ export function setPresent(
       presentIds: present
         ? [...state.night.presentIds, id]
         : state.night.presentIds.filter((p) => p !== id),
-      nominations: present
-        ? state.night.nominations
-        : withoutNomination(state.night.nominations, id),
+      nominations:
+        present || isDone
+          ? state.night.nominations
+          : withoutNomination(state.night.nominations, id),
     },
   }
 }
 
-export function nominate(
-  state: AppState,
-  viewerId: string,
-  nomination: Nomination,
-): AppState {
+export function nominate(state: AppState, viewerId: string, nomination: Nomination): AppState {
   if (!state.night.presentIds.includes(viewerId)) return state
+  if (hasWon(state.night, viewerId)) return state
+  if (state.night.wonFilms.includes(nomination.tmdbId)) return state
   return {
     ...state,
     night: {
@@ -105,5 +117,47 @@ export function nominate(
 }
 
 export function newNight(state: AppState): AppState {
-  return { ...state, night: { ...state.night, nominations: {} } }
+  return {
+    ...state,
+    night: {
+      ...state.night,
+      nominations: {},
+      wonFilms: [],
+      watched: [],
+      ended: false,
+    },
+  }
+}
+
+export function viewersOnWheel(night: AppState['night']): string[] {
+  return night.presentIds.filter((id) => !hasWon(night, id))
+}
+
+export type Outcome = 'watch' | 'tooLong'
+
+export function recordOutcome(
+  state: AppState,
+  nomination: Nomination,
+  outcome: Outcome,
+  fromWheel: boolean,
+): AppState {
+  const night = {
+    ...state.night,
+    wonFilms: fromWheel ? [...state.night.wonFilms, nomination.tmdbId] : state.night.wonFilms,
+    watched: outcome === 'watch' ? [...state.night.watched, nomination] : state.night.watched,
+  }
+  if (fromWheel && viewersOnWheel(night).length === 0) night.ended = true
+  return {
+    ...state,
+    night,
+    holdover: outcome === 'tooLong' ? nomination : state.holdover,
+  }
+}
+
+export function endNight(state: AppState): AppState {
+  return { ...state, night: { ...state.night, ended: true } }
+}
+
+export function clearHoldover(state: AppState): AppState {
+  return { ...state, holdover: null }
 }

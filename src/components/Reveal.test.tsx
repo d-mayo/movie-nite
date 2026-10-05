@@ -37,7 +37,11 @@ function setup(random: number, a: Nomination, b: Nomination) {
         { id: 'a', name: 'Ann' },
         { id: 'b', name: 'Bo' },
       ],
-      night: { presentIds: ['a', 'b'], nominations: { a, b } },
+      night: {
+        ...defaultState.night,
+        presentIds: ['a', 'b'],
+        nominations: { a, b },
+      },
     }),
   )
   render(<App store={store} fetchFn={vi.fn()} random={() => random} spinMs={20} />)

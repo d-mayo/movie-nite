@@ -33,6 +33,7 @@ function setup(
       settings: { tmdbToken: 'tok' },
       roster,
       night: {
+        ...defaultState.night,
         presentIds: ['a', 'b'],
         nominations: Object.fromEntries(
           nominated.map((id, i) => [id, film(i + 1, `/p${i + 1}.jpg`)]),
@@ -50,7 +51,10 @@ const hrefs = () =>
 
 test('spin is disabled with no viewers', () => {
   const store = createAppStore(
-    createMemoryPersistence({ ...defaultState, settings: { tmdbToken: 'tok' } }),
+    createMemoryPersistence({
+      ...defaultState,
+      settings: { tmdbToken: 'tok' },
+    }),
   )
   render(<App store={store} fetchFn={vi.fn()} />)
   expect(spinButton()).toBeDisabled()
@@ -91,9 +95,7 @@ test('spinning locks setup, rests in the drawn slice and shows a snapshot', asyn
   const total = slices.reduce((s, x) => s + x.weight, 0)
   let cumulative = 0
   const index = slices.findIndex((s) => (cumulative += s.weight) > total / 2)
-  const transform = document
-    .querySelector('svg.wheel > g')!
-    .getAttribute('transform')!
+  const transform = document.querySelector('svg.wheel > g')!.getAttribute('transform')!
   const rotation = Number(/rotate\(([^)]+)\)/.exec(transform)![1])
   const angle = angleUnderPointer(rotation)
   expect(angle).toBeGreaterThan(arcs[index].start)
@@ -125,7 +127,9 @@ test('the draw uses crypto.getRandomValues by default', async () => {
 test('a 401 during a spin unlocks setup once a new token is saved', async () => {
   const fetchFn = vi.fn((url: RequestInfo | URL) =>
     Promise.resolve(
-      new Response('{}', { status: String(url).includes('/search/') ? 401 : 200 }),
+      new Response('{}', {
+        status: String(url).includes('/search/') ? 401 : 200,
+      }),
     ),
   )
   const store = createAppStore(
@@ -133,7 +137,11 @@ test('a 401 during a spin unlocks setup once a new token is saved', async () => 
       ...defaultState,
       settings: { tmdbToken: 'tok' },
       roster: [{ id: 'a', name: 'Ann' }],
-      night: { presentIds: ['a'], nominations: { a: film(1) } },
+      night: {
+        ...defaultState.night,
+        presentIds: ['a'],
+        nominations: { a: film(1) },
+      },
     }),
   )
   render(<App store={store} fetchFn={fetchFn as typeof fetch} spinMs={600} />)

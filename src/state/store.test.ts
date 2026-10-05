@@ -18,6 +18,7 @@ const data = (s: ReturnType<ReturnType<typeof createAppStore>['getState']>) => (
   settings: s.settings,
   roster: s.roster,
   night: s.night,
+  holdover: s.holdover,
 })
 
 test('state survives a simulated reload', () => {
@@ -54,5 +55,31 @@ test('stored data missing a field is merged over the defaults', () => {
   } as never)
   const store = createAppStore(persistence)
   expect(store.getState().settings.tmdbToken).toBe('tok')
-  expect(store.getState().night).toEqual({ presentIds: ['x'], nominations: {} })
+  expect(store.getState().night).toEqual({
+    presentIds: ['x'],
+    nominations: {},
+    wonFilms: [],
+    watched: [],
+    ended: false,
+  })
+  expect(store.getState().holdover).toBeNull()
+})
+
+test('night progress and the holdover survive a reload, and clearing is saved', () => {
+  const persistence = createMemoryPersistence()
+  const a = createAppStore(persistence)
+  a.getState().addViewer('Ann')
+  const ann = a.getState().roster[0].id
+  a.getState().nominate(ann, film)
+  a.getState().recordOutcome(film, 'tooLong', true)
+  a.getState().recordOutcome({ ...film, tmdbId: 2 }, 'watch', false)
+
+  const b = createAppStore(persistence)
+  expect(b.getState().night.wonFilms).toEqual([1])
+  expect(b.getState().night.watched.map((f) => f.tmdbId)).toEqual([2])
+  expect(b.getState().night.ended).toBe(true)
+  expect(b.getState().holdover).toEqual(film)
+
+  b.getState().clearHoldover()
+  expect(createAppStore(persistence).getState().holdover).toBeNull()
 })
