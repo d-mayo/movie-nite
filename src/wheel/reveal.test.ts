@@ -3,15 +3,15 @@ import { finishWindow, formatRuntime, synopsisSnippet } from './reveal.ts'
 
 test('finish window is reveal time plus runtime, then 15 minutes', () => {
   expect(finishWindow(new Date(2026, 9, 5, 20, 0), 112)).toEqual({
-    start: '21:52',
-    end: '22:07',
+    start: '9:52 PM',
+    end: '10:07 PM',
   })
 })
 
 test('finish window wraps past midnight', () => {
   expect(finishWindow(new Date(2026, 9, 5, 23, 30), 45)).toEqual({
-    start: '00:15',
-    end: '00:30',
+    start: '12:15 AM',
+    end: '12:30 AM',
   })
 })
 

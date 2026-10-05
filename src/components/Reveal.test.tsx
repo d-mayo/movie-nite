@@ -57,7 +57,7 @@ test('a nomination shows everything and fires confetti once', async () => {
   expect(within(dialog).getByText('1999')).toBeInTheDocument()
   expect(within(dialog).getByText('A short synopsis.')).toBeInTheDocument()
   expect(within(dialog).getByText('1h 52m')).toBeInTheDocument()
-  expect(within(dialog).getByText('Ends around 21:52–22:07')).toBeInTheDocument()
+  expect(within(dialog).getByText('Ends around 9:52 PM–10:07 PM')).toBeInTheDocument()
   expect(confetti).toHaveBeenCalledTimes(1)
 })
 

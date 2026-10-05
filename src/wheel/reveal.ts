@@ -1,8 +1,9 @@
 const finishWindowMinutes = 15
 
 function clock(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  const hours = date.getHours()
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${hours % 12 || 12}:${minutes} ${hours < 12 ? 'AM' : 'PM'}`
 }
 
 // Reveal time plus runtime, then 15 minutes more, in the browser's time zone.
