@@ -1,6 +1,5 @@
 import { posterUrl } from '../tmdb/client.ts'
-import { useApp } from '../state/store.ts'
-import { buildWedges, type Wedge } from '../wheel/wedges.ts'
+import type { Wedge } from '../wheel/wedges.ts'
 
 const radius = 100
 const posterInner = 22
@@ -87,9 +86,4 @@ export default function Wheel({ wedges, rotation }: Props) {
       <polygon data-testid="pointer" points="-6,-108 6,-108 0,-92" fill="#ffd54a" stroke="#000" strokeWidth="1" />
     </svg>
   )
-}
-
-export function LiveWheel() {
-  const { night, roster } = useApp()
-  return <Wheel wedges={buildWedges(night, roster)} rotation={0} />
 }

@@ -7,12 +7,14 @@ interface Props {
   client: TmdbClient
   onAuthError: () => void
   onChangeToken: () => void
+  locked?: boolean
 }
 
 export default function NightSetup({
   client,
   onAuthError,
   onChangeToken,
+  locked = false,
 }: Props) {
   const { roster, night, addViewer, removeViewer, setPresent, newNight } =
     useApp()
@@ -27,6 +29,7 @@ export default function NightSetup({
 
   return (
     <section>
+      <fieldset disabled={locked} className="setup">
       <h2>Tonight's viewers</h2>
       <p>Headcount: {night.presentIds.length}</p>
       <ul>
@@ -73,6 +76,7 @@ export default function NightSetup({
       <button type="button" onClick={onChangeToken}>
         Change TMDB token
       </button>
+      </fieldset>
     </section>
   )
 }
