@@ -59,6 +59,7 @@ test('a slice count redraws the wheel at once, and a weight is kept', () => {
   const store = setup()
   openEditor()
   fireEvent.change(screen.getByLabelText('Slices for Ann'), { target: { value: '5' } })
+  fireEvent.blur(screen.getByLabelText('Slices for Ann'))
   expect(wedgeLabels().filter((l) => l === 'An')).toHaveLength(5)
   fireEvent.change(screen.getByLabelText('Weight for Bo'), { target: { value: '7.5' } })
   expect(store.getState().night.layout?.viewers.b.weight).toBe(7.5)
@@ -76,6 +77,7 @@ test('invalid input changes nothing', () => {
     ['Weight for Ann', '100'],
   ]) {
     fireEvent.change(screen.getByLabelText(label), { target: { value } })
+    fireEvent.blur(screen.getByLabelText(label))
   }
   expect(wedgeLabels()).toEqual(before)
   expect(store.getState().night.layout).toBeNull()
@@ -103,6 +105,7 @@ test('moving a slice hand-places the order, which Spread evenly tidies', () => {
   expect(screen.getByText(/placed by hand/)).toBeInTheDocument()
 
   fireEvent.change(screen.getByLabelText('Slices for Bo'), { target: { value: '4' } })
+  fireEvent.keyDown(screen.getByLabelText('Slices for Bo'), { key: 'Enter' })
   expect(wedgeLabels()).toHaveLength(9)
   expect(wedgeLabels().slice(0, 2)).toEqual([before[1], before[0]])
 
@@ -115,6 +118,7 @@ test('Reset to default restores the default wheel', () => {
   openEditor()
   const before = wedgeLabels()
   fireEvent.change(screen.getByLabelText('Slices for Ann'), { target: { value: '5' } })
+  fireEvent.blur(screen.getByLabelText('Slices for Ann'))
   fireEvent.click(screen.getByRole('button', { name: 'Reset to default' }))
   expect(wedgeLabels()).toEqual(before)
   expect(store.getState().night.layout).toBeNull()
@@ -173,4 +177,16 @@ test('a slice can be dragged with the keyboard through its handle', async () => 
   // jsdom has no layout, so a drop may not move anything; the handle must at least work.
   expect(wedgeLabels()).toHaveLength(before.length)
   expect(handle).toBeInTheDocument()
+})
+
+test('typing a two-digit slice count applies it once, not digit by digit', () => {
+  const store = setup()
+  openEditor()
+  fireEvent.click(screen.getByRole('button', { name: 'Move slice 1 down' }))
+  const field = screen.getByLabelText('Slices for Ann')
+  fireEvent.change(field, { target: { value: '1' } })
+  expect(store.getState().night.layout?.viewers.a.slices).toBe(3)
+  fireEvent.change(field, { target: { value: '12' } })
+  fireEvent.blur(field)
+  expect(store.getState().night.layout?.viewers.a.slices).toBe(12)
 })

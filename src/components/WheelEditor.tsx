@@ -36,13 +36,20 @@ interface FieldProps {
   min: number
   max: number
   isValid: (n: number) => boolean
+  // Slice counts wait for blur or Enter: typing 12 would otherwise apply 1 first.
+  deferred?: boolean
   onCommit: (n: number) => void
 }
 
-// Commits each valid value as it is typed; anything else changes nothing and
-// the field shows the saved value again when it loses focus.
-function NumberField({ label, value, step, min, max, isValid, onCommit }: FieldProps) {
+// Commits a valid value as it is typed (or on blur or Enter when deferred);
+// anything else changes nothing and the field shows the saved value again
+// when it loses focus.
+function NumberField({ label, value, step, min, max, isValid, deferred, onCommit }: FieldProps) {
   const [draft, setDraft] = useState<string | null>(null)
+  function commit(text: string) {
+    const n = Number(text)
+    if (text.trim() !== '' && isValid(n)) onCommit(n)
+  }
   return (
     <label>
       {label}
@@ -54,10 +61,15 @@ function NumberField({ label, value, step, min, max, isValid, onCommit }: FieldP
         value={draft ?? String(value)}
         onChange={(e) => {
           setDraft(e.target.value)
-          const n = Number(e.target.value)
-          if (e.target.value.trim() !== '' && isValid(n)) onCommit(n)
+          if (!deferred) commit(e.target.value)
         }}
-        onBlur={() => setDraft(null)}
+        onKeyDown={(e) => {
+          if (deferred && e.key === 'Enter') commit(e.currentTarget.value)
+        }}
+        onBlur={(e) => {
+          if (deferred) commit(e.currentTarget.value)
+          setDraft(null)
+        }}
       />
     </label>
   )
@@ -145,6 +157,7 @@ export default function WheelEditor({ locked = false, onDone }: Props) {
                   min={1}
                   max={12}
                   isValid={isValidSliceCount}
+                  deferred
                   onCommit={(n) => setViewerSlices(id, n)}
                 />
               </li>
