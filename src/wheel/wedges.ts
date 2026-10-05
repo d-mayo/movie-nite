@@ -1,4 +1,5 @@
 import { viewersOnWheel, type AppState, type Nomination } from '../state/model.ts'
+import { resolveLayout } from './edit.ts'
 import { defaultLayout, sliceArcs, type Arc, type Slice } from './layout.ts'
 
 export interface Wedge {
@@ -13,9 +14,11 @@ function colorFor(index: number): string {
   return `hsl(${(index * 137.5) % 360} 55% 42%)`
 }
 
-// Resolves every slice of the default layout with what a wedge draws.
+// Resolves every slice of the edited layout, or of the default one, with what a wedge draws.
 export function buildWedges(night: AppState['night'], roster: AppState['roster']): Wedge[] {
-  const slices = defaultLayout(viewersOnWheel(night), night.nominations)
+  const slices = night.layout
+    ? resolveLayout(night.layout)
+    : defaultLayout(viewersOnWheel(night), night.nominations)
   const arcs = sliceArcs(slices)
   return slices.map((slice, i) => {
     if (slice.kind === 'wildcard') {

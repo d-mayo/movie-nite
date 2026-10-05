@@ -142,3 +142,16 @@ footer p {
   list-style: none;
   padding: 0;
 }
+
+.wheel-editor li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.wheel-editor input[type='number'] {
+  width: 4.5rem;
+  margin-left: 0.25rem;
+}

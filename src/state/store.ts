@@ -3,15 +3,23 @@ import { useStore } from 'zustand'
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import {
   addViewer,
+  addWheelWildcard,
   clearHoldover,
   defaultState,
   endNight,
+  moveWheelSlice,
   newNight,
   nominate,
   recordOutcome,
   removeViewer,
+  removeWheelWildcard,
+  resetLayout,
   setPresent,
   setToken,
+  setViewerSliceCount,
+  setViewerWeightOnWheel,
+  setWildcardWeightOnWheel,
+  spreadWheelEvenly,
   type AppState,
   type Nomination,
   type Outcome,
@@ -28,6 +36,14 @@ export interface AppActions {
   recordOutcome(nomination: Nomination, outcome: Outcome, fromWheel: boolean): void
   endNight(): void
   clearHoldover(): void
+  setViewerWeight(viewerId: string, weight: number): void
+  setViewerSlices(viewerId: string, count: number): void
+  setWildcardWeight(id: string, weight: number): void
+  addWildcard(): void
+  removeWildcard(id: string): void
+  moveSlice(from: number, to: number): void
+  spreadEvenly(): void
+  resetLayout(): void
 }
 
 export type AppStore = StoreApi<AppState & AppActions>
@@ -68,6 +84,14 @@ export function createAppStore(persistence: Persistence): AppStore {
         update((s) => recordOutcome(s, nomination, outcome, fromWheel)),
       endNight: () => update(endNight),
       clearHoldover: () => update(clearHoldover),
+      setViewerWeight: (id, weight) => update((s) => setViewerWeightOnWheel(s, id, weight)),
+      setViewerSlices: (id, count) => update((s) => setViewerSliceCount(s, id, count)),
+      setWildcardWeight: (id, weight) => update((s) => setWildcardWeightOnWheel(s, id, weight)),
+      addWildcard: () => update(addWheelWildcard),
+      removeWildcard: (id) => update((s) => removeWheelWildcard(s, id)),
+      moveSlice: (from, to) => update((s) => moveWheelSlice(s, from, to)),
+      spreadEvenly: () => update(spreadWheelEvenly),
+      resetLayout: () => update(resetLayout),
     }
   })
 
