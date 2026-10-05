@@ -29,31 +29,63 @@ footer p {
 
 @media (min-width: 900px) {
   .night {
-    flex-direction: row;
-    align-items: flex-start;
-    justify-content: center;
-  }
-
-  .night > * {
-    flex: 1 1 0;
-    max-width: 560px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr);
+    align-items: start;
+    gap: 2rem;
   }
 }
 
-.wheel {
+.wheel-stage {
+  position: relative;
   width: 100%;
-  max-width: 520px;
+  max-width: min(860px, 88vh);
+}
+
+.wheel {
+  display: block;
+  width: 100%;
+  filter: drop-shadow(0 6px 18px rgb(0 0 0 / 0.45));
 }
 
 .wheel-empty {
   display: grid;
   place-items: center;
   width: 100%;
-  max-width: 520px;
   aspect-ratio: 1;
   border: 2px dashed currentColor;
   border-radius: 50%;
   opacity: 0.6;
+}
+
+.spin-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: 17%;
+  aspect-ratio: 1;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  background: #e5484d;
+  color: #fff;
+  font-size: clamp(0.9rem, 2.6vw, 1.6rem);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.5);
+}
+
+.spin-button:hover:not(:disabled) {
+  background: #f2555a;
+}
+
+.spin-button:disabled {
+  background: #555;
+  border-color: #aaa;
+  color: #ccc;
+  cursor: not-allowed;
 }
 
 .wheel-panel {

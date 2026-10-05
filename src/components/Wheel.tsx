@@ -2,7 +2,7 @@ import { posterUrl } from '../tmdb/client.ts'
 import type { Wedge } from '../wheel/wedges.ts'
 
 const radius = 100
-const posterInner = 22
+const posterInner = 26
 const titleMinDegrees = 24
 const titleMaxChars = 14
 
@@ -22,7 +22,7 @@ function clip(text: string): string {
 
 // A rough text width in SVG units, enough to size the backing under a label.
 function labelWidth(text: string | null): number {
-  return (text ?? '').length * 3.8
+  return (text ?? '').length * 4.7
 }
 
 function WedgeShape({ wedge, id }: { wedge: Wedge; id: string }) {
@@ -35,7 +35,7 @@ function WedgeShape({ wedge, id }: { wedge: Wedge; id: string }) {
   const showTitle = nomination !== null && width >= titleMinDegrees
   const backing = Math.max(
     labelWidth(label),
-    showTitle ? (labelWidth(clip(nomination.title)) * 4) / 6 : 0,
+    showTitle ? (labelWidth(clip(nomination.title)) * 5) / 7.5 : 0,
   )
 
   return (
@@ -61,18 +61,18 @@ function WedgeShape({ wedge, id }: { wedge: Wedge; id: string }) {
       <g transform={`rotate(${mid - 90})`} fill="#fff" className="wedge-text">
         <rect
           x={radius - 6 - backing}
-          y={showTitle ? -5 : -3.5}
+          y={showTitle ? -6.5 : -4.5}
           width={backing + 4}
-          height={showTitle ? 13 : 7}
+          height={showTitle ? 16 : 9}
           rx="1.5"
           fill="#000"
           opacity="0.6"
         />
-        <text x={radius - 4} y={showTitle ? -1.5 : 0} textAnchor="end" dominantBaseline="central" fontSize="6" fontWeight="bold">
+        <text x={radius - 4} y={showTitle ? -2 : 0} textAnchor="end" dominantBaseline="central" fontSize="7.5" fontWeight="bold">
           {label}
         </text>
         {showTitle && (
-          <text x={radius - 4} y={5} textAnchor="end" dominantBaseline="central" fontSize="4">
+          <text x={radius - 4} y={6} textAnchor="end" dominantBaseline="central" fontSize="5">
             {clip(nomination.title)}
           </text>
         )}

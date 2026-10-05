@@ -94,11 +94,18 @@ export default function WheelPanel({
 
   return (
     <div className="wheel-panel">
-      <Wheel wedges={wedges} rotation={rotation} />
+      <div className="wheel-stage">
+        <Wheel wedges={wedges} rotation={rotation} />
+        <button
+          type="button"
+          className="spin-button"
+          onClick={start}
+          disabled={!canSpin || spin !== null}
+        >
+          Spin
+        </button>
+      </div>
       {reason && <p>{reason}</p>}
-      <button type="button" onClick={start} disabled={!canSpin || spin !== null}>
-        Spin
-      </button>
       {spin?.revealedAt && (
         <Reveal
           wedge={spin.wedges[spin.drawn]}
