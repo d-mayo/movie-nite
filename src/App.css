@@ -16,3 +16,39 @@ footer {
 footer p {
   margin: 0;
 }
+
+.night {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .night {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .night > * {
+    flex: 1 1 0;
+    max-width: 560px;
+  }
+}
+
+.wheel {
+  width: 100%;
+  max-width: 520px;
+}
+
+.wheel-empty {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 520px;
+  aspect-ratio: 1;
+  border: 2px dashed currentColor;
+  border-radius: 50%;
+  opacity: 0.6;
+}

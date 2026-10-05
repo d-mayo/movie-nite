@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import tmdbLogo from './assets/tmdb-logo.svg'
 import './App.css'
 import NightSetup from './components/NightSetup.tsx'
+import { LiveWheel } from './components/Wheel.tsx'
 import TokenPrompt from './components/TokenPrompt.tsx'
 import { AppStoreContext, useApp, type AppStore } from './state/store.ts'
 import { createTmdbClient } from './tmdb/client.ts'
@@ -36,14 +37,17 @@ function Screen({ fetchFn }: { fetchFn?: typeof fetch }) {
 
   if (!token || !client) return <TokenPrompt message={message} onSubmit={saveToken} />
   return (
-    <NightSetup
-      client={client}
-      onAuthError={handleAuthError}
-      onChangeToken={() => {
-        setMessage(null)
-        setToken(null)
-      }}
-    />
+    <div className="night">
+      <LiveWheel />
+      <NightSetup
+        client={client}
+        onAuthError={handleAuthError}
+        onChangeToken={() => {
+          setMessage(null)
+          setToken(null)
+        }}
+      />
+    </div>
   )
 }
 
