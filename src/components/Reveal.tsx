@@ -98,7 +98,7 @@ function FilmReveal({ nomination, at, byline, onOutcome, onClose }: FilmRevealPr
   return (
     <>
       <button type="button" className="reveal-close" aria-label="Close" onClick={onClose}>
-        ×
+        Ã—
       </button>
       <h2 id="reveal-heading">{nomination.title}</h2>
       <p>{byline}</p>
