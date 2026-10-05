@@ -39,7 +39,7 @@ const cy = landOn((s) => s.kind === 'nomination' && s.viewerId === 'c')
 const wildcard = landOn((s) => s.kind === 'wildcard')
 
 // Ann and Bo nominated film 1, Cy film 2.
-function setupNight(random: () => number, fetchFn: typeof fetch = vi.fn()) {
+function setupNight(random: () => number, fetchFn: typeof fetch = vi.fn(), spin = true) {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
@@ -57,7 +57,7 @@ function setupNight(random: () => number, fetchFn: typeof fetch = vi.fn()) {
     }),
   )
   render(<App store={store} fetchFn={fetchFn} random={random} spinMs={20} />)
-  fireEvent.click(spinButton())
+  if (spin) fireEvent.click(spinButton())
   return store
 }
 
@@ -175,4 +175,37 @@ test('Close on a wildcard pick changes nothing', async () => {
   expect(store.getState().night).toBe(before)
   expect(store.getState().holdover).toBeNull()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+test('End night shows the summary, disables Spin and offers New night', () => {
+  const store = setupNight(ann, vi.fn(), false)
+  fireEvent.click(screen.getByRole('button', { name: 'End night' }))
+  expect(store.getState().night.ended).toBe(true)
+  const summary = screen.getByRole('region', { name: 'Night over' })
+  expect(within(summary).getByText('No films were watched tonight.')).toBeInTheDocument()
+  expect(spinButton()).toBeDisabled()
+  expect(screen.queryByRole('button', { name: 'End night' })).toBeNull()
+  expect(within(summary).getByRole('button', { name: 'New night' })).toBeInTheDocument()
+})
+
+test('End night is absent while a reveal is open', async () => {
+  setupNight(ann)
+  await screen.findByRole('dialog')
+  expect(screen.queryByRole('button', { name: 'End night' })).toBeNull()
+})
+
+test('the summary lists the watched films and the Watch next session film, and New night keeps it', async () => {
+  const store = setupNight(ann)
+  act(() => store.getState().recordOutcome(film(5), 'tooLong', false))
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Watch' }))
+  act(() => store.getState().endNight())
+  const summary = screen.getByRole('region', { name: 'Night over' })
+  expect(within(summary).getByText('Film 1 (2000)')).toBeInTheDocument()
+  expect(within(summary).getByText(/Watch next session: Film 5/)).toBeInTheDocument()
+  fireEvent.click(within(summary).getByRole('button', { name: 'New night' }))
+  expect(screen.queryByRole('region', { name: 'Night over' })).toBeNull()
+  expect(store.getState().night.wonFilms).toEqual([])
+  expect(store.getState().holdover?.tmdbId).toBe(5)
+  expect(screen.getAllByTestId('wedge')).toHaveLength(12)
 })

@@ -121,3 +121,8 @@ footer p {
   list-style: none;
   padding: 0;
 }
+
+.night-over {
+  width: 100%;
+  text-align: center;
+}

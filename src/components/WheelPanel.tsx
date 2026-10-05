@@ -5,6 +5,7 @@ import { useApp } from '../state/store.ts'
 import { cryptoRandom, drawSlice, restRotation } from '../wheel/draw.ts'
 import { buildWedges, type Wedge } from '../wheel/wedges.ts'
 import { prefersReducedMotion } from '../wheel/reducedMotion.ts'
+import NightOver from './NightOver.tsx'
 import Reveal from './Reveal.tsx'
 import Wheel from './Wheel.tsx'
 
@@ -35,7 +36,7 @@ export default function WheelPanel({
   onAuthError,
   onBusyChange,
 }: Props) {
-  const { night, roster, recordOutcome } = useApp()
+  const { night, roster, recordOutcome, endNight } = useApp()
   const [rotation, setRotation] = useState(0)
   // Fixed when Spin is pressed and dropped on Close, so the wheel, the draw
   // and the reveal agree even if the store changes meanwhile.
@@ -119,6 +120,12 @@ export default function WheelPanel({
         </button>
       </div>
       {reason && <p>{reason}</p>}
+      {!night.ended && spin === null && (
+        <button type="button" onClick={endNight}>
+          End night
+        </button>
+      )}
+      {night.ended && <NightOver />}
       {spin?.revealedAt && (
         <Reveal
           wedge={spin.wedges[spin.drawn]}
