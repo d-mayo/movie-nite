@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import tmdbLogo from './assets/tmdb-logo.svg'
 import './App.css'
 import NightSetup from './components/NightSetup.tsx'
+import WheelEditor from './components/WheelEditor.tsx'
 import WheelPanel from './components/WheelPanel.tsx'
 import TokenPrompt from './components/TokenPrompt.tsx'
 import { AppStoreContext, useApp, type AppStore } from './state/store.ts'
@@ -17,9 +18,10 @@ interface Props {
 const rejectedMessage = 'TMDB rejected the saved token'
 
 function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
-  const { settings, setToken } = useApp()
+  const { settings, night, setToken } = useApp()
   const [message, setMessage] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
+  const [editing, setEditing] = useState(false)
   const token = settings.tmdbToken
 
   async function saveToken(candidate: string) {
@@ -40,6 +42,9 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
     [token, fetchFn],
   )
 
+  // The editor gives way to setup when the night ends.
+  if (editing && night.ended) setEditing(false)
+
   if (!token || !client) return <TokenPrompt message={message} onSubmit={saveToken} />
   return (
     <div className="night">
@@ -50,15 +55,26 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
         onAuthError={handleAuthError}
         onBusyChange={setLocked}
       />
-      <NightSetup
-        client={client}
-        onAuthError={handleAuthError}
-        locked={locked}
-        onChangeToken={() => {
-          setMessage(null)
-          setToken(null)
-        }}
-      />
+      {editing ? (
+        <WheelEditor locked={locked} onDone={() => setEditing(false)} />
+      ) : (
+        <div>
+          {!locked && !night.ended && (
+            <button type="button" onClick={() => setEditing(true)}>
+              Edit wheel
+            </button>
+          )}
+          <NightSetup
+            client={client}
+            onAuthError={handleAuthError}
+            locked={locked}
+            onChangeToken={() => {
+              setMessage(null)
+              setToken(null)
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }
