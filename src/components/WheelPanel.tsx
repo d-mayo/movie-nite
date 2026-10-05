@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../state/store.ts'
 import { cryptoRandom, drawSlice, restRotation } from '../wheel/draw.ts'
 import { buildWedges, type Wedge } from '../wheel/wedges.ts'
+import { prefersReducedMotion } from '../wheel/reducedMotion.ts'
+import Reveal from './Reveal.tsx'
 import Wheel from './Wheel.tsx'
 
 const defaultSpinMs = 6000
@@ -18,14 +20,6 @@ interface Props {
   random?: () => number
   spinMs?: number
   onBusyChange: (busy: boolean) => void
-}
-
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  )
 }
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3
@@ -106,11 +100,11 @@ export default function WheelPanel({
         Spin
       </button>
       {spin?.revealedAt && (
-        <div role="dialog" aria-label="Winner">
-          <button type="button" onClick={close}>
-            Close
-          </button>
-        </div>
+        <Reveal
+          wedge={spin.wedges[spin.drawn]}
+          revealedAt={spin.revealedAt}
+          onClose={close}
+        />
       )}
     </div>
   )
