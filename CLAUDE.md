@@ -28,4 +28,4 @@ A static single-page app (React, TypeScript, Vite) hosted on GitHub Pages, with 
 - Vite's `base` is `/movie-nite/`, so local URLs and the live site are under that path (http://localhost:5173/movie-nite/, not the root).
 - Node 22 is pinned in `.nvmrc`; CI uses it, so a newer local Node can hide a CI failure.
 - Deploys happen only after a merge to `main` (the `github-pages` environment accepts only the default branch), so a live-site check can't be done before merge; check PRs locally with `npm run build` and `npm run preview`, and write live-site checks in plans as post-merge follow-ups.
-- On Windows, stop any running `npm run dev` before `npm ci`: the dev server locks a native file, so `npm ci` fails and leaves `node_modules` half-removed. If PowerShell blocks `npm.ps1`, run `npm.cmd` instead.
+- On Windows, stop any running `npm run dev` before `npm ci`: the dev server locks a native file, so `npm ci` fails and leaves `node_modules` half-removed. If PowerShell blocks the npm script, run npm.cmd instead.
