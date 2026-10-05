@@ -5,11 +5,14 @@ main {
 
 footer {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  padding: 1.5rem 1rem;
-  font-size: 0.85rem;
+  padding: 1rem;
+  font-size: 0.7rem;
+  opacity: 0.6;
   text-align: center;
 }
 

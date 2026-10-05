@@ -63,7 +63,7 @@ function App({ store, fetchFn, random, spinMs }: Props) {
         <Screen fetchFn={fetchFn} random={random} spinMs={spinMs} />
       </main>
       <footer>
-        <img src={tmdbLogo} alt="TMDB" height="20" />
+        <img src={tmdbLogo} alt="TMDB" height="12" />
         <p>
           This product uses the TMDB API but is not endorsed or certified by
           TMDB.
