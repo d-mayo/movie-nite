@@ -46,7 +46,7 @@ function setup(
 
 const spinButton = () => screen.getByRole('button', { name: 'Spin' })
 const hrefs = () =>
-  [...document.querySelectorAll('image')].map((i) => i.getAttribute('href'))
+  Array.from(document.querySelectorAll('image')).map((i) => i.getAttribute('href'))
 
 test('spin is disabled with no viewers', () => {
   const store = createAppStore(
