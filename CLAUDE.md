@@ -13,7 +13,7 @@ A static single-page app (React, TypeScript, Vite) hosted on GitHub Pages, with 
 - Full check (what CI runs): `npm ci && npm run lint && npm test && npm run build`
 
 ## Layout
-<!-- covers: src/**, .github/workflows/*.yml -->
+<!-- covers: src/**, .github/workflows/*.yml; verified: 2026-10-05 -->
 - `src/`: the React app: `src/main.tsx` builds the store on the `localStorage` persistence and mounts `src/App.tsx`; `src/assets/` holds the TMDB logo; `src/test/setup.ts` is the Vitest setup
 - `src/state/`: the serializable app state (`src/state/model.ts` pure rules, including the night rules (who is on the wheel, recording a Watch or Too long, ending and restarting a night), `src/state/persistence.ts` the `Persistence` interface and its `localStorage` and in-memory versions, `src/state/store.ts` the Zustand store and React hook); only `src/state/persistence.ts` touches `localStorage`
 - `src/tmdb/`: the TMDB client (injectable `fetch`, `TmdbAuthError` on 401)
