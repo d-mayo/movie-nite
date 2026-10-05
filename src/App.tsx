@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import tmdbLogo from './assets/tmdb-logo.svg'
 import './App.css'
 import NightSetup from './components/NightSetup.tsx'
@@ -25,15 +25,20 @@ function Screen({ fetchFn }: { fetchFn?: typeof fetch }) {
   }
 
   // The one place a TmdbAuthError from any TMDB call ends up.
-  const handleAuthError = () => {
+  const handleAuthError = useCallback(() => {
     setMessage(rejectedMessage)
     setToken(null)
-  }
-  void handleAuthError
+  }, [setToken])
+  const client = useMemo(
+    () => (token ? createTmdbClient(token, fetchFn) : null),
+    [token, fetchFn],
+  )
 
-  if (!token) return <TokenPrompt message={message} onSubmit={saveToken} />
+  if (!token || !client) return <TokenPrompt message={message} onSubmit={saveToken} />
   return (
     <NightSetup
+      client={client}
+      onAuthError={handleAuthError}
       onChangeToken={() => {
         setMessage(null)
         setToken(null)

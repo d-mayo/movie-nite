@@ -3,6 +3,7 @@ import { expect, test, vi } from 'vitest'
 import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { AppStoreContext, createAppStore } from '../state/store.ts'
+import { createTmdbClient } from '../tmdb/client.ts'
 import NightSetup from './NightSetup.tsx'
 
 const film: Nomination = {
@@ -25,7 +26,11 @@ function setup() {
   const onChangeToken = vi.fn()
   render(
     <AppStoreContext.Provider value={store}>
-      <NightSetup onChangeToken={onChangeToken} />
+      <NightSetup
+        client={createTmdbClient('tok', vi.fn())}
+        onAuthError={vi.fn()}
+        onChangeToken={onChangeToken}
+      />
     </AppStoreContext.Provider>,
   )
   return { store, onChangeToken }

@@ -1,7 +1,19 @@
 import { useState, type FormEvent } from 'react'
 import { useApp } from '../state/store.ts'
+import type { TmdbClient } from '../tmdb/client.ts'
+import NominationSearch from './NominationSearch.tsx'
 
-export default function NightSetup({ onChangeToken }: { onChangeToken: () => void }) {
+interface Props {
+  client: TmdbClient
+  onAuthError: () => void
+  onChangeToken: () => void
+}
+
+export default function NightSetup({
+  client,
+  onAuthError,
+  onChangeToken,
+}: Props) {
   const { roster, night, addViewer, removeViewer, setPresent, newNight } =
     useApp()
   const [name, setName] = useState('')
@@ -35,6 +47,14 @@ export default function NightSetup({ onChangeToken }: { onChangeToken: () => voi
             >
               Remove
             </button>
+            {night.presentIds.includes(viewer.id) && (
+              <NominationSearch
+                viewerId={viewer.id}
+                viewerName={viewer.name}
+                client={client}
+                onAuthError={onAuthError}
+              />
+            )}
           </li>
         ))}
       </ul>
