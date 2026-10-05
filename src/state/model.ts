@@ -116,16 +116,17 @@ export function nominate(state: AppState, viewerId: string, nomination: Nominati
   }
 }
 
+// Leftover nominations (films that never won) carry over until their viewer changes them.
 export function newNight(state: AppState): AppState {
+  const nominations = Object.fromEntries(
+    Object.entries(state.night.nominations).filter(
+      ([, film]) => !state.night.wonFilms.includes(film.tmdbId),
+    ),
+  )
   return {
     ...state,
-    night: {
-      ...state.night,
-      nominations: {},
-      wonFilms: [],
-      watched: [],
-      ended: false,
-    },
+    night: { ...state.night, nominations, wonFilms: [], watched: [], ended: false },
+    holdover: null,
   }
 }
 

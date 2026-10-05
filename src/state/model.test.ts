@@ -80,12 +80,12 @@ describe('nominate', () => {
 })
 
 describe('newNight', () => {
-  test('clears nominations, keeps roster, token and ticks', () => {
+  test('keeps leftover nominations, roster, token and ticks', () => {
     let s = setToken(defaultState, 'tok')
     s = addViewer(s, 'Ann', 'a')
     s = nominate(s, 'a', film(1))
     s = newNight(s)
-    expect(s.night.nominations).toEqual({})
+    expect(s.night.nominations.a.tmdbId).toBe(1)
     expect(s.night.presentIds).toEqual(['a'])
     expect(s.roster).toHaveLength(1)
     expect(s.settings.tmdbToken).toBe('tok')
@@ -173,17 +173,17 @@ describe('endNight and clearHoldover', () => {
 })
 
 describe('newNight with a night in progress', () => {
-  test('clears the night fields, keeps roster, ticks, token and holdover', () => {
-    let s = setToken(three(), 'tok')
+  test('clears won films, watched, ended and the holdover; keeps leftovers, roster, ticks, token', () => {
+    let s = nominate(addViewer(setToken(three(), 'tok'), 'Di', 'd'), 'd', film(3))
     s = recordOutcome(s, film(1), 'tooLong', true)
     s = endNight(recordOutcome(s, film(2), 'watch', true))
     s = newNight(s)
-    expect(s.night.nominations).toEqual({})
+    expect(Object.keys(s.night.nominations)).toEqual(['d'])
     expect(s.night.wonFilms).toEqual([])
     expect(s.night.watched).toEqual([])
     expect(s.night.ended).toBe(false)
-    expect(s.night.presentIds).toEqual(['a', 'b', 'c'])
-    expect(s.holdover?.tmdbId).toBe(1)
+    expect(s.night.presentIds).toEqual(['a', 'b', 'c', 'd'])
+    expect(s.holdover).toBeNull()
     expect(s.settings.tmdbToken).toBe('tok')
   })
 })

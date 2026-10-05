@@ -65,17 +65,22 @@ test('a duplicate name is not added', () => {
   expect(screen.getAllByRole('checkbox')).toHaveLength(1)
 })
 
-test('New night is hidden without nominations and clears them when clicked', () => {
+test('New night is hidden until the night has progress, then keeps leftover nominations', () => {
   const { store } = setup()
   add('Ann')
+  add('Bo')
   expect(screen.queryByRole('button', { name: 'New night' })).toBeNull()
 
-  const ann = store.getState().roster[0].id
+  const [ann, bo] = store.getState().roster.map((v) => v.id)
   act(() => store.getState().nominate(ann, film))
+  act(() => store.getState().nominate(bo, { ...film, tmdbId: 2 }))
+  expect(screen.queryByRole('button', { name: 'New night' })).toBeNull()
+  act(() => store.getState().recordOutcome(film, 'tooLong', true))
   fireEvent.click(screen.getByRole('button', { name: 'New night' }))
-  expect(store.getState().night.nominations).toEqual({})
-  expect(store.getState().night.presentIds).toEqual([ann])
-  expect(store.getState().roster).toHaveLength(1)
+  expect(Object.keys(store.getState().night.nominations)).toEqual([bo])
+  expect(store.getState().holdover).toBeNull()
+  expect(store.getState().night.presentIds).toEqual([ann, bo])
+  expect(store.getState().roster).toHaveLength(2)
   expect(screen.queryByRole('button', { name: 'New night' })).toBeNull()
 })
 

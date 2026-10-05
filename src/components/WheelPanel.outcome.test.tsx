@@ -194,7 +194,7 @@ test('End night is absent while a reveal is open', async () => {
   expect(screen.queryByRole('button', { name: 'End night' })).toBeNull()
 })
 
-test('the summary lists the watched films and the Watch next session film, and New night keeps it', async () => {
+test('the summary lists the watched films and the Watch next session film, and New night clears the board of winners and the holdover', async () => {
   const store = setupNight(ann)
   act(() => store.getState().recordOutcome(film(5), 'tooLong', false))
   const dialog = await screen.findByRole('dialog')
@@ -206,6 +206,8 @@ test('the summary lists the watched films and the Watch next session film, and N
   fireEvent.click(within(summary).getByRole('button', { name: 'New night' }))
   expect(screen.queryByRole('region', { name: 'Night over' })).toBeNull()
   expect(store.getState().night.wonFilms).toEqual([])
-  expect(store.getState().holdover?.tmdbId).toBe(5)
+  expect(store.getState().holdover).toBeNull()
+  // Ann and Bo (film 1) won; Cy's film 2 stays on the wheel.
+  expect(Object.keys(store.getState().night.nominations)).toEqual(['c'])
   expect(screen.getAllByTestId('wedge')).toHaveLength(12)
 })

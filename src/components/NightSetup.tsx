@@ -13,13 +13,10 @@ interface Props {
 }
 
 export default function NightSetup({ client, onAuthError, onChangeToken, locked = false }: Props) {
-  const { roster, night, addViewer, removeViewer, setPresent, newNight } = useApp()
+  const { roster, night, holdover, addViewer, removeViewer, setPresent, newNight } = useApp()
   const [name, setName] = useState('')
   const nightStarted =
-    Object.keys(night.nominations).length > 0 ||
-    night.wonFilms.length > 0 ||
-    night.watched.length > 0 ||
-    night.ended
+    night.wonFilms.length > 0 || night.watched.length > 0 || night.ended || holdover !== null
 
   function isDone(viewerId: string): boolean {
     const film = night.nominations[viewerId]

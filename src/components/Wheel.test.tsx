@@ -63,9 +63,7 @@ test('the wheel follows viewers and nominations live', () => {
   expect(wedges()).toHaveLength(4)
 
   act(() => store.getState().nominate(id, film(4, '/c.jpg')))
-  fireEvent.click(screen.getByRole('button', { name: 'New night' }))
-  expect(images()).toHaveLength(0)
-  expect(wedges()).toHaveLength(4)
+  expect(screen.queryByRole('button', { name: 'New night' })).toBeNull()
 
   fireEvent.click(screen.getByRole('button', { name: 'Remove Ann' }))
   expect(wedges()).toHaveLength(0)

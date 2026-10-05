@@ -77,7 +77,6 @@ test('spinning locks setup, rests in the drawn slice and shows a snapshot', asyn
   expect(screen.getByLabelText('Ann')).toBeDisabled()
   expect(screen.getByLabelText('Add a viewer')).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled()
-  expect(screen.getByRole('button', { name: 'New night' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Change TMDB token' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Change film for Ann' })).toBeDisabled()
 
