@@ -61,6 +61,7 @@ test('stored data missing a field is merged over the defaults', () => {
     wonFilms: [],
     watched: [],
     ended: false,
+    layout: null,
   })
   expect(store.getState().holdover).toBeNull()
 })
@@ -82,4 +83,25 @@ test('night progress and the holdover survive a reload, and clearing is saved', 
 
   b.getState().clearHoldover()
   expect(createAppStore(persistence).getState().holdover).toBeNull()
+})
+
+test('an edited layout survives a reload, including hand-placed', () => {
+  const persistence = createMemoryPersistence()
+  const a = createAppStore(persistence)
+  a.getState().addViewer('Ann')
+  a.getState().addViewer('Bo')
+  a.getState().setViewerWeight(a.getState().roster[0].id, 9)
+  a.getState().moveSlice(0, 2)
+
+  const b = createAppStore(persistence)
+  expect(b.getState().night.layout).toEqual(a.getState().night.layout)
+  expect(b.getState().night.layout?.handPlaced).toBe(true)
+  expect(b.getState().night.layout?.viewers[a.getState().roster[0].id].weight).toBe(9)
+})
+
+test('a stored document without a layout loads with null', () => {
+  const store = createAppStore(
+    createMemoryPersistence({ ...defaultState, night: { ...defaultState.night, layout: undefined } } as never),
+  )
+  expect(store.getState().night.layout ?? null).toBeNull()
 })
