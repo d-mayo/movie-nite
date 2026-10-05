@@ -1,4 +1,20 @@
-import { useState } from 'react'
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { useState, type ReactNode } from 'react'
 import { viewersOnWheel } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import {
@@ -47,6 +63,27 @@ function NumberField({ label, value, step, min, max, isValid, onCommit }: FieldP
   )
 }
 
+function SortableSlice({ id, index, children }: { id: string; index: number; children: ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }}
+    >
+      <button
+        type="button"
+        className="drag-handle"
+        aria-label={`Drag slice ${index + 1}`}
+        {...attributes}
+        {...listeners}
+      >
+        ⠿
+      </button>
+      {children}
+    </li>
+  )
+}
+
 export default function WheelEditor({ locked = false, onDone }: Props) {
   const {
     roster,
@@ -62,7 +99,17 @@ export default function WheelEditor({ locked = false, onDone }: Props) {
   } = useApp()
   const onWheel = viewersOnWheel(night)
   const layout = night.layout ?? materialiseDefault(onWheel)
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
   const nameOf = (id: string) => roster.find((v) => v.id === id)?.name ?? ''
+
+  function dragEnd({ active, over }: DragEndEvent) {
+    if (!over || active.id === over.id) return
+    const ids = layout.order.map((r) => r.id)
+    moveSlice(ids.indexOf(String(active.id)), ids.indexOf(String(over.id)))
+  }
 
   function sliceLabel(ref: SliceRef): string {
     if (ref.kind === 'wildcard') return 'Wildcard'
@@ -139,29 +186,36 @@ export default function WheelEditor({ locked = false, onDone }: Props) {
             </button>
           </p>
         )}
-        <ol>
-          {layout.order.map((ref, i) => (
-            <li key={ref.id}>
-              {sliceLabel(ref)}
-              <button
-                type="button"
-                aria-label={`Move slice ${i + 1} up`}
-                disabled={i === 0}
-                onClick={() => moveSlice(i, i - 1)}
-              >
-                Move up
-              </button>
-              <button
-                type="button"
-                aria-label={`Move slice ${i + 1} down`}
-                disabled={i === layout.order.length - 1}
-                onClick={() => moveSlice(i, i + 1)}
-              >
-                Move down
-              </button>
-            </li>
-          ))}
-        </ol>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={dragEnd}>
+          <SortableContext
+            items={layout.order.map((r) => r.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <ol>
+              {layout.order.map((ref, i) => (
+                <SortableSlice key={ref.id} id={ref.id} index={i}>
+                  {sliceLabel(ref)}
+                  <button
+                    type="button"
+                    aria-label={`Move slice ${i + 1} up`}
+                    disabled={i === 0}
+                    onClick={() => moveSlice(i, i - 1)}
+                  >
+                    Move up
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Move slice ${i + 1} down`}
+                    disabled={i === layout.order.length - 1}
+                    onClick={() => moveSlice(i, i + 1)}
+                  >
+                    Move down
+                  </button>
+                </SortableSlice>
+              ))}
+            </ol>
+          </SortableContext>
+        </DndContext>
         <button type="button" onClick={resetLayout}>
           Reset to default
         </button>

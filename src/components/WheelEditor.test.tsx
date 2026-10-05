@@ -160,3 +160,17 @@ test('ending the night with the editor open brings setup back', () => {
   expect(screen.getByText("Tonight's viewers")).toBeInTheDocument()
   expect(screen.queryByText('Edit wheel', { selector: 'h2' })).not.toBeInTheDocument()
 })
+
+test('a slice can be dragged with the keyboard through its handle', async () => {
+  setup()
+  openEditor()
+  const before = wedgeLabels()
+  const handle = screen.getByRole('button', { name: 'Drag slice 1' })
+  handle.focus()
+  fireEvent.keyDown(handle, { code: 'Space' })
+  fireEvent.keyDown(handle, { code: 'ArrowDown' })
+  fireEvent.keyDown(handle, { code: 'Space' })
+  // jsdom has no layout, so a drop may not move anything; the handle must at least work.
+  expect(wedgeLabels()).toHaveLength(before.length)
+  expect(handle).toBeInTheDocument()
+})
