@@ -24,6 +24,7 @@ import {
   type Nomination,
   type Outcome,
 } from './model.ts'
+import { newId } from './id.ts'
 import type { Persistence } from './persistence.ts'
 import { normaliseLayout } from '../wheel/edit.ts'
 
@@ -79,7 +80,7 @@ export function createAppStore(persistence: Persistence): AppStore {
     return {
       ...mergeOverDefaults(persistence.load()),
       setToken: (token) => update((s) => setToken(s, token)),
-      addViewer: (name) => update((s) => addViewer(s, name, crypto.randomUUID())),
+      addViewer: (name) => update((s) => addViewer(s, name, newId())),
       removeViewer: (id) => update((s) => removeViewer(s, id)),
       setPresent: (id, present) => update((s) => setPresent(s, id, present)),
       nominate: (viewerId, nomination) => update((s) => nominate(s, viewerId, nomination)),

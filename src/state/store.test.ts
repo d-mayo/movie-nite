@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 import { defaultState, type Nomination } from './model.ts'
 import { createMemoryPersistence } from './persistence.ts'
 import { createAppStore } from './store.ts'
@@ -133,4 +133,19 @@ test('a saved roster name longer than 20 characters loads unchanged', () => {
     createMemoryPersistence({ ...defaultState, roster: [{ id: 'x', name }] } as never),
   )
   expect(store.getState().roster[0].name).toBe(name)
+})
+
+afterEach(() => vi.unstubAllGlobals())
+
+test('adding viewers works without crypto.randomUUID, as on a plain-HTTP origin', () => {
+  const real = globalThis.crypto
+  vi.stubGlobal('crypto', { getRandomValues: real.getRandomValues.bind(real) })
+  const store = createAppStore(createMemoryPersistence())
+  store.getState().addViewer('Ann')
+  store.getState().addViewer('Bo')
+  const { roster, night } = store.getState()
+  expect(roster.map((v) => v.name)).toEqual(['Ann', 'Bo'])
+  expect(roster[0].id).not.toBe('')
+  expect(roster[0].id).not.toBe(roster[1].id)
+  expect(night.presentIds).toEqual(roster.map((v) => v.id))
 })
