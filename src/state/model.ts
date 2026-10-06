@@ -62,8 +62,10 @@ export function setToken(state: AppState, token: string | null): AppState {
   return { ...state, settings: { ...state.settings, tmdbToken: token } }
 }
 
+export const maxNameLength = 20
+
 export function addViewer(state: AppState, name: string, id: string): AppState {
-  const trimmed = name.trim()
+  const trimmed = name.trim().slice(0, maxNameLength)
   if (!trimmed) return state
   const lower = trimmed.toLowerCase()
   if (state.roster.some((v) => v.name.toLowerCase() === lower)) return state

@@ -42,6 +42,13 @@ describe('addViewer', () => {
     expect(addViewer(s, '   ', 'b')).toBe(s)
     expect(addViewer(s, ' ANN', 'b')).toBe(s)
   })
+
+  test('keeps only the first 20 characters, before the duplicate check', () => {
+    const long = 'abcdefghijklmnopqrstuvwxy'
+    const s = addViewer(defaultState, long, 'a')
+    expect(s.roster[0].name).toBe('abcdefghijklmnopqrst')
+    expect(addViewer(s, 'ABCDEFGHIJKLMNOPQRSTzzz', 'b')).toBe(s)
+  })
 })
 
 describe('removeViewer', () => {

@@ -25,6 +25,7 @@ import {
   type Outcome,
 } from './model.ts'
 import type { Persistence } from './persistence.ts'
+import { normaliseLayout } from '../wheel/edit.ts'
 
 export interface AppActions {
   setToken(token: string | null): void
@@ -51,11 +52,14 @@ export type AppStore = StoreApi<AppState & AppActions>
 // Merges one level deep so fields added by later versions get their defaults.
 function mergeOverDefaults(stored: AppState | null): AppState {
   if (!stored) return defaultState
+  const night = { ...defaultState.night, ...stored.night }
+  // Layouts saved before the shared wildcard weight need converting.
+  if (night.layout && typeof night.layout === 'object') night.layout = normaliseLayout(night.layout)
   return {
     ...defaultState,
     ...stored,
     settings: { ...defaultState.settings, ...stored.settings },
-    night: { ...defaultState.night, ...stored.night },
+    night,
   }
 }
 
