@@ -13,8 +13,9 @@ A static single-page app (React, TypeScript, Vite) hosted on GitHub Pages, with 
 - Full check (what CI runs): `npm ci && npm run lint && npm test && npm run build`
 
 ## Layout
-<!-- covers: src/**, .github/workflows/*.yml; verified: 2026-10-05 -->
-- `src/`: the React app: `src/main.tsx` builds the store on the `localStorage` persistence and mounts `src/App.tsx`; `src/assets/` holds the TMDB logo; `src/test/setup.ts` is the Vitest setup
+<!-- covers: src/**, public/**, .github/workflows/*.yml; verified: 2026-10-05 -->
+- `src/`: the React app: `src/main.tsx` builds the store on the `localStorage` persistence and mounts `src/App.tsx`; `src/assets/` holds the TMDB logo and the Movie Nite logo set (`src/assets/logo/`: the six final SVGs, including the square M-and-reel icon, plus `src/assets/logo/old-iterations/`, the earlier designs kept for reference), which `src/assets/logo.test.ts` checks; `src/test/setup.ts` is the Vitest setup
+- `public/`: files Vite serves as-is under the base path; `public/favicon.svg` is the site favicon, a copy of `src/assets/logo/logo-icon-dark.svg` that `src/assets/logo.test.ts` keeps identical
 - `src/state/`: the serializable app state (`src/state/model.ts` pure rules, including the night rules (who is on the wheel, recording a Watch or Too long, ending and restarting a night, and the wheel-editing actions that save the edited layout on `night.layout`), `src/state/persistence.ts` the `Persistence` interface and its `localStorage` and in-memory versions, `src/state/store.ts` the Zustand store and React hook); only `src/state/persistence.ts` touches `localStorage`
 - `src/tmdb/`: the TMDB client (injectable `fetch`, `TmdbAuthError` on 401)
 - `src/wheel/`: the pure wheel rules, no React or storage: `src/wheel/layout.ts` (default layout and slice arcs), `src/wheel/draw.ts` (weighted draw and rest rotation), `src/wheel/reveal.ts` (finish window, runtime and synopsis text), `src/wheel/edit.ts` (the editable `WheelLayout`: even spread, weights, slice counts, wildcards, moving slices, viewers leaving and joining), `src/wheel/wedges.ts` (slices resolved to names, colours and nominations), plus `src/wheel/reducedMotion.ts` (the one browser check, `prefers-reduced-motion`, guarded for jsdom)
