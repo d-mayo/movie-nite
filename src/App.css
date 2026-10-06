@@ -1,3 +1,26 @@
+.banner {
+  padding: 1rem 1rem 0.75rem;
+  text-align: center;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.banner h1 {
+  margin: 0;
+  line-height: 0;
+}
+
+.banner img {
+  height: 96px;
+  width: auto;
+  max-width: 100%;
+}
+
+@media (max-width: 600px) {
+  .banner img {
+    height: 72px;
+  }
+}
+
 main {
   padding: 2rem 1rem;
   text-align: center;

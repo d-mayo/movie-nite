@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
+import logoDark from './assets/logo/logo-dark-transparent.svg'
+import logoLight from './assets/logo/logo-light-transparent.svg'
 import tmdbLogo from './assets/tmdb-logo.svg'
 import './App.css'
 import NightSetup from './components/NightSetup.tsx'
@@ -82,8 +84,15 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
 function App({ store, fetchFn, random, spinMs }: Props) {
   return (
     <AppStoreContext.Provider value={store}>
+      <header className="banner">
+        <h1>
+          <picture>
+            <source media="(prefers-color-scheme: dark)" srcSet={logoDark} />
+            <img src={logoLight} alt="Movie Nite" />
+          </picture>
+        </h1>
+      </header>
       <main>
-        <h1>Movie Nite</h1>
         <Screen fetchFn={fetchFn} random={random} spinMs={spinMs} />
       </main>
       <footer>
