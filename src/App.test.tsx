@@ -73,3 +73,40 @@ test('Change TMDB token brings the prompt back', () => {
   expect(store.getState().settings.tmdbToken).toBeNull()
   expect(screen.getByLabelText('TMDB Read Access Token')).toBeInTheDocument()
 })
+
+test('a banner with the logo sits above the screen', () => {
+  setup(ok())
+  const banner = screen.getByRole('banner')
+  const main = screen.getByRole('main')
+  expect(
+    banner.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy()
+  expect(main).not.toContainElement(banner)
+})
+
+test('the banner also shows on a night screen', () => {
+  setup(ok(), 'tok')
+  expect(screen.getByText("Tonight's viewers")).toBeInTheDocument()
+  expect(screen.getByRole('banner')).toBeInTheDocument()
+})
+
+test('the one h1 is the logo named Movie Nite', () => {
+  setup(ok())
+  const headings = screen.getAllByRole('heading', { level: 1 })
+  expect(headings).toHaveLength(1)
+  expect(headings[0]).toHaveAccessibleName('Movie Nite')
+  expect(
+    within(headings[0]).getByRole('img', { name: 'Movie Nite' }),
+  ).toBeInTheDocument()
+})
+
+test('the banner picks the dark logo by colour scheme', () => {
+  setup(ok())
+  const picture = screen.getByRole('banner').querySelector('picture')!
+  const source = picture.querySelector('source')!
+  expect(source.getAttribute('media')).toBe('(prefers-color-scheme: dark)')
+  expect(source.getAttribute('srcset')).toContain('logo-dark-transparent')
+  expect(picture.querySelector('img')!.getAttribute('src')).toContain(
+    'logo-light-transparent',
+  )
+})
