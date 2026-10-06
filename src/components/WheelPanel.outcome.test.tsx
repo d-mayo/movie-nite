@@ -100,7 +100,7 @@ test('the night ends when the last viewer on the wheel wins', async () => {
   const dialog = await screen.findByRole('dialog')
   fireEvent.click(within(dialog).getByRole('button', { name: 'Watch' }))
   expect(store.getState().night.ended).toBe(true)
-  expect(spinButton()).toBeDisabled()
+  expect(screen.queryByRole('button', { name: 'Spin' })).toBeNull()
 })
 
 const wildcardFetch = vi.fn((url: string) => {

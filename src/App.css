@@ -122,6 +122,12 @@ footer p {
   padding: 0;
 }
 
+.setup li,
+.wheel-editor strong,
+.reveal p {
+  overflow-wrap: anywhere;
+}
+
 .night-over {
   width: 100%;
   text-align: center;

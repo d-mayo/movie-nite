@@ -31,7 +31,7 @@ function WedgeShape({ wedge, id }: { wedge: Wedge; id: string }) {
   const width = arc.end - arc.start
   const half = (width / 2) * (Math.PI / 180)
   const imageWidth = Math.max(10, 2 * radius * Math.sin(half))
-  const label = slice.kind === 'wildcard' ? 'WILDCARD' : wedge.viewerName
+  const label = slice.kind === 'wildcard' ? 'WILDCARD' : clip(wedge.viewerName ?? '')
   const showTitle = nomination !== null && width >= titleMinDegrees
   const backing = Math.max(
     labelWidth(label),
