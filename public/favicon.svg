@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Movie Nite">
+<rect width="512" height="512" rx="96" fill="#F6F6EE"/>
+<g transform="translate(5.2 40.9) scale(1.0343)">
+<g fill="#262626" stroke="#262626" stroke-width="22" stroke-linejoin="round">
+<rect x="35" y="33" width="85" height="350"/>
+<path d="M363 33H450V383H365V170L274.3 318H225L219 290Z"/>
+</g>
+<path d="M23.5 21.5H145.5L369.0 394.0H247.0Z" fill="#8F9186"/>
+<g fill="#262626"><rect x="93.5" y="55.8" width="58" height="58" rx="13.9" transform="rotate(-31.0 122.5 84.8)"/><rect x="167.3" y="178.8" width="58" height="58" rx="13.9" transform="rotate(-31.0 196.3 207.8)"/><rect x="241.0" y="301.7" width="58" height="58" rx="13.9" transform="rotate(-31.0 270.0 330.7)"/></g>
+</g>
+</svg>
