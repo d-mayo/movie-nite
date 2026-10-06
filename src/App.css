@@ -1,6 +1,9 @@
 .banner {
-  padding: 1rem 1rem 0.75rem;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
   border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
 }
 
@@ -10,14 +13,14 @@
 }
 
 .banner img {
-  height: 96px;
+  height: 64px;
   width: auto;
   max-width: 100%;
 }
 
 @media (max-width: 600px) {
   .banner img {
-    height: 72px;
+    height: 48px;
   }
 }
 
