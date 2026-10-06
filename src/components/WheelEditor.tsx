@@ -14,73 +14,65 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { viewersOnWheel } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
-import {
-  isValidSliceCount,
-  isValidWeight,
-  materialiseDefault,
-  type SliceRef,
-} from '../wheel/edit.ts'
+import { materialiseDefault, type SliceRef } from '../wheel/edit.ts'
 
 interface Props {
   locked?: boolean
   onDone: () => void
 }
 
-interface FieldProps {
+interface SliderProps {
   label: string
   value: number
   step: number
   min: number
   max: number
-  isValid: (n: number) => boolean
-  // Slice counts wait for blur or Enter: typing 12 would otherwise apply 1 first.
-  deferred?: boolean
-  onCommit: (n: number) => void
+  onChange: (n: number) => void
 }
 
-// Commits a valid value as it is typed (or on blur or Enter when deferred);
-// anything else changes nothing and the field shows the saved value again
-// when it loses focus.
-function NumberField({ label, value, step, min, max, isValid, deferred, onCommit }: FieldProps) {
-  const [draft, setDraft] = useState<string | null>(null)
-  function commit(text: string) {
-    const n = Number(text)
-    if (text.trim() !== '' && isValid(n)) onCommit(n)
-  }
+// A range slider that applies every change at once, with its value shown beside it.
+function Slider({ label, value, step, min, max, onChange }: SliderProps) {
   return (
-    <label>
-      {label}
-      <input
-        type="number"
-        step={step}
-        min={min}
-        max={max}
-        value={draft ?? String(value)}
-        onChange={(e) => {
-          setDraft(e.target.value)
-          if (!deferred) commit(e.target.value)
-        }}
-        onKeyDown={(e) => {
-          if (deferred && e.key === 'Enter') commit(e.currentTarget.value)
-        }}
-        onBlur={(e) => {
-          if (deferred) commit(e.currentTarget.value)
-          setDraft(null)
-        }}
-      />
-    </label>
+    <span className="slider">
+      <label>
+        {label}
+        <input
+          type="range"
+          step={step}
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+        />
+      </label>
+      <output>{value}</output>
+    </span>
   )
 }
 
-function SortableSlice({ id, index, children }: { id: string; index: number; children: ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+function SortableSlice({
+  id,
+  index,
+  children,
+}: {
+  id: string
+  index: number
+  children: ReactNode
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  })
   return (
     <li
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.6 : 1,
+      }}
     >
       <button
         type="button"
@@ -141,42 +133,39 @@ export default function WheelEditor({ locked = false, onDone }: Props) {
             return (
               <li key={id}>
                 <strong>{nameOf(id)}</strong>
-                <NumberField
+                <Slider
                   label={`Weight for ${nameOf(id)}`}
                   value={setting.weight}
                   step={0.5}
                   min={0.5}
-                  max={99}
-                  isValid={isValidWeight}
-                  onCommit={(n) => setViewerWeight(id, n)}
+                  max={20}
+                  onChange={(n) => setViewerWeight(id, n)}
                 />
-                <NumberField
+                <Slider
                   label={`Slices for ${nameOf(id)}`}
                   value={setting.slices}
                   step={1}
                   min={1}
                   max={12}
-                  isValid={isValidSliceCount}
-                  deferred
-                  onCommit={(n) => setViewerSlices(id, n)}
+                  onChange={(n) => setViewerSlices(id, n)}
                 />
               </li>
             )
           })}
         </ul>
         <h3>Wildcards</h3>
-        <NumberField
+        <Slider
           label="Wildcard weight"
           value={layout.wildcardWeight}
           step={0.5}
           min={0.5}
           max={20}
-          isValid={isValidWeight}
-          onCommit={setWildcardWeight}
+          onChange={setWildcardWeight}
         />
         <ul>
           {layout.wildcards.map((w, i) => (
             <li key={w.id}>
+              Wildcard {i + 1}
               <button
                 type="button"
                 aria-label={`Remove wildcard ${i + 1}`}
