@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import indexHtml from '../../index.html?raw'
 import favicon from '../../public/favicon.svg?raw'
 import iconLight from './logo/logo-icon-light.svg?raw'
+import readme from '../../README.md?raw'
 
 const finals = import.meta.glob('./logo/*', {
   query: '?raw',
@@ -61,5 +62,35 @@ describe('the favicon', () => {
     expect(links).toHaveLength(1)
     expect(links[0]).toContain('type="image/svg+xml"')
     expect(links[0]).toContain('href="/favicon.svg"')
+  })
+})
+
+describe('the README logo block', () => {
+  const block = readme.trimStart().match(/^(?:<p[^>]*>\s*)?<picture>[\s\S]*?<\/picture>/)?.[0]
+
+  test('opens with a picture of the dark and light transparent logos', () => {
+    expect(block).toBeDefined()
+    expect(block).toMatch(
+      /<source media="\(prefers-color-scheme: dark\)" srcset="src\/assets\/logo\/logo-dark-transparent\.svg">/,
+    )
+    expect(block).toMatch(
+      /<img src="src\/assets\/logo\/logo-light-transparent\.svg" alt="Movie Nite"/,
+    )
+  })
+
+  test('points only at logo files that exist', () => {
+    const paths = [...(block ?? '').matchAll(/src\/assets\/logo\/([\w.-]+)/g)]
+    expect(paths).toHaveLength(2)
+    for (const [, name] of paths) {
+      expect(Object.keys(finals), name).toContain(`./logo/${name}`)
+    }
+  })
+
+  test('names the project and describes it after the logo', () => {
+    const after = readme.slice(readme.indexOf('</picture>'))
+    expect(after).toContain('Movie Nite')
+    expect(after).toContain(
+      "Pick tonight's film for the FFF movie-night group: viewers nominate films from TMDB, and a weighted, editable wheel picks what to watch.",
+    )
   })
 })
