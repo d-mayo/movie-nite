@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import indexHtml from '../../index.html?raw'
 import favicon from '../../public/favicon.svg?raw'
-import iconDark from './logo/logo-icon-dark.svg?raw'
+import iconLight from './logo/logo-icon-light.svg?raw'
 
 const finals = import.meta.glob('./logo/*', {
   query: '?raw',
@@ -41,9 +41,9 @@ describe('the logo set', () => {
     }
   })
 
-  test('keeps the 16 earlier iterations as standalone SVGs', () => {
+  test('keeps the 18 earlier iterations as standalone SVGs', () => {
     const files = names(olds)
-    expect(files).toHaveLength(16)
+    expect(files).toHaveLength(18)
     expect(files.every((name) => name?.endsWith('.svg'))).toBe(true)
     for (const [path, svg] of Object.entries(olds)) {
       expect(standalone(svg), path).toBe(true)
@@ -52,8 +52,8 @@ describe('the logo set', () => {
 })
 
 describe('the favicon', () => {
-  test('is a copy of the dark square icon', () => {
-    expect(favicon).toBe(iconDark)
+  test('is a copy of the light square icon', () => {
+    expect(favicon).toBe(iconLight)
   })
 
   test('is linked once from index.html as /favicon.svg', () => {
