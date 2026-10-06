@@ -38,7 +38,7 @@ export interface AppActions {
   clearHoldover(): void
   setViewerWeight(viewerId: string, weight: number): void
   setViewerSlices(viewerId: string, count: number): void
-  setWildcardWeight(id: string, weight: number): void
+  setWildcardWeight(weight: number): void
   addWildcard(): void
   removeWildcard(id: string): void
   moveSlice(from: number, to: number): void
@@ -86,7 +86,7 @@ export function createAppStore(persistence: Persistence): AppStore {
       clearHoldover: () => update(clearHoldover),
       setViewerWeight: (id, weight) => update((s) => setViewerWeightOnWheel(s, id, weight)),
       setViewerSlices: (id, count) => update((s) => setViewerSliceCount(s, id, count)),
-      setWildcardWeight: (id, weight) => update((s) => setWildcardWeightOnWheel(s, id, weight)),
+      setWildcardWeight: (weight) => update((s) => setWildcardWeightOnWheel(s, weight)),
       addWildcard: () => update(addWheelWildcard),
       removeWildcard: (id) => update((s) => removeWheelWildcard(s, id)),
       moveSlice: (from, to) => update((s) => moveWheelSlice(s, from, to)),

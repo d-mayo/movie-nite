@@ -189,8 +189,8 @@ export function setViewerSliceCount(state: AppState, viewerId: string, count: nu
   return editLayout(state, (l, onWheel) => setViewerSlices(l, onWheel, viewerId, count))
 }
 
-export function setWildcardWeightOnWheel(state: AppState, id: string, weight: number): AppState {
-  return editLayout(state, (l) => setWildcardWeight(l, id, weight))
+export function setWildcardWeightOnWheel(state: AppState, weight: number): AppState {
+  return editLayout(state, (l) => setWildcardWeight(l, weight))
 }
 
 export function addWheelWildcard(state: AppState): AppState {

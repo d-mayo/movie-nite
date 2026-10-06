@@ -192,7 +192,8 @@ test('a done viewer does not block Spin, and an ended night disables it', () => 
 
 test('the spin draws by the edited weights', async () => {
   const store = setup(['a', 'b'], { random: () => 0.5, spinMs: 20 })
-  act(() => store.getState().setViewerWeight('a', 95))
+  act(() => store.getState().setViewerWeight('a', 20))
+  act(() => store.getState().setViewerWeight('b', 0.5))
   fireEvent.click(spinButton())
   const dialog = await screen.findByRole('dialog')
   expect(dialog).toHaveTextContent('Film 1')

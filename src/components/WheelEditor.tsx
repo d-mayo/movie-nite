@@ -165,18 +165,18 @@ export default function WheelEditor({ locked = false, onDone }: Props) {
           })}
         </ul>
         <h3>Wildcards</h3>
+        <NumberField
+          label="Wildcard weight"
+          value={layout.wildcardWeight}
+          step={0.5}
+          min={0.5}
+          max={20}
+          isValid={isValidWeight}
+          onCommit={setWildcardWeight}
+        />
         <ul>
           {layout.wildcards.map((w, i) => (
             <li key={w.id}>
-              <NumberField
-                label={`Weight for wildcard ${i + 1}`}
-                value={w.weight}
-                step={0.5}
-                min={0.5}
-                max={99}
-                isValid={isValidWeight}
-                onCommit={(n) => setWildcardWeight(w.id, n)}
-              />
               <button
                 type="button"
                 aria-label={`Remove wildcard ${i + 1}`}
