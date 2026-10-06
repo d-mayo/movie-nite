@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { maxNameLength } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import { Poster } from './FilmSearch.tsx'
@@ -76,7 +77,7 @@ export default function NightSetup({ client, onAuthError, onChangeToken, locked 
         <form onSubmit={add}>
           <label>
             Add a viewer
-            <input value={name} onChange={(e) => setName(e.target.value)} />
+            <input maxLength={maxNameLength} value={name} onChange={(e) => setName(e.target.value)} />
           </label>
           <button type="submit">Add</button>
         </form>

@@ -68,3 +68,14 @@ test('the wheel follows viewers and nominations live', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Remove Ann' }))
   expect(wedges()).toHaveLength(0)
 })
+
+test('a viewer name of 20 characters is shortened on the wheel, a short one is not', () => {
+  setup()
+  for (const name of ['abcdefghijklmnopqrst', 'Ann']) {
+    fireEvent.change(screen.getByLabelText('Add a viewer'), { target: { value: name } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+  }
+  expect(screen.getAllByText('abcdefghijklm…')).not.toHaveLength(0)
+  expect(screen.queryByText('abcdefghijklmnopqrst', { selector: 'text' })).toBeNull()
+  expect(screen.getAllByText('Ann', { selector: 'text' })).not.toHaveLength(0)
+})

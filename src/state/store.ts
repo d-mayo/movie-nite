@@ -26,6 +26,7 @@ import {
 } from './model.ts'
 import { newId } from './id.ts'
 import type { Persistence } from './persistence.ts'
+import { normaliseLayout } from '../wheel/edit.ts'
 
 export interface AppActions {
   setToken(token: string | null): void
@@ -39,7 +40,7 @@ export interface AppActions {
   clearHoldover(): void
   setViewerWeight(viewerId: string, weight: number): void
   setViewerSlices(viewerId: string, count: number): void
-  setWildcardWeight(id: string, weight: number): void
+  setWildcardWeight(weight: number): void
   addWildcard(): void
   removeWildcard(id: string): void
   moveSlice(from: number, to: number): void
@@ -52,11 +53,14 @@ export type AppStore = StoreApi<AppState & AppActions>
 // Merges one level deep so fields added by later versions get their defaults.
 function mergeOverDefaults(stored: AppState | null): AppState {
   if (!stored) return defaultState
+  const night = { ...defaultState.night, ...stored.night }
+  // Layouts saved before the shared wildcard weight need converting.
+  if (night.layout && typeof night.layout === 'object') night.layout = normaliseLayout(night.layout)
   return {
     ...defaultState,
     ...stored,
     settings: { ...defaultState.settings, ...stored.settings },
-    night: { ...defaultState.night, ...stored.night },
+    night,
   }
 }
 
@@ -87,7 +91,7 @@ export function createAppStore(persistence: Persistence): AppStore {
       clearHoldover: () => update(clearHoldover),
       setViewerWeight: (id, weight) => update((s) => setViewerWeightOnWheel(s, id, weight)),
       setViewerSlices: (id, count) => update((s) => setViewerSliceCount(s, id, count)),
-      setWildcardWeight: (id, weight) => update((s) => setWildcardWeightOnWheel(s, id, weight)),
+      setWildcardWeight: (weight) => update((s) => setWildcardWeightOnWheel(s, weight)),
       addWildcard: () => update(addWheelWildcard),
       removeWildcard: (id) => update((s) => removeWheelWildcard(s, id)),
       moveSlice: (from, to) => update((s) => moveWheelSlice(s, from, to)),

@@ -1,8 +1,7 @@
 import type { Slice } from './layout.ts'
 
 export type SliceRef =
-  | { kind: 'nomination'; id: string; viewerId: string }
-  | { kind: 'wildcard'; id: string }
+  { kind: 'nomination'; id: string; viewerId: string } | { kind: 'wildcard'; id: string }
 
 export interface ViewerSetting {
   weight: number
@@ -10,20 +9,21 @@ export interface ViewerSetting {
 }
 
 // The edited wheel. A viewer's per-slice weight is always weight / slices and
-// is never stored. `viewers` keeps entries for unticked viewers so their
+// is never stored; every wildcard slice has the one shared wildcardWeight. `viewers` keeps entries for unticked viewers so their
 // settings come back when they do.
 export interface WheelLayout {
   viewers: Record<string, ViewerSetting>
-  wildcards: { id: string; weight: number }[]
+  wildcardWeight: number
+  wildcards: { id: string }[]
   order: SliceRef[]
   handPlaced: boolean
 }
 
 export const defaultViewerSetting: ViewerSetting = { weight: 5, slices: 3 }
-const defaultWildcardWeight = 1
+export const defaultWildcardWeight = 1
 
 const minWeight = 0.5
-const maxWeight = 99
+const maxWeight = 20
 const minSlices = 1
 const maxSlices = 12
 
@@ -57,9 +57,7 @@ export function spreadOrder(layout: WheelLayout, onWheel: string[]): SliceRef[] 
   const placed: { ref: SliceRef; j: number; i: number; k: number }[] = []
   onWheel.forEach((viewerId, i) => {
     const k = settingOf(layout, viewerId).slices
-    const existing = layout.order.filter(
-      (r) => r.kind === 'nomination' && r.viewerId === viewerId,
-    )
+    const existing = layout.order.filter((r) => r.kind === 'nomination' && r.viewerId === viewerId)
     const kept = existing.slice(0, k)
     const fresh = freshNominationIds(layout.order, viewerId, k - kept.length)
     const refs: SliceRef[] = [
@@ -95,7 +93,8 @@ export function materialiseDefault(onWheel: string[]): WheelLayout {
   for (const id of onWheel) viewers[id] = { ...defaultViewerSetting }
   const base: WheelLayout = {
     viewers,
-    wildcards: onWheel.map((_, i) => ({ id: `w${i}`, weight: defaultWildcardWeight })),
+    wildcardWeight: defaultWildcardWeight,
+    wildcards: onWheel.map((_, i) => ({ id: `w${i}` })),
     order: [],
     handPlaced: false,
   }
@@ -105,11 +104,14 @@ export function materialiseDefault(onWheel: string[]): WheelLayout {
 export function resolveLayout(layout: WheelLayout): Slice[] {
   return layout.order.map((ref): Slice => {
     if (ref.kind === 'wildcard') {
-      const wildcard = layout.wildcards.find((w) => w.id === ref.id)
-      return { kind: 'wildcard', weight: wildcard?.weight ?? defaultWildcardWeight }
+      return { kind: 'wildcard', weight: layout.wildcardWeight }
     }
     const setting = settingOf(layout, ref.viewerId)
-    return { kind: 'nomination', viewerId: ref.viewerId, weight: setting.weight / setting.slices }
+    return {
+      kind: 'nomination',
+      viewerId: ref.viewerId,
+      weight: setting.weight / setting.slices,
+    }
   })
 }
 
@@ -126,11 +128,18 @@ export function isValidSliceCount(count: number): boolean {
   return Number.isInteger(count) && count >= minSlices && count <= maxSlices
 }
 
-export function setViewerWeight(layout: WheelLayout, viewerId: string, weight: number): WheelLayout {
+export function setViewerWeight(
+  layout: WheelLayout,
+  viewerId: string,
+  weight: number,
+): WheelLayout {
   if (!isValidWeight(weight) || !layout.viewers[viewerId]) return layout
   return {
     ...layout,
-    viewers: { ...layout.viewers, [viewerId]: { ...layout.viewers[viewerId], weight } },
+    viewers: {
+      ...layout.viewers,
+      [viewerId]: { ...layout.viewers[viewerId], weight },
+    },
   }
 }
 
@@ -188,19 +197,16 @@ export function setViewerSlices(
   return { ...next, order }
 }
 
-export function setWildcardWeight(layout: WheelLayout, id: string, weight: number): WheelLayout {
-  if (!isValidWeight(weight) || !layout.wildcards.some((w) => w.id === id)) return layout
-  return {
-    ...layout,
-    wildcards: layout.wildcards.map((w) => (w.id === id ? { ...w, weight } : w)),
-  }
+export function setWildcardWeight(layout: WheelLayout, weight: number): WheelLayout {
+  if (!isValidWeight(weight)) return layout
+  return { ...layout, wildcardWeight: weight }
 }
 
 export function addWildcard(layout: WheelLayout, onWheel: string[]): WheelLayout {
   const id = freshWildcardId(layout)
   const next: WheelLayout = {
     ...layout,
-    wildcards: [...layout.wildcards, { id, weight: defaultWildcardWeight }],
+    wildcards: [...layout.wildcards, { id }],
   }
   if (!layout.handPlaced) return respread(next, onWheel)
   return { ...next, order: [...layout.order, { kind: 'wildcard', id }] }
@@ -279,7 +285,7 @@ function placeJoiner(layout: WheelLayout, viewerId: string): WheelLayout {
   }
   return {
     ...layout,
-    wildcards: [...layout.wildcards, { id: wildcardId, weight: defaultWildcardWeight }],
+    wildcards: [...layout.wildcards, { id: wildcardId }],
     order,
   }
 }
@@ -302,19 +308,40 @@ export function syncLayout(layout: WheelLayout, onWheel: string[]): WheelLayout 
   if (onWheel.length === 0) next = { ...next, wildcards: [], order: [] }
   for (const id of joiners) {
     if (!next.viewers[id]) {
-      next = { ...next, viewers: { ...next.viewers, [id]: { ...defaultViewerSetting } } }
+      next = {
+        ...next,
+        viewers: { ...next.viewers, [id]: { ...defaultViewerSetting } },
+      }
     }
     if (next.handPlaced) {
       next = placeJoiner(next, id)
     } else {
       next = {
         ...next,
-        wildcards: [
-          ...next.wildcards,
-          { id: freshWildcardId(next), weight: defaultWildcardWeight },
-        ],
+        wildcards: [...next.wildcards, { id: freshWildcardId(next) }],
       }
     }
   }
   return next.handPlaced ? next : respread(next, onWheel)
+}
+
+// Brings a stored layout up to the current shape: wildcards used to carry a
+// weight each, and weights used to go up to 99.
+export function normaliseLayout(raw: unknown): WheelLayout {
+  const layout = raw as Omit<WheelLayout, 'wildcards' | 'wildcardWeight'> & {
+    wildcardWeight?: number
+    wildcards?: { id: string; weight?: number }[]
+  }
+  const wildcards = layout.wildcards ?? []
+  const wildcardWeight = layout.wildcardWeight ?? wildcards[0]?.weight ?? defaultWildcardWeight
+  const viewers: Record<string, ViewerSetting> = {}
+  for (const [id, setting] of Object.entries(layout.viewers ?? {})) {
+    viewers[id] = { ...setting, weight: Math.min(setting.weight, maxWeight) }
+  }
+  return {
+    ...layout,
+    viewers,
+    wildcardWeight: Math.min(wildcardWeight, maxWeight),
+    wildcards: wildcards.map((w) => ({ id: w.id })),
+  }
 }

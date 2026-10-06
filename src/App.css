@@ -122,6 +122,12 @@ footer p {
   padding: 0;
 }
 
+.setup li,
+.wheel-editor strong,
+.reveal p {
+  overflow-wrap: anywhere;
+}
+
 .night-over {
   width: 100%;
   text-align: center;
@@ -151,7 +157,18 @@ footer p {
   gap: 0.5rem;
 }
 
-.wheel-editor input[type='number'] {
-  width: 4.5rem;
+.wheel-editor .slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.wheel-editor .slider input[type='range'] {
+  width: 8rem;
   margin-left: 0.25rem;
+}
+
+.wheel-editor .slider output {
+  min-width: 2.5ch;
+  font-variant-numeric: tabular-nums;
 }

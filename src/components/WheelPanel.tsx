@@ -110,14 +110,16 @@ export default function WheelPanel({
     <div className="wheel-panel">
       <div className="wheel-stage">
         <Wheel wedges={wedges} rotation={rotation} />
-        <button
-          type="button"
-          className="spin-button"
-          onClick={start}
-          disabled={!canSpin || spin !== null}
-        >
-          Spin
-        </button>
+        {wedges.length > 0 && (
+          <button
+            type="button"
+            className="spin-button"
+            onClick={start}
+            disabled={!canSpin || spin !== null}
+          >
+            Spin
+          </button>
+        )}
       </div>
       {reason && <p>{reason}</p>}
       {!night.ended && spin === null && (

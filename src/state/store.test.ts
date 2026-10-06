@@ -106,6 +106,35 @@ test('a stored document without a layout loads with null', () => {
   expect(store.getState().night.layout ?? null).toBeNull()
 })
 
+test('a stored layout with per-wildcard weights loads normalised', () => {
+  const old = {
+    viewers: { a: { weight: 50, slices: 3 } },
+    wildcards: [{ id: 'w0', weight: 2 }, { id: 'w1', weight: 30 }],
+    order: [],
+    handPlaced: false,
+  }
+  const store = createAppStore(
+    createMemoryPersistence({ ...defaultState, night: { ...defaultState.night, layout: old } } as never),
+  )
+  const layout = store.getState().night.layout
+  expect(layout?.wildcardWeight).toBe(2)
+  expect(layout?.wildcards).toEqual([{ id: 'w0' }, { id: 'w1' }])
+  expect(layout?.viewers.a.weight).toBe(20)
+})
+
+test('a stored layout of null loads as null', () => {
+  const store = createAppStore(createMemoryPersistence({ ...defaultState } as never))
+  expect(store.getState().night.layout).toBeNull()
+})
+
+test('a saved roster name longer than 20 characters loads unchanged', () => {
+  const name = 'a very long viewer name indeed'
+  const store = createAppStore(
+    createMemoryPersistence({ ...defaultState, roster: [{ id: 'x', name }] } as never),
+  )
+  expect(store.getState().roster[0].name).toBe(name)
+})
+
 afterEach(() => vi.unstubAllGlobals())
 
 test('adding viewers works without crypto.randomUUID, as on a plain-HTTP origin', () => {

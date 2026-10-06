@@ -49,7 +49,7 @@ const spinButton = () => screen.getByRole('button', { name: 'Spin' })
 const hrefs = () =>
   Array.from(document.querySelectorAll('image')).map((i) => i.getAttribute('href'))
 
-test('spin is disabled with no viewers', () => {
+test('there is no Spin button with no viewers, and the empty-wheel text shows', () => {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
@@ -57,7 +57,8 @@ test('spin is disabled with no viewers', () => {
     }),
   )
   render(<App store={store} fetchFn={vi.fn()} />)
-  expect(spinButton()).toBeDisabled()
+  expect(screen.queryByRole('button', { name: 'Spin' })).toBeNull()
+  expect(screen.getByText('Tick or add viewers to put them on the wheel.')).toBeVisible()
   expect(screen.getByText('Viewers are needed to spin.')).toBeInTheDocument()
 })
 
@@ -174,8 +175,8 @@ test('the wheel drops viewers whose film has won, and follows ticks', () => {
   expect(screen.queryAllByTestId('wedge')).toHaveLength(0)
   expect(store.getState().night.ended).toBe(false)
   expect(screen.getByText('Viewers are needed to spin.')).toBeInTheDocument()
-  expect(spinButton()).toBeDisabled()
-  fireEvent.click(screen.getByLabelText('Cy'))
+  expect(screen.queryByRole('button', { name: 'Spin' })).toBeNull()
+  fireEvent.click(screen.getByLabelText('Cy'))
   expect(screen.getAllByTestId('wedge')).toHaveLength(4)
 })
 
@@ -192,7 +193,8 @@ test('a done viewer does not block Spin, and an ended night disables it', () => 
 
 test('the spin draws by the edited weights', async () => {
   const store = setup(['a', 'b'], { random: () => 0.5, spinMs: 20 })
-  act(() => store.getState().setViewerWeight('a', 95))
+  act(() => store.getState().setViewerWeight('a', 20))
+  act(() => store.getState().setViewerWeight('b', 0.5))
   fireEvent.click(spinButton())
   const dialog = await screen.findByRole('dialog')
   expect(dialog).toHaveTextContent('Film 1')

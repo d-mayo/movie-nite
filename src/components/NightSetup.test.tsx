@@ -150,3 +150,8 @@ test.each([
   setupWith(night)
   expect(screen.getByRole('button', { name: 'New night' })).toBeInTheDocument()
 })
+
+test('the Add a viewer field accepts at most 20 characters', () => {
+  setup()
+  expect(screen.getByLabelText('Add a viewer')).toHaveAttribute('maxlength', '20')
+})

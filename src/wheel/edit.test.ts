@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'vitest'
 import {
   addWildcard,
+  isValidWeight,
   materialiseDefault,
   moveSlice,
+  normaliseLayout,
   removeWildcard,
   resolveLayout,
   setViewerSlices,
@@ -27,7 +29,7 @@ function hand(order: string[], viewers: Record<string, number>): WheelLayout {
   const refs = order.map((x): SliceRef => {
     if (x === 'W') {
       const id = `w${w++}`
-      wildcards.push({ id, weight: 1 })
+      wildcards.push({ id })
       return { kind: 'wildcard', id }
     }
     const j = (counts[x] = (counts[x] ?? -1) + 1)
@@ -37,6 +39,7 @@ function hand(order: string[], viewers: Record<string, number>): WheelLayout {
     viewers: Object.fromEntries(
       Object.entries(viewers).map(([k, n]) => [k, { weight: 5, slices: n }]),
     ),
+    wildcardWeight: 1,
     wildcards,
     order: refs,
     handPlaced: true,
@@ -47,9 +50,7 @@ describe('spreading', () => {
   test('equals defaultLayout for 1 to 5 viewers', () => {
     for (let n = 1; n <= 5; n++) {
       const on = Array.from({ length: n }, (_, i) => `v${i}`)
-      const expected = defaultLayout(on, {}).map((s) =>
-        s.kind === 'wildcard' ? 'W' : s.viewerId,
-      )
+      const expected = defaultLayout(on, {}).map((s) => (s.kind === 'wildcard' ? 'W' : s.viewerId))
       expect(labels(materialiseDefault(on))).toEqual(expected)
     }
   })
@@ -96,9 +97,9 @@ describe('resolving and validation', () => {
   test('invalid values change nothing', () => {
     const on = ['A']
     const l = materialiseDefault(on)
-    for (const w of [0, 0.3, 2.3, 100, NaN]) expect(setViewerWeight(l, 'A', w)).toBe(l)
+    for (const w of [0, 0.3, 2.3, 20.5, 100, NaN]) expect(setViewerWeight(l, 'A', w)).toBe(l)
     for (const n of [0, 13, 2.5]) expect(setViewerSlices(l, on, 'A', n)).toBe(l)
-    expect(setWildcardWeight(l, 'w0', 0.3)).toBe(l)
+    for (const w of [0, 0.3, 20.5, NaN]) expect(setWildcardWeight(l, w)).toBe(l)
   })
 })
 
@@ -107,11 +108,62 @@ describe('wildcards', () => {
     const on = ['A']
     let l = addWildcard(materialiseDefault(on), on)
     expect(l.wildcards).toHaveLength(2)
-    expect(l.wildcards[1].weight).toBe(1)
-    l = setWildcardWeight(l, l.wildcards[1].id, 4)
-    expect(l.wildcards[1].weight).toBe(4)
+    expect(l.wildcardWeight).toBe(1)
+    l = setWildcardWeight(l, 3)
+    expect(
+      resolveLayout(l)
+        .filter((s) => s.kind === 'wildcard')
+        .map((s) => s.weight),
+    ).toEqual([3, 3])
+    l = addWildcard(l, on)
+    expect(
+      resolveLayout(l)
+        .filter((s) => s.kind === 'wildcard')
+        .map((s) => s.weight),
+    ).toEqual([3, 3, 3])
     for (const w of [...l.wildcards]) l = removeWildcard(l, on, w.id)
     expect(labels(l)).toEqual(['A', 'A', 'A'])
+    expect(l.wildcardWeight).toBe(3)
+  })
+
+  test('a joiner wildcard takes the shared weight', () => {
+    const l = setWildcardWeight(materialiseDefault(['A']), 4)
+    const joined = syncLayout(l, ['A', 'B'])
+    expect(
+      resolveLayout(joined)
+        .filter((s) => s.kind === 'wildcard')
+        .every((s) => s.weight === 4),
+    ).toBe(true)
+  })
+
+  test('weights run from 0.5 to 20', () => {
+    expect(isValidWeight(0.5)).toBe(true)
+    expect(isValidWeight(20)).toBe(true)
+    expect(isValidWeight(20.5)).toBe(false)
+    expect(isValidWeight(99)).toBe(false)
+  })
+
+  test('normaliseLayout takes the first wildcard weight and clamps to 20', () => {
+    const base = {
+      viewers: { A: { weight: 50, slices: 3 } },
+      order: [],
+      handPlaced: false,
+    }
+    const old = {
+      ...base,
+      wildcards: [
+        { id: 'w0', weight: 2 },
+        { id: 'w1', weight: 4 },
+      ],
+    }
+    const n = normaliseLayout(old)
+    expect(n.wildcardWeight).toBe(2)
+    expect(n.wildcards).toEqual([{ id: 'w0' }, { id: 'w1' }])
+    expect(n.viewers.A.weight).toBe(20)
+    expect(normaliseLayout({ ...base, wildcards: [] }).wildcardWeight).toBe(1)
+    expect(normaliseLayout({ ...base, wildcards: [{ id: 'w0', weight: 30 }] }).wildcardWeight).toBe(
+      20,
+    )
   })
 
   test('hand-placed adds go last', () => {
@@ -163,9 +215,7 @@ describe('slice counts on a hand-placed wheel', () => {
 
   test('a single slice grows to about half the wheel away', () => {
     const l = hand(['A', 'B', 'B', 'B', 'B', 'B'], { A: 1, B: 5 })
-    expect(labels(setViewerSlices(l, on, 'A', 2))).toEqual([
-      'A', 'B', 'B', 'A', 'B', 'B', 'B',
-    ])
+    expect(labels(setViewerSlices(l, on, 'A', 2))).toEqual(['A', 'B', 'B', 'A', 'B', 'B', 'B'])
   })
 })
 
@@ -240,8 +290,6 @@ describe('syncLayout', () => {
     const gone = syncLayout(l, ['A', 'C'])
     expect(gone.viewers.B).toEqual({ weight: 8, slices: 4 })
     const back = syncLayout(gone, on)
-    expect(
-      back.order.filter((r) => r.kind === 'nomination' && r.viewerId === 'B'),
-    ).toHaveLength(4)
+    expect(back.order.filter((r) => r.kind === 'nomination' && r.viewerId === 'B')).toHaveLength(4)
   })
 })
