@@ -22,6 +22,10 @@ import { createAppStore } from './state/store.ts'
 const attribution =
   'This product uses the TMDB API but is not endorsed or certified by TMDB.'
 
+function expectNoFooter() {
+  expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument()
+}
+
 function expectFooter() {
   const footer = screen.getByRole('contentinfo')
   expect(within(footer).getByText(attribution)).toBeInTheDocument()
@@ -68,7 +72,7 @@ test('a passing check saves the token and shows setup', async () => {
   await waitFor(() => expect(store.getState().settings.tmdbToken).toBe('tok'))
   expect(screen.getByText("Tonight's viewers")).toBeInTheDocument()
   expect(fetchFn).toHaveBeenCalledTimes(1)
-  expectFooter()
+  expectNoFooter()
 })
 
 test.each([
@@ -95,6 +99,7 @@ test('Change TMDB token opens the prompt with Cancel and keeps the old token', (
   clickChange()
   expect(tokenField()).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+  expectFooter()
   expect(screen.queryByText("Tonight's viewers")).not.toBeInTheDocument()
   expect(store.getState().settings.tmdbToken).toBe('tok')
   expect(persistence.load()?.settings.tmdbToken).toBe('tok')
@@ -168,6 +173,11 @@ test('a banner with the logo sits above the screen', () => {
     banner.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy()
   expect(main).not.toContainElement(banner)
+})
+
+test('the TMDB footer does not show on the night screen', () => {
+  setup(ok(), 'tok')
+  expectNoFooter()
 })
 
 test('the banner also shows on a night screen', () => {
