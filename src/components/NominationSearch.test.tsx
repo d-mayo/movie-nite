@@ -167,6 +167,7 @@ test.each([
   )
   expect(store.getState().settings.tmdbToken).toBeNull()
   expect(screen.getByLabelText('TMDB Read Access Token')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
 })
 
 test('a film that has already won tonight cannot be nominated', async () => {
