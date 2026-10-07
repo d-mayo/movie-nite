@@ -3,9 +3,10 @@ import { useState, type FormEvent } from 'react'
 interface Props {
   message?: string | null
   onSubmit: (token: string) => Promise<void>
+  onCancel?: () => void
 }
 
-export default function TokenPrompt({ message, onSubmit }: Props) {
+export default function TokenPrompt({ message, onSubmit, onCancel }: Props) {
   const [token, setToken] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [checking, setChecking] = useState(false)
@@ -45,6 +46,11 @@ export default function TokenPrompt({ message, onSubmit }: Props) {
       <button type="submit" disabled={checking}>
         Save
       </button>
+      {onCancel && (
+        <button type="button" onClick={onCancel}>
+          Cancel
+        </button>
+      )}
       {error && <p role="alert">{error}</p>}
     </form>
   )

@@ -19,17 +19,30 @@ interface Props {
 
 const rejectedMessage = 'TMDB rejected the saved token'
 
+function Attribution() {
+  return (
+    <footer>
+      <img src={tmdbLogo} alt="TMDB" height="12" />
+      <p>
+        This product uses the TMDB API but is not endorsed or certified by TMDB.
+      </p>
+    </footer>
+  )
+}
+
 function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
   const { settings, night, setToken } = useApp()
   const [message, setMessage] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [changingToken, setChangingToken] = useState(false)
   const token = settings.tmdbToken
 
   async function saveToken(candidate: string) {
     await createTmdbClient(candidate, fetchFn).checkToken()
     setMessage(null)
     setToken(candidate)
+    setChangingToken(false)
   }
 
   // The one place a TmdbAuthError from any TMDB call ends up.
@@ -37,6 +50,7 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
     setMessage(rejectedMessage)
     // The wheel unmounts with the token, possibly mid-spin, so unlock setup here.
     setLocked(false)
+    setChangingToken(false)
     setToken(null)
   }, [setToken])
   const client = useMemo(
@@ -47,37 +61,59 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
   // The editor gives way to setup when the night ends.
   if (editing && night.ended) setEditing(false)
 
-  if (!token || !client) return <TokenPrompt message={message} onSubmit={saveToken} />
-  return (
-    <div className="night">
-      <WheelPanel
-        random={random}
-        spinMs={spinMs}
-        client={client}
-        onAuthError={handleAuthError}
-        onBusyChange={setLocked}
-      />
-      {editing ? (
-        <WheelEditor locked={locked} onDone={() => setEditing(false)} />
-      ) : (
-        <div>
-          {!locked && !night.ended && (
-            <button type="button" onClick={() => setEditing(true)}>
-              Edit wheel
-            </button>
-          )}
-          <NightSetup
-            client={client}
-            onAuthError={handleAuthError}
-            locked={locked}
-            onChangeToken={() => {
-              setMessage(null)
-              setToken(null)
-            }}
+  if (!token || !client || changingToken) {
+    return (
+      <>
+        <main>
+          <TokenPrompt
+            message={message}
+            onSubmit={saveToken}
+            onCancel={
+              token && client
+                ? () => {
+                    setMessage(null)
+                    setChangingToken(false)
+                  }
+                : undefined
+            }
           />
-        </div>
-      )}
-    </div>
+        </main>
+        <Attribution />
+      </>
+    )
+  }
+  return (
+    <main>
+      <div className="night">
+        <WheelPanel
+          random={random}
+          spinMs={spinMs}
+          client={client}
+          onAuthError={handleAuthError}
+          onBusyChange={setLocked}
+        />
+        {editing ? (
+          <WheelEditor locked={locked} onDone={() => setEditing(false)} />
+        ) : (
+          <div>
+            {!locked && !night.ended && (
+              <button type="button" onClick={() => setEditing(true)}>
+                Edit wheel
+              </button>
+            )}
+            <NightSetup
+              client={client}
+              onAuthError={handleAuthError}
+              locked={locked}
+              onChangeToken={() => {
+                setMessage(null)
+                setChangingToken(true)
+              }}
+            />
+          </div>
+        )}
+      </div>
+    </main>
   )
 }
 
@@ -92,16 +128,7 @@ function App({ store, fetchFn, random, spinMs }: Props) {
           </picture>
         </h1>
       </header>
-      <main>
-        <Screen fetchFn={fetchFn} random={random} spinMs={spinMs} />
-      </main>
-      <footer>
-        <img src={tmdbLogo} alt="TMDB" height="12" />
-        <p>
-          This product uses the TMDB API but is not endorsed or certified by
-          TMDB.
-        </p>
-      </footer>
+      <Screen fetchFn={fetchFn} random={random} spinMs={spinMs} />
     </AppStoreContext.Provider>
   )
 }
