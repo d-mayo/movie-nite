@@ -24,12 +24,14 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
   const [message, setMessage] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [changingToken, setChangingToken] = useState(false)
   const token = settings.tmdbToken
 
   async function saveToken(candidate: string) {
     await createTmdbClient(candidate, fetchFn).checkToken()
     setMessage(null)
     setToken(candidate)
+    setChangingToken(false)
   }
 
   // The one place a TmdbAuthError from any TMDB call ends up.
@@ -37,6 +39,7 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
     setMessage(rejectedMessage)
     // The wheel unmounts with the token, possibly mid-spin, so unlock setup here.
     setLocked(false)
+    setChangingToken(false)
     setToken(null)
   }, [setToken])
   const client = useMemo(
@@ -47,7 +50,22 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
   // The editor gives way to setup when the night ends.
   if (editing && night.ended) setEditing(false)
 
-  if (!token || !client) return <TokenPrompt message={message} onSubmit={saveToken} />
+  if (!token || !client || changingToken) {
+    return (
+      <TokenPrompt
+        message={message}
+        onSubmit={saveToken}
+        onCancel={
+          token && client
+            ? () => {
+                setMessage(null)
+                setChangingToken(false)
+              }
+            : undefined
+        }
+      />
+    )
+  }
   return (
     <div className="night">
       <WheelPanel
@@ -72,7 +90,7 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
             locked={locked}
             onChangeToken={() => {
               setMessage(null)
-              setToken(null)
+              setChangingToken(true)
             }}
           />
         </div>
