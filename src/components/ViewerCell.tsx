@@ -205,6 +205,7 @@ export default function ViewerCell({
       el.style.minHeight = `${cellRect.height}px`
       el.style.left = `${cellRect.left - width}px`
       el.style.right = 'auto'
+      el.style.bottom = 'auto'
       const room = window.innerHeight - el.offsetHeight - 8
       el.style.top = `${Math.max(8, Math.min(cellRect.top, room))}px`
     }
