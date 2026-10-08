@@ -463,8 +463,26 @@ dialog.wheel-drawer::backdrop {
 }
 
 .swatch:disabled {
-  opacity: 0.25;
   cursor: not-allowed;
+}
+
+/* A preset another viewer holds: greyed out and struck through. */
+.color-picker .swatch {
+  position: relative;
+}
+
+.color-picker .swatch:disabled {
+  filter: grayscale(1);
+  opacity: 0.4;
+}
+
+.color-picker .swatch:disabled::after {
+  content: '';
+  position: absolute;
+  inset: 50% -2px auto;
+  height: 2px;
+  background: var(--text);
+  rotate: -45deg;
 }
 
 .color-picker {
