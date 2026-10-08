@@ -149,6 +149,9 @@ export default function NightSetup({ client, onAuthError, locked = false }: Prop
               client={client}
               onAuthError={onAuthError}
               onHeaderClick={(e) => headerClick(viewer.id, e)}
+              onPresenceChange={() => {
+                if (openRef.current === viewer.id) show(null)
+              }}
               onHoverStart={() => hoverStart(viewer.id)}
               onHoverEnd={() => hoverEnd(viewer.id)}
               onHold={hold}

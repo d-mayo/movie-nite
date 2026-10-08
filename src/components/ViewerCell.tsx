@@ -34,6 +34,8 @@ interface Props {
   client: TmdbClient
   onAuthError: () => void
   onHeaderClick: (e: MouseEvent<HTMLButtonElement>) => void
+  // Called when the eye toggle is used, which closes the cell.
+  onPresenceChange: () => void
   onHoverStart: () => void
   onHoverEnd: () => void
   // Reports whether something keeps the open cell open whatever the pointer does.
@@ -126,6 +128,7 @@ export default function ViewerCell({
   client,
   onAuthError,
   onHeaderClick,
+  onPresenceChange,
   onHoverStart,
   onHoverEnd,
   onHold,
@@ -187,7 +190,10 @@ export default function ViewerCell({
           className="quiet cell-eye"
           aria-pressed={present}
           aria-label={`${viewer.name} is ${present ? 'here' : 'away'}`}
-          onClick={() => setPresent(viewer.id, !present)}
+          onClick={() => {
+            setPresent(viewer.id, !present)
+            onPresenceChange()
+          }}
         >
           <EyeIcon present={present} />
         </button>

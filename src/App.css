@@ -520,8 +520,9 @@ dialog.wheel-drawer::backdrop {
 }
 
 .setup li.cell.open {
+  z-index: 1;
   border-color: var(--border);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
 .setup .cell-head {
@@ -608,8 +609,20 @@ dialog.wheel-drawer::backdrop {
   flex-direction: column;
   align-items: stretch;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-3) var(--space-3) calc(6px + var(--space-3));
+  padding: var(--space-3);
   animation: cell-open 0.15s ease-out;
+  /* The body floats over the cells below instead of pushing them down, so the
+     list holds still under the pointer. */
+  position: absolute;
+  top: 100%;
+  left: -1px;
+  right: -1px;
+  z-index: 1;
+  box-sizing: border-box;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  box-shadow: var(--shadow-card);
 }
 
 .setup .cell-tools {

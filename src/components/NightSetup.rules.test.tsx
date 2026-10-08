@@ -270,3 +270,12 @@ test('a lock closes the open cell and nothing opens until it ends', () => {
   mouseClick('Ann')
   expect(isOpen('Ann')).toBe(true)
 })
+
+test('the eye toggle closes its own open cell', () => {
+  canHover(true)
+  mount()
+  mouseClick('Ann')
+  fireEvent.click(screen.getByRole('button', { name: 'Ann is here' }), { detail: 1 })
+  expect(isOpen('Ann')).toBe(false)
+  expect(screen.getByRole('button', { name: 'Ann is away' })).toBeInTheDocument()
+})
