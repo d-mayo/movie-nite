@@ -1,3 +1,4 @@
+import { createRef } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { defaultState, type Nomination } from '../state/model.ts'
@@ -55,7 +56,7 @@ function mount(locked = false) {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok' },
+      settings: { tmdbToken: 'tok', viewersHidden: false },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
@@ -74,6 +75,8 @@ function mount(locked = false) {
         client={createTmdbClient('tok', vi.fn())}
         onAuthError={vi.fn()}
         locked={isLocked}
+        onHide={vi.fn()}
+        hideRef={createRef()}
       />
     </AppStoreContext.Provider>
   )

@@ -48,7 +48,7 @@ function setupNight(
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok' },
+      settings: { tmdbToken: 'tok', viewersHidden: false },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },

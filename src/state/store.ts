@@ -19,6 +19,7 @@ import {
   setHoldoverDismissed,
   setPresent,
   setToken,
+  setViewersHidden,
   setViewerColor,
   setViewerSliceCount,
   setViewerWeightOnWheel,
@@ -36,6 +37,7 @@ import { assignColors } from '../wheel/colors.ts'
 
 export interface AppActions {
   setToken(token: string | null): void
+  setViewersHidden(hidden: boolean): void
   addViewer(name: string): void
   removeViewer(id: string): void
   setViewerColor(id: string, color: string): void
@@ -92,6 +94,7 @@ export function createAppStore(persistence: Persistence): AppStore {
     return {
       ...mergeOverDefaults(persistence.load()),
       setToken: (token) => update((s) => setToken(s, token)),
+      setViewersHidden: (hidden) => update((s) => setViewersHidden(s, hidden)),
       addViewer: (name) => update((s) => addViewer(s, name, newId())),
       removeViewer: (id) => update((s) => removeViewer(s, id)),
       setViewerColor: (id, color) => update((s) => setViewerColor(s, id, color)),

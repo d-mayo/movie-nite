@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import logoDark from './assets/logo/logo-dark-transparent.svg'
 import logoLight from './assets/logo/logo-light-transparent.svg'
 import tmdbLogo from './assets/tmdb-logo.svg'
@@ -46,12 +46,23 @@ function Banner({ children }: { children?: ReactNode }) {
 }
 
 function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
-  const { settings, setToken } = useApp()
+  const { settings, setToken, setViewersHidden } = useApp()
   const [message, setMessage] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
   const [changingToken, setChangingToken] = useState(false)
   const [focusRequest, setFocusRequest] = useState<FocusRequest>(null)
+  // Set by a Hide or Show press and consumed once, so reloading hidden takes no focus.
+  const pendingFocus = useRef<'show' | 'hide' | null>(null)
+  const showTab = useRef<HTMLButtonElement>(null)
+  const [reasonSlot, setReasonSlot] = useState<HTMLElement | null>(null)
+  const hideButton = useRef<HTMLButtonElement>(null)
   const token = settings.tmdbToken
+  const hidden = settings.viewersHidden
+  useEffect(() => {
+    const target = pendingFocus.current === 'show' ? showTab : hideButton
+    if (pendingFocus.current) target.current?.focus()
+    pendingFocus.current = null
+  }, [hidden])
   // Bumped by Cancel, so a check that settles afterwards is discarded.
   const tokenChecks = useRef(0)
 
@@ -113,18 +124,43 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
         />
       </Banner>
       <main>
-        <div className="night">
+        <div className={hidden ? 'night viewers-hidden' : 'night'}>
           <WheelPanel
             random={random}
             spinMs={spinMs}
             client={client}
             onAuthError={handleAuthError}
             onBusyChange={setLocked}
+            reasonSlot={reasonSlot}
           />
+          <div className="wheel-reason-slot" ref={setReasonSlot} />
           <div className="setup-column">
-            <NightSetup client={client} onAuthError={handleAuthError} locked={locked} />
+            <NightSetup
+              client={client}
+              onAuthError={handleAuthError}
+              locked={locked}
+              onHide={() => {
+                pendingFocus.current = 'show'
+                setViewersHidden(true)
+              }}
+              hideRef={hideButton}
+            />
           </div>
         </div>
+        {hidden && (
+          <button
+            type="button"
+            ref={showTab}
+            className="quiet show-viewers"
+            aria-label="Show viewers"
+            onClick={() => {
+              pendingFocus.current = 'hide'
+              setViewersHidden(false)
+            }}
+          >
+            <span aria-hidden="true">‹</span>
+          </button>
+        )}
       </main>
       <HeldFilmCard focusRequest={focusRequest} onRequestFocus={setFocusRequest} />
     </>

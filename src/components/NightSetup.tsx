@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent, type RefObject } from 'react'
 import { maxNameLength, maxViewers, viewersOnWheel } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
@@ -11,6 +11,9 @@ interface Props {
   client: TmdbClient
   onAuthError: () => void
   locked?: boolean
+  onHide: () => void
+  // The Hide viewers button, for the app to focus after the Show viewers press.
+  hideRef: RefObject<HTMLButtonElement | null>
 }
 
 // How long the pointer rests on a cell before it opens, and how long it must be
@@ -22,7 +25,7 @@ const rank: Record<CellStatus, number> = { wheel: 0, won: 1, away: 2 }
 
 // The viewer pane: one cell per roster viewer, on the wheel first, then those
 // who have won tonight, then those who are away. At most one cell is open.
-export default function NightSetup({ client, onAuthError, locked = false }: Props) {
+export default function NightSetup({ client, onAuthError, locked = false, onHide, hideRef }: Props) {
   const { roster, night, addViewer, resetAllViewerSettings } = useApp()
   const menu = useRef<HTMLDivElement>(null)
   const [name, setName] = useState('')
@@ -132,6 +135,14 @@ export default function NightSetup({ client, onAuthError, locked = false }: Prop
     .map((viewer) => ({ viewer, status: statusOf(viewer.id) }))
     .sort((a, b) => rank[a.status] - rank[b.status])
 
+  function hide() {
+    window.clearTimeout(timers.current.open)
+    window.clearTimeout(timers.current.close)
+    insideRef.current = null
+    show(null)
+    onHide()
+  }
+
   function add(e: FormEvent) {
     e.preventDefault()
     addViewer(name)
@@ -140,31 +151,41 @@ export default function NightSetup({ client, onAuthError, locked = false }: Prop
 
   return (
     <section className="card">
-      <fieldset disabled={locked} className="setup">
-        <div className="pane-head">
-          <h2>Tonight's viewers</h2>
+      <div className="pane-head">
+        <h2>Tonight's viewers</h2>
+        <button
+          type="button"
+          className="quiet"
+          aria-label="More for all viewers"
+          disabled={locked}
+          popoverTarget="pane-menu"
+          onClick={(e) => placeUnder(e, menu.current)}
+        >
+          <span aria-hidden="true">⋯</span>
+        </button>
+        <button
+          type="button"
+          ref={hideRef}
+          className="quiet hide-viewers"
+          aria-label="Hide viewers"
+          onClick={hide}
+        >
+          <span aria-hidden="true">›</span>
+        </button>
+        <div id="pane-menu" popover="auto" ref={menu} className="card cell-menu">
           <button
             type="button"
-            className="quiet"
-            aria-label="More for all viewers"
-            popoverTarget="pane-menu"
-            onClick={(e) => placeUnder(e, menu.current)}
+            disabled={allDefault || locked}
+            onClick={() => {
+              menu.current?.hidePopover()
+              resetAllViewerSettings()
+            }}
           >
-            <span aria-hidden="true">⋯</span>
+            Reset all slices and weights
           </button>
-          <div id="pane-menu" popover="auto" ref={menu} className="card cell-menu">
-            <button
-              type="button"
-              disabled={allDefault}
-              onClick={() => {
-                menu.current?.hidePopover()
-                resetAllViewerSettings()
-              }}
-            >
-              Reset all slices and weights
-            </button>
-          </div>
         </div>
+      </div>
+      <fieldset disabled={locked} className="setup">
         <p>Headcount: {night.presentIds.length}</p>
         <ul className="viewer-cells">
           {cells.map(({ viewer, status }) => (

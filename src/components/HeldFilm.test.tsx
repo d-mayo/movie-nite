@@ -19,7 +19,7 @@ function setup(night: Partial<AppState['night']> = {}, holdover: Nomination | nu
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: token },
+      settings: { tmdbToken: token, viewersHidden: false },
       roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
       night: {
         ...defaultState.night,
