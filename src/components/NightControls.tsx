@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useApp } from '../state/store.ts'
 
 interface Props {
@@ -7,16 +7,24 @@ interface Props {
 }
 
 // Mounted only while shown, so React state always matches whether the dialog
-// is open; every way of closing it (Cancel, confirming, Escape) ends in the
-// native `close` event, which unmounts it.
+// is open: Cancel and confirming unmount it directly, and Escape does so
+// through the native `close` event.
 function EndNightDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClosed: () => void }) {
   const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     const dialog = ref.current
-    if (dialog && !dialog.open) dialog.showModal()
-  }, [])
+    if (!dialog) return
+    if (!dialog.open) dialog.showModal()
+    dialog.addEventListener('close', onClosed)
+    return () => dialog.removeEventListener('close', onClosed)
+  }, [onClosed])
+  // Close natively, then unmount at once rather than wait for the `close` event.
+  function dismiss() {
+    ref.current?.close()
+    onClosed()
+  }
   return (
-    <dialog ref={ref} className="card confirm" aria-labelledby="end-night-heading" onClose={onClosed}>
+    <dialog ref={ref} className="card confirm" aria-labelledby="end-night-heading">
       <h2 id="end-night-heading">End the night?</h2>
       <p>The night will end and the Night over summary will show.</p>
       <div className="confirm-actions">
@@ -25,12 +33,12 @@ function EndNightDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClos
           className="danger"
           onClick={() => {
             onConfirm()
-            ref.current?.close()
+            dismiss()
           }}
         >
           End night
         </button>
-        <button type="button" className="quiet" onClick={() => ref.current?.close()}>
+        <button type="button" className="quiet" onClick={dismiss}>
           Cancel
         </button>
       </div>
@@ -42,6 +50,7 @@ export default function NightControls({ locked, onChangeToken }: Props) {
   const { night, endNight, newNight } = useApp()
   const [confirming, setConfirming] = useState(false)
   const menu = useRef<HTMLDivElement>(null)
+  const closeDialog = useCallback(() => setConfirming(false), [])
   return (
     <div className="night-controls">
       {night.ended ? (
@@ -81,7 +90,7 @@ export default function NightControls({ locked, onChangeToken }: Props) {
         </button>
       </div>
       {confirming && (
-        <EndNightDialog onConfirm={endNight} onClosed={() => setConfirming(false)} />
+        <EndNightDialog onConfirm={endNight} onClosed={closeDialog} />
       )}
     </div>
   )
