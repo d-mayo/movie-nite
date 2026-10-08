@@ -174,7 +174,9 @@ footer p {
     right: 0;
     z-index: 2;
     translate: 0 -50%;
-    padding: var(--space-4) var(--space-2);
+    padding: var(--space-4) var(--space-3) var(--space-4) var(--space-2);
+    min-width: 3rem;
+    font-size: 1.25rem;
     background: var(--card);
     border: 1px solid var(--card-border);
     border-right: 0;
