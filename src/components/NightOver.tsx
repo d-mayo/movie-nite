@@ -6,7 +6,7 @@ export function filmLabel(film: { title: string; year: number | null }): string 
 }
 
 export default function NightOver() {
-  const { night, holdover, newNight } = useApp()
+  const { night, holdover } = useApp()
   return (
     <section className="night-over" aria-labelledby="night-over-heading">
       <h2 id="night-over-heading">Night over</h2>
@@ -23,9 +23,6 @@ export default function NightOver() {
         <p>No films were watched tonight.</p>
       )}
       {holdover && <p>Watch next session: {filmLabel(holdover)}</p>}
-      <button type="button" onClick={newNight}>
-        New night
-      </button>
     </section>
   )
 }

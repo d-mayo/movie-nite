@@ -177,24 +177,7 @@ test('Close on a wildcard pick changes nothing', async () => {
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 
-test('End night shows the summary, disables Spin and offers New night', () => {
-  const store = setupNight(ann, vi.fn(), false)
-  fireEvent.click(screen.getByRole('button', { name: 'End night' }))
-  expect(store.getState().night.ended).toBe(true)
-  const summary = screen.getByRole('region', { name: 'Night over' })
-  expect(within(summary).getByText('No films were watched tonight.')).toBeInTheDocument()
-  expect(spinButton()).toBeDisabled()
-  expect(screen.queryByRole('button', { name: 'End night' })).toBeNull()
-  expect(within(summary).getByRole('button', { name: 'New night' })).toBeInTheDocument()
-})
-
-test('End night is absent while a reveal is open', async () => {
-  setupNight(ann)
-  await screen.findByRole('dialog')
-  expect(screen.queryByRole('button', { name: 'End night' })).toBeNull()
-})
-
-test('the summary lists the watched films and the Watch next session film, and New night clears the board of winners and the holdover', async () => {
+test('the summary lists the watched films and the Watch next session film', async () => {
   const store = setupNight(ann)
   act(() => store.getState().recordOutcome(film(5), 'tooLong', false))
   const dialog = await screen.findByRole('dialog')
@@ -203,11 +186,4 @@ test('the summary lists the watched films and the Watch next session film, and N
   const summary = screen.getByRole('region', { name: 'Night over' })
   expect(within(summary).getByText('Film 1 (2000)')).toBeInTheDocument()
   expect(within(summary).getByText(/Watch next session: Film 5/)).toBeInTheDocument()
-  fireEvent.click(within(summary).getByRole('button', { name: 'New night' }))
-  expect(screen.queryByRole('region', { name: 'Night over' })).toBeNull()
-  expect(store.getState().night.wonFilms).toEqual([])
-  expect(store.getState().holdover).toBeNull()
-  // Ann and Bo (film 1) won; Cy's film 2 stays on the wheel.
-  expect(Object.keys(store.getState().night.nominations)).toEqual(['c'])
-  expect(screen.getAllByTestId('wedge')).toHaveLength(12)
 })

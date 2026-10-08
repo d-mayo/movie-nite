@@ -78,7 +78,7 @@ test('spinning locks setup, rests in the drawn slice and shows a snapshot', asyn
   expect(screen.getByLabelText('Ann')).toBeDisabled()
   expect(screen.getByLabelText('Add a viewer')).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled()
-  expect(screen.getByRole('button', { name: 'Change TMDB token' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Settings' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Change film for Ann' })).toBeDisabled()
 
   const before = hrefs()
@@ -176,7 +176,8 @@ test('the wheel drops viewers whose film has won, and follows ticks', () => {
   expect(store.getState().night.ended).toBe(false)
   expect(screen.getByText('Viewers are needed to spin.')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Spin' })).toBeNull()
-  fireEvent.click(screen.getByLabelText('Cy'))
+  fireEvent.click(screen.getByLabelText('Cy'))
+
   expect(screen.getAllByTestId('wedge')).toHaveLength(4)
 })
 

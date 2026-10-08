@@ -36,7 +36,7 @@ export default function WheelPanel({
   onAuthError,
   onBusyChange,
 }: Props) {
-  const { night, roster, recordOutcome, endNight } = useApp()
+  const { night, roster, recordOutcome } = useApp()
   const [rotation, setRotation] = useState(0)
   // Fixed when Spin is pressed and dropped on Close, so the wheel, the draw
   // and the reveal agree even if the store changes meanwhile.
@@ -122,11 +122,6 @@ export default function WheelPanel({
         )}
       </div>
       {reason && <p>{reason}</p>}
-      {!night.ended && spin === null && (
-        <button type="button" onClick={endNight}>
-          End night
-        </button>
-      )}
       {night.ended && <NightOver />}
       {spin?.revealedAt && (
         <Reveal
