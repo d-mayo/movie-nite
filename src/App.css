@@ -631,15 +631,86 @@ dialog.wheel-drawer::backdrop {
   box-shadow: var(--shadow-card);
 }
 
+/* On wide screens the body is a panel attached to the open cell's left edge:
+   the cell squares off its left side and the panel takes the same border. */
 .setup li.cell > .cell-body[data-floating] {
-  border-radius: var(--radius-md);
+  border-right: 0;
+  border-left: 6px solid var(--viewer-color);
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  box-shadow: var(--shadow-card);
+  animation-name: cell-slide;
 }
 
-.setup .cell-tools {
+.setup li.cell.open:has(> .cell-body[data-floating]) {
+  border-left: 0;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: var(--card);
+}
+
+/* The panel carries the viewer's colour bar on its far left instead. */
+.setup li.cell.open:has(> .cell-body[data-floating]) .cell-edge {
+  display: none;
+}
+
+.setup li.cell.open:has(> .cell-body[data-floating]) .cell-head {
+  padding-left: var(--space-2);
+}
+
+.setup .cell-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.cell-colour {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--muted);
+}
+
+.setup .cell-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.cell-sliders .slider {
+  display: flex;
+  width: 100%;
+}
+
+.cell-sliders .slider label {
+  display: flex;
+  flex: 1;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.cell-sliders .slider-label {
+  flex: 0 0 7.5rem;
+  overflow-wrap: anywhere;
+}
+
+.cell-sliders .slider input[type='range'] {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.setup .cell-body > div {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2) var(--space-3);
+}
+
+.setup .cell-body > .cell-options,
+.setup .cell-body > .cell-sliders {
+  flex-wrap: nowrap;
 }
 
 .cell-menu {
@@ -651,6 +722,13 @@ dialog.wheel-drawer::backdrop {
 
 .cell-menu:not(:popover-open) {
   display: none;
+}
+
+@keyframes cell-slide {
+  from {
+    opacity: 0;
+    translate: 0.5rem 0;
+  }
 }
 
 @keyframes cell-open {

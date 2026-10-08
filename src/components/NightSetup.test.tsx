@@ -146,14 +146,14 @@ test('the eye toggle marks a viewer away or here without opening or closing thei
   const away = screen.getByRole('button', { name: 'Ann is away' })
   expect(away).toHaveAttribute('aria-pressed', 'false')
   expect(store.getState().night.presentIds).toEqual(['b', 'c'])
-  expect(header('Ann')).toHaveAttribute('aria-expanded', 'false')
+  expect(header('Ann')).not.toHaveAttribute('aria-expanded', 'true')
   expect(names()).toEqual(['Bo', 'Cy', 'Ann'])
   fireEvent.click(away)
   expect(names()).toEqual(['Ann', 'Bo', 'Cy'])
   expect(header('Ann')).toHaveAttribute('aria-expanded', 'false')
 })
 
-test('an open cell shows its film control, colour, sliders and menu; an away cell only colour and menu', () => {
+test('an open cell shows its film control, colour, sliders and menu; an away cell does not open', () => {
   setupWith({ nominations: { a: film }, presentIds: ['a'] })
   openCell('Ann')
   expect(screen.getByRole('button', { name: 'Change film for Ann' })).toBeInTheDocument()
@@ -170,12 +170,20 @@ test('an open cell shows its film control, colour, sliders and menu; an away cel
   expect(weight).toHaveValue('5')
   expect(screen.getByRole('button', { name: 'More for Ann' })).toBeInTheDocument()
 
+  // Bo is away: there is nothing to open.
   openCell('Bo')
+  expect(header('Bo')).not.toHaveAttribute('aria-expanded')
+  expect(screen.queryByRole('button', { name: "Bo's colour" })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'More for Bo' })).toBeNull()
+})
+
+test('a won viewer opens to only the colour and the menu', () => {
+  setupWith({ nominations: { a: film }, wonFilms: [1] })
+  openCell('Ann')
+  expect(screen.getByRole('button', { name: "Ann's colour" })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'More for Ann' })).toBeInTheDocument()
   expect(screen.queryByLabelText('Slices for Ann')).toBeNull()
-  expect(screen.getByRole('button', { name: "Bo's colour" })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'More for Bo' })).toBeInTheDocument()
-  expect(screen.queryByLabelText('Slices for Bo')).toBeNull()
-  expect(screen.queryByLabelText('Search a film for Bo')).toBeNull()
+  expect(screen.queryByLabelText('Search a film for Ann')).toBeNull()
 })
 
 test('slider moves save the layout from the derived wheel at once', () => {

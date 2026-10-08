@@ -70,7 +70,7 @@ export default function NightSetup({ client, onAuthError, locked = false }: Prop
 
   function hoverStart(id: string) {
     insideRef.current = id
-    if (lockedRef.current || !canHover()) return
+    if (lockedRef.current || !canHover() || isAway(id)) return
     if (openRef.current === id) {
       window.clearTimeout(timers.current.close)
       return
@@ -92,7 +92,7 @@ export default function NightSetup({ client, onAuthError, locked = false }: Prop
   // With a mouse a click only opens a cell, since moving away is how it closes;
   // a tap and the keyboard (a click with no detail) toggle it.
   function headerClick(id: string, e: MouseEvent<HTMLButtonElement>) {
-    if (lockedRef.current) return
+    if (lockedRef.current || isAway(id)) return
     window.clearTimeout(timers.current.open)
     window.clearTimeout(timers.current.close)
     const mouse = canHover() && e.detail > 0
@@ -107,6 +107,10 @@ export default function NightSetup({ client, onAuthError, locked = false }: Prop
     if (heldRef.current === id) heldRef.current = null
     if (canHover() && openRef.current === id && insideRef.current !== id) scheduleClose(id)
   }, [scheduleClose])
+
+  function isAway(viewerId: string): boolean {
+    return !night.presentIds.includes(viewerId)
+  }
 
   function hasWon(viewerId: string): boolean {
     const film = night.nominations[viewerId]

@@ -4,6 +4,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type FocusEvent,
   type MouseEvent,
   type PointerEvent,
@@ -128,7 +129,7 @@ export default function ViewerCell({
   won,
   film,
   setting,
-  open,
+  open: openRequested,
   client,
   onAuthError,
   onHeaderClick,
@@ -138,6 +139,9 @@ export default function ViewerCell({
   onHold,
 }: Props) {
   const { setPresent, removeViewer, setViewerWeight, setViewerSlices } = useApp()
+  // A viewer who is away has nothing to open: no body, no menu.
+  const expandable = status !== 'away'
+  const open = openRequested && expandable
   const [confirming, setConfirming] = useState(false)
   const menu = useRef<HTMLDivElement>(null)
   const item = useRef<HTMLLIElement>(null)
@@ -192,16 +196,17 @@ export default function ViewerCell({
         el.style.cssText = ''
         return
       }
-      const paneLeft = pane.getBoundingClientRect().left
-      const width = Math.min(22 * 16, paneLeft - 16)
+      // Flush against the cell's left edge, so the two read as one shape.
+      const cellRect = cellEl.getBoundingClientRect()
+      const width = Math.min(22 * 16, cellRect.left - 16)
       el.dataset.floating = 'true'
       el.style.position = 'fixed'
       el.style.width = `${width}px`
-      el.style.left = `${paneLeft - width - 8}px`
+      el.style.minHeight = `${cellRect.height}px`
+      el.style.left = `${cellRect.left - width}px`
       el.style.right = 'auto'
-      const top = cellEl.getBoundingClientRect().top
       const room = window.innerHeight - el.offsetHeight - 8
-      el.style.top = `${Math.max(8, Math.min(top, room))}px`
+      el.style.top = `${Math.max(8, Math.min(cellRect.top, room))}px`
     }
     place()
     window.addEventListener('resize', place)
@@ -217,6 +222,7 @@ export default function ViewerCell({
     <li
       ref={item}
       className={`cell${status !== 'wheel' ? ' dimmed' : ''}${open ? ' open' : ''}`}
+      style={{ '--viewer-color': viewer.color } as CSSProperties}
       onPointerEnter={onHoverStart}
       onPointerLeave={onHoverEnd}
       onFocus={(e: FocusEvent<HTMLElement>) => setFocusHeld(focusVisible(e.target))}
@@ -241,8 +247,8 @@ export default function ViewerCell({
         <button
           type="button"
           className="cell-header"
-          aria-expanded={open}
-          aria-controls={bodyId}
+          aria-expanded={expandable ? open : undefined}
+          aria-controls={expandable ? bodyId : undefined}
           onClick={onHeaderClick}
         >
           <strong className="cell-name">{viewer.name}</strong>
@@ -285,28 +291,11 @@ export default function ViewerCell({
               onAuthError={onAuthError}
             />
           )}
-          <div className="cell-tools">
-            <ColorPicker viewer={viewer} roster={roster} onToggle={track('color')} />
-            {status === 'wheel' && setting && (
-              <>
-                <Slider
-                  label={`Slices for ${viewer.name}`}
-                  value={setting.slices}
-                  step={1}
-                  min={1}
-                  max={12}
-                  onChange={(n) => setViewerSlices(viewer.id, n)}
-                />
-                <Slider
-                  label={`Weight for ${viewer.name}`}
-                  value={setting.weight}
-                  step={0.5}
-                  min={0.5}
-                  max={20}
-                  onChange={(n) => setViewerWeight(viewer.id, n)}
-                />
-              </>
-            )}
+          <div className="cell-options">
+            <span className="cell-colour">
+              <ColorPicker viewer={viewer} roster={roster} onToggle={track('color')} />
+              <span aria-hidden="true">Colour</span>
+            </span>
             <button
               type="button"
               className="quiet"
@@ -334,6 +323,26 @@ export default function ViewerCell({
               </button>
             </div>
           </div>
+          {status === 'wheel' && setting && (
+            <div className="cell-sliders">
+              <Slider
+                label={`Slices for ${viewer.name}`}
+                value={setting.slices}
+                step={1}
+                min={1}
+                max={12}
+                onChange={(n) => setViewerSlices(viewer.id, n)}
+              />
+              <Slider
+                label={`Weight for ${viewer.name}`}
+                value={setting.weight}
+                step={0.5}
+                min={0.5}
+                max={20}
+                onChange={(n) => setViewerWeight(viewer.id, n)}
+              />
+            </div>
+          )}
         </div>
       )}
       {confirming && (

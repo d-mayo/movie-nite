@@ -12,7 +12,7 @@ export default function Slider({ label, value, step, min, max, onChange }: Slide
   return (
     <span className="slider">
       <label>
-        {label}
+        <span className="slider-label">{label}</span>
         <input
           type="range"
           step={step}
