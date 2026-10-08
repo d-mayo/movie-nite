@@ -527,7 +527,12 @@ dialog.wheel-drawer::backdrop {
 /* Below the wide layout the body sits above its cell, so the two join up. */
 @media (max-width: 899px) {
   .setup li.cell.open {
+    border-top: 0;
     border-radius: 0 0 var(--radius-md) var(--radius-md);
+  }
+
+  .setup li.cell > .cell-body:not([data-floating]) {
+    border-bottom: 0;
   }
 }
 

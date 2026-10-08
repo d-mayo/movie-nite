@@ -198,13 +198,15 @@ export default function ViewerCell({
       }
       // Flush against the cell's left edge, so the two read as one shape.
       const cellRect = cellEl.getBoundingClientRect()
-      const width = Math.min(22 * 16, cellRect.left - 16)
+      const edge = Math.round(cellRect.left)
+      // One pixel under the cell, so no hairline of the page shows between them.
+      const width = Math.min(22 * 16, edge - 16) + 1
       el.dataset.floating = 'true'
       el.style.position = 'fixed'
       el.style.width = `${width}px`
       el.style.minHeight = `${cellRect.height}px`
       el.style.setProperty('--cell-height', `${cellRect.height}px`)
-      el.style.left = `${cellRect.left - width}px`
+      el.style.left = `${edge + 1 - width}px`
       el.style.right = 'auto'
       el.style.bottom = 'auto'
       const room = window.innerHeight - el.offsetHeight - 8
