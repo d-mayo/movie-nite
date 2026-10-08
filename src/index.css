@@ -49,3 +49,148 @@ body {
   background: var(--page);
   color: var(--text);
 }
+
+/* Base control styles. Written with :where() so they carry no specificity and
+   any class rule (.spin-button, .reveal-close) still wins over them. */
+:where(button:not(.spin-button)) {
+  font: inherit;
+  padding: var(--space-2) var(--space-4);
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-control);
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    opacity 0.15s;
+}
+
+:where(button:not(.spin-button):hover:not(:disabled)) {
+  background: color-mix(in srgb, var(--text) 8%, var(--card));
+}
+
+:where(button.primary) {
+  color: var(--accent-text);
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+:where(button.primary:hover:not(:disabled)) {
+  background: color-mix(in srgb, var(--accent) 85%, var(--accent-text));
+}
+
+:where(button.quiet) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+:where(button.quiet:hover:not(:disabled)) {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+:where(button.danger) {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+:where(input:not([type]), input[type='text'], input[type='password']) {
+  box-sizing: border-box;
+  font: inherit;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text);
+  background: var(--page);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+:where(input::placeholder) {
+  color: var(--muted);
+}
+
+:where(input[type='checkbox']) {
+  accent-color: var(--accent);
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0 var(--space-2) 0 0;
+  vertical-align: middle;
+}
+
+:where(input[type='range']) {
+  accent-color: var(--accent);
+  appearance: none;
+  height: 1.25rem;
+  margin: 0;
+  background: transparent;
+}
+
+:where(input[type='range'])::-webkit-slider-runnable-track {
+  height: 6px;
+  background: var(--card-border);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+:where(input[type='range'])::-webkit-slider-thumb {
+  appearance: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-top: -7px;
+  background: var(--accent);
+  border: 2px solid var(--page);
+  border-radius: 50%;
+  box-shadow: var(--shadow-control);
+}
+
+:where(input[type='range'])::-moz-range-track {
+  height: 6px;
+  background: var(--card-border);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+:where(input[type='range'])::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  background: var(--accent);
+  border: 2px solid var(--page);
+  border-radius: 50%;
+  box-shadow: var(--shadow-control);
+}
+
+:where(button:not(.spin-button), input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+:where(input[type='range']:focus-visible)::-webkit-slider-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+:where(input[type='range']:focus-visible)::-moz-range-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+:where(button:not(.spin-button):disabled, input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+:where(.card) {
+  padding: var(--space-5);
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+:where([role='alert']) {
+  color: var(--danger);
+}
