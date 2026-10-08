@@ -16,6 +16,7 @@ import {
   resetLayout,
   setPresent,
   setToken,
+  setViewerColor,
   setViewerSliceCount,
   setViewerWeightOnWheel,
   setWildcardWeightOnWheel,
@@ -27,11 +28,13 @@ import {
 import { newId } from './id.ts'
 import type { Persistence } from './persistence.ts'
 import { normaliseLayout } from '../wheel/edit.ts'
+import { assignColors } from '../wheel/colors.ts'
 
 export interface AppActions {
   setToken(token: string | null): void
   addViewer(name: string): void
   removeViewer(id: string): void
+  setViewerColor(id: string, color: string): void
   setPresent(id: string, present: boolean): void
   nominate(viewerId: string, nomination: Nomination): void
   newNight(): void
@@ -59,6 +62,7 @@ function mergeOverDefaults(stored: AppState | null): AppState {
   return {
     ...defaultState,
     ...stored,
+    roster: Array.isArray(stored.roster) ? assignColors(stored.roster) : defaultState.roster,
     settings: { ...defaultState.settings, ...stored.settings },
     night,
   }
@@ -82,6 +86,7 @@ export function createAppStore(persistence: Persistence): AppStore {
       setToken: (token) => update((s) => setToken(s, token)),
       addViewer: (name) => update((s) => addViewer(s, name, newId())),
       removeViewer: (id) => update((s) => removeViewer(s, id)),
+      setViewerColor: (id, color) => update((s) => setViewerColor(s, id, color)),
       setPresent: (id, present) => update((s) => setPresent(s, id, present)),
       nominate: (viewerId, nomination) => update((s) => nominate(s, viewerId, nomination)),
       newNight: () => update(newNight),

@@ -69,8 +69,8 @@ function setupWith(night: Partial<typeof defaultState.night>, holdover: Nominati
       ...defaultState,
       settings: { tmdbToken: 'tok' },
       roster: [
-        { id: 'a', name: 'Ann' },
-        { id: 'b', name: 'Bo' },
+        { id: 'a', name: 'Ann', color: '#e6194b' },
+        { id: 'b', name: 'Bo', color: '#f58231' },
       ],
       night: { ...defaultState.night, presentIds: ['a', 'b'], ...night },
       holdover,

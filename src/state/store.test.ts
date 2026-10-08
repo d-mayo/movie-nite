@@ -2,6 +2,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { defaultState, type Nomination } from './model.ts'
 import { createMemoryPersistence } from './persistence.ts'
 import { createAppStore } from './store.ts'
+import { presetColors } from '../wheel/colors.ts'
 
 const film: Nomination = {
   tmdbId: 1,
@@ -148,4 +149,43 @@ test('adding viewers works without crypto.randomUUID, as on a plain-HTTP origin'
   expect(roster[0].id).not.toBe('')
   expect(roster[0].id).not.toBe(roster[1].id)
   expect(night.presentIds).toEqual(roster.map((v) => v.id))
+})
+
+const loaded = (roster: unknown[]) =>
+  createAppStore(
+    createMemoryPersistence({ ...defaultState, settings: { tmdbToken: 'tok' }, roster } as never),
+  ).getState()
+
+test('a stored roster without colours loads with presets in roster order', () => {
+  const s = loaded([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }])
+  expect(s.roster.map((v) => v.color)).toEqual(presetColors.slice(0, 3))
+  expect(s.settings.tmdbToken).toBe('tok')
+  expect(s.version).toBe(1)
+})
+
+test('duplicate, invalid and non-preset colours are replaced, the earlier holder keeps theirs', () => {
+  const first = presetColors[4]
+  for (const bad of [first, 'nonsense', '#123456']) {
+    const s = loaded([
+      { id: 'a', name: 'A', color: first },
+      { id: 'b', name: 'B', color: bad },
+    ])
+    expect(s.roster[0].color).toBe(first)
+    expect(s.roster[1].color).toBe(presetColors[0])
+  }
+})
+
+test('a later valid colour is reserved before earlier viewers without one are filled', () => {
+  const s = loaded([
+    { id: 'a', name: 'A' },
+    { id: 'b', name: 'B', color: presetColors[0] },
+  ])
+  expect(s.roster.map((v) => v.color)).toEqual([presetColors[1], presetColors[0]])
+})
+
+test('a stored roster of 14 loads, the last two taking presets 0 and 1', () => {
+  const s = loaded(Array.from({ length: 14 }, (_, i) => ({ id: `i${i}`, name: `N${i}` })))
+  expect(s.roster).toHaveLength(14)
+  expect(s.roster[12].color).toBe(presetColors[0])
+  expect(s.roster[13].color).toBe(presetColors[1])
 })

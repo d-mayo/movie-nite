@@ -276,7 +276,7 @@ function nightWithViewer() {
     createMemoryPersistence({
       ...defaultState,
       settings: { tmdbToken: 'tok' },
-      roster: [{ id: 'a', name: 'Ann' }],
+      roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
       night: { ...defaultState.night, presentIds: ['a'], nominations: { a: film } },
     }),
   )
@@ -322,8 +322,8 @@ function bannerNight(
       ...defaultState,
       settings: { tmdbToken: 'tok' },
       roster: [
-        { id: 'a', name: 'Ann' },
-        { id: 'b', name: 'Bo' },
+        { id: 'a', name: 'Ann', color: '#e6194b' },
+        { id: 'b', name: 'Bo', color: '#f58231' },
       ],
       night: {
         ...defaultState.night,
