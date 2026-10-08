@@ -300,6 +300,18 @@ footer p {
   box-sizing: border-box;
 }
 
+.pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+
+.setup .pane-head h2 {
+  margin: 0;
+}
+
 .setup > h2,
 .setup > h3 {
   margin: 0 0 var(--space-3);

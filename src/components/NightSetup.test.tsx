@@ -336,3 +336,17 @@ test('the X over a poster removes the film and the search takes its place', () =
   expect(screen.getByLabelText('Search a film for Ann')).toBeInTheDocument()
   expect(within(cellOf('Ann')).getByText('No film yet')).toBeInTheDocument()
 })
+
+test('the pane menu resets every viewer to the defaults, and is off when all already are', () => {
+  const { store } = setupWith({ presentIds: ['a', 'b'] })
+  fireEvent.click(screen.getByRole('button', { name: 'More for all viewers' }))
+  expect(screen.getByRole('button', { name: 'Reset all slices and weights' })).toBeDisabled()
+
+  act(() => store.getState().setViewerSlices('a', 7))
+  act(() => store.getState().setViewerWeight('b', 12))
+  expect(screen.getByRole('button', { name: 'Reset all slices and weights' })).toBeEnabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Reset all slices and weights' }))
+  const viewers = store.getState().night.layout!.viewers
+  expect(viewers.a).toEqual({ slices: 3, weight: 5 })
+  expect(viewers.b).toEqual({ slices: 3, weight: 5 })
+})

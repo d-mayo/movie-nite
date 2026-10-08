@@ -1,5 +1,6 @@
 import {
   addWildcard,
+  defaultViewerSetting,
   forgetViewer,
   materialiseDefault,
   moveSlice,
@@ -208,6 +209,35 @@ export function setViewerWeightOnWheel(state: AppState, viewerId: string, weight
 
 export function setViewerSliceCount(state: AppState, viewerId: string, count: number): AppState {
   return editLayout(state, (l, onWheel) => setViewerSlices(l, onWheel, viewerId, count))
+}
+
+// Every viewer's slice count and weight back to the defaults, away viewers'
+// kept settings included; wildcards and slice order are left alone.
+export function resetViewerSettings(state: AppState): AppState {
+  return editLayout(state, (layout, onWheel) => {
+    let next = layout
+    for (const id of onWheel) {
+      const now = next.viewers[id] ?? defaultViewerSetting
+      if (now.weight !== defaultViewerSetting.weight) {
+        next = setViewerWeight(next, id, defaultViewerSetting.weight)
+      }
+      if (now.slices !== defaultViewerSetting.slices) {
+        next = setViewerSlices(next, onWheel, id, defaultViewerSetting.slices)
+      }
+    }
+    const viewers = { ...next.viewers }
+    let changed = false
+    for (const [id, setting] of Object.entries(viewers)) {
+      if (
+        !onWheel.includes(id) &&
+        (setting.slices !== defaultViewerSetting.slices || setting.weight !== defaultViewerSetting.weight)
+      ) {
+        viewers[id] = { ...defaultViewerSetting }
+        changed = true
+      }
+    }
+    return changed ? { ...next, viewers } : next
+  })
 }
 
 export function setWildcardWeightOnWheel(state: AppState, weight: number): AppState {

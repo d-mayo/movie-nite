@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type MouseEve
 import { maxNameLength, maxViewers, viewersOnWheel } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
-import { materialiseDefault } from '../wheel/edit.ts'
+import { defaultViewerSetting, materialiseDefault } from '../wheel/edit.ts'
 import { canHover } from './canHover.ts'
 import { WatchNextSession } from './NightOver.tsx'
+import { placeUnder } from './placePopover.ts'
 import ViewerCell, { type CellStatus } from './ViewerCell.tsx'
 
 interface Props {
@@ -23,7 +24,8 @@ const rank: Record<CellStatus, number> = { wheel: 0, won: 1, away: 2 }
 // The viewer pane: one cell per roster viewer, on the wheel first, then those
 // who have won tonight, then those who are away. At most one cell is open.
 export default function NightSetup({ client, onAuthError, locked = false }: Props) {
-  const { roster, night, addViewer } = useApp()
+  const { roster, night, addViewer, resetAllViewerSettings } = useApp()
+  const menu = useRef<HTMLDivElement>(null)
   const [name, setName] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   // Nothing opens during a spin or its reveal, and the open cell closes.
@@ -123,6 +125,9 @@ export default function NightSetup({ client, onAuthError, locked = false }: Prop
   }
 
   const layout = night.layout ?? materialiseDefault(viewersOnWheel(night))
+  const allDefault = Object.values(layout.viewers).every(
+    (v) => v.slices === defaultViewerSetting.slices && v.weight === defaultViewerSetting.weight,
+  )
   // Array.prototype.sort is stable, so each group keeps roster order.
   const cells = roster
     .map((viewer) => ({ viewer, status: statusOf(viewer.id) }))
@@ -137,7 +142,30 @@ export default function NightSetup({ client, onAuthError, locked = false }: Prop
   return (
     <section className="card">
       <fieldset disabled={locked} className="setup">
-        <h2>Tonight's viewers</h2>
+        <div className="pane-head">
+          <h2>Tonight's viewers</h2>
+          <button
+            type="button"
+            className="quiet"
+            aria-label="More for all viewers"
+            popoverTarget="pane-menu"
+            onClick={(e) => placeUnder(e, menu.current)}
+          >
+            <span aria-hidden="true">⋯</span>
+          </button>
+          <div id="pane-menu" popover="auto" ref={menu} className="card cell-menu">
+            <button
+              type="button"
+              disabled={allDefault}
+              onClick={() => {
+                menu.current?.hidePopover()
+                resetAllViewerSettings()
+              }}
+            >
+              Reset all slices and weights
+            </button>
+          </div>
+        </div>
         <p>Headcount: {night.presentIds.length}</p>
         <ul className="viewer-cells">
           {cells.map(({ viewer, status }) => (

@@ -10,6 +10,7 @@ import {
   nominate,
   recordOutcome,
   removeNomination,
+  resetViewerSettings,
   removeViewer,
   resetLayout,
   setPresent,
@@ -351,5 +352,27 @@ describe('removeNomination', () => {
     expect(removeNomination(removed, 'a')).toBe(removed)
     const won = recordOutcome(s, film(1), 'watch', true)
     expect(removeNomination(won, 'a')).toBe(won)
+  })
+})
+
+describe('resetViewerSettings', () => {
+  test('puts every viewer back to the defaults, away ones included, keeping wildcards and order', () => {
+    let s = addViewer(addViewer(defaultState, 'Ann', 'a'), 'Bo', 'b')
+    s = setPresent(s, 'a', true)
+    s = setPresent(s, 'b', true)
+    s = setViewerSliceCount(setViewerWeightOnWheel(s, 'a', 9), 'a', 6)
+    s = setViewerWeightOnWheel(s, 'b', 2)
+    s = setPresent(s, 'b', false)
+    const before = s.night.layout!
+    const reset = resetViewerSettings(s)
+    expect(reset.night.layout!.viewers.a).toEqual({ slices: 3, weight: 5 })
+    expect(reset.night.layout!.viewers.b).toEqual({ slices: 3, weight: 5 })
+    expect(reset.night.layout!.wildcardWeight).toBe(before.wildcardWeight)
+    expect(resetViewerSettings(reset)).toBe(reset)
+  })
+
+  test('leaves a derived wheel derived', () => {
+    const s = addViewer(defaultState, 'Ann', 'a')
+    expect(resetViewerSettings(s)).toBe(s)
   })
 })
