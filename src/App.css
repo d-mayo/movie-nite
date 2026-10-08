@@ -522,7 +522,13 @@ dialog.wheel-drawer::backdrop {
 .setup li.cell.open {
   z-index: 1;
   border-color: var(--border);
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+/* Below the wide layout the body drops under its cell, so the two join up. */
+@media (max-width: 899px) {
+  .setup li.cell.open {
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+  }
 }
 
 .setup .cell-head {
@@ -623,6 +629,10 @@ dialog.wheel-drawer::backdrop {
   border: 1px solid var(--border);
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   box-shadow: var(--shadow-card);
+}
+
+.setup li.cell > .cell-body[data-floating] {
+  border-radius: var(--radius-md);
 }
 
 .setup .cell-tools {

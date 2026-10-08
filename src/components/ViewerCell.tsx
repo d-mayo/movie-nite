@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type FocusEvent,
@@ -18,6 +19,9 @@ import NominationSearch from './NominationSearch.tsx'
 import { filmLabel } from './NightOver.tsx'
 import { placeUnder } from './placePopover.ts'
 import Slider from './Slider.tsx'
+
+// Matches the 900 px breakpoint in App.css where the pane sits beside the wheel.
+const wideScreenPx = 900
 
 export type CellStatus = 'wheel' | 'won' | 'away'
 
@@ -136,6 +140,8 @@ export default function ViewerCell({
   const { setPresent, removeViewer, setViewerWeight, setViewerSlices } = useApp()
   const [confirming, setConfirming] = useState(false)
   const menu = useRef<HTMLDivElement>(null)
+  const item = useRef<HTMLLIElement>(null)
+  const body = useRef<HTMLDivElement>(null)
   const closeDialog = useCallback(() => setConfirming(false), [])
   // Each of these keeps an open cell open: a slider being dragged, keyboard
   // focus inside, a popover or the Remove confirmation being open.
@@ -171,10 +177,45 @@ export default function ViewerCell({
     const shown = (e.nativeEvent as Event & { newState?: string }).newState === 'open'
     setOverlays((o) => ({ ...o, [name]: shown }))
   }
+  // On wide screens the open body floats to the left of the viewer pane, so it
+  // covers no other viewer and is not clipped by the pane's scrolling list.
+  useLayoutEffect(() => {
+    const el = body.current
+    const cellEl = item.current
+    if (!open || !el || !cellEl) return
+    function place() {
+      if (!el || !cellEl) return
+      const pane = cellEl.closest('.card')
+      const wide = window.innerWidth >= wideScreenPx && pane
+      if (!wide) {
+        el.removeAttribute('data-floating')
+        el.style.cssText = ''
+        return
+      }
+      const paneLeft = pane.getBoundingClientRect().left
+      const width = Math.min(22 * 16, paneLeft - 16)
+      el.dataset.floating = 'true'
+      el.style.position = 'fixed'
+      el.style.width = `${width}px`
+      el.style.left = `${paneLeft - width - 8}px`
+      el.style.right = 'auto'
+      const top = cellEl.getBoundingClientRect().top
+      const room = window.innerHeight - el.offsetHeight - 8
+      el.style.top = `${Math.max(8, Math.min(top, room))}px`
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open])
   const present = status !== 'away'
   const bodyId = `cell-body-${viewer.id}`
   return (
     <li
+      ref={item}
       className={`cell${status !== 'wheel' ? ' dimmed' : ''}${open ? ' open' : ''}`}
       onPointerEnter={onHoverStart}
       onPointerLeave={onHoverEnd}
@@ -230,6 +271,7 @@ export default function ViewerCell({
       {open && (
         <div
           id={bodyId}
+          ref={body}
           className="cell-body"
           onPointerDown={(e: PointerEvent<HTMLElement>) => {
             if ((e.target as Element).matches('input[type="range"]')) setDragging(true)
