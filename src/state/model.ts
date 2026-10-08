@@ -122,7 +122,7 @@ export function setPresent(state: AppState, id: string, present: boolean): AppSt
   if (!state.roster.some((v) => v.id === id)) return state
   const isPresent = state.night.presentIds.includes(id)
   if (present === isPresent) return state
-  const isDone = hasWon(state.night, id)
+  // An away viewer keeps their film, so hiding someone briefly loses nothing.
   return syncNight({
     ...state,
     night: {
@@ -130,10 +130,6 @@ export function setPresent(state: AppState, id: string, present: boolean): AppSt
       presentIds: present
         ? [...state.night.presentIds, id]
         : state.night.presentIds.filter((p) => p !== id),
-      nominations:
-        present || isDone
-          ? state.night.nominations
-          : withoutNomination(state.night.nominations, id),
     },
   })
 }

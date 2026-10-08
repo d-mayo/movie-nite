@@ -68,15 +68,15 @@ describe('removeViewer', () => {
 })
 
 describe('setPresent', () => {
-  test('unticking drops the nomination, ticking again does not restore it', () => {
+  test('marking away keeps the nomination, and coming back finds it', () => {
     let s = addViewer(defaultState, 'Ann', 'a')
     s = nominate(s, 'a', film(1))
     s = setPresent(s, 'a', false)
     expect(s.night.presentIds).toEqual([])
-    expect(s.night.nominations).toEqual({})
+    expect(s.night.nominations.a.tmdbId).toBe(1)
     s = setPresent(s, 'a', true)
     expect(s.night.presentIds).toEqual(['a'])
-    expect(s.night.nominations).toEqual({})
+    expect(s.night.nominations.a.tmdbId).toBe(1)
   })
 })
 

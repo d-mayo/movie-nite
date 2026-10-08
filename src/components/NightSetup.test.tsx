@@ -300,3 +300,13 @@ test('the cell controls are disabled while the list is locked', () => {
   expect(screen.getByRole('button', { name: 'Ann is here' })).toBeDisabled()
   expect(header('Ann')).toBeDisabled()
 })
+
+test('an away viewer keeps their film, still shown in their cell, and has it again on return', () => {
+  const { store } = setupWith({ nominations: { a: film } })
+  markAway('Ann')
+  expect(store.getState().night.nominations.a.tmdbId).toBe(1)
+  expect(within(cellOf('Ann')).getByText('Film (2000)')).toBeInTheDocument()
+  expect(within(cellOf('Ann')).queryByText(/slices/)).toBeNull()
+  markHere('Ann')
+  expect(within(cellOf('Ann')).getByText('Film (2000)')).toBeInTheDocument()
+})
