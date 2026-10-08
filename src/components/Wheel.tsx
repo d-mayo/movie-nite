@@ -69,7 +69,7 @@ function WedgeShape({ wedge, id }: { wedge: Wedge; id: string }) {
           height={showTitle ? 16 : 9}
           rx="1.5"
           fill={isWildcard ? '#000' : wedge.color}
-          opacity={isWildcard ? 0.6 : 1}
+          opacity={isWildcard ? 0.6 : 0.85}
         />
         <text x={radius - 4} y={showTitle ? -2 : 0} textAnchor="end" dominantBaseline="central" fontSize="7.5" fontWeight="bold" fill={textColor}>
           {label}
