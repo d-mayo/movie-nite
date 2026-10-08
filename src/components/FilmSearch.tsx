@@ -18,11 +18,27 @@ interface Props {
   onPick: (nomination: Nomination) => void
 }
 
-export function Poster({ path, title }: { path: string | null; title: string }) {
+export function Poster({
+  path,
+  title,
+  large = false,
+}: {
+  path: string | null
+  title: string
+  large?: boolean
+}) {
   return path ? (
-    <img src={posterUrl(path, 'w92')} alt={`Poster of ${title}`} width="46" />
+    <img
+      src={posterUrl(path, large ? 'w185' : 'w92')}
+      alt={`Poster of ${title}`}
+      width={large ? 80 : 46}
+    />
   ) : (
-    <span aria-label="No poster" role="img" className="poster-placeholder" />
+    <span
+      aria-label="No poster"
+      role="img"
+      className={large ? 'poster-placeholder large' : 'poster-placeholder'}
+    />
   )
 }
 

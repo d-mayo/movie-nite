@@ -784,6 +784,30 @@ dialog.wheel-drawer::backdrop {
   gap: var(--space-3);
 }
 
+.nomination-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.nomination-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.nomination-year {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.setup .poster-placeholder.large {
+  width: 80px;
+  height: 120px;
+}
+
 .poster-remove {
   position: relative;
   display: inline-block;

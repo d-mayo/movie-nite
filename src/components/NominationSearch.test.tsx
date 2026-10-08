@@ -107,7 +107,8 @@ test('picking stores the full nomination, and picking again replaces it', async 
   await tick(0)
   const nomination = store.getState().night.nominations.a
   expect(nomination).toMatchObject({ tmdbId: 1, runtime: 120, genres: ['Drama'] })
-  expect(screen.getByText('Alien (1999)')).toBeInTheDocument()
+  expect(screen.getByText('Alien')).toBeInTheDocument()
+  expect(screen.getByText('(1999)')).toBeInTheDocument()
   expect(screen.queryByLabelText('Search a film for Ann')).toBeNull()
 
   fireEvent.click(screen.getByRole('button', { name: 'Remove Alien from Ann' }))

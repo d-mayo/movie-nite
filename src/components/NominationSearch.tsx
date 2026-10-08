@@ -36,7 +36,7 @@ export default function NominationSearch({
     return (
       <div className="nomination">
         <span className="poster-remove">
-          <Poster path={nomination.posterPath} title={nomination.title} />
+          <Poster path={nomination.posterPath} title={nomination.title} large />
           <button
             type="button"
             className="poster-x"
@@ -46,9 +46,9 @@ export default function NominationSearch({
             <span aria-hidden="true">✕</span>
           </button>
         </span>
-        <span>
-          {nomination.title}
-          {nomination.year !== null && ` (${nomination.year})`}
+        <span className="nomination-text">
+          <span className="nomination-title">{nomination.title}</span>
+          {nomination.year !== null && <span className="nomination-year">({nomination.year})</span>}
         </span>
       </div>
     )
