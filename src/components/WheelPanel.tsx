@@ -30,6 +30,9 @@ interface Props {
   reasonSlot?: HTMLElement | null
 }
 
+// "Ann", "Ann and Bo", "Ann, Bo, and Cy".
+const nameList = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' })
+
 const easeOut = (t: number) => 1 - (1 - t) ** 3
 
 export default function WheelPanel({
@@ -66,7 +69,7 @@ export default function WheelPanel({
     : onWheel.length === 0
       ? 'Viewers are needed to spin.'
       : missing.length > 0
-        ? `Waiting for ${missing.join(', ')} to nominate.`
+        ? `Waiting for ${nameList.format(missing)} to nominate.`
         : null
 
   function start() {

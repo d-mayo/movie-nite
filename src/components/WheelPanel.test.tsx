@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
 import App from '../App.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
@@ -206,4 +206,24 @@ test('the spin draws by the edited weights', async () => {
   fireEvent.click(spinButton())
   const dialog = await screen.findByRole('dialog')
   expect(dialog).toHaveTextContent('Film 1')
+})
+
+test('the waiting message lists names with and, and a final comma and and for three or more', () => {
+  setup([])
+  expect(screen.getByText('Waiting for Ann and Bo to nominate.')).toBeInTheDocument()
+  cleanup()
+  const store = createAppStore(
+    createMemoryPersistence({
+      ...defaultState,
+      settings: { tmdbToken: 'tok', viewersHidden: false },
+      roster: [
+        { id: 'a', name: 'Ann', color: '#e6194b' },
+        { id: 'b', name: 'Bo', color: '#f58231' },
+        { id: 'c', name: 'Cy', color: '#4363d8' },
+      ],
+      night: { ...defaultState.night, presentIds: ['a', 'b', 'c'] },
+    }),
+  )
+  render(<App store={store} fetchFn={vi.fn()} />)
+  expect(screen.getByText('Waiting for Ann, Bo, and Cy to nominate.')).toBeInTheDocument()
 })
