@@ -75,7 +75,7 @@ export default function FilmSearch({ label, client, onAuthError, onPick }: Props
   const items = searching && found?.query === trimmed ? found.items : []
 
   return (
-    <div>
+    <div className="film-search">
       <label>
         {label}
         <input value={query} onChange={(e) => setQuery(e.target.value)} />
