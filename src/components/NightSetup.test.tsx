@@ -250,17 +250,10 @@ test('other viewers can still be marked away and removed after a win', () => {
   expect(store.getState().roster.map((v) => v.id)).toEqual(['a'])
 })
 
-test('a saved Watch next session film is shown below the cells and can be cleared', () => {
-  const { store } = setupWith({}, film)
-  expect(screen.getByText('Watch next session')).toBeInTheDocument()
-  expect(screen.getAllByText('Film (2000)')).not.toHaveLength(0)
-  const last = cellOf('Bo')
-  expect(
-    last.compareDocumentPosition(screen.getByText('Watch next session')) & Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy()
-  fireEvent.click(screen.getByRole('button', { name: 'Clear Watch next session film' }))
-  expect(store.getState().holdover).toBeNull()
+test('a saved Watch next session film is not shown in the viewer pane', () => {
+  setupWith({}, film)
   expect(screen.queryByText('Watch next session')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Clear Watch next session film' })).toBeNull()
 })
 
 test('the Add a viewer field accepts at most 20 characters', () => {

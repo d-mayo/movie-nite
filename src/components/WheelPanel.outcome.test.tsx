@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import App from '../App.tsx'
-import { defaultState, type Nomination } from '../state/model.ts'
+import { defaultState, type AppState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import { defaultLayout, type Slice } from '../wheel/layout.ts'
@@ -39,7 +39,12 @@ const cy = landOn((s) => s.kind === 'nomination' && s.viewerId === 'c')
 const wildcard = landOn((s) => s.kind === 'wildcard')
 
 // Ann and Bo nominated film 1, Cy film 2.
-function setupNight(random: () => number, fetchFn: typeof fetch = vi.fn(), spin = true) {
+function setupNight(
+  random: () => number,
+  fetchFn: typeof fetch = vi.fn(),
+  spin = true,
+  seed: { night?: Partial<AppState['night']>; holdover?: Nomination | null } = {},
+) {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
@@ -53,7 +58,9 @@ function setupNight(random: () => number, fetchFn: typeof fetch = vi.fn(), spin 
         ...defaultState.night,
         presentIds: ['a', 'b', 'c'],
         nominations: { a: film(1), b: film(1), c: film(2) },
+        ...seed.night,
       },
+      holdover: seed.holdover ?? null,
     }),
   )
   render(<App store={store} fetchFn={fetchFn} random={random} spinMs={20} />)
@@ -88,10 +95,24 @@ test('Watch takes the winner and the duplicate off the wheel and unlocks setup',
 test('Too long saves the Watch next session film and not the watched list', async () => {
   const store = setupNight(ann)
   const dialog = await screen.findByRole('dialog')
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Too long' }))
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save for Next Week' }))
   expect(store.getState().holdover?.tmdbId).toBe(1)
   expect(store.getState().night.watched).toEqual([])
   expect(store.getState().night.wonFilms).toEqual([1])
+})
+
+test('the first spin clears the held film, Too long on it saves a new one, a later spin leaves it', async () => {
+  const store = setupNight(ann, vi.fn(), false, { holdover: film(7) })
+  expect(store.getState().holdover?.tmdbId).toBe(7)
+  fireEvent.click(spinButton())
+  expect(store.getState().holdover).toBeNull()
+  let dialog = await screen.findByRole('dialog')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save for Next Week' }))
+  expect(store.getState().holdover?.tmdbId).toBe(1)
+  fireEvent.click(spinButton())
+  dialog = await screen.findByRole('dialog')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+  expect(store.getState().holdover?.tmdbId).toBe(1)
 })
 
 test('the night ends when the last viewer on the wheel wins', async () => {
@@ -160,7 +181,7 @@ test('a wildcard pick is revealed from the pick time and Watch leaves the wheel 
 test('Too long on a wildcard pick saves the holdover and leaves the wheel alone', async () => {
   const store = setupNight(wildcard, wildcardFetch)
   const dialog = await pickWildcardFilm()
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Too long' }))
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save for Next Week' }))
   expect(store.getState().holdover?.tmdbId).toBe(9)
   expect(store.getState().night.watched).toEqual([])
   expect(store.getState().night.wonFilms).toEqual([])

@@ -4,7 +4,6 @@ import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import { defaultViewerSetting, materialiseDefault } from '../wheel/edit.ts'
 import { canHover } from './canHover.ts'
-import { WatchNextSession } from './NightOver.tsx'
 import { placeUnder } from './placePopover.ts'
 import ViewerCell, { type CellStatus } from './ViewerCell.tsx'
 
@@ -202,7 +201,6 @@ export default function NightSetup({ client, onAuthError, locked = false }: Prop
             <p>The roster is full (12 viewers). Remove a viewer to add another.</p>
           )}
         </form>
-        <WatchNextSession />
       </fieldset>
     </section>
   )

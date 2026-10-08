@@ -1,5 +1,4 @@
 import { useApp } from '../state/store.ts'
-import { Poster } from './FilmSearch.tsx'
 
 export function filmLabel(film: { title: string; year: number | null }): string {
   return film.year !== null ? `${film.title} (${film.year})` : film.title
@@ -23,21 +22,6 @@ export default function NightOver() {
         <p>No films were watched tonight.</p>
       )}
       {holdover && <p>Watch next session: {filmLabel(holdover)}</p>}
-    </section>
-  )
-}
-
-export function WatchNextSession() {
-  const { holdover, clearHoldover } = useApp()
-  if (!holdover) return null
-  return (
-    <section aria-labelledby="holdover-heading">
-      <h3 id="holdover-heading">Watch next session</h3>
-      <Poster path={holdover.posterPath} title={holdover.title} />
-      <span>{filmLabel(holdover)}</span>
-      <button type="button" onClick={clearHoldover}>
-        Clear Watch next session film
-      </button>
     </section>
   )
 }

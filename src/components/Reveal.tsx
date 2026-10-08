@@ -14,6 +14,8 @@ interface Props {
   wedge: Wedge
   revealedAt: Date
   client: TmdbClient
+  // The film already saved for next week this night, which a second save replaces.
+  heldFilm?: Nomination | null
   onAuthError: () => void
   onOutcome: (nomination: Nomination, outcome: Outcome, fromWheel: boolean) => void
   onClose: () => void
@@ -28,6 +30,7 @@ export default function Reveal({
   wedge,
   revealedAt,
   client,
+  heldFilm = null,
   onAuthError,
   onOutcome,
   onClose,
@@ -63,6 +66,7 @@ export default function Reveal({
         <FilmReveal
           nomination={shown.nomination}
           at={shown.at}
+          heldFilm={heldFilm}
           byline={fromWheel ? `Nominated by ${wedge.viewerName}` : 'Wildcard pick'}
           onOutcome={(outcome) => onOutcome(shown.nomination, outcome, fromWheel)}
           onClose={onClose}
@@ -89,11 +93,13 @@ interface FilmRevealProps {
   nomination: Nomination
   at: Date
   byline: string
+  heldFilm: Nomination | null
   onOutcome: (outcome: Outcome) => void
   onClose: () => void
 }
 
-function FilmReveal({ nomination, at, byline, onOutcome, onClose }: FilmRevealProps) {
+function FilmReveal({ nomination, at, byline, heldFilm, onOutcome, onClose }: FilmRevealProps) {
+  const [confirming, setConfirming] = useState(false)
   const window = finishWindow(at, nomination.runtime)
   return (
     <>
@@ -119,12 +125,34 @@ function FilmReveal({ nomination, at, byline, onOutcome, onClose }: FilmRevealPr
           ? `Ends around ${window.start}–${window.end}`
           : 'End time unknown (no runtime on TMDB)'}
       </p>
-      <button type="button" onClick={() => onOutcome('watch')}>
-        Watch
-      </button>
-      <button type="button" onClick={() => onOutcome('tooLong')}>
-        Too long
-      </button>
+      <div className="reveal-actions">
+        <button type="button" className="primary reveal-watch" onClick={() => onOutcome('watch')}>
+          Watch
+        </button>
+        {confirming && heldFilm ? (
+          <div role="alert" className="reveal-replace">
+            <p>
+              This will replace {heldFilm.title}, already saved for next week.
+            </p>
+            <div className="reveal-replace-actions">
+              <button type="button" className="danger" onClick={() => onOutcome('tooLong')}>
+                Replace it
+              </button>
+              <button type="button" className="quiet" onClick={() => setConfirming(false)}>
+                Keep it
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="quiet reveal-save"
+            onClick={() => (heldFilm ? setConfirming(true) : onOutcome('tooLong'))}
+          >
+            Save for Next Week
+          </button>
+        )}
+      </div>
     </>
   )
 }

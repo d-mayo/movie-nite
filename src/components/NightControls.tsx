@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useApp } from '../state/store.ts'
 import WheelEditor from './WheelEditor.tsx'
 
 interface Props {
   locked: boolean
+  // The held film's chip, which sits first in the toolbar.
+  heldFilmChip?: ReactNode
   onChangeToken: () => void
 }
 
@@ -47,7 +49,7 @@ function EndNightDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClos
   )
 }
 
-export default function NightControls({ locked, onChangeToken }: Props) {
+export default function NightControls({ locked, heldFilmChip, onChangeToken }: Props) {
   const { night, endNight, newNight } = useApp()
   const [confirming, setConfirming] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -57,6 +59,7 @@ export default function NightControls({ locked, onChangeToken }: Props) {
   const closeDrawer = useCallback(() => setEditing(false), [])
   return (
     <div className="night-controls">
+      {heldFilmChip}
       <button
         type="button"
         ref={wheelButton}
