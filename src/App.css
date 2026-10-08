@@ -241,18 +241,18 @@ footer p {
   gap: 0.5rem;
 }
 
-.wheel-editor .slider {
+.slider {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
 }
 
-.wheel-editor .slider input[type='range'] {
+.slider input[type='range'] {
   width: 8rem;
   margin-left: 0.25rem;
 }
 
-.wheel-editor .slider output {
+.slider output {
   min-width: 2.5ch;
   font-variant-numeric: tabular-nums;
 }
@@ -505,9 +505,129 @@ dialog.wheel-drawer::backdrop {
   gap: var(--space-3);
 }
 
-/* A cell's body eases in when it opens. */
-.cell-body {
+/* The viewer pane: a scrollable list of cells, one per roster viewer. */
+.viewer-cells {
+  margin: 0 0 var(--space-3);
+}
+
+.setup li.cell {
+  position: relative;
+  display: block;
+  margin-bottom: var(--space-2);
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+}
+
+.setup li.cell.open {
+  border-color: var(--border);
+  box-shadow: var(--shadow-card);
+}
+
+.setup .cell-head {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-1) 0;
+}
+
+.cell-edge {
+  flex: none;
+  width: 6px;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.setup .cell-eye {
+  flex: none;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: var(--space-1);
+  border-color: transparent;
+}
+
+.setup .cell-eye[aria-pressed='false'] {
+  color: var(--muted);
+}
+
+.setup .cell-header {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+.setup .cell-header:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.cell-name {
+  overflow-wrap: anywhere;
+}
+
+.cell-film {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.setup .cell-film img {
+  width: 23px;
+  height: auto;
+}
+
+.setup .cell-film .poster-placeholder {
+  width: 23px;
+  height: 35px;
+}
+
+.cell-summary,
+.cell-tag {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+/* Won and away cells are dimmed; the eye toggle stays at full strength. */
+.cell.dimmed .cell-edge,
+.cell.dimmed .cell-header {
+  opacity: 0.55;
+}
+
+.setup li.cell > .cell-body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-3) calc(6px + var(--space-3));
   animation: cell-open 0.15s ease-out;
+}
+
+.setup .cell-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.cell-menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: var(--space-2);
+}
+
+.cell-menu:not(:popover-open) {
+  display: none;
 }
 
 @keyframes cell-open {
@@ -518,7 +638,30 @@ dialog.wheel-drawer::backdrop {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cell-body {
+  .setup li.cell > .cell-body {
     animation: none;
+  }
+}
+
+/* Wide screens: the cell list scrolls on its own within about the wheel's
+   height, with Add a viewer below it. */
+@media (min-width: 900px) {
+  .setup-column > .card {
+    display: flex;
+    flex-direction: column;
+    max-height: min(860px, 88vh);
+  }
+
+  .setup-column > .card > fieldset.setup {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .setup .viewer-cells {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
   }
 }
