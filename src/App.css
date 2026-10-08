@@ -969,3 +969,16 @@ dialog.wheel-drawer::backdrop {
     max-width: 6rem;
   }
 }
+
+.held-film img,
+.held-film .poster-placeholder {
+  flex: none;
+  width: 46px;
+  height: 69px;
+  border-radius: var(--radius-sm);
+}
+
+.held-film .poster-placeholder {
+  display: inline-block;
+  background: var(--card-border);
+}
