@@ -203,6 +203,7 @@ export default function ViewerCell({
       el.style.position = 'fixed'
       el.style.width = `${width}px`
       el.style.minHeight = `${cellRect.height}px`
+      el.style.setProperty('--cell-height', `${cellRect.height}px`)
       el.style.left = `${cellRect.left - width}px`
       el.style.right = 'auto'
       el.style.bottom = 'auto'

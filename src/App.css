@@ -634,11 +634,22 @@ dialog.wheel-drawer::backdrop {
 /* On wide screens the body is a panel attached to the open cell's left edge:
    the cell squares off its left side and the panel takes the same border. */
 .setup li.cell > .cell-body[data-floating] {
-  border-right: 0;
   border-left: 6px solid var(--viewer-color);
-  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  border-radius: var(--radius-md) 0 var(--radius-md) var(--radius-md);
   box-shadow: var(--shadow-card);
   animation-name: cell-slide;
+}
+
+/* Its right border runs below the cell it comes out of; beside the cell the
+   border is covered, so the two join up. */
+.setup li.cell > .cell-body[data-floating]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -1px;
+  width: 1px;
+  height: calc(var(--cell-height) - 2px);
+  background: var(--card);
 }
 
 .setup li.cell.open:has(> .cell-body[data-floating]) {
