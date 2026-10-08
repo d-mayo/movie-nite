@@ -267,3 +267,41 @@ test('the banner picks the dark logo by colour scheme', () => {
     'logo-light-transparent',
   )
 })
+
+function nightWithViewer() {
+  const store = createAppStore(
+    createMemoryPersistence({
+      ...defaultState,
+      settings: { tmdbToken: 'tok' },
+      roster: [{ id: 'a', name: 'Ann' }],
+      night: { ...defaultState.night, presentIds: ['a'], nominations: { a: film } },
+    }),
+  )
+  render(<App store={store} fetchFn={ok()} />)
+}
+
+test('the token prompt is a card with Save primary and Cancel quiet', () => {
+  nightWithViewer()
+  fireEvent.click(screen.getByRole('button', { name: 'Change TMDB token' }))
+  const form = screen.getByLabelText('TMDB Read Access Token').closest('form')!
+  expect(form).toHaveClass('card')
+  expect(screen.getByRole('button', { name: 'Save' })).toHaveClass('primary')
+  expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass('quiet')
+})
+
+test('the viewer list is a card with Add primary and Remove danger', () => {
+  nightWithViewer()
+  expect(screen.getByText("Tonight's viewers").closest('section')).toHaveClass('card')
+  expect(screen.getByRole('button', { name: 'Add' })).toHaveClass('primary')
+  expect(screen.getByRole('button', { name: 'Remove Ann' })).toHaveClass('danger')
+})
+
+test('the wheel editor is a card with Done primary, Remove danger and Move quiet', () => {
+  nightWithViewer()
+  fireEvent.click(screen.getByRole('button', { name: 'Edit wheel' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Add wildcard' }))
+  expect(screen.getByText('Edit wheel', { selector: 'h2' }).closest('section')).toHaveClass('card')
+  expect(screen.getByRole('button', { name: 'Done' })).toHaveClass('primary')
+  expect(screen.getByRole('button', { name: 'Remove wildcard 1' })).toHaveClass('danger')
+  expect(screen.getByRole('button', { name: 'Move slice 1 up' })).toHaveClass('quiet')
+})

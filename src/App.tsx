@@ -100,7 +100,7 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
         {editing ? (
           <WheelEditor locked={locked} onDone={() => setEditing(false)} />
         ) : (
-          <div>
+          <div className="setup-column">
             {!locked && !night.ended && (
               <button type="button" onClick={() => setEditing(true)}>
                 Edit wheel

@@ -56,7 +56,7 @@ export default function NominationSearch({
         onPick={onPick}
       />
       {nomination && (
-        <button type="button" onClick={() => setChanging(false)}>
+        <button type="button" className="quiet" onClick={() => setChanging(false)}>
           Keep current film
         </button>
       )}

@@ -4,7 +4,7 @@
   justify-content: flex-start;
   gap: 1rem;
   padding: 0.5rem 1rem;
-  border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-bottom: 1px solid var(--card-border);
 }
 
 .banner h1 {
@@ -179,7 +179,7 @@ footer p {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.5rem;
 }
 
@@ -197,4 +197,138 @@ footer p {
 .wheel-editor .slider output {
   min-width: 2.5ch;
   font-variant-numeric: tabular-nums;
+}
+
+.token-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  box-sizing: border-box;
+  max-width: 28rem;
+  margin: 0 auto;
+}
+
+.token-prompt h2,
+.token-prompt p {
+  margin: 0;
+}
+
+.token-prompt label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+}
+
+.token-prompt .actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.setup-column {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.setup-column > button {
+  align-self: flex-start;
+}
+
+.setup-column > .card {
+  box-sizing: border-box;
+}
+
+.setup > h2,
+.setup > h3 {
+  margin: 0 0 var(--space-3);
+}
+
+.setup > h3 {
+  margin-top: var(--space-4);
+}
+
+.setup label {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.setup input:not([type]),
+.setup input[type='text'] {
+  max-width: 100%;
+}
+
+.setup li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.setup li > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.setup li li {
+  padding: 0;
+}
+
+.setup ol {
+  padding-left: var(--space-5);
+}
+
+.setup form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+
+.setup form > button {
+  margin: 0;
+}
+
+.setup ul button:has(img),
+.setup ul button:has(.poster-placeholder) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 100%;
+  text-align: left;
+}
+
+.setup .poster-placeholder {
+  display: inline-block;
+  width: 46px;
+  height: 69px;
+  background: var(--card-border);
+  border-radius: var(--radius-sm);
+}
+
+.setup img {
+  border-radius: var(--radius-sm);
+}
+
+fieldset.setup {
+  min-width: 0;
+}
+
+.setup > button {
+  margin: var(--space-2) var(--space-2) 0 0;
+}
+
+.drag-handle {
+  cursor: grab;
+  touch-action: none;
 }
