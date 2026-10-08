@@ -18,41 +18,13 @@ import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { viewersOnWheel } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import { materialiseDefault, type SliceRef } from '../wheel/edit.ts'
+import Slider from './Slider.tsx'
 
 interface Props {
   locked?: boolean
   onClosed: () => void
   // The button the popover hangs from.
   anchor?: RefObject<HTMLElement | null>
-}
-
-interface SliderProps {
-  label: string
-  value: number
-  step: number
-  min: number
-  max: number
-  onChange: (n: number) => void
-}
-
-// A range slider that applies every change at once, with its value shown beside it.
-function Slider({ label, value, step, min, max, onChange }: SliderProps) {
-  return (
-    <span className="slider">
-      <label>
-        {label}
-        <input
-          type="range"
-          step={step}
-          min={min}
-          max={max}
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-        />
-      </label>
-      <output>{value}</output>
-    </span>
-  )
 }
 
 function SortableSlice({
@@ -101,8 +73,6 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
   const {
     roster,
     night,
-    setViewerWeight,
-    setViewerSlices,
     setWildcardWeight,
     addWildcard,
     removeWildcard,
@@ -179,35 +149,8 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
           Wheel settings
         </h2>
         <fieldset disabled={locked} className="setup wheel-editor">
-          <h3>Viewers</h3>
-          {onWheel.length === 0 && <p>Nobody is on the wheel.</p>}
-          <ul>
-            {onWheel.map((id) => {
-              const setting = layout.viewers[id]
-              return (
-                <li key={id}>
-                  <strong>{nameOf(id)}</strong>
-                  <Slider
-                    label={`Weight for ${nameOf(id)}`}
-                    value={setting.weight}
-                    step={0.5}
-                    min={0.5}
-                    max={20}
-                    onChange={(n) => setViewerWeight(id, n)}
-                  />
-                  <Slider
-                    label={`Slices for ${nameOf(id)}`}
-                    value={setting.slices}
-                    step={1}
-                    min={1}
-                    max={12}
-                    onChange={(n) => setViewerSlices(id, n)}
-                  />
-                </li>
-              )
-            })}
-          </ul>
           <h3>Wildcards</h3>
+          {onWheel.length === 0 && <p>Nobody is on the wheel.</p>}
           <Slider
             label="Wildcard weight"
             value={layout.wildcardWeight}

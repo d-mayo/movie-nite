@@ -5,6 +5,7 @@ import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import { labelTextColor, presetColors } from '../wheel/colors.ts'
+import { markAway, markHere, removeViewer } from '../test/cells.ts'
 
 function film(id: number, posterPath: string | null): Nomination {
   return {
@@ -58,14 +59,14 @@ test('the wheel follows viewers and nominations live', () => {
   expect(wedges()).toHaveLength(4)
   expect(screen.getByTestId('pointer')).toBeInTheDocument()
 
-  fireEvent.click(screen.getByLabelText('Ann'))
+  markAway('Ann')
   expect(wedges()).toHaveLength(0)
-  fireEvent.click(screen.getByLabelText('Ann'))
+  markHere('Ann')
   expect(wedges()).toHaveLength(4)
 
   act(() => store.getState().nominate(id, film(4, '/c.jpg')))
 
-  fireEvent.click(screen.getByRole('button', { name: 'Remove Ann' }))
+  removeViewer('Ann')
   expect(wedges()).toHaveLength(0)
 })
 
@@ -80,7 +81,7 @@ test('a viewer name of 20 characters is shortened on the wheel, a short one is n
   expect(screen.getAllByText('Ann', { selector: 'text' })).not.toHaveLength(0)
 })
 
-test('a nomination label sits on the viewer colour with contrasting text, a wildcard on dark', () => {
+test('a nomination label sits on the viewer color with contrasting text, a wildcard on dark', () => {
   const store = setup()
   for (const name of ['Ann', 'Bo']) {
     fireEvent.change(screen.getByLabelText('Add a viewer'), { target: { value: name } })
@@ -89,17 +90,17 @@ test('a nomination label sits on the viewer colour with contrasting text, a wild
   const [ann, bo] = store.getState().roster
   act(() => store.getState().setViewerColor(bo.id, presetColors[7]))
   act(() => store.getState().nominate(ann.id, film(1, null)))
-  const textOf = (colour: string, kind: string) => {
-    const g = document.querySelector(`[data-kind="${kind}"] rect[fill="${colour}"]`)?.parentElement
+  const textOf = (color: string, kind: string) => {
+    const g = document.querySelector(`[data-kind="${kind}"] rect[fill="${color}"]`)?.parentElement
     return g
   }
-  for (const [colour] of [[ann.color], [presetColors[7]]]) {
-    const g = textOf(colour, 'nomination')
+  for (const [color] of [[ann.color], [presetColors[7]]]) {
+    const g = textOf(color, 'nomination')
     expect(g).not.toBeNull()
     const rect = g!.querySelector('rect')!
     expect(Number(rect.getAttribute('opacity'))).toBeGreaterThanOrEqual(0.8)
     for (const t of Array.from(g!.querySelectorAll('text')))
-      expect(t.getAttribute('fill')).toBe(labelTextColor(colour))
+      expect(t.getAttribute('fill')).toBe(labelTextColor(color))
   }
   const wild = document.querySelector('[data-kind="wildcard"] rect')!
   expect(wild.getAttribute('fill')).toBe('#000')

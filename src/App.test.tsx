@@ -20,6 +20,7 @@ import {
 } from './state/model.ts'
 import { createMemoryPersistence } from './state/persistence.ts'
 import { createAppStore } from './state/store.ts'
+import { openCell } from './test/cells.ts'
 
 const attribution =
   'This product uses the TMDB API but is not endorsed or certified by TMDB.'
@@ -260,7 +261,7 @@ test('the one h1 is the logo named Movie Nite', () => {
   ).toBeInTheDocument()
 })
 
-test('the banner picks the dark logo by colour scheme', () => {
+test('the banner picks the dark logo by color scheme', () => {
   setup(ok())
   const picture = screen.getByRole('banner').querySelector('picture')!
   const source = picture.querySelector('source')!
@@ -294,9 +295,12 @@ test('the token prompt is a card with Save primary and Cancel quiet', () => {
 
 test('the viewer list is a card with Add primary and Remove danger', () => {
   nightWithViewer()
+  openCell('Ann')
+  fireEvent.click(screen.getByRole('button', { name: 'More for Ann' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Remove from roster' }))
   expect(screen.getByText("Tonight's viewers").closest('section')).toHaveClass('card')
   expect(screen.getByRole('button', { name: 'Add' })).toHaveClass('primary')
-  expect(screen.getByRole('button', { name: 'Remove Ann' })).toHaveClass('danger')
+  expect(screen.getByRole('button', { name: 'Remove' })).toHaveClass('danger')
 })
 
 test('the Wheel settings drawer is a card with Done primary, Remove danger and Move quiet', () => {
@@ -476,14 +480,28 @@ test('the token prompt banner has the logo only', () => {
   noControls()
 })
 
-test('choosing a colour in the picker repaints the wheel at once', () => {
+test('choosing a color in the picker repaints the wheel at once', () => {
   nightWithViewer()
   const fills = () =>
     Array.from(document.querySelectorAll('[data-kind="nomination"] > path:not([clip-path])'))
       .map((p) => p.getAttribute('fill'))
   expect(fills()).toContain('#e6194b')
-  fireEvent.click(screen.getByRole('button', { name: "Ann's colour" }))
+  openCell('Ann')
+  fireEvent.click(screen.getByRole('button', { name: "Ann's color" }))
   fireEvent.click(screen.getByRole('button', { name: 'Blue' }))
   expect(fills()).toContain('#4363d8')
   expect(fills()).not.toContain('#e6194b')
+})
+
+test('each Slices change in a cell redraws the wheel at once, and a weight is kept', () => {
+  nightWithViewer()
+  openCell('Ann')
+  for (const n of [4, 5, 6]) {
+    fireEvent.change(screen.getByLabelText('Slices for Ann'), { target: { value: String(n) } })
+    expect(
+      screen.getAllByTestId('wedge').filter((w) => w.getAttribute('data-kind') === 'nomination'),
+    ).toHaveLength(n)
+  }
+  fireEvent.change(screen.getByLabelText('Weight for Ann'), { target: { value: '7.5' } })
+  expect(screen.getByLabelText('Weight for Ann')).toHaveValue('7.5')
 })

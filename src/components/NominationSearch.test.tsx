@@ -5,6 +5,7 @@ import { addViewer, defaultState, recordOutcome, setToken } from '../state/model
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { AppStoreContext, createAppStore } from '../state/store.ts'
 import { createTmdbClient } from '../tmdb/client.ts'
+import { openCell } from '../test/cells.ts'
 import NominationSearch from './NominationSearch.tsx'
 
 beforeEach(() => vi.useFakeTimers())
@@ -106,9 +107,12 @@ test('picking stores the full nomination, and picking again replaces it', async 
   await tick(0)
   const nomination = store.getState().night.nominations.a
   expect(nomination).toMatchObject({ tmdbId: 1, runtime: 120, genres: ['Drama'] })
-  expect(screen.getByText('Alien (1999)')).toBeInTheDocument()
+  expect(screen.getByText('Alien')).toBeInTheDocument()
+  expect(screen.getByText('(1999)')).toBeInTheDocument()
+  expect(screen.queryByLabelText('Search a film for Ann')).toBeNull()
 
-  fireEvent.click(screen.getByRole('button', { name: 'Change film for Ann' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Remove Alien from Ann' }))
+  expect(store.getState().night.nominations.a).toBeUndefined()
   type('aliens')
   await tick(300)
   fireEvent.click(screen.getByRole('button', { name: 'Pick Aliens (1999)' }))
@@ -116,7 +120,7 @@ test('picking stores the full nomination, and picking again replaces it', async 
   expect(store.getState().night.nominations.a.tmdbId).toBe(2)
 })
 
-test('a failing getMovie shows an error and keeps the old nomination', async () => {
+test('a failing getMovie shows an error with Retry and nominates nothing', async () => {
   const fetchFn = vi.fn((url: string) =>
     Promise.resolve(
       url.includes('/search/')
@@ -127,18 +131,13 @@ test('a failing getMovie shows an error and keeps the old nomination', async () 
     ),
   )
   const { store } = mount(fetchFn as unknown as typeof fetch)
-  type('alien')
-  await tick(300)
-  fireEvent.click(screen.getByRole('button', { name: 'Pick Alien (1999)' }))
-  await tick(0)
-  fireEvent.click(screen.getByRole('button', { name: 'Change film for Ann' }))
   type('aliens')
   await tick(300)
   fireEvent.click(screen.getByRole('button', { name: 'Pick Aliens (1999)' }))
   await tick(0)
   expect(screen.getByRole('alert')).toHaveTextContent('Could not load Aliens')
   expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
-  expect(store.getState().night.nominations.a.tmdbId).toBe(1)
+  expect(store.getState().night.nominations.a).toBeUndefined()
 })
 
 test.each([
@@ -156,6 +155,7 @@ test.each([
   )
   const store = createAppStore(createMemoryPersistence(initial()))
   render(<App store={store} fetchFn={fetchFn as unknown as typeof fetch} />)
+  openCell('Ann')
   type('alien')
   await tick(300)
   if (_n === 'getMovie') {

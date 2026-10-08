@@ -11,8 +11,8 @@ const annColors = (s: typeof defaultState) =>
     .filter((w) => w.slice.kind === 'nomination' && w.slice.viewerId === 'a')
     .map((w) => w.color)
 
-describe('buildWedges colours', () => {
-  test('a viewer keeps their colour whoever else is present', () => {
+describe('buildWedges colors', () => {
+  test('a viewer keeps their color whoever else is present', () => {
     const s = two()
     const colors = annColors(s)
     expect(colors.length).toBeGreaterThan(0)
@@ -21,7 +21,7 @@ describe('buildWedges colours', () => {
     expect(annColors(setPresent(setPresent(s, 'b', false), 'b', true))).toEqual(colors)
   })
 
-  test('the colour survives New night and a reload', () => {
+  test('the color survives New night and a reload', () => {
     const s = two()
     expect(annColors(newNight(s))).toEqual(annColors(s))
     const store = createAppStore(createMemoryPersistence(s))

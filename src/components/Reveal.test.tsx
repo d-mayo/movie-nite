@@ -79,7 +79,7 @@ test('a wildcard says so and fires confetti, and Back to the wheel returns to th
   await waitFor(() => expect(confetti).toHaveBeenCalledTimes(1))
   fireEvent.click(within(dialog).getByRole('button', { name: 'Back to the wheel' }))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  expect(screen.getByLabelText('Ann')).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Ann is here' })).toBeEnabled()
   expect(screen.getByRole('button', { name: 'Spin' })).toBeEnabled()
   expect(screen.getAllByTestId('wedge')).toHaveLength(8)
 })

@@ -23,13 +23,20 @@ if (!HTMLDialogElement.prototype.showModal) {
 
 if (!('showPopover' in HTMLElement.prototype)) {
   const proto = HTMLElement.prototype as unknown as Record<string, unknown>
+  // A real popover fires `toggle` with the state it is going to.
+  const toggled = (el: HTMLElement, newState: 'open' | 'closed') =>
+    el.dispatchEvent(Object.assign(new Event('toggle'), { newState }))
   proto.showPopover = function showPopover(this: HTMLElement) {
+    if (this.dataset.popoverOpen) return
     this.style.display = 'block'
     this.dataset.popoverOpen = 'true'
+    toggled(this, 'open')
   }
   proto.hidePopover = function hidePopover(this: HTMLElement) {
+    if (!this.dataset.popoverOpen) return
     this.style.display = ''
     delete this.dataset.popoverOpen
+    toggled(this, 'closed')
   }
   proto.togglePopover = function togglePopover(this: HTMLElement) {
     if (this.dataset.popoverOpen) (this as unknown as { hidePopover(): void }).hidePopover()

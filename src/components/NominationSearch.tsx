@@ -11,15 +11,16 @@ interface Props {
   onAuthError: () => void
 }
 
+// A viewer with a film shows its poster, with an X on hover that takes the film
+// off the wheel; a viewer without one gets the search.
 export default function NominationSearch({
   viewerId,
   viewerName,
   client,
   onAuthError,
 }: Props) {
-  const { night, nominate } = useApp()
+  const { night, nominate, removeNomination } = useApp()
   const nomination = night.nominations[viewerId]
-  const [changing, setChanging] = useState(false)
   const [wonMessage, setWonMessage] = useState<string | null>(null)
 
   function onPick(picked: Nomination) {
@@ -29,20 +30,26 @@ export default function NominationSearch({
     }
     setWonMessage(null)
     nominate(viewerId, picked)
-    setChanging(false)
   }
 
-  if (nomination && !changing) {
+  if (nomination) {
     return (
-      <div>
-        <Poster path={nomination.posterPath} title={nomination.title} />
-        <span>
-          {nomination.title}
-          {nomination.year !== null && ` (${nomination.year})`}
+      <div className="nomination">
+        <span className="poster-remove">
+          <Poster path={nomination.posterPath} title={nomination.title} large />
+          <button
+            type="button"
+            className="poster-x"
+            aria-label={`Remove ${nomination.title} from ${viewerName}`}
+            onClick={() => removeNomination(viewerId)}
+          >
+            <span aria-hidden="true">✕</span>
+          </button>
         </span>
-        <button type="button" onClick={() => setChanging(true)}>
-          Change film for {viewerName}
-        </button>
+        <span className="nomination-text">
+          <span className="nomination-title">{nomination.title}</span>
+          {nomination.year !== null && <span className="nomination-year">({nomination.year})</span>}
+        </span>
       </div>
     )
   }
@@ -55,11 +62,6 @@ export default function NominationSearch({
         onAuthError={onAuthError}
         onPick={onPick}
       />
-      {nomination && (
-        <button type="button" className="quiet" onClick={() => setChanging(false)}>
-          Keep current film
-        </button>
-      )}
       {wonMessage && <p role="alert">{wonMessage}</p>}
     </div>
   )

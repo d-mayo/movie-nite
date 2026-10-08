@@ -9,6 +9,8 @@ import {
   newNight,
   nominate,
   recordOutcome,
+  removeNomination,
+  resetViewerSettings,
   removeViewer,
   resetLayout,
   setPresent,
@@ -68,15 +70,15 @@ describe('removeViewer', () => {
 })
 
 describe('setPresent', () => {
-  test('unticking drops the nomination, ticking again does not restore it', () => {
+  test('marking away keeps the nomination, and coming back finds it', () => {
     let s = addViewer(defaultState, 'Ann', 'a')
     s = nominate(s, 'a', film(1))
     s = setPresent(s, 'a', false)
     expect(s.night.presentIds).toEqual([])
-    expect(s.night.nominations).toEqual({})
+    expect(s.night.nominations.a.tmdbId).toBe(1)
     s = setPresent(s, 'a', true)
     expect(s.night.presentIds).toEqual(['a'])
-    expect(s.night.nominations).toEqual({})
+    expect(s.night.nominations.a.tmdbId).toBe(1)
   })
 })
 
@@ -304,7 +306,7 @@ describe('an edited wheel', () => {
   })
 })
 
-describe('viewer colours', () => {
+describe('viewer colors', () => {
   const withViewers = (n: number) => {
     let s = defaultState
     for (let i = 0; i < n; i++) s = addViewer(s, `V${i}`, `id${i}`)
@@ -318,7 +320,7 @@ describe('viewer colours', () => {
     expect(freed.roster.at(-1)?.color).toBe(presetColors[0])
   })
 
-  test('a changed colour is skipped by the next new viewer', () => {
+  test('a changed color is skipped by the next new viewer', () => {
     const s = setViewerColor(withViewers(1), 'id0', presetColors[5])
     expect(addViewer(s, 'Bo', 'b').roster[1].color).toBe(presetColors[0])
     const t = addViewer(addViewer(s, 'Bo', 'b'), 'Cy', 'c')
@@ -326,17 +328,51 @@ describe('viewer colours', () => {
     expect(new Set(withViewers(6).roster.map((v) => v.color)).size).toBe(6)
   })
 
-  test('the roster is capped at 12 and removal frees a colour', () => {
+  test('the roster is capped at 12 and removal frees a color', () => {
     const full = withViewers(maxViewers)
     expect(addViewer(full, 'Extra', 'x')).toBe(full)
     const freed = addViewer(removeViewer(full, 'id3'), 'Extra', 'x')
     expect(freed.roster.at(-1)?.color).toBe(presetColors[3])
   })
 
-  test('setViewerColor refuses non-presets and colours held by others', () => {
+  test('setViewerColor refuses non-presets and colors held by others', () => {
     const s = withViewers(2)
     expect(setViewerColor(s, 'id0', '#123456')).toBe(s)
     expect(setViewerColor(s, 'id0', presetColors[1])).toBe(s)
     expect(setViewerColor(s, 'id0', presetColors[7]).roster[0].color).toBe(presetColors[7])
+  })
+})
+
+describe('removeNomination', () => {
+  test('takes a film off its viewer, but not one that has won', () => {
+    let s = addViewer(defaultState, 'Ann', 'a')
+    s = nominate(s, 'a', film(1))
+    const removed = removeNomination(s, 'a')
+    expect(removed.night.nominations).toEqual({})
+    expect(removeNomination(removed, 'a')).toBe(removed)
+    const won = recordOutcome(s, film(1), 'watch', true)
+    expect(removeNomination(won, 'a')).toBe(won)
+  })
+})
+
+describe('resetViewerSettings', () => {
+  test('puts every viewer back to the defaults, away ones included, keeping wildcards and order', () => {
+    let s = addViewer(addViewer(defaultState, 'Ann', 'a'), 'Bo', 'b')
+    s = setPresent(s, 'a', true)
+    s = setPresent(s, 'b', true)
+    s = setViewerSliceCount(setViewerWeightOnWheel(s, 'a', 9), 'a', 6)
+    s = setViewerWeightOnWheel(s, 'b', 2)
+    s = setPresent(s, 'b', false)
+    const before = s.night.layout!
+    const reset = resetViewerSettings(s)
+    expect(reset.night.layout!.viewers.a).toEqual({ slices: 3, weight: 5 })
+    expect(reset.night.layout!.viewers.b).toEqual({ slices: 3, weight: 5 })
+    expect(reset.night.layout!.wildcardWeight).toBe(before.wildcardWeight)
+    expect(resetViewerSettings(reset)).toBe(reset)
+  })
+
+  test('leaves a derived wheel derived', () => {
+    const s = addViewer(defaultState, 'Ann', 'a')
+    expect(resetViewerSettings(s)).toBe(s)
   })
 })

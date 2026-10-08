@@ -53,8 +53,9 @@ test('Wheel settings opens a drawer beside the viewer list, which Done closes an
   const drawer = screen.getByRole('dialog', { name: 'Wheel settings' })
   expect(screen.getByText("Tonight's viewers")).toBeInTheDocument()
   expect(screen.getAllByTestId('wedge')).toHaveLength(8)
-  for (const control of ['Weight for Ann', 'Slices for Bo', 'Wildcard weight'])
-    expect(within(drawer).getByLabelText(control)).toBeInTheDocument()
+  expect(within(drawer).getByLabelText('Wildcard weight')).toBeInTheDocument()
+  expect(within(drawer).queryByLabelText(/^(Weight|Slices) for /)).toBeNull()
+  expect(within(drawer).queryByRole('heading', { name: 'Viewers' })).toBeNull()
   expect(within(drawer).getByRole('button', { name: 'Add wildcard' })).toBeInTheDocument()
   expect(within(drawer).getByRole('button', { name: 'Reset to default' })).toBeInTheDocument()
   expect(document.activeElement).toBe(
@@ -76,9 +77,9 @@ test('Escape and a backdrop click close the drawer, but a slider drag released o
 
   openEditor()
   const drawer = screen.getByRole('dialog')
-  fireEvent.click(screen.getByLabelText('Weight for Ann'))
+  fireEvent.click(screen.getByLabelText('Wildcard weight'))
   expect(screen.getByRole('dialog')).toBeInTheDocument()
-  fireEvent.pointerDown(screen.getByLabelText('Weight for Ann'))
+  fireEvent.pointerDown(screen.getByLabelText('Wildcard weight'))
   fireEvent.click(drawer)
   expect(screen.getByRole('dialog')).toBeInTheDocument()
   fireEvent.pointerDown(drawer)
@@ -97,36 +98,27 @@ test('Add wildcard is disabled when nobody is on the wheel', () => {
   expect(screen.getByRole('button', { name: 'Add wildcard' })).toBeDisabled()
 })
 
-test('each slice-count change redraws the wheel at once, and a weight is kept', () => {
-  const store = setup()
-  openEditor()
-  for (const n of [4, 5, 6]) {
-    fireEvent.change(screen.getByLabelText('Slices for Ann'), { target: { value: String(n) } })
-    expect(wedgeLabels().filter((l) => l === 'An')).toHaveLength(n)
-  }
-  fireEvent.change(screen.getByLabelText('Weight for Bo'), { target: { value: '7.5' } })
-  expect(store.getState().night.layout?.viewers.b.weight).toBe(7.5)
-})
-
-test('the sliders have their ranges and show their values', () => {
+test('the Wildcard weight slider has its range and shows its value', () => {
   setup()
   openEditor()
-  const range = (label: string) => {
-    const el = screen.getByLabelText(label)
-    return [
-      el.getAttribute('type'),
-      el.getAttribute('min'),
-      el.getAttribute('max'),
-      el.getAttribute('step'),
-    ]
-  }
-  expect(range('Weight for Ann')).toEqual(['range', '0.5', '20', '0.5'])
-  expect(range('Slices for Ann')).toEqual(['range', '1', '12', '1'])
-  expect(range('Wildcard weight')).toEqual(['range', '0.5', '20', '0.5'])
-  const shown = (label: string) => screen.getByLabelText(label).closest('.slider')
-  expect(shown('Weight for Ann')).toHaveTextContent('Weight for Ann5')
-  expect(shown('Slices for Ann')).toHaveTextContent('Slices for Ann3')
-  expect(shown('Wildcard weight')).toHaveTextContent('Wildcard weight1')
+  const el = screen.getByLabelText('Wildcard weight')
+  expect([el.getAttribute('type'), el.getAttribute('min'), el.getAttribute('max'), el.getAttribute('step')]).toEqual([
+    'range',
+    '0.5',
+    '20',
+    '0.5',
+  ])
+  expect(el.closest('.slider')).toHaveTextContent('Wildcard weight1')
+  expect(screen.queryByText('Nobody is on the wheel.')).toBeNull()
+})
+
+test('with nobody on the wheel the note sits under Wildcards', () => {
+  const store = setup()
+  act(() => store.getState().setPresent('a', false))
+  act(() => store.getState().setPresent('b', false))
+  openEditor()
+  const note = screen.getByText('Nobody is on the wheel.')
+  expect(note.previousElementSibling).toHaveTextContent('Wildcards')
 })
 
 test('wildcards share one weight, and can be added and removed', () => {
@@ -144,7 +136,7 @@ test('wildcards share one weight, and can be added and removed', () => {
 })
 
 test('moving a slice hand-places the order, which Spread evenly tidies', () => {
-  setup()
+  const store = setup()
   openEditor()
   expect(screen.queryByRole('button', { name: 'Spread evenly' })).not.toBeInTheDocument()
   const before = wedgeLabels()
@@ -152,7 +144,7 @@ test('moving a slice hand-places the order, which Spread evenly tidies', () => {
   expect(wedgeLabels().slice(0, 2)).toEqual([before[1], before[0]])
   expect(screen.getByText(/placed by hand/)).toBeInTheDocument()
 
-  fireEvent.change(screen.getByLabelText('Slices for Bo'), { target: { value: '4' } })
+  act(() => store.getState().setViewerSlices('b', 4))
   expect(wedgeLabels()).toHaveLength(9)
   expect(wedgeLabels().slice(0, 2)).toEqual([before[1], before[0]])
 
@@ -160,18 +152,16 @@ test('moving a slice hand-places the order, which Spread evenly tidies', () => {
   expect(screen.getByText(/placed by hand/)).toBeInTheDocument()
 })
 
-test('Reset to default restores the default wheel and every slider', () => {
+test('Reset to default restores the default wheel and the wildcard slider', () => {
   const store = setup()
   openEditor()
   const before = wedgeLabels()
-  fireEvent.change(screen.getByLabelText('Weight for Ann'), { target: { value: '8' } })
-  fireEvent.change(screen.getByLabelText('Slices for Ann'), { target: { value: '6' } })
+  act(() => store.getState().setViewerWeight('a', 8))
+  act(() => store.getState().setViewerSlices('a', 6))
   fireEvent.change(screen.getByLabelText('Wildcard weight'), { target: { value: '3' } })
   fireEvent.click(screen.getByRole('button', { name: 'Reset to default' }))
   expect(wedgeLabels()).toEqual(before)
   expect(store.getState().night.layout).toBeNull()
-  expect(screen.getByLabelText('Weight for Ann')).toHaveValue('5')
-  expect(screen.getByLabelText('Slices for Ann')).toHaveValue('3')
   expect(screen.getByLabelText('Wildcard weight')).toHaveValue('1')
 })
 
@@ -206,7 +196,7 @@ test('a locked drawer disables every editing control, including the drag handles
   const before = store.getState().night.layout
   for (const handle of screen.getAllByRole('button', { name: /^Drag slice/ }))
     expect(handle.hasAttribute('disabled')).toBe(true)
-  expect(screen.getByLabelText('Weight for Ann')).toBeDisabled()
+  expect(screen.getByLabelText('Wildcard weight')).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Add wildcard' })).toBeDisabled()
   const handle = screen.getByRole('button', { name: 'Drag slice 1' })
   fireEvent.keyDown(handle, { code: 'Space' })

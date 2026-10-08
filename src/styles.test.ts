@@ -20,8 +20,8 @@ const darkStart = css.indexOf('@media (prefers-color-scheme: dark)')
 const light = tokens(block(css.slice(0, darkStart), ':root'))
 const dark = tokens(block(css.slice(darkStart), ':root'))
 
-const isColour = (value: string) => /^#[0-9a-f]{6}$/i.test(value)
-const colourNames = Object.keys(light).filter((name) => isColour(light[name]))
+const isColor = (value: string) => /^#[0-9a-f]{6}$/i.test(value)
+const colorNames = Object.keys(light).filter((name) => isColor(light[name]))
 const isShadow = (name: string) => name.startsWith('--shadow')
 
 const channel = (v: number) => {
@@ -43,15 +43,15 @@ const contrast = (a: string, b: string) => {
 
 const schemes = { light, dark }
 
-describe('colour tokens', () => {
-  test('the import is not empty and both schemes define colours', () => {
+describe('color tokens', () => {
+  test('the import is not empty and both schemes define colors', () => {
     expect(css.length).toBeGreaterThan(0)
-    expect(colourNames.length).toBeGreaterThan(5)
+    expect(colorNames.length).toBeGreaterThan(5)
   })
 
-  test('every colour and shadow token in light is also in dark, and body uses tokens', () => {
+  test('every color and shadow token in light is also in dark, and body uses tokens', () => {
     for (const name of Object.keys(light)) {
-      if (isColour(light[name]) || isShadow(name)) {
+      if (isColor(light[name]) || isShadow(name)) {
         expect(dark, name).toHaveProperty(name)
       }
     }
@@ -63,9 +63,9 @@ describe('colour tokens', () => {
     }
   })
 
-  test('every colour token is a logo grey, except danger', () => {
+  test('every color token is a logo grey, except danger', () => {
     for (const [scheme, set] of Object.entries(schemes)) {
-      for (const name of colourNames) {
+      for (const name of colorNames) {
         if (name === '--danger') continue
         expect(GREYS, `${scheme} ${name}`).toContain(set[name].toLowerCase())
       }

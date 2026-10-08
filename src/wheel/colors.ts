@@ -1,4 +1,4 @@
-// The 12 colours a viewer can hold, in the order new viewers are given them.
+// The 12 colors a viewer can hold, in the order new viewers are given them.
 export const presetColors = [
   '#e6194b',
   '#f58231',
@@ -57,7 +57,7 @@ export function firstFreePreset(taken: Iterable<string>): string | null {
   return presetColors.find((c) => !held.has(c)) ?? null
 }
 
-// Fills in the colour of every viewer that has no valid one: kept colours are
+// Fills in the color of every viewer that has no valid one: kept colors are
 // reserved first, then the rest get the first free preset in roster order.
 export function assignColors<T extends object>(roster: T[]): (T & { color: string })[] {
   const kept = new Set<string>()

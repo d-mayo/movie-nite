@@ -1,5 +1,6 @@
 import {
   addWildcard,
+  defaultViewerSetting,
   forgetViewer,
   materialiseDefault,
   moveSlice,
@@ -122,7 +123,7 @@ export function setPresent(state: AppState, id: string, present: boolean): AppSt
   if (!state.roster.some((v) => v.id === id)) return state
   const isPresent = state.night.presentIds.includes(id)
   if (present === isPresent) return state
-  const isDone = hasWon(state.night, id)
+  // An away viewer keeps their film, so hiding someone briefly loses nothing.
   return syncNight({
     ...state,
     night: {
@@ -130,12 +131,17 @@ export function setPresent(state: AppState, id: string, present: boolean): AppSt
       presentIds: present
         ? [...state.night.presentIds, id]
         : state.night.presentIds.filter((p) => p !== id),
-      nominations:
-        present || isDone
-          ? state.night.nominations
-          : withoutNomination(state.night.nominations, id),
     },
   })
+}
+
+// Takes a viewer's film back off the wheel. A film that has won is not taken back.
+export function removeNomination(state: AppState, viewerId: string): AppState {
+  if (!state.night.nominations[viewerId] || hasWon(state.night, viewerId)) return state
+  return {
+    ...state,
+    night: { ...state.night, nominations: withoutNomination(state.night.nominations, viewerId) },
+  }
 }
 
 export function nominate(state: AppState, viewerId: string, nomination: Nomination): AppState {
@@ -203,6 +209,35 @@ export function setViewerWeightOnWheel(state: AppState, viewerId: string, weight
 
 export function setViewerSliceCount(state: AppState, viewerId: string, count: number): AppState {
   return editLayout(state, (l, onWheel) => setViewerSlices(l, onWheel, viewerId, count))
+}
+
+// Every viewer's slice count and weight back to the defaults, away viewers'
+// kept settings included; wildcards and slice order are left alone.
+export function resetViewerSettings(state: AppState): AppState {
+  return editLayout(state, (layout, onWheel) => {
+    let next = layout
+    for (const id of onWheel) {
+      const now = next.viewers[id] ?? defaultViewerSetting
+      if (now.weight !== defaultViewerSetting.weight) {
+        next = setViewerWeight(next, id, defaultViewerSetting.weight)
+      }
+      if (now.slices !== defaultViewerSetting.slices) {
+        next = setViewerSlices(next, onWheel, id, defaultViewerSetting.slices)
+      }
+    }
+    const viewers = { ...next.viewers }
+    let changed = false
+    for (const [id, setting] of Object.entries(viewers)) {
+      if (
+        !onWheel.includes(id) &&
+        (setting.slices !== defaultViewerSetting.slices || setting.weight !== defaultViewerSetting.weight)
+      ) {
+        viewers[id] = { ...defaultViewerSetting }
+        changed = true
+      }
+    }
+    return changed ? { ...next, viewers } : next
+  })
 }
 
 export function setWildcardWeightOnWheel(state: AppState, weight: number): AppState {
