@@ -114,9 +114,73 @@ footer p {
 @media (min-width: 900px) {
   .night {
     display: grid;
-    grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr);
+    grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
     align-items: start;
     gap: 2rem;
+    overflow-x: clip;
+    transition:
+      grid-template-columns 0.3s ease,
+      gap 0.3s ease;
+  }
+
+  /* Hidden, the pane slides out to the right and the wheel takes the width. It
+     turns invisible once the slide ends, so Tab and screen readers skip it, and
+     visible again at once when shown. */
+  .night.viewers-hidden {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
+    gap: 0;
+  }
+
+  .night.viewers-hidden .wheel-stage {
+    max-width: min(1600px, 88vh);
+    margin-inline: auto;
+  }
+
+  .night.viewers-hidden .setup-column {
+    translate: 100vw 0;
+    visibility: hidden;
+    transition:
+      translate 0.3s ease,
+      visibility 0s linear 0.3s;
+  }
+
+  .night:not(.viewers-hidden) .setup-column {
+    transition: translate 0.3s ease;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .night,
+  .night.viewers-hidden .setup-column,
+  .night:not(.viewers-hidden) .setup-column {
+    transition: none;
+  }
+}
+
+/* Hide and Show viewers exist only where the pane can slide away. */
+.hide-viewers,
+.show-viewers {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .hide-viewers {
+    display: inline-block;
+  }
+
+  .show-viewers {
+    display: block;
+    position: fixed;
+    top: 50%;
+    right: 0;
+    z-index: 2;
+    translate: 0 -50%;
+    padding: var(--space-4) var(--space-2);
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-right: 0;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    box-shadow: var(--shadow-card);
   }
 }
 
@@ -303,13 +367,13 @@ footer p {
 .pane-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-3);
   margin: 0 0 var(--space-3);
 }
 
-.setup .pane-head h2 {
+.pane-head h2 {
   margin: 0;
+  margin-right: auto;
 }
 
 .setup > h2,
