@@ -446,7 +446,7 @@ dialog.wheel-drawer::backdrop {
   background: var(--card);
 }
 
-/* The colour swatch on a viewer row and the popover of presets it opens. */
+/* The color swatch on a viewer row and the popover of presets it opens. */
 .swatch {
   box-sizing: border-box;
   width: 1.75rem;
@@ -661,7 +661,7 @@ dialog.wheel-drawer::backdrop {
   background: var(--card);
 }
 
-/* The panel carries the viewer's colour bar on its far left instead. */
+/* The panel carries the viewer's color bar on its far left instead. */
 .setup li.cell.open:has(> .cell-body[data-floating]) .cell-edge {
   display: none;
 }
@@ -677,7 +677,7 @@ dialog.wheel-drawer::backdrop {
   gap: var(--space-3);
 }
 
-.cell-colour {
+.cell-color {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);

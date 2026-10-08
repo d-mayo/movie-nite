@@ -261,7 +261,7 @@ test('the one h1 is the logo named Movie Nite', () => {
   ).toBeInTheDocument()
 })
 
-test('the banner picks the dark logo by colour scheme', () => {
+test('the banner picks the dark logo by color scheme', () => {
   setup(ok())
   const picture = screen.getByRole('banner').querySelector('picture')!
   const source = picture.querySelector('source')!
@@ -480,14 +480,14 @@ test('the token prompt banner has the logo only', () => {
   noControls()
 })
 
-test('choosing a colour in the picker repaints the wheel at once', () => {
+test('choosing a color in the picker repaints the wheel at once', () => {
   nightWithViewer()
   const fills = () =>
     Array.from(document.querySelectorAll('[data-kind="nomination"] > path:not([clip-path])'))
       .map((p) => p.getAttribute('fill'))
   expect(fills()).toContain('#e6194b')
   openCell('Ann')
-  fireEvent.click(screen.getByRole('button', { name: "Ann's colour" }))
+  fireEvent.click(screen.getByRole('button', { name: "Ann's color" }))
   fireEvent.click(screen.getByRole('button', { name: 'Blue' }))
   expect(fills()).toContain('#4363d8')
   expect(fills()).not.toContain('#e6194b')

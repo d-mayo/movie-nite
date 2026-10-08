@@ -153,11 +153,11 @@ test('the eye toggle marks a viewer away or here without opening or closing thei
   expect(header('Ann')).toHaveAttribute('aria-expanded', 'false')
 })
 
-test('an open cell shows its film control, colour, sliders and menu; an away cell does not open', () => {
+test('an open cell shows its film control, color, sliders and menu; an away cell does not open', () => {
   setupWith({ nominations: { a: film }, presentIds: ['a'] })
   openCell('Ann')
   expect(screen.getByRole('button', { name: 'Change film for Ann' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: "Ann's colour" })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: "Ann's color" })).toBeInTheDocument()
   const slices = screen.getByLabelText('Slices for Ann')
   expect(slices).toHaveAttribute('min', '1')
   expect(slices).toHaveAttribute('max', '12')
@@ -173,14 +173,14 @@ test('an open cell shows its film control, colour, sliders and menu; an away cel
   // Bo is away: there is nothing to open.
   openCell('Bo')
   expect(header('Bo')).not.toHaveAttribute('aria-expanded')
-  expect(screen.queryByRole('button', { name: "Bo's colour" })).toBeNull()
+  expect(screen.queryByRole('button', { name: "Bo's color" })).toBeNull()
   expect(screen.queryByRole('button', { name: 'More for Bo' })).toBeNull()
 })
 
-test('a won viewer opens to only the colour and the menu', () => {
+test('a won viewer opens to only the color and the menu', () => {
   setupWith({ nominations: { a: film }, wonFilms: [1] })
   openCell('Ann')
-  expect(screen.getByRole('button', { name: "Ann's colour" })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: "Ann's color" })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'More for Ann' })).toBeInTheDocument()
   expect(screen.queryByLabelText('Slices for Ann')).toBeNull()
   expect(screen.queryByLabelText('Search a film for Ann')).toBeNull()
@@ -278,16 +278,16 @@ test('the Add control is disabled with a note once the roster is full, and frees
   expect(screen.queryByText(/roster is full/)).toBeNull()
 })
 
-test('a swatch opens the presets, marks the own colour, disables taken ones and sets a free one', () => {
+test('a swatch opens the presets, marks the own color, disables taken ones and sets a free one', () => {
   const { store } = setupWith({})
   openCell('Ann')
-  const swatch = screen.getByRole('button', { name: "Ann's colour" })
+  const swatch = screen.getByRole('button', { name: "Ann's color" })
   fireEvent.click(swatch)
   const picker = document.getElementById('color-picker-a')!
   const buttons = within(picker).getAllByRole('button')
   expect(buttons).toHaveLength(12)
   expect(within(picker).getByRole('button', { name: 'Red' })).toHaveAttribute('aria-pressed', 'true')
-  expect(within(picker).getByRole('button', { name: "Orange, Bo's colour" })).toBeDisabled()
+  expect(within(picker).getByRole('button', { name: "Orange, Bo's color" })).toBeDisabled()
   expect(screen.queryByText(/custom/i)).toBeNull()
 
   fireEvent.click(within(picker).getByRole('button', { name: 'Blue' }))

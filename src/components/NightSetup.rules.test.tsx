@@ -205,13 +205,13 @@ test('a slider drag keeps the cell open until the pointer is released', () => {
   expect(isOpen('Bo')).toBe(false)
 })
 
-test('an open colour popover, menu or Remove confirmation keeps the cell open', () => {
+test('an open color popover, menu or Remove confirmation keeps the cell open', () => {
   canHover(true)
   mount()
   mouseClick('Bo')
   enter('Bo')
 
-  fireEvent.click(screen.getByRole('button', { name: "Bo's colour" }))
+  fireEvent.click(screen.getByRole('button', { name: "Bo's color" }))
   leave('Bo')
   wait(1000)
   expect(isOpen('Bo')).toBe(true)

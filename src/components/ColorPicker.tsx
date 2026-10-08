@@ -11,7 +11,7 @@ interface Props {
   onToggle?: (e: SyntheticEvent<HTMLElement>) => void
 }
 
-// The viewer's colour swatch and the popover of the 12 presets it opens.
+// The viewer's color swatch and the popover of the 12 presets it opens.
 export default function ColorPicker({ viewer, roster, onToggle }: Props) {
   const { setViewerColor } = useApp()
   const popover = useRef<HTMLDivElement>(null)
@@ -21,7 +21,7 @@ export default function ColorPicker({ viewer, roster, onToggle }: Props) {
       <button
         type="button"
         className="swatch"
-        aria-label={`${viewer.name}'s colour`}
+        aria-label={`${viewer.name}'s color`}
         popoverTarget={id}
         style={{ background: viewer.color }}
         onClick={(e) => placeUnder(e, popover.current)}
@@ -35,7 +35,7 @@ export default function ColorPicker({ viewer, roster, onToggle }: Props) {
               type="button"
               className="swatch"
               style={{ background: color }}
-              aria-label={holder ? `${presetNames[color]}, ${holder.name}'s colour` : presetNames[color]}
+              aria-label={holder ? `${presetNames[color]}, ${holder.name}'s color` : presetNames[color]}
               aria-pressed={color === viewer.color}
               disabled={holder !== undefined}
               onClick={() => {

@@ -296,9 +296,9 @@ export default function ViewerCell({
             />
           )}
           <div className="cell-options">
-            <span className="cell-colour">
+            <span className="cell-color">
               <ColorPicker viewer={viewer} roster={roster} onToggle={track('color')} />
-              <span aria-hidden="true">Colour</span>
+              <span aria-hidden="true">Color</span>
             </span>
             <button
               type="button"

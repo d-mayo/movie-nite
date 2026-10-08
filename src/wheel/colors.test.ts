@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { assignColors, contrast, labelTextColor, presetColors } from './colors.ts'
 
 describe('presets', () => {
-  test('there are 12 distinct hex colours', () => {
+  test('there are 12 distinct hex colors', () => {
     expect(presetColors).toHaveLength(12)
     expect(new Set(presetColors).size).toBe(12)
     for (const c of presetColors) expect(c).toMatch(/^#[0-9a-f]{6}$/)
@@ -13,7 +13,7 @@ describe('presets', () => {
     expect(labelTextColor('#000000')).toBe('#ffffff')
   })
 
-  test.each([...presetColors])('%s reaches 4.5:1 with its label colour', (preset) => {
+  test.each([...presetColors])('%s reaches 4.5:1 with its label color', (preset) => {
     const label = labelTextColor(preset)
     const other = label === '#000000' ? '#ffffff' : '#000000'
     expect(contrast(preset, label)).toBeGreaterThanOrEqual(4.5)
@@ -22,7 +22,7 @@ describe('presets', () => {
 })
 
 describe('assignColors', () => {
-  test('keeps valid colours first, then fills in order', () => {
+  test('keeps valid colors first, then fills in order', () => {
     const out = assignColors([{ id: 'a' }, { id: 'b', color: presetColors[0] }])
     expect(out.map((v) => v.color)).toEqual([presetColors[1], presetColors[0]])
   })

@@ -156,14 +156,14 @@ const loaded = (roster: unknown[]) =>
     createMemoryPersistence({ ...defaultState, settings: { tmdbToken: 'tok' }, roster } as never),
   ).getState()
 
-test('a stored roster without colours loads with presets in roster order', () => {
+test('a stored roster without colors loads with presets in roster order', () => {
   const s = loaded([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }])
   expect(s.roster.map((v) => v.color)).toEqual(presetColors.slice(0, 3))
   expect(s.settings.tmdbToken).toBe('tok')
   expect(s.version).toBe(1)
 })
 
-test('duplicate, invalid and non-preset colours are replaced, the earlier holder keeps theirs', () => {
+test('duplicate, invalid and non-preset colors are replaced, the earlier holder keeps theirs', () => {
   const first = presetColors[4]
   for (const bad of [first, 'nonsense', '#123456']) {
     const s = loaded([
@@ -175,7 +175,7 @@ test('duplicate, invalid and non-preset colours are replaced, the earlier holder
   }
 })
 
-test('a later valid colour is reserved before earlier viewers without one are filled', () => {
+test('a later valid color is reserved before earlier viewers without one are filled', () => {
   const s = loaded([
     { id: 'a', name: 'A' },
     { id: 'b', name: 'B', color: presetColors[0] },

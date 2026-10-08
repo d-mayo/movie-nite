@@ -304,7 +304,7 @@ describe('an edited wheel', () => {
   })
 })
 
-describe('viewer colours', () => {
+describe('viewer colors', () => {
   const withViewers = (n: number) => {
     let s = defaultState
     for (let i = 0; i < n; i++) s = addViewer(s, `V${i}`, `id${i}`)
@@ -318,7 +318,7 @@ describe('viewer colours', () => {
     expect(freed.roster.at(-1)?.color).toBe(presetColors[0])
   })
 
-  test('a changed colour is skipped by the next new viewer', () => {
+  test('a changed color is skipped by the next new viewer', () => {
     const s = setViewerColor(withViewers(1), 'id0', presetColors[5])
     expect(addViewer(s, 'Bo', 'b').roster[1].color).toBe(presetColors[0])
     const t = addViewer(addViewer(s, 'Bo', 'b'), 'Cy', 'c')
@@ -326,14 +326,14 @@ describe('viewer colours', () => {
     expect(new Set(withViewers(6).roster.map((v) => v.color)).size).toBe(6)
   })
 
-  test('the roster is capped at 12 and removal frees a colour', () => {
+  test('the roster is capped at 12 and removal frees a color', () => {
     const full = withViewers(maxViewers)
     expect(addViewer(full, 'Extra', 'x')).toBe(full)
     const freed = addViewer(removeViewer(full, 'id3'), 'Extra', 'x')
     expect(freed.roster.at(-1)?.color).toBe(presetColors[3])
   })
 
-  test('setViewerColor refuses non-presets and colours held by others', () => {
+  test('setViewerColor refuses non-presets and colors held by others', () => {
     const s = withViewers(2)
     expect(setViewerColor(s, 'id0', '#123456')).toBe(s)
     expect(setViewerColor(s, 'id0', presetColors[1])).toBe(s)
