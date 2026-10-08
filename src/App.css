@@ -628,7 +628,6 @@ dialog.wheel-drawer::backdrop {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md) var(--radius-md) 0 0;
-  box-shadow: var(--shadow-card);
 }
 
 /* On wide screens the body is a panel attached to the open cell's left edge:
@@ -636,7 +635,6 @@ dialog.wheel-drawer::backdrop {
 .setup li.cell > .cell-body[data-floating] {
   border-left: 6px solid var(--viewer-color);
   border-radius: var(--radius-md) 0 var(--radius-md) var(--radius-md);
-  box-shadow: var(--shadow-card);
   animation-name: cell-slide;
 }
 
