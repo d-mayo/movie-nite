@@ -5,7 +5,6 @@ import tmdbLogo from './assets/tmdb-logo.svg'
 import './App.css'
 import NightControls from './components/NightControls.tsx'
 import NightSetup from './components/NightSetup.tsx'
-import WheelEditor from './components/WheelEditor.tsx'
 import WheelPanel from './components/WheelPanel.tsx'
 import TokenPrompt from './components/TokenPrompt.tsx'
 import { AppStoreContext, useApp, type AppStore } from './state/store.ts'
@@ -46,10 +45,9 @@ function Banner({ children }: { children?: ReactNode }) {
 }
 
 function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
-  const { settings, night, setToken } = useApp()
+  const { settings, setToken } = useApp()
   const [message, setMessage] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
-  const [editing, setEditing] = useState(false)
   const [changingToken, setChangingToken] = useState(false)
   const token = settings.tmdbToken
   // Bumped by Cancel, so a check that settles afterwards is discarded.
@@ -76,9 +74,6 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
     () => (token ? createTmdbClient(token, fetchFn) : null),
     [token, fetchFn],
   )
-
-  // The editor gives way to setup when the night ends.
-  if (editing && night.ended) setEditing(false)
 
   if (!token || !client || changingToken) {
     return (
@@ -123,22 +118,9 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
             onAuthError={handleAuthError}
             onBusyChange={setLocked}
           />
-          {editing ? (
-            <WheelEditor locked={locked} onDone={() => setEditing(false)} />
-          ) : (
-            <div className="setup-column">
-              {!locked && !night.ended && (
-                <button type="button" onClick={() => setEditing(true)}>
-                  Edit wheel
-                </button>
-              )}
-              <NightSetup
-                client={client}
-                onAuthError={handleAuthError}
-                locked={locked}
-              />
-            </div>
-          )}
+          <div className="setup-column">
+            <NightSetup client={client} onAuthError={handleAuthError} locked={locked} />
+          </div>
         </div>
       </main>
     </>
