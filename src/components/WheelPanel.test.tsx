@@ -104,7 +104,7 @@ test('spinning locks setup, rests in the drawn slice and shows a snapshot', asyn
 })
 
 test('Close makes the wheel live and unlocks setup', async () => {
-  const store = setup(['a', 'b'])
+  const store = setup(['a', 'b'], { random: () => 0.01, spinMs: 20 })
   fireEvent.click(spinButton())
   await screen.findByRole('dialog')
   act(() => store.getState().nominate('a', film(7, '/other.jpg')))

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import App from '../App.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
@@ -62,7 +62,7 @@ test('a nomination shows everything and fires confetti once', async () => {
   expect(within(dialog).getByText('A short synopsis.')).toBeInTheDocument()
   expect(within(dialog).getByText('1h 52m')).toBeInTheDocument()
   expect(within(dialog).getByText('Ends around 9:52 PM–10:07 PM')).toBeInTheDocument()
-  expect(confetti).toHaveBeenCalledTimes(1)
+  await waitFor(() => expect(confetti).toHaveBeenCalledTimes(1))
 })
 
 test('no poster gets a placeholder and no runtime says the end is unknown', async () => {
@@ -76,7 +76,7 @@ test('a wildcard says so and fires confetti, and Back to the wheel returns to th
   setup(0.45, film(1), film(2))
   const dialog = await screen.findByRole('dialog')
   expect(within(dialog).getByText('Wildcard!')).toBeInTheDocument()
-  expect(confetti).toHaveBeenCalledTimes(1)
+  await waitFor(() => expect(confetti).toHaveBeenCalledTimes(1))
   fireEvent.click(within(dialog).getByRole('button', { name: 'Back to the wheel' }))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(screen.getByLabelText('Ann')).toBeEnabled()
