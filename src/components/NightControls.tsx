@@ -52,12 +52,14 @@ export default function NightControls({ locked, onChangeToken }: Props) {
   const [confirming, setConfirming] = useState(false)
   const [editing, setEditing] = useState(false)
   const menu = useRef<HTMLDivElement>(null)
+  const wheelButton = useRef<HTMLButtonElement>(null)
   const closeDialog = useCallback(() => setConfirming(false), [])
   const closeDrawer = useCallback(() => setEditing(false), [])
   return (
     <div className="night-controls">
       <button
         type="button"
+        ref={wheelButton}
         className="quiet night-control"
         disabled={locked || night.ended}
         onClick={() => setEditing(true)}
@@ -101,7 +103,7 @@ export default function NightControls({ locked, onChangeToken }: Props) {
           Change TMDB token
         </button>
       </div>
-      {editing && <WheelEditor locked={locked} onClosed={closeDrawer} />}
+      {editing && <WheelEditor locked={locked} onClosed={closeDrawer} anchor={wheelButton} />}
       {confirming && (
         <EndNightDialog onConfirm={endNight} onClosed={closeDialog} />
       )}

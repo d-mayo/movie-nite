@@ -14,7 +14,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { viewersOnWheel } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import { materialiseDefault, type SliceRef } from '../wheel/edit.ts'
@@ -22,6 +22,8 @@ import { materialiseDefault, type SliceRef } from '../wheel/edit.ts'
 interface Props {
   locked?: boolean
   onClosed: () => void
+  // The button the popover hangs from.
+  anchor?: RefObject<HTMLElement | null>
 }
 
 interface SliderProps {
@@ -92,10 +94,10 @@ function SortableSlice({
   )
 }
 
-// The Wheel settings drawer. Mounted only while shown, like the End night
+// The Wheel settings popover. Mounted only while shown, like the End night
 // dialog: Done and a backdrop click unmount it directly, and Escape does so
 // through the native `close` event.
-export default function WheelEditor({ locked = false, onClosed }: Props) {
+export default function WheelEditor({ locked = false, onClosed, anchor }: Props) {
   const {
     roster,
     night,
@@ -119,16 +121,22 @@ export default function WheelEditor({ locked = false, onClosed }: Props) {
     el.addEventListener('close', onClosed)
     // Keep focus off the sliders, so an arrow key right after opening changes nothing.
     heading.current?.focus()
-    // On the bottom sheet, keep the top of the wheel visible above it.
-    if (
-      typeof window.matchMedia === 'function' &&
-      !window.matchMedia('(min-width: 900px)').matches
-    ) {
-      const stage = document.querySelector('.wheel-stage')
-      if (stage && stage.getBoundingClientRect().top < 0) stage.scrollIntoView?.({ block: 'start' })
+    // Hang the popover under the button that opened it, right edges aligned.
+    function place() {
+      const rect = anchor?.current?.getBoundingClientRect()
+      if (!el || !rect) return
+      el.style.top = `${rect.bottom + 8}px`
+      const left = rect.right - el.offsetWidth
+      el.style.left = `${Math.min(Math.max(8, left), window.innerWidth - el.offsetWidth - 8)}px`
+      el.style.maxHeight = `${window.innerHeight - rect.bottom - 24}px`
     }
-    return () => el.removeEventListener('close', onClosed)
-  }, [onClosed])
+    place()
+    window.addEventListener('resize', place)
+    return () => {
+      window.removeEventListener('resize', place)
+      el.removeEventListener('close', onClosed)
+    }
+  }, [anchor, onClosed])
   // Close natively, then unmount at once rather than wait for the `close` event.
   function dismiss() {
     dialog.current?.close()

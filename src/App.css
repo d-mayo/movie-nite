@@ -121,7 +121,6 @@ footer p {
 }
 
 .wheel-stage {
-  scroll-margin-top: var(--space-5);
   position: relative;
   width: 100%;
   max-width: min(860px, 88vh);
@@ -392,22 +391,22 @@ fieldset.setup {
   touch-action: none;
 }
 
-/* The Wheel settings drawer: a modal dialog with a transparent backdrop, so the
-   wheel stays visible and redraws behind it. A right-hand panel from 900px up,
-   where the viewer column sits beside the wheel; a bottom sheet below. */
+/* The Wheel settings popover: a modal dialog with a transparent backdrop,
+   hung under the banner button that opens it (placed by WheelEditor), so the
+   wheel stays visible and redraws behind it. */
 dialog.wheel-drawer {
   box-sizing: border-box;
+  position: fixed;
+  inset: auto;
   margin: 0;
   padding: 0;
   overflow: hidden;
-  color: var(--text);
-  text-align: left;
-  inset: auto 0 0 0;
-  width: 100%;
+  width: min(26rem, calc(100vw - 1rem));
   max-width: none;
   height: auto;
-  max-height: 60vh;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  color: var(--text);
+  text-align: left;
+  box-shadow: var(--shadow-card);
 }
 
 dialog.wheel-drawer[open] {
@@ -445,14 +444,4 @@ dialog.wheel-drawer::backdrop {
   margin-top: var(--space-3);
   padding: var(--space-3) 0 0;
   background: var(--card);
-}
-
-@media (min-width: 900px) {
-  dialog.wheel-drawer {
-    inset: 0 0 0 auto;
-    width: clamp(280px, 36vw, 32rem);
-    height: 100vh;
-    max-height: none;
-    border-radius: 0;
-  }
 }
