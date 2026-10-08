@@ -13,7 +13,7 @@ import {
 import type { Nomination, Viewer } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
-import type { ViewerSetting } from '../wheel/edit.ts'
+import { defaultViewerSetting, type ViewerSetting } from '../wheel/edit.ts'
 import ColorPicker from './ColorPicker.tsx'
 import { Poster } from './FilmSearch.tsx'
 import NominationSearch from './NominationSearch.tsx'
@@ -314,6 +314,22 @@ export default function ViewerCell({
                 className="card cell-menu"
                 onToggle={track('menu')}
               >
+                {status === 'wheel' && setting && (
+                  <button
+                    type="button"
+                    disabled={
+                      setting.slices === defaultViewerSetting.slices &&
+                      setting.weight === defaultViewerSetting.weight
+                    }
+                    onClick={() => {
+                      menu.current?.hidePopover()
+                      setViewerSlices(viewer.id, defaultViewerSetting.slices)
+                      setViewerWeight(viewer.id, defaultViewerSetting.weight)
+                    }}
+                  >
+                    Reset slices and weight
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {

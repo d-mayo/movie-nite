@@ -310,3 +310,19 @@ test('an away viewer keeps their film, still shown in their cell, and has it aga
   markHere('Ann')
   expect(within(cellOf('Ann')).getByText('Film (2000)')).toBeInTheDocument()
 })
+
+test('the menu resets a viewer slices and weight, and is off when they are already the default', () => {
+  const { store } = setupWith({ nominations: { a: film }, presentIds: ['a', 'b'] })
+  openCell('Ann')
+  fireEvent.click(screen.getByRole('button', { name: 'More for Ann' }))
+  expect(screen.getByRole('button', { name: 'Reset slices and weight' })).toBeDisabled()
+
+  fireEvent.change(screen.getByLabelText('Slices for Ann'), { target: { value: '7' } })
+  fireEvent.change(screen.getByLabelText('Weight for Ann'), { target: { value: '12' } })
+  act(() => store.getState().setViewerSlices('b', 2))
+  expect(store.getState().night.layout?.viewers.a).toEqual({ slices: 7, weight: 12 })
+  fireEvent.click(screen.getByRole('button', { name: 'Reset slices and weight' }))
+  expect(store.getState().night.layout?.viewers.a).toEqual({ slices: 3, weight: 5 })
+  expect(store.getState().night.layout?.viewers.b.slices).toBe(2)
+  expect(screen.getByLabelText('Slices for Ann')).toHaveValue('3')
+})
