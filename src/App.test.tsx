@@ -20,6 +20,7 @@ import {
 } from './state/model.ts'
 import { createMemoryPersistence } from './state/persistence.ts'
 import { createAppStore } from './state/store.ts'
+import { openCell } from './test/cells.ts'
 
 const attribution =
   'This product uses the TMDB API but is not endorsed or certified by TMDB.'
@@ -294,9 +295,12 @@ test('the token prompt is a card with Save primary and Cancel quiet', () => {
 
 test('the viewer list is a card with Add primary and Remove danger', () => {
   nightWithViewer()
+  openCell('Ann')
+  fireEvent.click(screen.getByRole('button', { name: 'More for Ann' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Remove from roster' }))
   expect(screen.getByText("Tonight's viewers").closest('section')).toHaveClass('card')
   expect(screen.getByRole('button', { name: 'Add' })).toHaveClass('primary')
-  expect(screen.getByRole('button', { name: 'Remove Ann' })).toHaveClass('danger')
+  expect(screen.getByRole('button', { name: 'Remove' })).toHaveClass('danger')
 })
 
 test('the Wheel settings drawer is a card with Done primary, Remove danger and Move quiet', () => {
@@ -482,6 +486,7 @@ test('choosing a colour in the picker repaints the wheel at once', () => {
     Array.from(document.querySelectorAll('[data-kind="nomination"] > path:not([clip-path])'))
       .map((p) => p.getAttribute('fill'))
   expect(fills()).toContain('#e6194b')
+  openCell('Ann')
   fireEvent.click(screen.getByRole('button', { name: "Ann's colour" }))
   fireEvent.click(screen.getByRole('button', { name: 'Blue' }))
   expect(fills()).toContain('#4363d8')

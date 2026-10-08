@@ -18,41 +18,13 @@ import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { viewersOnWheel } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import { materialiseDefault, type SliceRef } from '../wheel/edit.ts'
+import Slider from './Slider.tsx'
 
 interface Props {
   locked?: boolean
   onClosed: () => void
   // The button the popover hangs from.
   anchor?: RefObject<HTMLElement | null>
-}
-
-interface SliderProps {
-  label: string
-  value: number
-  step: number
-  min: number
-  max: number
-  onChange: (n: number) => void
-}
-
-// A range slider that applies every change at once, with its value shown beside it.
-function Slider({ label, value, step, min, max, onChange }: SliderProps) {
-  return (
-    <span className="slider">
-      <label>
-        {label}
-        <input
-          type="range"
-          step={step}
-          min={min}
-          max={max}
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-        />
-      </label>
-      <output>{value}</output>
-    </span>
-  )
 }
 
 function SortableSlice({

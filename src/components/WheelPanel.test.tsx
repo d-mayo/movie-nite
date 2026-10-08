@@ -6,6 +6,7 @@ import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import { angleUnderPointer } from '../wheel/draw.ts'
 import { defaultLayout, sliceArcs } from '../wheel/layout.ts'
+import { header, markAway, markHere, openCell } from '../test/cells.ts'
 
 function film(id: number, posterPath: string | null = null): Nomination {
   return {
@@ -75,11 +76,11 @@ test('spinning locks setup, rests in the drawn slice and shows a snapshot', asyn
   fireEvent.click(spinButton())
 
   expect(spinButton()).toBeDisabled()
-  expect(screen.getByLabelText('Ann')).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Ann is here' })).toBeDisabled()
   expect(screen.getByLabelText('Add a viewer')).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Settings' })).toBeDisabled()
-  expect(screen.getByRole('button', { name: 'Change film for Ann' })).toBeDisabled()
+  expect(header('Ann')).toBeDisabled()
 
   const before = hrefs()
   act(() => store.getState().nominate('a', film(7, '/other.jpg')))
@@ -87,7 +88,7 @@ test('spinning locks setup, rests in the drawn slice and shows a snapshot', asyn
 
   await screen.findByRole('dialog')
   expect(spinButton()).toBeDisabled()
-  expect(screen.getByLabelText('Ann')).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Ann is here' })).toBeDisabled()
 
   const slices = defaultLayout(['a', 'b'], {})
   const arcs = sliceArcs(slices)
@@ -110,7 +111,7 @@ test('Close makes the wheel live and unlocks setup', async () => {
   act(() => store.getState().nominate('a', film(7, '/other.jpg')))
   fireEvent.click(screen.getByRole('button', { name: 'Close' }))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  expect(screen.getByLabelText('Ann')).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Ann is here' })).toBeEnabled()
   expect(spinButton()).toBeEnabled()
   await waitFor(() => expect(hrefs()).toContain('https://image.tmdb.org/t/p/w185/other.jpg'))
 })
@@ -145,6 +146,7 @@ test('a 401 during a spin unlocks setup once a new token is saved', async () => 
     }),
   )
   render(<App store={store} fetchFn={fetchFn as typeof fetch} spinMs={600} />)
+  openCell('Ann')
   fireEvent.click(screen.getByRole('button', { name: 'Change film for Ann' }))
   fireEvent.change(screen.getByLabelText('Search a film for Ann'), {
     target: { value: 'ab' },
@@ -154,7 +156,7 @@ test('a 401 during a spin unlocks setup once a new token is saved', async () => 
   const prompt = await screen.findByLabelText('TMDB Read Access Token')
   fireEvent.change(prompt, { target: { value: 'new' } })
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-  await waitFor(() => expect(screen.getByLabelText('Ann')).toBeEnabled())
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Ann is here' })).toBeEnabled())
   expect(spinButton()).toBeEnabled()
 })
 
@@ -171,12 +173,12 @@ test('the wheel drops viewers whose film has won, and follows ticks', () => {
   expect(screen.getAllByTestId('wedge')).toHaveLength(4)
   expect(spinButton()).toBeEnabled()
 
-  fireEvent.click(screen.getByLabelText('Cy'))
+  markAway('Cy')
   expect(screen.queryAllByTestId('wedge')).toHaveLength(0)
   expect(store.getState().night.ended).toBe(false)
   expect(screen.getByText('Viewers are needed to spin.')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Spin' })).toBeNull()
-  fireEvent.click(screen.getByLabelText('Cy'))
+  markHere('Cy')
 
   expect(screen.getAllByTestId('wedge')).toHaveLength(4)
 })

@@ -69,7 +69,7 @@ test('Close on a nomination reveal changes nothing', async () => {
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(store.getState().night).toBe(before)
   expect(screen.getAllByTestId('wedge')).toHaveLength(12)
-  expect(screen.getByLabelText('Ann')).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Ann is here' })).toBeEnabled()
 })
 
 test('Watch takes the winner and the duplicate off the wheel and unlocks setup', async () => {
@@ -81,7 +81,7 @@ test('Watch takes the winner and the duplicate off the wheel and unlocks setup',
   expect(store.getState().night.watched.map((f) => f.tmdbId)).toEqual([1])
   // Only Cy's 3 slices and wildcard remain.
   expect(screen.getAllByTestId('wedge')).toHaveLength(4)
-  expect(screen.getByLabelText('Cy')).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Cy is here' })).toBeEnabled()
   expect(spinButton()).toBeEnabled()
 })
 
@@ -122,7 +122,7 @@ const wildcardFetch = vi.fn((url: string) => {
 async function pickWildcardFilm() {
   const dialog = await screen.findByRole('dialog')
   expect(within(dialog).getByText('Wildcard!')).toBeInTheDocument()
-  expect(screen.getByLabelText('Ann')).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Ann is here' })).toBeDisabled()
   fireEvent.change(within(dialog).getByLabelText('Search for a wildcard film'), {
     target: { value: 'pick' },
   })
@@ -138,7 +138,7 @@ test('Back to the wheel from the wildcard search changes nothing', async () => {
   fireEvent.click(within(dialog).getByRole('button', { name: 'Back to the wheel' }))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(store.getState().night).toBe(before)
-  expect(screen.getByLabelText('Ann')).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Ann is here' })).toBeEnabled()
 })
 
 test('a wildcard pick is revealed from the pick time and Watch leaves the wheel alone', async () => {
@@ -149,12 +149,12 @@ test('a wildcard pick is revealed from the pick time and Watch leaves the wheel 
   vi.setSystemTime(new Date(2026, 9, 5, 21, 0))
   const dialog = await pickWildcardFilm()
   expect(within(dialog).getByText('Ends around 11:00 PM–11:15 PM')).toBeInTheDocument()
-  expect(screen.getByLabelText('Ann')).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Ann is here' })).toBeDisabled()
   fireEvent.click(within(dialog).getByRole('button', { name: 'Watch' }))
   expect(store.getState().night.watched.map((f) => f.tmdbId)).toEqual([9])
   expect(store.getState().night.wonFilms).toEqual([])
   expect(screen.getAllByTestId('wedge')).toHaveLength(12)
-  expect(screen.getByLabelText('Ann')).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Ann is here' })).toBeEnabled()
 })
 
 test('Too long on a wildcard pick saves the holdover and leaves the wheel alone', async () => {

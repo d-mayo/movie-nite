@@ -5,6 +5,7 @@ import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import { labelTextColor, presetColors } from '../wheel/colors.ts'
+import { markAway, markHere, removeViewer } from '../test/cells.ts'
 
 function film(id: number, posterPath: string | null): Nomination {
   return {
@@ -58,14 +59,14 @@ test('the wheel follows viewers and nominations live', () => {
   expect(wedges()).toHaveLength(4)
   expect(screen.getByTestId('pointer')).toBeInTheDocument()
 
-  fireEvent.click(screen.getByLabelText('Ann'))
+  markAway('Ann')
   expect(wedges()).toHaveLength(0)
-  fireEvent.click(screen.getByLabelText('Ann'))
+  markHere('Ann')
   expect(wedges()).toHaveLength(4)
 
   act(() => store.getState().nominate(id, film(4, '/c.jpg')))
 
-  fireEvent.click(screen.getByRole('button', { name: 'Remove Ann' }))
+  removeViewer('Ann')
   expect(wedges()).toHaveLength(0)
 })
 

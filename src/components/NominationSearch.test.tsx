@@ -5,6 +5,7 @@ import { addViewer, defaultState, recordOutcome, setToken } from '../state/model
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { AppStoreContext, createAppStore } from '../state/store.ts'
 import { createTmdbClient } from '../tmdb/client.ts'
+import { openCell } from '../test/cells.ts'
 import NominationSearch from './NominationSearch.tsx'
 
 beforeEach(() => vi.useFakeTimers())
@@ -156,6 +157,7 @@ test.each([
   )
   const store = createAppStore(createMemoryPersistence(initial()))
   render(<App store={store} fetchFn={fetchFn as unknown as typeof fetch} />)
+  openCell('Ann')
   type('alien')
   await tick(300)
   if (_n === 'getMovie') {
