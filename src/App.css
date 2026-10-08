@@ -132,7 +132,6 @@ footer p {
   }
 
   .night.viewers-hidden .wheel-stage {
-    max-width: min(1600px, 88vh);
     margin-inline: auto;
   }
 
@@ -187,7 +186,7 @@ footer p {
 .wheel-stage {
   position: relative;
   width: 100%;
-  max-width: min(860px, 88vh);
+  max-width: min(1600px, 88vh);
 }
 
 .wheel {
