@@ -287,44 +287,43 @@ export default function ViewerCell({
             if ((e.target as Element).matches('input[type="range"]')) setDragging(true)
           }}
         >
-          {status === 'wheel' && (
-            <NominationSearch
-              viewerId={viewer.id}
-              viewerName={viewer.name}
-              client={client}
-              onAuthError={onAuthError}
-            />
-          )}
-          <div className="cell-options">
-            <span className="cell-color">
+          <div className="cell-main">
+            {status === 'wheel' && (
+              <NominationSearch
+                viewerId={viewer.id}
+                viewerName={viewer.name}
+                client={client}
+                onAuthError={onAuthError}
+              />
+            )}
+            <div className="cell-actions">
               <ColorPicker viewer={viewer} roster={roster} onToggle={track('color')} />
-              <span aria-hidden="true">Color</span>
-            </span>
-            <button
-              type="button"
-              className="quiet"
-              aria-label={`More for ${viewer.name}`}
-              popoverTarget={`cell-menu-${viewer.id}`}
-              onClick={(e) => placeUnder(e, menu.current)}
-            >
-              <span aria-hidden="true">⋯</span>
-            </button>
-            <div
-              id={`cell-menu-${viewer.id}`}
-              popover="auto"
-              ref={menu}
-              className="card cell-menu"
-              onToggle={track('menu')}
-            >
               <button
                 type="button"
-                onClick={() => {
-                  menu.current?.hidePopover()
-                  setConfirming(true)
-                }}
+                className="quiet"
+                aria-label={`More for ${viewer.name}`}
+                popoverTarget={`cell-menu-${viewer.id}`}
+                onClick={(e) => placeUnder(e, menu.current)}
               >
-                Remove from roster
+                <span aria-hidden="true">⋯</span>
               </button>
+              <div
+                id={`cell-menu-${viewer.id}`}
+                popover="auto"
+                ref={menu}
+                className="card cell-menu"
+                onToggle={track('menu')}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    menu.current?.hidePopover()
+                    setConfirming(true)
+                  }}
+                >
+                  Remove from roster
+                </button>
+              </div>
             </div>
           </div>
           {status === 'wheel' && setting && (
