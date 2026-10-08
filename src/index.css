@@ -112,11 +112,34 @@ body {
 }
 
 :where(input[type='checkbox']) {
-  accent-color: var(--accent);
-  width: 1.1rem;
-  height: 1.1rem;
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
   margin: 0 var(--space-2) 0 0;
   vertical-align: middle;
+  background: var(--page);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+:where(input[type='checkbox']:checked) {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+:where(input[type='checkbox'])::before {
+  content: '';
+  width: 0.65rem;
+  height: 0.65rem;
+  background: var(--accent-text);
+  clip-path: polygon(14% 44%, 0 59%, 40% 100%, 100% 20%, 85% 6%, 40% 70%);
+  transform: scale(0);
+}
+
+:where(input[type='checkbox']:checked)::before {
+  transform: scale(1);
 }
 
 :where(input[type='range']) {
