@@ -901,3 +901,71 @@ dialog.wheel-drawer::backdrop {
     overflow-y: auto;
   }
 }
+
+/* The held film: a non-modal card in the bottom corner, above the viewer pane
+   and its cell panels (z-index 1 and 2) and below the reveal (10). */
+.held-film {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 3;
+  width: min(20rem, calc(100vw - 2 * var(--space-4)));
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.held-film h2 {
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+}
+
+.held-film-body {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.held-film-body p {
+  margin: 0 0 var(--space-1);
+  overflow-wrap: anywhere;
+}
+
+.held-film-title {
+  font-weight: 600;
+}
+
+.held-film-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.held-film-chip {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .held-film {
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+  }
+
+  .held-film-chip {
+    max-width: 6rem;
+  }
+}

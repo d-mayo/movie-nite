@@ -3,6 +3,7 @@ import logoDark from './assets/logo/logo-dark-transparent.svg'
 import logoLight from './assets/logo/logo-light-transparent.svg'
 import tmdbLogo from './assets/tmdb-logo.svg'
 import './App.css'
+import { HeldFilmCard, HeldFilmChip, type FocusRequest } from './components/HeldFilm.tsx'
 import NightControls from './components/NightControls.tsx'
 import NightSetup from './components/NightSetup.tsx'
 import WheelPanel from './components/WheelPanel.tsx'
@@ -49,6 +50,7 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
   const [message, setMessage] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
   const [changingToken, setChangingToken] = useState(false)
+  const [focusRequest, setFocusRequest] = useState<FocusRequest>(null)
   const token = settings.tmdbToken
   // Bumped by Cancel, so a check that settles afterwards is discarded.
   const tokenChecks = useRef(0)
@@ -103,6 +105,7 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
       <Banner>
         <NightControls
           locked={locked}
+          heldFilmChip={<HeldFilmChip focusRequest={focusRequest} onRequestFocus={setFocusRequest} />}
           onChangeToken={() => {
             setMessage(null)
             setChangingToken(true)
@@ -123,6 +126,7 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
           </div>
         </div>
       </main>
+      <HeldFilmCard focusRequest={focusRequest} onRequestFocus={setFocusRequest} />
     </>
   )
 }
