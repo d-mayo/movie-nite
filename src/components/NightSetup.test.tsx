@@ -1,3 +1,4 @@
+import { createRef } from 'react'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
 import { defaultState, type AppState, type Nomination } from '../state/model.ts'
@@ -28,7 +29,7 @@ function mount(state: AppState, locked = false) {
   const store = createAppStore(createMemoryPersistence(state))
   const ui = (isLocked: boolean) => (
     <AppStoreContext.Provider value={store}>
-      <NightSetup client={createTmdbClient('tok', vi.fn())} onAuthError={vi.fn()} locked={isLocked} />
+      <NightSetup client={createTmdbClient('tok', vi.fn())} onAuthError={vi.fn()} locked={isLocked} onHide={vi.fn()} hideRef={createRef()} />
     </AppStoreContext.Provider>
   )
   const view = render(ui(locked))

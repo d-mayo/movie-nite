@@ -1,3 +1,4 @@
+import { createRef } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { defaultState, type Nomination } from '../state/model.ts'
@@ -74,6 +75,8 @@ function mount(locked = false) {
         client={createTmdbClient('tok', vi.fn())}
         onAuthError={vi.fn()}
         locked={isLocked}
+        onHide={vi.fn()}
+        hideRef={createRef()}
       />
     </AppStoreContext.Provider>
   )
