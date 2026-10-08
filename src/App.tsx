@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import logoDark from './assets/logo/logo-dark-transparent.svg'
 import logoLight from './assets/logo/logo-light-transparent.svg'
 import tmdbLogo from './assets/tmdb-logo.svg'
 import './App.css'
+import NightControls from './components/NightControls.tsx'
 import NightSetup from './components/NightSetup.tsx'
 import WheelEditor from './components/WheelEditor.tsx'
 import WheelPanel from './components/WheelPanel.tsx'
@@ -27,6 +28,20 @@ function Attribution() {
         This product uses the TMDB API but is not endorsed or certified by TMDB.
       </p>
     </footer>
+  )
+}
+
+function Banner({ children }: { children?: ReactNode }) {
+  return (
+    <header className="banner">
+      <h1>
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcSet={logoDark} />
+          <img src={logoLight} alt="Movie Nite" />
+        </picture>
+      </h1>
+      {children}
+    </header>
   )
 }
 
@@ -68,6 +83,7 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
   if (!token || !client || changingToken) {
     return (
       <>
+        <Banner />
         <main>
           <TokenPrompt
             message={message}
@@ -88,51 +104,50 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
     )
   }
   return (
-    <main>
-      <div className="night">
-        <WheelPanel
-          random={random}
-          spinMs={spinMs}
-          client={client}
-          onAuthError={handleAuthError}
-          onBusyChange={setLocked}
+    <>
+      <Banner>
+        <NightControls
+          locked={locked}
+          onChangeToken={() => {
+            setMessage(null)
+            setChangingToken(true)
+          }}
         />
-        {editing ? (
-          <WheelEditor locked={locked} onDone={() => setEditing(false)} />
-        ) : (
-          <div className="setup-column">
-            {!locked && !night.ended && (
-              <button type="button" onClick={() => setEditing(true)}>
-                Edit wheel
-              </button>
-            )}
-            <NightSetup
-              client={client}
-              onAuthError={handleAuthError}
-              locked={locked}
-              onChangeToken={() => {
-                setMessage(null)
-                setChangingToken(true)
-              }}
-            />
-          </div>
-        )}
-      </div>
-    </main>
+      </Banner>
+      <main>
+        <div className="night">
+          <WheelPanel
+            random={random}
+            spinMs={spinMs}
+            client={client}
+            onAuthError={handleAuthError}
+            onBusyChange={setLocked}
+          />
+          {editing ? (
+            <WheelEditor locked={locked} onDone={() => setEditing(false)} />
+          ) : (
+            <div className="setup-column">
+              {!locked && !night.ended && (
+                <button type="button" onClick={() => setEditing(true)}>
+                  Edit wheel
+                </button>
+              )}
+              <NightSetup
+                client={client}
+                onAuthError={handleAuthError}
+                locked={locked}
+              />
+            </div>
+          )}
+        </div>
+      </main>
+    </>
   )
 }
 
 function App({ store, fetchFn, random, spinMs }: Props) {
   return (
     <AppStoreContext.Provider value={store}>
-      <header className="banner">
-        <h1>
-          <picture>
-            <source media="(prefers-color-scheme: dark)" srcSet={logoDark} />
-            <img src={logoLight} alt="Movie Nite" />
-          </picture>
-        </h1>
-      </header>
       <Screen fetchFn={fetchFn} random={random} spinMs={spinMs} />
     </AppStoreContext.Provider>
   )

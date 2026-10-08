@@ -9,15 +9,12 @@ import { filmLabel, WatchNextSession } from './NightOver.tsx'
 interface Props {
   client: TmdbClient
   onAuthError: () => void
-  onChangeToken: () => void
   locked?: boolean
 }
 
-export default function NightSetup({ client, onAuthError, onChangeToken, locked = false }: Props) {
-  const { roster, night, holdover, addViewer, removeViewer, setPresent, newNight } = useApp()
+export default function NightSetup({ client, onAuthError, locked = false }: Props) {
+  const { roster, night, addViewer, removeViewer, setPresent } = useApp()
   const [name, setName] = useState('')
-  const nightStarted =
-    night.wonFilms.length > 0 || night.watched.length > 0 || night.ended || holdover !== null
 
   function isDone(viewerId: string): boolean {
     const film = night.nominations[viewerId]
@@ -84,15 +81,7 @@ export default function NightSetup({ client, onAuthError, onChangeToken, locked 
             Add
           </button>
         </form>
-        {nightStarted && (
-          <button type="button" onClick={newNight}>
-            New night
-          </button>
-        )}
         <WatchNextSession />
-        <button type="button" onClick={onChangeToken}>
-          Change TMDB token
-        </button>
       </fieldset>
     </section>
   )

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
 import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
@@ -23,17 +23,15 @@ function setup() {
       settings: { tmdbToken: 'tok' },
     }),
   )
-  const onChangeToken = vi.fn()
   render(
     <AppStoreContext.Provider value={store}>
       <NightSetup
         client={createTmdbClient('tok', vi.fn())}
         onAuthError={vi.fn()}
-        onChangeToken={onChangeToken}
       />
     </AppStoreContext.Provider>,
   )
-  return { store, onChangeToken }
+  return { store }
 }
 
 function add(name: string) {
@@ -65,31 +63,6 @@ test('a duplicate name is not added', () => {
   expect(screen.getAllByRole('checkbox')).toHaveLength(1)
 })
 
-test('New night is hidden until the night has progress, then keeps leftover nominations', () => {
-  const { store } = setup()
-  add('Ann')
-  add('Bo')
-  expect(screen.queryByRole('button', { name: 'New night' })).toBeNull()
-
-  const [ann, bo] = store.getState().roster.map((v) => v.id)
-  act(() => store.getState().nominate(ann, film))
-  act(() => store.getState().nominate(bo, { ...film, tmdbId: 2 }))
-  expect(screen.queryByRole('button', { name: 'New night' })).toBeNull()
-  act(() => store.getState().recordOutcome(film, 'tooLong', true))
-  fireEvent.click(screen.getByRole('button', { name: 'New night' }))
-  expect(Object.keys(store.getState().night.nominations)).toEqual([bo])
-  expect(store.getState().holdover).toBeNull()
-  expect(store.getState().night.presentIds).toEqual([ann, bo])
-  expect(store.getState().roster).toHaveLength(2)
-  expect(screen.queryByRole('button', { name: 'New night' })).toBeNull()
-})
-
-test('Change TMDB token calls back', () => {
-  const { onChangeToken } = setup()
-  fireEvent.click(screen.getByRole('button', { name: 'Change TMDB token' }))
-  expect(onChangeToken).toHaveBeenCalled()
-})
-
 function setupWith(night: Partial<typeof defaultState.night>, holdover: Nomination | null = null) {
   const store = createAppStore(
     createMemoryPersistence({
@@ -108,7 +81,6 @@ function setupWith(night: Partial<typeof defaultState.night>, holdover: Nominati
       <NightSetup
         client={createTmdbClient('tok', vi.fn())}
         onAuthError={vi.fn()}
-        onChangeToken={vi.fn()}
       />
     </AppStoreContext.Provider>,
   )
@@ -141,14 +113,6 @@ test('a saved Watch next session film is shown and can be cleared', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Clear Watch next session film' }))
   expect(store.getState().holdover).toBeNull()
   expect(screen.queryByText('Watch next session')).toBeNull()
-})
-
-test.each([
-  ['only watched is set', { watched: [film] }],
-  ['the night has ended', { ended: true }],
-])('New night is offered when %s', (_name, night) => {
-  setupWith(night)
-  expect(screen.getByRole('button', { name: 'New night' })).toBeInTheDocument()
 })
 
 test('the Add a viewer field accepts at most 20 characters', () => {

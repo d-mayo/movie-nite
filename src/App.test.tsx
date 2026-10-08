@@ -1,5 +1,6 @@
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -92,8 +93,10 @@ test.each([
 })
 
 const tokenField = () => screen.getByLabelText('TMDB Read Access Token')
-const clickChange = () =>
+const clickChange = () => {
+  fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
   fireEvent.click(screen.getByRole('button', { name: 'Change TMDB token' }))
+}
 
 test('Change TMDB token opens the prompt with Cancel and keeps the old token', () => {
   const { store, persistence } = setup(ok(), 'tok')
@@ -282,7 +285,7 @@ function nightWithViewer() {
 
 test('the token prompt is a card with Save primary and Cancel quiet', () => {
   nightWithViewer()
-  fireEvent.click(screen.getByRole('button', { name: 'Change TMDB token' }))
+  clickChange()
   const form = screen.getByLabelText('TMDB Read Access Token').closest('form')!
   expect(form).toHaveClass('card')
   expect(screen.getByRole('button', { name: 'Save' })).toHaveClass('primary')
@@ -304,4 +307,156 @@ test('the wheel editor is a card with Done primary, Remove danger and Move quiet
   expect(screen.getByRole('button', { name: 'Done' })).toHaveClass('primary')
   expect(screen.getByRole('button', { name: 'Remove wildcard 1' })).toHaveClass('danger')
   expect(screen.getByRole('button', { name: 'Move slice 1 up' })).toHaveClass('quiet')
+})
+
+// The banner toolbar.
+const banner = () => within(screen.getByRole('banner'))
+
+function bannerNight(
+  night: Partial<typeof defaultState.night> = {},
+  holdover: Nomination | null = null,
+) {
+  const film2 = { ...film, tmdbId: 2, title: 'Blade Runner' }
+  const store = createAppStore(
+    createMemoryPersistence({
+      ...defaultState,
+      settings: { tmdbToken: 'tok' },
+      roster: [
+        { id: 'a', name: 'Ann' },
+        { id: 'b', name: 'Bo' },
+      ],
+      night: {
+        ...defaultState.night,
+        presentIds: ['a', 'b'],
+        nominations: { a: film, b: film2 },
+        ...night,
+      },
+      holdover,
+    }),
+  )
+  render(<App store={store} fetchFn={ok()} random={() => 0.01} spinMs={20} />)
+  return store
+}
+
+test('the banner shows End night and Settings, then New night once the night has ended', () => {
+  const store = bannerNight()
+  expect(banner().getByRole('button', { name: 'End night' })).toBeEnabled()
+  expect(banner().getByRole('button', { name: 'Settings' })).toBeEnabled()
+  act(() => store.getState().endNight())
+  expect(banner().getByRole('button', { name: 'New night' })).toBeEnabled()
+  expect(banner().queryByRole('button', { name: 'End night' })).toBeNull()
+})
+
+test('the banner shows New night once the last viewer has won', async () => {
+  bannerNight({ presentIds: ['a'], nominations: { a: film } })
+  fireEvent.click(screen.getByRole('button', { name: 'Spin' }))
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Watch' }))
+  expect(banner().getByRole('button', { name: 'New night' })).toBeEnabled()
+})
+
+test('Change TMDB token is only reachable once Settings is opened', () => {
+  bannerNight()
+  expect(screen.queryByRole('button', { name: 'Change TMDB token' })).toBeNull()
+  fireEvent.click(banner().getByRole('button', { name: 'Settings' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Change TMDB token' }))
+  expect(tokenField()).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+})
+
+test('End night asks first; Cancel changes nothing and confirming shows the summary', () => {
+  const store = bannerNight()
+  const showModal = vi.spyOn(HTMLDialogElement.prototype, 'showModal')
+  fireEvent.click(banner().getByRole('button', { name: 'End night' }))
+  expect(showModal).toHaveBeenCalled()
+  let dialog = screen.getByRole('dialog', { name: 'End the night?' })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+  expect(store.getState().night.ended).toBe(false)
+  expect(screen.queryByRole('dialog')).toBeNull()
+
+  fireEvent.click(banner().getByRole('button', { name: 'End night' }))
+  dialog = screen.getByRole('dialog', { name: 'End the night?' })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'End night' }))
+  expect(store.getState().night.ended).toBe(true)
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(screen.getByRole('region', { name: 'Night over' })).toBeInTheDocument()
+  showModal.mockRestore()
+})
+
+test('Escape closes the confirmation and it can be opened again', () => {
+  const store = bannerNight()
+  fireEvent.click(banner().getByRole('button', { name: 'End night' }))
+  const dialog = screen.getByRole('dialog', { name: 'End the night?' }) as HTMLDialogElement
+  act(() => dialog.close())
+  expect(store.getState().night.ended).toBe(false)
+  expect(screen.queryByRole('dialog')).toBeNull()
+  fireEvent.click(banner().getByRole('button', { name: 'End night' }))
+  expect(screen.getByRole('dialog', { name: 'End the night?' })).toBeInTheDocument()
+})
+
+test('New night starts at once and keeps nominations whose film did not win', () => {
+  const store = bannerNight()
+  act(() => store.getState().recordOutcome(film, 'watch', true))
+  act(() => store.getState().endNight())
+  fireEvent.click(banner().getByRole('button', { name: 'New night' }))
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(screen.queryByRole('region', { name: 'Night over' })).toBeNull()
+  expect(store.getState().night.ended).toBe(false)
+  expect(store.getState().night.wonFilms).toEqual([])
+  expect(Object.keys(store.getState().night.nominations)).toEqual(['b'])
+  expect(banner().getByRole('button', { name: 'End night' })).toBeInTheDocument()
+})
+
+test('the moved buttons are gone from the setup, the spin panel and Night over', () => {
+  const store = bannerNight({}, { ...film, tmdbId: 5, title: 'Heat' })
+  const main = within(screen.getByRole('main'))
+  expect(main.queryByRole('button', { name: 'New night' })).toBeNull()
+  expect(main.queryByRole('button', { name: 'End night' })).toBeNull()
+  expect(main.queryByRole('button', { name: 'Change TMDB token' })).toBeNull()
+  act(() => store.getState().recordOutcome(film, 'watch', true))
+  act(() => store.getState().endNight())
+  const summary = screen.getByRole('region', { name: 'Night over' })
+  expect(within(summary).queryByRole('button', { name: 'New night' })).toBeNull()
+  expect(within(summary).getByText('Alien (1979)')).toBeInTheDocument()
+  expect(within(summary).getByText(/Watch next session: Heat/)).toBeInTheDocument()
+})
+
+test('the banner controls are disabled during a spin and its reveal, even if the night ends', async () => {
+  const store = bannerNight()
+  fireEvent.click(screen.getByRole('button', { name: 'Spin' }))
+  expect(banner().getByRole('button', { name: 'End night' })).toBeDisabled()
+  expect(banner().getByRole('button', { name: 'Settings' })).toBeDisabled()
+  act(() => store.getState().endNight())
+  expect(banner().getByRole('button', { name: 'New night' })).toBeDisabled()
+  const dialog = await screen.findByRole('dialog')
+  expect(banner().getByRole('button', { name: 'New night' })).toBeDisabled()
+  expect(banner().getByRole('button', { name: 'Settings' })).toBeDisabled()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+  expect(banner().getByRole('button', { name: 'New night' })).toBeEnabled()
+  expect(banner().getByRole('button', { name: 'Settings' })).toBeEnabled()
+})
+
+test('each banner control has its name and an aria-hidden icon', () => {
+  const store = bannerNight()
+  for (const name of ['End night', 'Settings']) {
+    const button = banner().getByRole('button', { name })
+    expect(button.querySelector('[aria-hidden="true"]')).not.toBeNull()
+  }
+  act(() => store.getState().endNight())
+  const button = banner().getByRole('button', { name: 'New night' })
+  expect(button.querySelector('[aria-hidden="true"]')).not.toBeNull()
+})
+
+test('the token prompt banner has the logo only', () => {
+  const noControls = () => {
+    expect(banner().getByRole('img', { name: 'Movie Nite' })).toBeInTheDocument()
+    for (const name of ['End night', 'New night', 'Settings'])
+      expect(banner().queryByRole('button', { name })).toBeNull()
+  }
+  setup(ok())
+  noControls()
+  cleanup()
+  setup(ok(), 'tok')
+  clickChange()
+  noControls()
 })
