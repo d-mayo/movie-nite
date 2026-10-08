@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -164,6 +165,66 @@ test.each([
   expect(screen.getByText("Tonight's viewers")).toBeInTheDocument()
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
+
+type Settle = 'ok' | 'rejected' | 'offline'
+
+// A fetch whose response the test settles by hand.
+function heldFetch() {
+  let settle: (how: Settle) => void = () => {}
+  const fetchFn = vi.fn(
+    () =>
+      new Promise<Response>((resolve, reject) => {
+        settle = (how) => {
+          if (how === 'offline') reject(new TypeError('offline'))
+          else resolve(new Response('{}', { status: how === 'ok' ? 200 : 401 }))
+        }
+      }),
+  )
+  return { fetchFn: fetchFn as unknown as typeof fetch, settle: (h: Settle) => settle(h) }
+}
+
+async function saveThenCancel(held: ReturnType<typeof heldFetch>) {
+  const view = setup(held.fetchFn, 'old')
+  clickChange()
+  fireEvent.change(tokenField(), { target: { value: 'new' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  const cancel = screen.getByRole('button', { name: 'Cancel' })
+  expect(cancel).toBeEnabled()
+  fireEvent.click(cancel)
+  return view
+}
+
+const flush = () => act(async () => {})
+
+test.each<Settle>(['ok', 'rejected', 'offline'])(
+  'cancelling a check that then settles (%s) leaves the night and the old token',
+  async (how) => {
+    const held = heldFetch()
+    const { store, persistence } = await saveThenCancel(held)
+    expect(screen.getByText("Tonight's viewers")).toBeInTheDocument()
+    held.settle(how)
+    await flush()
+    expect(screen.getByText("Tonight's viewers")).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(store.getState().settings.tmdbToken).toBe('old')
+    expect(persistence.load()?.settings.tmdbToken).toBe('old')
+  },
+)
+
+test.each<Settle>(['ok', 'rejected'])(
+  'a cancelled check (%s) has no effect on a reopened prompt',
+  async (how) => {
+    const held = heldFetch()
+    const { store, persistence } = await saveThenCancel(held)
+    clickChange()
+    held.settle(how)
+    await flush()
+    expect(tokenField()).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(store.getState().settings.tmdbToken).toBe('old')
+    expect(persistence.load()?.settings.tmdbToken).toBe('old')
+  },
+)
 
 test('a banner with the logo sits above the screen', () => {
   setup(ok())

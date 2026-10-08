@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import logoDark from './assets/logo/logo-dark-transparent.svg'
 import logoLight from './assets/logo/logo-light-transparent.svg'
 import tmdbLogo from './assets/tmdb-logo.svg'
@@ -37,9 +37,13 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
   const [editing, setEditing] = useState(false)
   const [changingToken, setChangingToken] = useState(false)
   const token = settings.tmdbToken
+  // Bumped by Cancel, so a check that settles afterwards is discarded.
+  const tokenChecks = useRef(0)
 
   async function saveToken(candidate: string) {
+    const check = tokenChecks.current
     await createTmdbClient(candidate, fetchFn).checkToken()
+    if (check !== tokenChecks.current) return
     setMessage(null)
     setToken(candidate)
     setChangingToken(false)
@@ -71,6 +75,7 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
             onCancel={
               token && client
                 ? () => {
+                    tokenChecks.current += 1
                     setMessage(null)
                     setChangingToken(false)
                   }
