@@ -15,7 +15,7 @@ interface Props {
 
 // How long the pointer rests on a cell before it opens, and how long it must be
 // gone before the cell closes.
-const openDelayMs = 150
+const openDelayMs = 80
 const closeDelayMs = 300
 
 const rank: Record<CellStatus, number> = { wheel: 0, won: 1, away: 2 }

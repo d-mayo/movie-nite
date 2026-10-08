@@ -616,7 +616,7 @@ dialog.wheel-drawer::backdrop {
   align-items: stretch;
   gap: var(--space-3);
   padding: var(--space-3);
-  animation: cell-open 0.15s ease-out;
+  animation: cell-open 0.1s ease-out;
   /* The body floats over the cells above instead of pushing them down, so the
      list holds still under the pointer. */
   position: absolute;

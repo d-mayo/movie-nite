@@ -92,11 +92,11 @@ const leave = (name: string) => fireEvent.pointerLeave(cell(name))
 const mouseClick = (name: string) => fireEvent.click(header(name), { detail: 1 })
 const keyClick = (name: string) => fireEvent.click(header(name), { detail: 0 })
 
-test('with a hovering pointer a cell opens after resting about 150 ms and closes about 300 ms after leaving', () => {
+test('with a hovering pointer a cell opens after resting about 80 ms and closes about 300 ms after leaving', () => {
   canHover(true)
   mount()
   enter('Ann')
-  wait(100)
+  wait(40)
   expect(isOpen('Ann')).toBe(false)
   wait(100)
   expect(isOpen('Ann')).toBe(true)
@@ -116,7 +116,7 @@ test('leaving before the delay cancels a hover open', () => {
   canHover(true)
   mount()
   enter('Ann')
-  wait(100)
+  wait(40)
   leave('Ann')
   wait(500)
   expect(isOpen('Ann')).toBe(false)
