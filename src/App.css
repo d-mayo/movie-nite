@@ -703,7 +703,7 @@ dialog.wheel-drawer::backdrop {
   right: var(--space-3);
   z-index: 2;
   box-sizing: border-box;
-  max-height: 16rem;
+  max-height: min(34rem, 80vh);
   margin: var(--space-1) 0 0;
   padding: var(--space-1);
   overflow-y: auto;
