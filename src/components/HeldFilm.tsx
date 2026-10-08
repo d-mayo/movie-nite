@@ -13,21 +13,25 @@ interface Props {
   onRequestFocus: (request: FocusRequest) => void
 }
 
-// The film held from an earlier night, as a non-modal corner card.
+// The film held for next time, as a non-modal corner card. Until the night's
+// first spin it is the film "From last session", which the host acknowledges
+// (clearing it for good); once the night has spun it is this night's own
+// "Watch next session" film, which can only be tucked away into the chip.
 export function HeldFilmCard({ focusRequest, onRequestFocus }: Props) {
   const { holdover, night, clearHoldover, setHoldoverDismissed } = useApp()
   const dismiss = useRef<HTMLButtonElement>(null)
-  const shown = holdover !== null && !night.holdoverDismissed
+  const carried = !night.spun
+  const shown = holdover !== null && (carried || !night.holdoverDismissed)
   useEffect(() => {
-    if (shown && focusRequest === 'dismiss') {
+    if (shown && !carried && focusRequest === 'dismiss') {
       dismiss.current?.focus()
       onRequestFocus(null)
     }
-  }, [shown, focusRequest, onRequestFocus])
+  }, [shown, carried, focusRequest, onRequestFocus])
   if (!holdover || !shown) return null
   return (
     <aside className="card held-film" aria-labelledby="held-film-heading">
-      <h2 id="held-film-heading">Watch next session</h2>
+      <h2 id="held-film-heading">{carried ? 'From last session:' : 'Watch next session:'}</h2>
       <div className="held-film-body">
         <Poster path={holdover.posterPath} title={holdover.title} />
         <div>
@@ -36,20 +40,23 @@ export function HeldFilmCard({ focusRequest, onRequestFocus }: Props) {
         </div>
       </div>
       <div className="held-film-actions">
-        <button
-          type="button"
-          ref={dismiss}
-          className="quiet"
-          onClick={() => {
-            onRequestFocus('chip')
-            setHoldoverDismissed(true)
-          }}
-        >
-          Dismiss
-        </button>
-        <button type="button" className="quiet" onClick={clearHoldover}>
-          Clear
-        </button>
+        {carried ? (
+          <button type="button" className="quiet" onClick={clearHoldover}>
+            Acknowledge/Watch
+          </button>
+        ) : (
+          <button
+            type="button"
+            ref={dismiss}
+            className="quiet"
+            onClick={() => {
+              onRequestFocus('chip')
+              setHoldoverDismissed(true)
+            }}
+          >
+            Dismiss
+          </button>
+        )}
       </div>
     </aside>
   )
@@ -59,7 +66,7 @@ export function HeldFilmCard({ focusRequest, onRequestFocus }: Props) {
 export function HeldFilmChip({ focusRequest, onRequestFocus }: Props) {
   const { holdover, night, setHoldoverDismissed } = useApp()
   const chip = useRef<HTMLButtonElement>(null)
-  const shown = holdover !== null && night.holdoverDismissed
+  const shown = holdover !== null && night.spun && night.holdoverDismissed
   useEffect(() => {
     if (shown && focusRequest === 'chip') {
       chip.current?.focus()

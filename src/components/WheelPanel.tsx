@@ -36,7 +36,7 @@ export default function WheelPanel({
   onAuthError,
   onBusyChange,
 }: Props) {
-  const { night, roster, recordOutcome, startSpin } = useApp()
+  const { night, roster, holdover, recordOutcome, startSpin } = useApp()
   const [rotation, setRotation] = useState(0)
   // Fixed when Spin is pressed and dropped on Close, so the wheel, the draw
   // and the reveal agree even if the store changes meanwhile.
@@ -129,6 +129,7 @@ export default function WheelPanel({
           wedge={spin.wedges[spin.drawn]}
           revealedAt={spin.revealedAt}
           client={client}
+          heldFilm={holdover}
           onAuthError={onAuthError}
           onOutcome={outcome}
           onClose={close}

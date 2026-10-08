@@ -1009,3 +1009,18 @@ dialog.wheel-drawer::backdrop {
   font-size: 0.8rem;
   text-decoration: underline;
 }
+
+.reveal-replace {
+  text-align: center;
+}
+
+.reveal-replace p {
+  margin: 0 0 var(--space-2);
+  font-size: 0.9rem;
+}
+
+.reveal-replace-actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+}
