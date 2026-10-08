@@ -31,7 +31,7 @@ function setup(
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok' },
+      settings: { tmdbToken: 'tok', viewersHidden: false },
       roster,
       night: {
         ...defaultState.night,
@@ -54,7 +54,7 @@ test('there is no Spin button with no viewers, and the empty-wheel text shows', 
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok' },
+      settings: { tmdbToken: 'tok', viewersHidden: false },
     }),
   )
   render(<App store={store} fetchFn={vi.fn()} />)
@@ -136,7 +136,7 @@ test('a 401 from the wildcard search unlocks setup once a new token is saved', a
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok' },
+      settings: { tmdbToken: 'tok', viewersHidden: false },
       roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
       night: {
         ...defaultState.night,

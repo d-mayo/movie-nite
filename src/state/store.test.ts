@@ -42,9 +42,17 @@ test('a remote change replaces the state', () => {
   const store = createAppStore(persistence)
   persistence.emitRemoteChange({
     ...defaultState,
-    settings: { tmdbToken: 'remote' },
+    settings: { tmdbToken: 'remote', viewersHidden: false },
   })
   expect(store.getState().settings.tmdbToken).toBe('remote')
+})
+
+test('viewersHidden defaults to false for an older save and survives a reload', () => {
+  const persistence = createMemoryPersistence({ ...defaultState, settings: { tmdbToken: 'tok' } } as never)
+  const a = createAppStore(persistence)
+  expect(a.getState().settings.viewersHidden).toBe(false)
+  a.getState().setViewersHidden(true)
+  expect(createAppStore(persistence).getState().settings.viewersHidden).toBe(true)
 })
 
 test('stored data missing a field is merged over the defaults', () => {
@@ -173,7 +181,7 @@ test('adding viewers works without crypto.randomUUID, as on a plain-HTTP origin'
 
 const loaded = (roster: unknown[]) =>
   createAppStore(
-    createMemoryPersistence({ ...defaultState, settings: { tmdbToken: 'tok' }, roster } as never),
+    createMemoryPersistence({ ...defaultState, settings: { tmdbToken: 'tok', viewersHidden: false }, roster } as never),
   ).getState()
 
 test('a stored roster without colors loads with presets in roster order', () => {

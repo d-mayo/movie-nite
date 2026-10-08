@@ -21,7 +21,7 @@ function film(id: number, posterPath: string | null): Nomination {
 
 function setup() {
   const store = createAppStore(
-    createMemoryPersistence({ ...defaultState, settings: { tmdbToken: 'tok' } }),
+    createMemoryPersistence({ ...defaultState, settings: { tmdbToken: 'tok', viewersHidden: false } }),
   )
   render(<App store={store} fetchFn={vi.fn()} />)
   return store

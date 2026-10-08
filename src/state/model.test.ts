@@ -16,6 +16,7 @@ import {
   setHoldoverDismissed,
   setPresent,
   setToken,
+  setViewersHidden,
   startSpin,
   setViewerSliceCount,
   setViewerWeightOnWheel,
@@ -421,5 +422,18 @@ describe('the held film across nights', () => {
     expect(s.holdover?.tmdbId).toBe(3)
     expect(s.night.holdoverDismissed).toBe(false)
     expect(setHoldoverDismissed(s, true).night.holdoverDismissed).toBe(true)
+  })
+})
+
+describe('setViewersHidden', () => {
+  test('defaults to false, toggles, and touches only the setting', () => {
+    expect(defaultState.settings.viewersHidden).toBe(false)
+    const s = setToken(addViewer(defaultState, 'Ann', 'a'), 'tok')
+    const hidden = setViewersHidden(s, true)
+    expect(hidden.settings).toEqual({ tmdbToken: 'tok', viewersHidden: true })
+    expect(hidden.roster).toBe(s.roster)
+    expect(hidden.night).toBe(s.night)
+    expect(hidden.holdover).toBe(s.holdover)
+    expect(setViewersHidden(hidden, false).settings.viewersHidden).toBe(false)
   })
 })

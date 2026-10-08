@@ -32,7 +32,7 @@ export interface Viewer {
 
 export interface AppState {
   version: 1
-  settings: { tmdbToken: string | null }
+  settings: { tmdbToken: string | null; viewersHidden: boolean }
   roster: Viewer[]
   night: {
     presentIds: string[]
@@ -52,7 +52,7 @@ export interface AppState {
 
 export const defaultState: AppState = {
   version: 1,
-  settings: { tmdbToken: null },
+  settings: { tmdbToken: null, viewersHidden: false },
   roster: [],
   night: {
     presentIds: [],
@@ -69,6 +69,10 @@ export const defaultState: AppState = {
 
 export function setToken(state: AppState, token: string | null): AppState {
   return { ...state, settings: { ...state.settings, tmdbToken: token } }
+}
+
+export function setViewersHidden(state: AppState, hidden: boolean): AppState {
+  return { ...state, settings: { ...state.settings, viewersHidden: hidden } }
 }
 
 export const maxNameLength = 20

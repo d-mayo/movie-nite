@@ -36,7 +36,7 @@ function mount(state: AppState, locked = false) {
 }
 
 function setup() {
-  return mount({ ...defaultState, settings: { tmdbToken: 'tok' } })
+  return mount({ ...defaultState, settings: { tmdbToken: 'tok', viewersHidden: false } })
 }
 
 function setupWith(
@@ -48,7 +48,7 @@ function setupWith(
   return mount(
     {
       ...defaultState,
-      settings: { tmdbToken: 'tok' },
+      settings: { tmdbToken: 'tok', viewersHidden: false },
       roster,
       night: { ...defaultState.night, presentIds: roster.map((v) => v.id), ...night },
       holdover,

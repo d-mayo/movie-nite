@@ -38,7 +38,7 @@ function expectFooter() {
 function setup(fetchFn: typeof fetch, token: string | null = null) {
   const persistence = createMemoryPersistence({
     ...defaultState,
-    settings: { tmdbToken: token },
+    settings: { tmdbToken: token, viewersHidden: false },
   })
   const store = createAppStore(persistence)
   render(<App store={store} fetchFn={fetchFn} />)
@@ -276,7 +276,7 @@ function nightWithViewer() {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok' },
+      settings: { tmdbToken: 'tok', viewersHidden: false },
       roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
       night: { ...defaultState.night, presentIds: ['a'], nominations: { a: film } },
     }),
@@ -324,7 +324,7 @@ function bannerNight(
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok' },
+      settings: { tmdbToken: 'tok', viewersHidden: false },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
