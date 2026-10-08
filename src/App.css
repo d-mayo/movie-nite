@@ -476,6 +476,10 @@ dialog.wheel-drawer::backdrop {
   max-width: calc(100vw - 1rem);
 }
 
+.color-picker:not(:popover-open) {
+  display: none;
+}
+
 .color-picker:popover-open {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

@@ -23,7 +23,7 @@ function ColorPicker({ viewer, roster }: { viewer: Viewer; roster: Viewer[] }) {
     const el = popover.current
     if (!el) return
     el.style.top = `${rect.bottom + 4}px`
-    el.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 232))}px`
+    el.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 240))}px`
   }
   return (
     <>
