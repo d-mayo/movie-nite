@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react'
-import { maxNameLength } from '../state/model.ts'
+import { useRef, useState, type FormEvent } from 'react'
+import { maxNameLength, maxViewers, type Viewer } from '../state/model.ts'
+import { presetColors, presetNames } from '../wheel/colors.ts'
 import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import { Poster } from './FilmSearch.tsx'
@@ -10,6 +11,52 @@ interface Props {
   client: TmdbClient
   onAuthError: () => void
   locked?: boolean
+}
+
+function ColorPicker({ viewer, roster }: { viewer: Viewer; roster: Viewer[] }) {
+  const { setViewerColor } = useApp()
+  const popover = useRef<HTMLDivElement>(null)
+  const id = `color-picker-${viewer.id}`
+  // The popover is fixed, so it is placed under its button when opened.
+  function place(e: React.MouseEvent<HTMLButtonElement>) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const el = popover.current
+    if (!el) return
+    el.style.top = `${rect.bottom + 4}px`
+    el.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 232))}px`
+  }
+  return (
+    <>
+      <button
+        type="button"
+        className="swatch"
+        aria-label={`${viewer.name}'s colour`}
+        popoverTarget={id}
+        style={{ background: viewer.color }}
+        onClick={place}
+      />
+      <div id={id} popover="auto" ref={popover} className="card color-picker">
+        {presetColors.map((color) => {
+          const holder = roster.find((v) => v.color === color && v.id !== viewer.id)
+          return (
+            <button
+              key={color}
+              type="button"
+              className="swatch"
+              style={{ background: color }}
+              aria-label={holder ? `${presetNames[color]}, ${holder.name}'s colour` : presetNames[color]}
+              aria-pressed={color === viewer.color}
+              disabled={holder !== undefined}
+              onClick={() => {
+                setViewerColor(viewer.id, color)
+                popover.current?.hidePopover()
+              }}
+            />
+          )
+        })}
+      </div>
+    </>
+  )
 }
 
 export default function NightSetup({ client, onAuthError, locked = false }: Props) {
@@ -43,6 +90,7 @@ export default function NightSetup({ client, onAuthError, locked = false }: Prop
                 />
                 {viewer.name}
               </label>
+              <ColorPicker viewer={viewer} roster={roster} />
               <button
                 type="button"
                 className="danger"
@@ -77,9 +125,12 @@ export default function NightSetup({ client, onAuthError, locked = false }: Prop
             Add a viewer
             <input maxLength={maxNameLength} value={name} onChange={(e) => setName(e.target.value)} />
           </label>
-          <button type="submit" className="primary">
+          <button type="submit" className="primary" disabled={roster.length >= maxViewers}>
             Add
           </button>
+          {roster.length >= maxViewers && (
+            <p>The roster is full (12 viewers). Remove a viewer to add another.</p>
+          )}
         </form>
         <WatchNextSession />
       </fieldset>

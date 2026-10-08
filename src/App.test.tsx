@@ -475,3 +475,15 @@ test('the token prompt banner has the logo only', () => {
   clickChange()
   noControls()
 })
+
+test('choosing a colour in the picker repaints the wheel at once', () => {
+  nightWithViewer()
+  const fills = () =>
+    Array.from(document.querySelectorAll('[data-kind="nomination"] > path:not([clip-path])'))
+      .map((p) => p.getAttribute('fill'))
+  expect(fills()).toContain('#e6194b')
+  fireEvent.click(screen.getByRole('button', { name: "Ann's colour" }))
+  fireEvent.click(screen.getByRole('button', { name: 'Blue' }))
+  expect(fills()).toContain('#4363d8')
+  expect(fills()).not.toContain('#e6194b')
+})
