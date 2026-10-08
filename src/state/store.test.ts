@@ -63,8 +63,28 @@ test('stored data missing a field is merged over the defaults', () => {
     watched: [],
     ended: false,
     layout: null,
+    spun: false,
+    holdoverDismissed: false,
   })
   expect(store.getState().holdover).toBeNull()
+})
+
+test('the held film flags load false from older saved state and survive a reload once set', () => {
+  const persistence = createMemoryPersistence({
+    ...defaultState,
+    night: { presentIds: [] },
+    holdover: film,
+  } as never)
+  const a = createAppStore(persistence)
+  expect(a.getState().night.spun).toBe(false)
+  expect(a.getState().night.holdoverDismissed).toBe(false)
+  expect(a.getState().holdover).toEqual(film)
+  a.getState().setHoldoverDismissed(true)
+  expect(createAppStore(persistence).getState().night.holdoverDismissed).toBe(true)
+  a.getState().startSpin()
+  const b = createAppStore(persistence).getState()
+  expect(b.night.spun).toBe(true)
+  expect(b.holdover).toBeNull()
 })
 
 test('night progress and the holdover survive a reload, and clearing is saved', () => {

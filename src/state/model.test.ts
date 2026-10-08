@@ -13,8 +13,10 @@ import {
   resetViewerSettings,
   removeViewer,
   resetLayout,
+  setHoldoverDismissed,
   setPresent,
   setToken,
+  startSpin,
   setViewerSliceCount,
   setViewerWeightOnWheel,
   spreadWheelEvenly,
@@ -191,7 +193,7 @@ describe('endNight and clearHoldover', () => {
 })
 
 describe('newNight with a night in progress', () => {
-  test('clears won films, watched, ended and the holdover; keeps leftovers, roster, ticks, token', () => {
+  test('clears won films, watched and ended; keeps the holdover, leftovers, roster, ticks, token', () => {
     let s = nominate(addViewer(setToken(three(), 'tok'), 'Di', 'd'), 'd', film(3))
     s = recordOutcome(s, film(1), 'tooLong', true)
     s = endNight(recordOutcome(s, film(2), 'watch', true))
@@ -201,7 +203,7 @@ describe('newNight with a night in progress', () => {
     expect(s.night.watched).toEqual([])
     expect(s.night.ended).toBe(false)
     expect(s.night.presentIds).toEqual(['a', 'b', 'c', 'd'])
-    expect(s.holdover).toBeNull()
+    expect(s.holdover?.tmdbId).toBe(1)
     expect(s.settings.tmdbToken).toBe('tok')
   })
 })
@@ -374,5 +376,50 @@ describe('resetViewerSettings', () => {
   test('leaves a derived wheel derived', () => {
     const s = addViewer(defaultState, 'Ann', 'a')
     expect(resetViewerSettings(s)).toBe(s)
+  })
+})
+
+describe('the held film across nights', () => {
+  test('defaults are false and newNight keeps the film and resets both flags', () => {
+    expect(defaultState.night.spun).toBe(false)
+    expect(defaultState.night.holdoverDismissed).toBe(false)
+    let s = recordOutcome(three(), film(1), 'tooLong', true)
+    s = setHoldoverDismissed(startSpin(s), true)
+    expect(s.night.spun).toBe(true)
+    s = newNight(s)
+    expect(s.holdover).toBeNull()
+    let t = setHoldoverDismissed(recordOutcome(three(), film(1), 'tooLong', true), true)
+    t = newNight(t)
+    expect(t.holdover?.tmdbId).toBe(1)
+    expect(t.night.spun).toBe(false)
+    expect(t.night.holdoverDismissed).toBe(false)
+  })
+
+  test('the first spin clears the film, a Too long on it sets a new one, later spins leave it', () => {
+    let s = newNight(recordOutcome(three(), film(1), 'tooLong', true))
+    s = startSpin(s)
+    expect(s.night.spun).toBe(true)
+    expect(s.holdover).toBeNull()
+    s = recordOutcome(s, film(2), 'tooLong', true)
+    s = startSpin(s)
+    expect(s.holdover?.tmdbId).toBe(2)
+  })
+
+  test('on a night already spun a spin start leaves the film', () => {
+    let s = startSpin(three())
+    s = recordOutcome(s, film(3), 'tooLong', true)
+    expect(startSpin(s)).toBe(s)
+  })
+
+  test('too long reopens a dismissed card, watch leaves the flag, dismiss and reopen toggle it', () => {
+    let s = setHoldoverDismissed(recordOutcome(three(), film(1), 'tooLong', true), true)
+    expect(s.night.holdoverDismissed).toBe(true)
+    s = recordOutcome(s, film(2), 'watch', true)
+    expect(s.holdover?.tmdbId).toBe(1)
+    expect(s.night.holdoverDismissed).toBe(true)
+    s = recordOutcome(s, film(3), 'tooLong', false)
+    expect(s.holdover?.tmdbId).toBe(3)
+    expect(s.night.holdoverDismissed).toBe(false)
+    expect(setHoldoverDismissed(s, true).night.holdoverDismissed).toBe(true)
   })
 })

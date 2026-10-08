@@ -42,6 +42,10 @@ export interface AppState {
     ended: boolean
     // null while the wheel is still derived from the viewers on it.
     layout: WheelLayout | null
+    // True once a spin has started this night; the first one clears the held film.
+    spun: boolean
+    // True while the held film's corner card is shrunk to the banner chip.
+    holdoverDismissed: boolean
   }
   holdover: Nomination | null
 }
@@ -57,6 +61,8 @@ export const defaultState: AppState = {
     watched: [],
     ended: false,
     layout: null,
+    spun: false,
+    holdoverDismissed: false,
   },
   holdover: null,
 }
@@ -173,8 +179,9 @@ export function newNight(state: AppState): AppState {
       watched: [],
       ended: false,
       layout: null,
+      spun: false,
+      holdoverDismissed: false,
     },
-    holdover: null,
   }
 }
 
@@ -279,6 +286,7 @@ export function recordOutcome(
     watched: outcome === 'watch' ? [...state.night.watched, nomination] : state.night.watched,
   }
   if (fromWheel && viewersOnWheel(night).length === 0) night.ended = true
+  if (outcome === 'tooLong') night.holdoverDismissed = false
   return syncNight({
     ...state,
     night,
@@ -292,4 +300,14 @@ export function endNight(state: AppState): AppState {
 
 export function clearHoldover(state: AppState): AppState {
   return { ...state, holdover: null }
+}
+
+// The first spin of a night uses up the film held from an earlier one.
+export function startSpin(state: AppState): AppState {
+  if (state.night.spun) return state
+  return { ...state, night: { ...state.night, spun: true }, holdover: null }
+}
+
+export function setHoldoverDismissed(state: AppState, dismissed: boolean): AppState {
+  return { ...state, night: { ...state.night, holdoverDismissed: dismissed } }
 }

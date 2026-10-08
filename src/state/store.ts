@@ -16,6 +16,7 @@ import {
   removeViewer,
   removeWheelWildcard,
   resetLayout,
+  setHoldoverDismissed,
   setPresent,
   setToken,
   setViewerColor,
@@ -23,6 +24,7 @@ import {
   setViewerWeightOnWheel,
   setWildcardWeightOnWheel,
   spreadWheelEvenly,
+  startSpin,
   type AppState,
   type Nomination,
   type Outcome,
@@ -45,6 +47,8 @@ export interface AppActions {
   recordOutcome(nomination: Nomination, outcome: Outcome, fromWheel: boolean): void
   endNight(): void
   clearHoldover(): void
+  startSpin(): void
+  setHoldoverDismissed(dismissed: boolean): void
   setViewerWeight(viewerId: string, weight: number): void
   setViewerSlices(viewerId: string, count: number): void
   setWildcardWeight(weight: number): void
@@ -100,6 +104,8 @@ export function createAppStore(persistence: Persistence): AppStore {
         update((s) => recordOutcome(s, nomination, outcome, fromWheel)),
       endNight: () => update(endNight),
       clearHoldover: () => update(clearHoldover),
+      startSpin: () => update(startSpin),
+      setHoldoverDismissed: (dismissed) => update((s) => setHoldoverDismissed(s, dismissed)),
       setViewerWeight: (id, weight) => update((s) => setViewerWeightOnWheel(s, id, weight)),
       setViewerSlices: (id, count) => update((s) => setViewerSliceCount(s, id, count)),
       setWildcardWeight: (weight) => update((s) => setWildcardWeightOnWheel(s, weight)),
