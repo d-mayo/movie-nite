@@ -1,4 +1,5 @@
 import { posterUrl } from '../tmdb/client.ts'
+import { labelTextColor } from '../wheel/colors.ts'
 import type { Wedge } from '../wheel/wedges.ts'
 
 const radius = 100
@@ -31,6 +32,8 @@ function WedgeShape({ wedge, id }: { wedge: Wedge; id: string }) {
   const width = arc.end - arc.start
   const half = (width / 2) * (Math.PI / 180)
   const imageWidth = Math.max(10, 2 * radius * Math.sin(half))
+  const isWildcard = slice.kind === 'wildcard'
+  const textColor = isWildcard ? '#ffffff' : labelTextColor(wedge.color)
   const label = slice.kind === 'wildcard' ? 'WILDCARD' : clip(wedge.viewerName ?? '')
   const showTitle = nomination !== null && width >= titleMinDegrees
   const backing = Math.max(
@@ -58,21 +61,21 @@ function WedgeShape({ wedge, id }: { wedge: Wedge; id: string }) {
           </g>
         </g>
       )}
-      <g transform={`rotate(${mid - 90})`} fill="#fff" className="wedge-text">
+      <g transform={`rotate(${mid - 90})`} className="wedge-text">
         <rect
           x={radius - 6 - backing}
           y={showTitle ? -6.5 : -4.5}
           width={backing + 4}
           height={showTitle ? 16 : 9}
           rx="1.5"
-          fill="#000"
-          opacity="0.6"
+          fill={isWildcard ? '#000' : wedge.color}
+          opacity={isWildcard ? 0.6 : 0.85}
         />
-        <text x={radius - 4} y={showTitle ? -2 : 0} textAnchor="end" dominantBaseline="central" fontSize="7.5" fontWeight="bold">
+        <text x={radius - 4} y={showTitle ? -2 : 0} textAnchor="end" dominantBaseline="central" fontSize="7.5" fontWeight="bold" fill={textColor}>
           {label}
         </text>
         {showTitle && (
-          <text x={radius - 4} y={6} textAnchor="end" dominantBaseline="central" fontSize="5">
+          <text x={radius - 4} y={6} textAnchor="end" dominantBaseline="central" fontSize="5" fill={textColor}>
             {clip(nomination.title)}
           </text>
         )}

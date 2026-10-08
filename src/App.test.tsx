@@ -276,7 +276,7 @@ function nightWithViewer() {
     createMemoryPersistence({
       ...defaultState,
       settings: { tmdbToken: 'tok' },
-      roster: [{ id: 'a', name: 'Ann' }],
+      roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
       night: { ...defaultState.night, presentIds: ['a'], nominations: { a: film } },
     }),
   )
@@ -322,8 +322,8 @@ function bannerNight(
       ...defaultState,
       settings: { tmdbToken: 'tok' },
       roster: [
-        { id: 'a', name: 'Ann' },
-        { id: 'b', name: 'Bo' },
+        { id: 'a', name: 'Ann', color: '#e6194b' },
+        { id: 'b', name: 'Bo', color: '#f58231' },
       ],
       night: {
         ...defaultState.night,
@@ -474,4 +474,16 @@ test('the token prompt banner has the logo only', () => {
   setup(ok(), 'tok')
   clickChange()
   noControls()
+})
+
+test('choosing a colour in the picker repaints the wheel at once', () => {
+  nightWithViewer()
+  const fills = () =>
+    Array.from(document.querySelectorAll('[data-kind="nomination"] > path:not([clip-path])'))
+      .map((p) => p.getAttribute('fill'))
+  expect(fills()).toContain('#e6194b')
+  fireEvent.click(screen.getByRole('button', { name: "Ann's colour" }))
+  fireEvent.click(screen.getByRole('button', { name: 'Blue' }))
+  expect(fills()).toContain('#4363d8')
+  expect(fills()).not.toContain('#e6194b')
 })

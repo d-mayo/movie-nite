@@ -11,6 +11,7 @@ import {
   syncLayout,
   type WheelLayout,
 } from '../wheel/edit.ts'
+import { firstFreePreset, isPreset, maxViewers } from '../wheel/colors.ts'
 
 export interface Nomination {
   tmdbId: number
@@ -25,6 +26,7 @@ export interface Nomination {
 export interface Viewer {
   id: string
   name: string
+  color: string
 }
 
 export interface AppState {
@@ -63,17 +65,29 @@ export function setToken(state: AppState, token: string | null): AppState {
 }
 
 export const maxNameLength = 20
+export { maxViewers }
 
 export function addViewer(state: AppState, name: string, id: string): AppState {
   const trimmed = name.trim().slice(0, maxNameLength)
   if (!trimmed) return state
+  if (state.roster.length >= maxViewers) return state
   const lower = trimmed.toLowerCase()
   if (state.roster.some((v) => v.name.toLowerCase() === lower)) return state
+  const color = firstFreePreset(state.roster.map((v) => v.color))
+  if (color === null) return state
   return syncNight({
     ...state,
-    roster: [...state.roster, { id, name: trimmed }],
+    roster: [...state.roster, { id, name: trimmed, color }],
     night: { ...state.night, presentIds: [...state.night.presentIds, id] },
   })
+}
+
+export function setViewerColor(state: AppState, id: string, color: string): AppState {
+  if (!isPreset(color)) return state
+  const viewer = state.roster.find((v) => v.id === id)
+  if (!viewer || viewer.color === color) return state
+  if (state.roster.some((v) => v.color === color)) return state
+  return { ...state, roster: state.roster.map((v) => (v.id === id ? { ...v, color } : v)) }
 }
 
 function withoutNomination(

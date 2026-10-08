@@ -445,3 +445,62 @@ dialog.wheel-drawer::backdrop {
   padding: var(--space-3) 0 0;
   background: var(--card);
 }
+
+/* The colour swatch on a viewer row and the popover of presets it opens. */
+.swatch {
+  box-sizing: border-box;
+  width: 1.75rem;
+  height: 1.75rem;
+  min-width: 0;
+  padding: 0;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+}
+
+.swatch[aria-pressed='true'] {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.swatch:disabled {
+  cursor: not-allowed;
+}
+
+/* A preset another viewer holds: greyed out and struck through. */
+.color-picker .swatch {
+  position: relative;
+}
+
+.color-picker .swatch:disabled {
+  filter: grayscale(0.5);
+  opacity: 0.6;
+}
+
+.color-picker .swatch:disabled::after {
+  content: '';
+  position: absolute;
+  inset: 50% -2px auto;
+  height: 2px;
+  background: var(--text);
+  rotate: -45deg;
+}
+
+.color-picker {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: var(--space-3);
+  width: 14rem;
+  max-width: calc(100vw - 1rem);
+}
+
+.color-picker:not(:popover-open) {
+  display: none;
+}
+
+.color-picker:popover-open {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  justify-items: center;
+  gap: var(--space-3);
+}

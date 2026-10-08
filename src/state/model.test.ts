@@ -18,7 +18,10 @@ import {
   spreadWheelEvenly,
   viewersOnWheel,
   type Nomination,
+  setViewerColor,
+  maxViewers,
 } from './model.ts'
+import { presetColors } from '../wheel/colors.ts'
 
 const film = (tmdbId: number): Nomination => ({
   tmdbId,
@@ -33,7 +36,7 @@ const film = (tmdbId: number): Nomination => ({
 describe('addViewer', () => {
   test('trims the name and adds the viewer ticked', () => {
     const s = addViewer(defaultState, '  Ann ', 'a')
-    expect(s.roster).toEqual([{ id: 'a', name: 'Ann' }])
+    expect(s.roster).toEqual([{ id: 'a', name: 'Ann', color: presetColors[0] }])
     expect(s.night.presentIds).toEqual(['a'])
   })
 
@@ -298,5 +301,42 @@ describe('an edited wheel', () => {
   test('spread evenly keeps the order hand-placed', () => {
     const s = spreadWheelEvenly(edited(true))
     expect(s.night.layout!.handPlaced).toBe(true)
+  })
+})
+
+describe('viewer colours', () => {
+  const withViewers = (n: number) => {
+    let s = defaultState
+    for (let i = 0; i < n; i++) s = addViewer(s, `V${i}`, `id${i}`)
+    return s
+  }
+
+  test('new viewers get the first free preset', () => {
+    const s = withViewers(2)
+    expect(s.roster.map((v) => v.color)).toEqual([presetColors[0], presetColors[1]])
+    const freed = addViewer(removeViewer(s, 'id0'), 'New', 'n')
+    expect(freed.roster.at(-1)?.color).toBe(presetColors[0])
+  })
+
+  test('a changed colour is skipped by the next new viewer', () => {
+    const s = setViewerColor(withViewers(1), 'id0', presetColors[5])
+    expect(addViewer(s, 'Bo', 'b').roster[1].color).toBe(presetColors[0])
+    const t = addViewer(addViewer(s, 'Bo', 'b'), 'Cy', 'c')
+    expect(t.roster.map((v) => v.color)).not.toContain(undefined)
+    expect(new Set(withViewers(6).roster.map((v) => v.color)).size).toBe(6)
+  })
+
+  test('the roster is capped at 12 and removal frees a colour', () => {
+    const full = withViewers(maxViewers)
+    expect(addViewer(full, 'Extra', 'x')).toBe(full)
+    const freed = addViewer(removeViewer(full, 'id3'), 'Extra', 'x')
+    expect(freed.roster.at(-1)?.color).toBe(presetColors[3])
+  })
+
+  test('setViewerColor refuses non-presets and colours held by others', () => {
+    const s = withViewers(2)
+    expect(setViewerColor(s, 'id0', '#123456')).toBe(s)
+    expect(setViewerColor(s, 'id0', presetColors[1])).toBe(s)
+    expect(setViewerColor(s, 'id0', presetColors[7]).roster[0].color).toBe(presetColors[7])
   })
 })

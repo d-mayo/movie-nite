@@ -45,9 +45,9 @@ function setupNight(random: () => number, fetchFn: typeof fetch = vi.fn(), spin 
       ...defaultState,
       settings: { tmdbToken: 'tok' },
       roster: [
-        { id: 'a', name: 'Ann' },
-        { id: 'b', name: 'Bo' },
-        { id: 'c', name: 'Cy' },
+        { id: 'a', name: 'Ann', color: '#e6194b' },
+        { id: 'b', name: 'Bo', color: '#f58231' },
+        { id: 'c', name: 'Cy', color: '#ffe119' },
       ],
       night: {
         ...defaultState.night,
