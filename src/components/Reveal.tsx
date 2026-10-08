@@ -119,12 +119,14 @@ function FilmReveal({ nomination, at, byline, onOutcome, onClose }: FilmRevealPr
           ? `Ends around ${window.start}–${window.end}`
           : 'End time unknown (no runtime on TMDB)'}
       </p>
-      <button type="button" onClick={() => onOutcome('watch')}>
-        Watch
-      </button>
-      <button type="button" onClick={() => onOutcome('tooLong')}>
-        Too long
-      </button>
+      <div className="reveal-actions">
+        <button type="button" className="primary reveal-watch" onClick={() => onOutcome('watch')}>
+          Watch
+        </button>
+        <button type="button" className="quiet reveal-save" onClick={() => onOutcome('tooLong')}>
+          Save for Next Week
+        </button>
+      </div>
     </>
   )
 }

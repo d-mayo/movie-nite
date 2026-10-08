@@ -95,7 +95,7 @@ test('Watch takes the winner and the duplicate off the wheel and unlocks setup',
 test('Too long saves the Watch next session film and not the watched list', async () => {
   const store = setupNight(ann)
   const dialog = await screen.findByRole('dialog')
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Too long' }))
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save for Next Week' }))
   expect(store.getState().holdover?.tmdbId).toBe(1)
   expect(store.getState().night.watched).toEqual([])
   expect(store.getState().night.wonFilms).toEqual([1])
@@ -107,7 +107,7 @@ test('the first spin clears the held film, Too long on it saves a new one, a lat
   fireEvent.click(spinButton())
   expect(store.getState().holdover).toBeNull()
   let dialog = await screen.findByRole('dialog')
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Too long' }))
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save for Next Week' }))
   expect(store.getState().holdover?.tmdbId).toBe(1)
   fireEvent.click(spinButton())
   dialog = await screen.findByRole('dialog')
@@ -181,7 +181,7 @@ test('a wildcard pick is revealed from the pick time and Watch leaves the wheel 
 test('Too long on a wildcard pick saves the holdover and leaves the wheel alone', async () => {
   const store = setupNight(wildcard, wildcardFetch)
   const dialog = await pickWildcardFilm()
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Too long' }))
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save for Next Week' }))
   expect(store.getState().holdover?.tmdbId).toBe(9)
   expect(store.getState().night.watched).toEqual([])
   expect(store.getState().night.wonFilms).toEqual([])
