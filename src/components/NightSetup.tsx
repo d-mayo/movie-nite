@@ -31,7 +31,7 @@ export default function NightSetup({ client, onAuthError, onChangeToken, locked 
   }
 
   return (
-    <section>
+    <section className="card">
       <fieldset disabled={locked} className="setup">
         <h2>Tonight's viewers</h2>
         <p>Headcount: {night.presentIds.length}</p>
@@ -48,6 +48,7 @@ export default function NightSetup({ client, onAuthError, onChangeToken, locked 
               </label>
               <button
                 type="button"
+                className="danger"
                 aria-label={`Remove ${viewer.name}`}
                 onClick={() => removeViewer(viewer.id)}
               >
@@ -79,7 +80,9 @@ export default function NightSetup({ client, onAuthError, onChangeToken, locked 
             Add a viewer
             <input maxLength={maxNameLength} value={name} onChange={(e) => setName(e.target.value)} />
           </label>
-          <button type="submit">Add</button>
+          <button type="submit" className="primary">
+            Add
+          </button>
         </form>
         {nightStarted && (
           <button type="button" onClick={newNight}>

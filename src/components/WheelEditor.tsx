@@ -76,7 +76,7 @@ function SortableSlice({
     >
       <button
         type="button"
-        className="drag-handle"
+        className="drag-handle quiet"
         aria-label={`Drag slice ${index + 1}`}
         {...attributes}
         {...listeners}
@@ -122,7 +122,7 @@ export default function WheelEditor({ locked = false, onDone }: Props) {
   }
 
   return (
-    <section>
+    <section className="card">
       <fieldset disabled={locked} className="setup wheel-editor">
         <h2>Edit wheel</h2>
         <h3>Viewers</h3>
@@ -168,6 +168,7 @@ export default function WheelEditor({ locked = false, onDone }: Props) {
               Wildcard {i + 1}
               <button
                 type="button"
+                className="danger"
                 aria-label={`Remove wildcard ${i + 1}`}
                 onClick={() => removeWildcard(w.id)}
               >
@@ -199,6 +200,7 @@ export default function WheelEditor({ locked = false, onDone }: Props) {
                   {sliceLabel(ref)}
                   <button
                     type="button"
+                    className="quiet"
                     aria-label={`Move slice ${i + 1} up`}
                     disabled={i === 0}
                     onClick={() => moveSlice(i, i - 1)}
@@ -207,6 +209,7 @@ export default function WheelEditor({ locked = false, onDone }: Props) {
                   </button>
                   <button
                     type="button"
+                    className="quiet"
                     aria-label={`Move slice ${i + 1} down`}
                     disabled={i === layout.order.length - 1}
                     onClick={() => moveSlice(i, i + 1)}
@@ -221,7 +224,7 @@ export default function WheelEditor({ locked = false, onDone }: Props) {
         <button type="button" onClick={resetLayout}>
           Reset to default
         </button>
-        <button type="button" onClick={onDone}>
+        <button type="button" className="primary" onClick={onDone}>
           Done
         </button>
       </fieldset>

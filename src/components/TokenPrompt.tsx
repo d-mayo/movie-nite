@@ -27,7 +27,7 @@ export default function TokenPrompt({ message, onSubmit, onCancel }: Props) {
   }
 
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} className="card token-prompt">
       <h2>Connect to TMDB</h2>
       <p>
         Paste your TMDB Read Access Token. It is checked, then kept only in
@@ -43,14 +43,16 @@ export default function TokenPrompt({ message, onSubmit, onCancel }: Props) {
           autoComplete="off"
         />
       </label>
-      <button type="submit" disabled={checking}>
-        Save
-      </button>
-      {onCancel && (
-        <button type="button" onClick={onCancel}>
-          Cancel
+      <div className="actions">
+        <button type="submit" className="primary" disabled={checking}>
+          Save
         </button>
-      )}
+        {onCancel && (
+          <button type="button" className="quiet" onClick={onCancel}>
+            Cancel
+          </button>
+        )}
+      </div>
       {error && <p role="alert">{error}</p>}
     </form>
   )
