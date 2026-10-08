@@ -121,6 +121,7 @@ footer p {
 }
 
 .wheel-stage {
+  scroll-margin-top: var(--space-5);
   position: relative;
   width: 100%;
   max-width: min(860px, 88vh);
