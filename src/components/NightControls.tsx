@@ -54,18 +54,18 @@ export default function NightControls({ locked, onChangeToken }: Props) {
   return (
     <div className="night-controls">
       {night.ended ? (
-        <button type="button" className="night-control" disabled={locked} onClick={newNight}>
-          <span aria-hidden="true">↻</span>
+        <button type="button" className="quiet night-control" disabled={locked} onClick={newNight}>
+          <span className="icon" aria-hidden="true">↻</span>
           <span className="label">New night</span>
         </button>
       ) : (
         <button
           type="button"
-          className="night-control"
+          className="quiet night-control"
           disabled={locked}
           onClick={() => setConfirming(true)}
         >
-          <span aria-hidden="true">■</span>
+          <span className="icon" aria-hidden="true">☾</span>
           <span className="label">End night</span>
         </button>
       )}

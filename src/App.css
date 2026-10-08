@@ -38,6 +38,10 @@
   gap: 0.4rem;
 }
 
+.night-control .icon {
+  display: none;
+}
+
 .settings-menu {
   position: fixed;
   inset: auto;
@@ -64,6 +68,10 @@
 }
 
 @media (max-width: 600px) {
+  .night-control .icon {
+    display: inline;
+  }
+
   .night-control .label {
     position: absolute;
     width: 1px;
