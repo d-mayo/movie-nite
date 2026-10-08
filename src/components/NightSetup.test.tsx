@@ -156,7 +156,7 @@ test('the eye toggle marks a viewer away or here without opening or closing thei
 test('an open cell shows its film control, color, sliders and menu; an away cell does not open', () => {
   setupWith({ nominations: { a: film }, presentIds: ['a'] })
   openCell('Ann')
-  expect(screen.getByRole('button', { name: 'Change film for Ann' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Remove Film from Ann' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: "Ann's color" })).toBeInTheDocument()
   const slices = screen.getByLabelText('Slices for Ann')
   expect(slices).toHaveAttribute('min', '1')
@@ -235,9 +235,9 @@ test('a viewer who won shows their film with no search or change control', () =>
   expect(screen.getByText('Won tonight')).toBeInTheDocument()
   openCell('Ann')
   expect(screen.queryByLabelText('Search a film for Ann')).toBeNull()
-  expect(screen.queryByRole('button', { name: 'Change film for Ann' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Remove Film from Ann' })).toBeNull()
   openCell('Bo')
-  expect(screen.getByRole('button', { name: 'Change film for Bo' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Remove Other from Bo' })).toBeInTheDocument()
 })
 
 test('other viewers can still be marked away and removed after a win', () => {
@@ -325,4 +325,14 @@ test('the menu resets a viewer slices and weight, and is off when they are alrea
   expect(store.getState().night.layout?.viewers.a).toEqual({ slices: 3, weight: 5 })
   expect(store.getState().night.layout?.viewers.b.slices).toBe(2)
   expect(screen.getByLabelText('Slices for Ann')).toHaveValue('3')
+})
+
+test('the X over a poster removes the film and the search takes its place', () => {
+  const { store } = setupWith({ nominations: { a: film } })
+  openCell('Ann')
+  expect(screen.queryByLabelText('Search a film for Ann')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Remove Film from Ann' }))
+  expect(store.getState().night.nominations.a).toBeUndefined()
+  expect(screen.getByLabelText('Search a film for Ann')).toBeInTheDocument()
+  expect(within(cellOf('Ann')).getByText('No film yet')).toBeInTheDocument()
 })

@@ -9,6 +9,7 @@ import {
   newNight,
   nominate,
   recordOutcome,
+  removeNomination,
   removeViewer,
   resetLayout,
   setPresent,
@@ -338,5 +339,17 @@ describe('viewer colors', () => {
     expect(setViewerColor(s, 'id0', '#123456')).toBe(s)
     expect(setViewerColor(s, 'id0', presetColors[1])).toBe(s)
     expect(setViewerColor(s, 'id0', presetColors[7]).roster[0].color).toBe(presetColors[7])
+  })
+})
+
+describe('removeNomination', () => {
+  test('takes a film off its viewer, but not one that has won', () => {
+    let s = addViewer(defaultState, 'Ann', 'a')
+    s = nominate(s, 'a', film(1))
+    const removed = removeNomination(s, 'a')
+    expect(removed.night.nominations).toEqual({})
+    expect(removeNomination(removed, 'a')).toBe(removed)
+    const won = recordOutcome(s, film(1), 'watch', true)
+    expect(removeNomination(won, 'a')).toBe(won)
   })
 })

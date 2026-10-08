@@ -770,6 +770,59 @@ dialog.wheel-drawer::backdrop {
   display: none;
 }
 
+.cell-menu:popover-open {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+}
+
+/* A viewer's film poster, with an X over it on hover that removes the film. */
+.nomination {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.poster-remove {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  line-height: 0;
+}
+
+.setup .poster-x {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--page) 75%, transparent);
+  color: var(--text);
+  font-size: 1.5rem;
+  line-height: 1;
+  box-shadow: none;
+  opacity: 0;
+}
+
+.poster-remove:hover .poster-x,
+.poster-x:focus-visible {
+  opacity: 1;
+}
+
+/* Touch has no hover, so the X stays faintly visible there. */
+@media (hover: none) {
+  .setup .poster-x {
+    opacity: 0.6;
+  }
+}
+
 @keyframes cell-slide {
   from {
     opacity: 0;

@@ -10,6 +10,7 @@ import {
   moveWheelSlice,
   newNight,
   nominate,
+  removeNomination,
   recordOutcome,
   removeViewer,
   removeWheelWildcard,
@@ -37,6 +38,7 @@ export interface AppActions {
   setViewerColor(id: string, color: string): void
   setPresent(id: string, present: boolean): void
   nominate(viewerId: string, nomination: Nomination): void
+  removeNomination(viewerId: string): void
   newNight(): void
   recordOutcome(nomination: Nomination, outcome: Outcome, fromWheel: boolean): void
   endNight(): void
@@ -89,6 +91,7 @@ export function createAppStore(persistence: Persistence): AppStore {
       setViewerColor: (id, color) => update((s) => setViewerColor(s, id, color)),
       setPresent: (id, present) => update((s) => setPresent(s, id, present)),
       nominate: (viewerId, nomination) => update((s) => nominate(s, viewerId, nomination)),
+      removeNomination: (viewerId) => update((s) => removeNomination(s, viewerId)),
       newNight: () => update(newNight),
       recordOutcome: (nomination, outcome, fromWheel) =>
         update((s) => recordOutcome(s, nomination, outcome, fromWheel)),

@@ -134,6 +134,15 @@ export function setPresent(state: AppState, id: string, present: boolean): AppSt
   })
 }
 
+// Takes a viewer's film back off the wheel. A film that has won is not taken back.
+export function removeNomination(state: AppState, viewerId: string): AppState {
+  if (!state.night.nominations[viewerId] || hasWon(state.night, viewerId)) return state
+  return {
+    ...state,
+    night: { ...state.night, nominations: withoutNomination(state.night.nominations, viewerId) },
+  }
+}
+
 export function nominate(state: AppState, viewerId: string, nomination: Nomination): AppState {
   if (!state.night.presentIds.includes(viewerId)) return state
   if (hasWon(state.night, viewerId)) return state
