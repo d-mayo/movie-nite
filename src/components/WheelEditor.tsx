@@ -73,8 +73,6 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
   const {
     roster,
     night,
-    setViewerWeight,
-    setViewerSlices,
     setWildcardWeight,
     addWildcard,
     removeWildcard,
@@ -151,35 +149,8 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
           Wheel settings
         </h2>
         <fieldset disabled={locked} className="setup wheel-editor">
-          <h3>Viewers</h3>
-          {onWheel.length === 0 && <p>Nobody is on the wheel.</p>}
-          <ul>
-            {onWheel.map((id) => {
-              const setting = layout.viewers[id]
-              return (
-                <li key={id}>
-                  <strong>{nameOf(id)}</strong>
-                  <Slider
-                    label={`Weight for ${nameOf(id)}`}
-                    value={setting.weight}
-                    step={0.5}
-                    min={0.5}
-                    max={20}
-                    onChange={(n) => setViewerWeight(id, n)}
-                  />
-                  <Slider
-                    label={`Slices for ${nameOf(id)}`}
-                    value={setting.slices}
-                    step={1}
-                    min={1}
-                    max={12}
-                    onChange={(n) => setViewerSlices(id, n)}
-                  />
-                </li>
-              )
-            })}
-          </ul>
           <h3>Wildcards</h3>
+          {onWheel.length === 0 && <p>Nobody is on the wheel.</p>}
           <Slider
             label="Wildcard weight"
             value={layout.wildcardWeight}

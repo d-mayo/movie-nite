@@ -492,3 +492,16 @@ test('choosing a colour in the picker repaints the wheel at once', () => {
   expect(fills()).toContain('#4363d8')
   expect(fills()).not.toContain('#e6194b')
 })
+
+test('each Slices change in a cell redraws the wheel at once, and a weight is kept', () => {
+  nightWithViewer()
+  openCell('Ann')
+  for (const n of [4, 5, 6]) {
+    fireEvent.change(screen.getByLabelText('Slices for Ann'), { target: { value: String(n) } })
+    expect(
+      screen.getAllByTestId('wedge').filter((w) => w.getAttribute('data-kind') === 'nomination'),
+    ).toHaveLength(n)
+  }
+  fireEvent.change(screen.getByLabelText('Weight for Ann'), { target: { value: '7.5' } })
+  expect(screen.getByLabelText('Weight for Ann')).toHaveValue('7.5')
+})
