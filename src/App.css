@@ -183,6 +183,11 @@ footer p {
     border-radius: var(--radius-md) 0 0 var(--radius-md);
     box-shadow: var(--shadow-card);
   }
+
+  /* The base class sets the background, which would beat the zero-specificity hover rule. */
+  .show-viewers:hover {
+    background: color-mix(in srgb, var(--text) 8%, var(--card));
+  }
 }
 
 .wheel-stage {
