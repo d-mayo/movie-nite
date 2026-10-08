@@ -1,8 +1,51 @@
 :root {
   font-family: system-ui, sans-serif;
   color-scheme: light dark;
+
+  --page: #f6f6ee;
+  --card: #eeeee2;
+  --text: #262626;
+  --muted: #4a4c43;
+  --border: #4a4c43;
+  --card-border: #b7b9a8;
+  --accent: #4a4c43;
+  --accent-text: #f6f6ee;
+  --danger: #9b1c1c;
+
+  --shadow-card: 0 1px 2px rgb(38 38 38 / 0.12), 0 2px 8px rgb(38 38 38 / 0.08);
+  --shadow-control: 0 1px 1px rgb(38 38 38 / 0.15);
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #262626;
+    --card: #262626;
+    --text: #eeeee2;
+    --muted: #8f9186;
+    --border: #8f9186;
+    --card-border: #4a4c43;
+    --accent: #b7b9a8;
+    --accent-text: #262626;
+    --danger: #f28b82;
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 8px rgb(0 0 0 / 0.3);
+    --shadow-control: 0 1px 1px rgb(0 0 0 / 0.4);
+  }
 }
 
 body {
   margin: 0;
+  background: var(--page);
+  color: var(--text);
 }
