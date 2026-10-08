@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import { useApp } from '../state/store.ts'
@@ -25,6 +26,8 @@ interface Props {
   client: TmdbClient
   onAuthError: () => void
   onBusyChange: (busy: boolean) => void
+  // Where the "waiting for" message goes; under the wheel when there is none.
+  reasonSlot?: HTMLElement | null
 }
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3
@@ -35,6 +38,7 @@ export default function WheelPanel({
   client,
   onAuthError,
   onBusyChange,
+  reasonSlot,
 }: Props) {
   const { night, roster, holdover, recordOutcome, startSpin } = useApp()
   const [rotation, setRotation] = useState(0)
@@ -122,7 +126,8 @@ export default function WheelPanel({
           </button>
         )}
       </div>
-      {reason && <p>{reason}</p>}
+      {reason && !reasonSlot && <p>{reason}</p>}
+      {reason && reasonSlot && createPortal(<p>{reason}</p>, reasonSlot)}
       {night.ended && <NightOver />}
       {spin?.revealedAt && (
         <Reveal

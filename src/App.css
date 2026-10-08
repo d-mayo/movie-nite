@@ -115,8 +115,9 @@ footer p {
   .night {
     display: grid;
     grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
     align-items: start;
-    gap: 2rem;
+    gap: 0 2rem;
     overflow-x: clip;
     transition:
       grid-template-columns 0.3s ease,
@@ -129,6 +130,42 @@ footer p {
   .night.viewers-hidden {
     grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
     gap: 0;
+  }
+
+  /* The wheel spans both rows of the pane's column; the "waiting for" message
+     sits under the pane, or at the bottom of the screen with the pane hidden. */
+  .night > .wheel-panel {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  .night > .setup-column {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .wheel-reason-slot {
+    grid-column: 2;
+    grid-row: 2;
+    margin-top: var(--space-3);
+  }
+
+  .night.viewers-hidden .wheel-reason-slot {
+    position: fixed;
+    bottom: var(--space-4);
+    left: 50%;
+    translate: -50% 0;
+    margin: 0;
+    padding: var(--space-2) var(--space-4);
+    z-index: 2;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
+  }
+
+  .wheel-reason-slot p {
+    margin: 0;
   }
 
   .night.viewers-hidden .wheel-stage {
@@ -154,6 +191,11 @@ footer p {
   .night:not(.viewers-hidden) .setup-column {
     transition: none;
   }
+}
+
+/* An empty message slot takes no room. */
+.wheel-reason-slot:empty {
+  display: none;
 }
 
 /* Hide and Show viewers exist only where the pane can slide away. */

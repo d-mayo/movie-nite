@@ -128,3 +128,10 @@ test('Wheel settings, End night, New night and the held-film card work while hid
   expect(banner.getByRole('button', { name: 'End night' })).toBeInTheDocument()
   showButton()
 })
+
+test('the waiting message goes in the slot after the wheel, outside the wheel panel', () => {
+  setup(false, { night: { nominations: { a: film(1) } } })
+  const message = screen.getByText('Waiting for Bo to nominate.')
+  expect(message.closest('.wheel-reason-slot')).not.toBeNull()
+  expect(message.closest('.wheel-panel')).toBeNull()
+})

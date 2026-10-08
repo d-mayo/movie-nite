@@ -54,6 +54,7 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
   // Set by a Hide or Show press and consumed once, so reloading hidden takes no focus.
   const pendingFocus = useRef<'show' | 'hide' | null>(null)
   const showTab = useRef<HTMLButtonElement>(null)
+  const [reasonSlot, setReasonSlot] = useState<HTMLElement | null>(null)
   const hideButton = useRef<HTMLButtonElement>(null)
   const token = settings.tmdbToken
   const hidden = settings.viewersHidden
@@ -130,7 +131,9 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
             client={client}
             onAuthError={handleAuthError}
             onBusyChange={setLocked}
+            reasonSlot={reasonSlot}
           />
+          <div className="wheel-reason-slot" ref={setReasonSlot} />
           <div className="setup-column">
             <NightSetup
               client={client}
