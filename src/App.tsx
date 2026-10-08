@@ -155,7 +155,7 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
               setViewersHidden(false)
             }}
           >
-            <span aria-hidden="true">‹</span>
+            <span aria-hidden="true">â€¹</span>
           </button>
         )}
       </main>
