@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
 import { maxNameLength, maxViewers, viewersOnWheel } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import { materialiseDefault } from '../wheel/edit.ts'
+import { canHover } from './canHover.ts'
 import { WatchNextSession } from './NightOver.tsx'
 import ViewerCell, { type CellStatus } from './ViewerCell.tsx'
 
@@ -12,14 +13,100 @@ interface Props {
   locked?: boolean
 }
 
+// How long the pointer rests on a cell before it opens, and how long it must be
+// gone before the cell closes.
+const openDelayMs = 150
+const closeDelayMs = 300
+
 const rank: Record<CellStatus, number> = { wheel: 0, won: 1, away: 2 }
 
 // The viewer pane: one cell per roster viewer, on the wheel first, then those
-// who have won tonight, then those who are away.
+// who have won tonight, then those who are away. At most one cell is open.
 export default function NightSetup({ client, onAuthError, locked = false }: Props) {
   const { roster, night, addViewer } = useApp()
   const [name, setName] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
+  // Nothing opens during a spin or its reveal, and the open cell closes.
+  if (locked && openId !== null) setOpenId(null)
+  const shownId = locked ? null : openId
+
+  // The timers read these, so they see the latest values.
+  const openRef = useRef<string | null>(null)
+  const lockedRef = useRef(locked)
+  const heldRef = useRef<string | null>(null)
+  const insideRef = useRef<string | null>(null)
+  const timers = useRef<{ open?: number; close?: number }>({})
+  useEffect(() => {
+    openRef.current = shownId
+    lockedRef.current = locked
+  })
+  useEffect(() => {
+    const pending = timers.current
+    return () => {
+      window.clearTimeout(pending.open)
+      window.clearTimeout(pending.close)
+    }
+  }, [])
+  useEffect(() => {
+    if (!locked) return
+    window.clearTimeout(timers.current.open)
+    window.clearTimeout(timers.current.close)
+  }, [locked])
+
+  const show = useCallback((id: string | null) => {
+    openRef.current = id
+    setOpenId(id)
+  }, [])
+
+  const scheduleClose = useCallback(
+    (id: string) => {
+      window.clearTimeout(timers.current.close)
+      timers.current.close = window.setTimeout(() => {
+        if (openRef.current === id && heldRef.current !== id && insideRef.current !== id) show(null)
+      }, closeDelayMs)
+    },
+    [show],
+  )
+
+  function hoverStart(id: string) {
+    insideRef.current = id
+    if (lockedRef.current || !canHover()) return
+    if (openRef.current === id) {
+      window.clearTimeout(timers.current.close)
+      return
+    }
+    // A cell held open by a drag, focus or overlay is not displaced by hover.
+    if (heldRef.current !== null) return
+    window.clearTimeout(timers.current.open)
+    timers.current.open = window.setTimeout(() => {
+      if (!lockedRef.current && heldRef.current === null && insideRef.current === id) show(id)
+    }, openDelayMs)
+  }
+
+  function hoverEnd(id: string) {
+    if (insideRef.current === id) insideRef.current = null
+    window.clearTimeout(timers.current.open)
+    if (canHover() && openRef.current === id) scheduleClose(id)
+  }
+
+  // With a mouse a click only opens a cell, since moving away is how it closes;
+  // a tap and the keyboard (a click with no detail) toggle it.
+  function headerClick(id: string, e: MouseEvent<HTMLButtonElement>) {
+    if (lockedRef.current) return
+    window.clearTimeout(timers.current.open)
+    window.clearTimeout(timers.current.close)
+    const mouse = canHover() && e.detail > 0
+    show(mouse || openRef.current !== id ? id : null)
+  }
+
+  const hold = useCallback((id: string, held: boolean) => {
+    if (held) {
+      heldRef.current = id
+      return
+    }
+    if (heldRef.current === id) heldRef.current = null
+    if (canHover() && openRef.current === id && insideRef.current !== id) scheduleClose(id)
+  }, [scheduleClose])
 
   function hasWon(viewerId: string): boolean {
     const film = night.nominations[viewerId]
@@ -58,10 +145,13 @@ export default function NightSetup({ client, onAuthError, locked = false }: Prop
               won={hasWon(viewer.id)}
               film={night.nominations[viewer.id]}
               setting={layout.viewers[viewer.id]}
-              open={openId === viewer.id}
+              open={shownId === viewer.id}
               client={client}
               onAuthError={onAuthError}
-              onHeaderClick={() => setOpenId(openId === viewer.id ? null : viewer.id)}
+              onHeaderClick={(e) => headerClick(viewer.id, e)}
+              onHoverStart={() => hoverStart(viewer.id)}
+              onHoverEnd={() => hoverEnd(viewer.id)}
+              onHold={hold}
             />
           ))}
         </ul>

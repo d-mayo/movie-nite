@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type SyntheticEvent,
+} from 'react'
 import type { Nomination, Viewer } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
@@ -25,6 +34,19 @@ interface Props {
   client: TmdbClient
   onAuthError: () => void
   onHeaderClick: (e: MouseEvent<HTMLButtonElement>) => void
+  onHoverStart: () => void
+  onHoverEnd: () => void
+  // Reports whether something keeps the open cell open whatever the pointer does.
+  onHold: (id: string, held: boolean) => void
+}
+
+// True for focus a keyboard (or a text field) put there, not a click left behind.
+function focusVisible(el: Element): boolean {
+  try {
+    return el.matches(':focus-visible')
+  } catch {
+    return false
+  }
 }
 
 function EyeIcon({ present }: { present: boolean }) {
@@ -104,15 +126,60 @@ export default function ViewerCell({
   client,
   onAuthError,
   onHeaderClick,
+  onHoverStart,
+  onHoverEnd,
+  onHold,
 }: Props) {
   const { setPresent, removeViewer, setViewerWeight, setViewerSlices } = useApp()
   const [confirming, setConfirming] = useState(false)
   const menu = useRef<HTMLDivElement>(null)
   const closeDialog = useCallback(() => setConfirming(false), [])
+  // Each of these keeps an open cell open: a slider being dragged, keyboard
+  // focus inside, a popover or the Remove confirmation being open.
+  const [dragging, setDragging] = useState(false)
+  const [focusHeld, setFocusHeld] = useState(false)
+  const [overlays, setOverlays] = useState<Record<string, boolean>>({})
+  // The body unmounts when the cell closes, taking its holds with it.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (wasOpen !== open) {
+    setWasOpen(open)
+    if (!open) {
+      setDragging(false)
+      setFocusHeld(false)
+      setOverlays({})
+    }
+  }
+  const held = open && (dragging || focusHeld || confirming || Object.values(overlays).some(Boolean))
+  useEffect(() => {
+    onHold(viewer.id, held)
+    return () => onHold(viewer.id, false)
+  }, [held, onHold, viewer.id])
+  useEffect(() => {
+    if (!dragging) return
+    const end = () => setDragging(false)
+    window.addEventListener('pointerup', end)
+    window.addEventListener('pointercancel', end)
+    return () => {
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+    }
+  }, [dragging])
+  const track = (name: string) => (e: SyntheticEvent) => {
+    const shown = (e.nativeEvent as Event & { newState?: string }).newState === 'open'
+    setOverlays((o) => ({ ...o, [name]: shown }))
+  }
   const present = status !== 'away'
   const bodyId = `cell-body-${viewer.id}`
   return (
-    <li className={`cell${status !== 'wheel' ? ' dimmed' : ''}${open ? ' open' : ''}`}>
+    <li
+      className={`cell${status !== 'wheel' ? ' dimmed' : ''}${open ? ' open' : ''}`}
+      onPointerEnter={onHoverStart}
+      onPointerLeave={onHoverEnd}
+      onFocus={(e: FocusEvent<HTMLElement>) => setFocusHeld(focusVisible(e.target))}
+      onBlur={(e: FocusEvent<HTMLElement>) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocusHeld(false)
+      }}
+    >
       <div className="cell-head">
         <span className="cell-edge" aria-hidden="true" style={{ background: viewer.color }} />
         <button
@@ -155,7 +222,13 @@ export default function ViewerCell({
         </button>
       </div>
       {open && (
-        <div id={bodyId} className="cell-body">
+        <div
+          id={bodyId}
+          className="cell-body"
+          onPointerDown={(e: PointerEvent<HTMLElement>) => {
+            if ((e.target as Element).matches('input[type="range"]')) setDragging(true)
+          }}
+        >
           {status === 'wheel' && (
             <NominationSearch
               viewerId={viewer.id}
@@ -165,7 +238,7 @@ export default function ViewerCell({
             />
           )}
           <div className="cell-tools">
-            <ColorPicker viewer={viewer} roster={roster} />
+            <ColorPicker viewer={viewer} roster={roster} onToggle={track('color')} />
             {status === 'wheel' && setting && (
               <>
                 <Slider
@@ -195,7 +268,13 @@ export default function ViewerCell({
             >
               <span aria-hidden="true">⋯</span>
             </button>
-            <div id={`cell-menu-${viewer.id}`} popover="auto" ref={menu} className="card cell-menu">
+            <div
+              id={`cell-menu-${viewer.id}`}
+              popover="auto"
+              ref={menu}
+              className="card cell-menu"
+              onToggle={track('menu')}
+            >
               <button
                 type="button"
                 onClick={() => {

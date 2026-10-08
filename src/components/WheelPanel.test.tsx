@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
 import App from '../App.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
@@ -6,7 +6,7 @@ import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import { angleUnderPointer } from '../wheel/draw.ts'
 import { defaultLayout, sliceArcs } from '../wheel/layout.ts'
-import { header, markAway, markHere, openCell } from '../test/cells.ts'
+import { header, markAway, markHere } from '../test/cells.ts'
 
 function film(id: number, posterPath: string | null = null): Nomination {
   return {
@@ -125,7 +125,7 @@ test('the draw uses crypto.getRandomValues by default', async () => {
   spy.mockRestore()
 })
 
-test('a 401 during a spin unlocks setup once a new token is saved', async () => {
+test('a 401 from the wildcard search unlocks setup once a new token is saved', async () => {
   const fetchFn = vi.fn((url: RequestInfo | URL) =>
     Promise.resolve(
       new Response('{}', {
@@ -145,13 +145,18 @@ test('a 401 during a spin unlocks setup once a new token is saved', async () => 
       },
     }),
   )
-  render(<App store={store} fetchFn={fetchFn as typeof fetch} spinMs={600} />)
-  openCell('Ann')
-  fireEvent.click(screen.getByRole('button', { name: 'Change film for Ann' }))
-  fireEvent.change(screen.getByLabelText('Search a film for Ann'), {
+  // The first wildcard in the default layout, landed on by the draw.
+  const slices = defaultLayout(['a'], {})
+  const total = slices.reduce((sum, s) => sum + s.weight, 0)
+  const at = slices.findIndex((s) => s.kind === 'wildcard')
+  const before = slices.slice(0, at).reduce((sum, s) => sum + s.weight, 0)
+  const random = () => (before + slices[at].weight / 2) / total
+  render(<App store={store} fetchFn={fetchFn as typeof fetch} random={random} spinMs={20} />)
+  fireEvent.click(spinButton())
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.change(within(dialog).getByLabelText('Search for a wildcard film'), {
     target: { value: 'ab' },
   })
-  fireEvent.click(spinButton())
 
   const prompt = await screen.findByLabelText('TMDB Read Access Token')
   fireEvent.change(prompt, { target: { value: 'new' } })
