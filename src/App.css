@@ -524,10 +524,10 @@ dialog.wheel-drawer::backdrop {
   border-color: var(--border);
 }
 
-/* Below the wide layout the body drops under its cell, so the two join up. */
+/* Below the wide layout the body sits above its cell, so the two join up. */
 @media (max-width: 899px) {
   .setup li.cell.open {
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
   }
 }
 
@@ -617,17 +617,17 @@ dialog.wheel-drawer::backdrop {
   gap: var(--space-3);
   padding: var(--space-3);
   animation: cell-open 0.15s ease-out;
-  /* The body floats over the cells below instead of pushing them down, so the
+  /* The body floats over the cells above instead of pushing them down, so the
      list holds still under the pointer. */
   position: absolute;
-  top: 100%;
+  bottom: 100%;
   left: -1px;
   right: -1px;
   z-index: 1;
   box-sizing: border-box;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   box-shadow: var(--shadow-card);
 }
 
@@ -734,7 +734,7 @@ dialog.wheel-drawer::backdrop {
 @keyframes cell-open {
   from {
     opacity: 0;
-    translate: 0 -0.25rem;
+    translate: 0 0.25rem;
   }
 }
 
