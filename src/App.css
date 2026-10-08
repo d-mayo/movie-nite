@@ -244,12 +244,12 @@ footer p {
 .slider {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .slider input[type='range'] {
   width: 8rem;
-  margin-left: 0.25rem;
+  margin-left: var(--space-1);
 }
 
 .slider output {
