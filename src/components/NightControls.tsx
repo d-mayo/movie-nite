@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useApp } from '../state/store.ts'
+import WheelEditor from './WheelEditor.tsx'
 
 interface Props {
   locked: boolean
@@ -49,10 +50,23 @@ function EndNightDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClos
 export default function NightControls({ locked, onChangeToken }: Props) {
   const { night, endNight, newNight } = useApp()
   const [confirming, setConfirming] = useState(false)
+  const [editing, setEditing] = useState(false)
   const menu = useRef<HTMLDivElement>(null)
+  const wheelButton = useRef<HTMLButtonElement>(null)
   const closeDialog = useCallback(() => setConfirming(false), [])
+  const closeDrawer = useCallback(() => setEditing(false), [])
   return (
     <div className="night-controls">
+      <button
+        type="button"
+        ref={wheelButton}
+        className="quiet night-control"
+        disabled={locked || night.ended}
+        onClick={() => setEditing(true)}
+      >
+        <span className="icon" aria-hidden="true">◐</span>
+        <span className="label">Wheel settings</span>
+      </button>
       {night.ended ? (
         <button type="button" className="quiet night-control" disabled={locked} onClick={newNight}>
           <span className="icon" aria-hidden="true">↻</span>
@@ -89,6 +103,7 @@ export default function NightControls({ locked, onChangeToken }: Props) {
           Change TMDB token
         </button>
       </div>
+      {editing && <WheelEditor locked={locked} onClosed={closeDrawer} anchor={wheelButton} />}
       {confirming && (
         <EndNightDialog onConfirm={endNight} onClosed={closeDialog} />
       )}

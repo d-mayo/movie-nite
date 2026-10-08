@@ -390,3 +390,58 @@ fieldset.setup {
   cursor: grab;
   touch-action: none;
 }
+
+/* The Wheel settings popover: a modal dialog with a transparent backdrop,
+   hung under the banner button that opens it (placed by WheelEditor), so the
+   wheel stays visible and redraws behind it. */
+dialog.wheel-drawer {
+  box-sizing: border-box;
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  width: min(26rem, calc(100vw - 1rem));
+  max-width: none;
+  height: auto;
+  color: var(--text);
+  text-align: left;
+  box-shadow: var(--shadow-card);
+}
+
+dialog.wheel-drawer[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+dialog.wheel-drawer::backdrop {
+  background: transparent;
+}
+
+.drawer-body {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+.drawer-body > h2 {
+  margin: 0 0 var(--space-3);
+}
+
+.drawer-body > h2:focus {
+  outline: none;
+}
+
+.drawer-footer {
+  position: sticky;
+  bottom: calc(-1 * var(--space-4));
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-3);
+  padding: var(--space-3) 0 0;
+  background: var(--card);
+}

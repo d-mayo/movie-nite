@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
 import App from '../App.tsx'
+import WheelEditor from './WheelEditor.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
-import { createAppStore } from '../state/store.ts'
+import { AppStoreContext, createAppStore } from '../state/store.ts'
 
 function film(id: number): Nomination {
   return {
@@ -41,18 +42,59 @@ const wedgeLabels = () =>
   screen
     .getAllByTestId('wedge')
     .map((w) => (w.getAttribute('data-kind') === 'wildcard' ? 'W' : w.textContent!.slice(0, 2)))
-const openEditor = () => fireEvent.click(screen.getByRole('button', { name: 'Edit wheel' }))
+const openEditor = () => fireEvent.click(screen.getByRole('button', { name: 'Wheel settings' }))
 const spin = () => screen.getByRole('button', { name: 'Spin' })
 
-test('Edit wheel swaps the editor in for setup, keeps the wheel, and Done brings setup back', () => {
+test('Wheel settings opens a drawer beside the viewer list, which Done closes and reopens', () => {
   setup()
   expect(screen.getByText("Tonight's viewers")).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Edit wheel' })).not.toBeInTheDocument()
   openEditor()
-  expect(screen.queryByText("Tonight's viewers")).not.toBeInTheDocument()
-  expect(screen.getAllByTestId('wedge')).toHaveLength(8)
-  expect(spin()).toBeEnabled()
-  fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+  const drawer = screen.getByRole('dialog', { name: 'Wheel settings' })
   expect(screen.getByText("Tonight's viewers")).toBeInTheDocument()
+  expect(screen.getAllByTestId('wedge')).toHaveLength(8)
+  for (const control of ['Weight for Ann', 'Slices for Bo', 'Wildcard weight'])
+    expect(within(drawer).getByLabelText(control)).toBeInTheDocument()
+  expect(within(drawer).getByRole('button', { name: 'Add wildcard' })).toBeInTheDocument()
+  expect(within(drawer).getByRole('button', { name: 'Reset to default' })).toBeInTheDocument()
+  expect(document.activeElement).toBe(
+    within(drawer).getByRole('heading', { name: 'Wheel settings' }),
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(screen.getByText("Tonight's viewers")).toBeInTheDocument()
+  openEditor()
+  expect(screen.getByRole('dialog', { name: 'Wheel settings' })).toBeInTheDocument()
+})
+
+test('Escape and a backdrop click close the drawer, but a slider drag released over it does not', () => {
+  setup()
+  openEditor()
+  // dialog.close() stands in for Escape, which closes a modal dialog natively.
+  act(() => (screen.getByRole('dialog') as HTMLDialogElement).close())
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+  openEditor()
+  const drawer = screen.getByRole('dialog')
+  fireEvent.click(screen.getByLabelText('Weight for Ann'))
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  fireEvent.pointerDown(screen.getByLabelText('Weight for Ann'))
+  fireEvent.click(drawer)
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  fireEvent.pointerDown(drawer)
+  fireEvent.click(drawer)
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+test('Add wildcard is disabled when nobody is on the wheel', () => {
+  const store = setup()
+  openEditor()
+  expect(screen.getByRole('button', { name: 'Add wildcard' })).toBeEnabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+  act(() => store.getState().setPresent('a', false))
+  act(() => store.getState().setPresent('b', false))
+  openEditor()
+  expect(screen.getByRole('button', { name: 'Add wildcard' })).toBeDisabled()
 })
 
 test('each slice-count change redraws the wheel at once, and a weight is kept', () => {
@@ -142,36 +184,38 @@ test('the slice list names each slice', () => {
   expect(within(list).getAllByText('Ann: Film 1')).toHaveLength(3)
 })
 
-test('Edit wheel is offered only between spins and while the night is on', async () => {
-  const store = setup({ random: () => 0.5, spinMs: 20 })
+test('Wheel settings is unavailable during a spin and its reveal', async () => {
+  setup({ random: () => 0.5, spinMs: 20 })
   fireEvent.click(spin())
-  expect(screen.queryByRole('button', { name: 'Edit wheel' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Wheel settings' })).toBeDisabled()
   await screen.findByRole('dialog')
-  expect(screen.queryByRole('button', { name: 'Edit wheel' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Wheel settings' })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-  expect(screen.getByRole('button', { name: 'Edit wheel' })).toBeInTheDocument()
-  act(() => store.getState().endNight())
-  expect(screen.queryByRole('button', { name: 'Edit wheel' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Wheel settings' })).toBeEnabled()
 })
 
-test('with the editor open Spin works, and the editor is locked during the spin', async () => {
-  setup({ random: () => 0.5, spinMs: 20 })
-  openEditor()
-  fireEvent.click(spin())
+test('a locked drawer disables every editing control, including the drag handles, but not Done', () => {
+  const store = setup()
+  cleanup()
+  const onClosed = vi.fn()
+  render(
+    <AppStoreContext.Provider value={store}>
+      <WheelEditor locked onClosed={onClosed} />
+    </AppStoreContext.Provider>,
+  )
+  const before = store.getState().night.layout
+  for (const handle of screen.getAllByRole('button', { name: /^Drag slice/ }))
+    expect(handle.hasAttribute('disabled')).toBe(true)
   expect(screen.getByLabelText('Weight for Ann')).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Add wildcard' })).toBeDisabled()
-  await screen.findByRole('dialog')
-  expect(screen.getByLabelText('Slices for Ann')).toBeDisabled()
-  fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-  expect(screen.getByLabelText('Weight for Ann')).toBeEnabled()
-})
-
-test('ending the night with the editor open brings setup back', () => {
-  const store = setup()
-  openEditor()
-  act(() => store.getState().endNight())
-  expect(screen.getByText("Tonight's viewers")).toBeInTheDocument()
-  expect(screen.queryByText('Edit wheel', { selector: 'h2' })).not.toBeInTheDocument()
+  const handle = screen.getByRole('button', { name: 'Drag slice 1' })
+  fireEvent.keyDown(handle, { code: 'Space' })
+  fireEvent.keyDown(handle, { code: 'ArrowDown' })
+  fireEvent.keyDown(handle, { code: 'Space' })
+  expect(store.getState().night.layout).toEqual(before)
+  expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+  expect(onClosed).toHaveBeenCalled()
 })
 
 test('a slice can be dragged with the keyboard through its handle', async () => {
