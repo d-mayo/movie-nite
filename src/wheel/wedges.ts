@@ -10,9 +10,7 @@ export interface Wedge {
   nomination: Nomination | null
 }
 
-function colorFor(index: number): string {
-  return `hsl(${(index * 137.5) % 360} 55% 42%)`
-}
+const wildcardColor = 'hsl(0 0% 25%)'
 
 // Resolves every slice of the edited layout, or of the default one, with what a wedge draws.
 export function buildWedges(night: AppState['night'], roster: AppState['roster']): Wedge[] {
@@ -25,7 +23,7 @@ export function buildWedges(night: AppState['night'], roster: AppState['roster']
       return {
         slice,
         arc: arcs[i],
-        color: 'hsl(0 0% 25%)',
+        color: wildcardColor,
         viewerName: null,
         nomination: null,
       }
@@ -33,7 +31,7 @@ export function buildWedges(night: AppState['night'], roster: AppState['roster']
     return {
       slice,
       arc: arcs[i],
-      color: colorFor(night.presentIds.indexOf(slice.viewerId)),
+      color: roster.find((v) => v.id === slice.viewerId)?.color ?? wildcardColor,
       viewerName: roster.find((v) => v.id === slice.viewerId)?.name ?? '',
       nomination: night.nominations[slice.viewerId] ?? null,
     }
