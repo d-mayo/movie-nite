@@ -24,6 +24,7 @@ function film(id: number, posterPath: string | null = null): Nomination {
 function setup(
   nominated: string[],
   extra: { random?: () => number; spinMs?: number } = { spinMs: 20 },
+  wheel = defaultWheelSettings,
 ) {
   const roster = [
     { id: 'a', name: 'Ann', color: '#e6194b' },
@@ -32,7 +33,7 @@ function setup(
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { tmdbToken: 'tok', viewersHidden: false, wheel },
       roster,
       night: {
         ...defaultState.night,
@@ -227,4 +228,53 @@ test('the waiting message lists names with and, and a final comma and and for th
   )
   render(<App store={store} fetchFn={vi.fn()} />)
   expect(screen.getByText('Waiting for Ann, Bo, and Cy to nominate.')).toBeInTheDocument()
+})
+
+const wheelRotation = () => {
+  const transform = document.querySelector('svg.wheel > g')!.getAttribute('transform')!
+  return Number(/rotate\(([^)]+)\)/.exec(transform)![1])
+}
+
+test('the turns come from the spin settings', async () => {
+  setup(['a', 'b'], { random: () => 0.5, spinMs: 20 }, {
+    ...defaultWheelSettings,
+    spinSeconds: 6,
+    spinTurnsPerSecond: 2,
+  })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(wheelRotation()).toBeGreaterThanOrEqual(12 * 360)
+  expect(wheelRotation()).toBeLessThan(13 * 360)
+})
+
+test('reduced motion makes one turn whatever the settings', async () => {
+  const original = Object.getOwnPropertyDescriptor(window, 'matchMedia')
+  window.matchMedia = ((query: string) => ({
+    matches: query.includes('prefers-reduced-motion'),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  })) as never
+  try {
+    setup(['a', 'b'], { random: () => 0.5, spinMs: 20 }, {
+      ...defaultWheelSettings,
+      spinSeconds: 6,
+      spinTurnsPerSecond: 2,
+    })
+    fireEvent.click(spinButton())
+    await screen.findByRole('dialog')
+    expect(wheelRotation()).toBeGreaterThanOrEqual(360)
+    expect(wheelRotation()).toBeLessThan(2 * 360)
+  } finally {
+    if (original) Object.defineProperty(window, 'matchMedia', original)
+    else delete (window as { matchMedia?: unknown }).matchMedia
+  }
+})
+
+test('the spin lasts the length set, without a spinMs override', async () => {
+  setup(['a', 'b'], { random: () => 0.5 }, { ...defaultWheelSettings, spinSeconds: 2 })
+  fireEvent.click(spinButton())
+  await new Promise((r) => setTimeout(r, 1000))
+  expect(screen.queryByRole('dialog')).toBeNull()
+  await screen.findByRole('dialog', undefined, { timeout: 3000 })
 })

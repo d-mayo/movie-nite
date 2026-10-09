@@ -8,6 +8,8 @@ export interface WheelSettings {
   wildcardWeight: number
   defaultSlices: number
   defaultWeight: number
+  spinSeconds: number
+  spinTurnsPerSecond: number
 }
 
 // What the host changed for one viewer tonight; a field is present only when set.
@@ -27,6 +29,8 @@ export const defaultWheelSettings: WheelSettings = {
   wildcardWeight: 1,
   defaultSlices: 3,
   defaultWeight: 5,
+  spinSeconds: 6,
+  spinTurnsPerSecond: 0.8,
 }
 
 export const minWeight = 0.5
@@ -35,6 +39,10 @@ export const minSlices = 1
 export const maxSlices = 12
 export const minWildcards = 0
 export const maxWildcards = 12
+export const minSpinSeconds = 2
+export const maxSpinSeconds = 15
+export const minSpinTurnsPerSecond = 0.3
+export const maxSpinTurnsPerSecond = 3
 
 export function isValidWeight(weight: number): boolean {
   return (
@@ -43,6 +51,37 @@ export function isValidWeight(weight: number): boolean {
     weight <= maxWeight &&
     Number.isInteger(weight * 2)
   )
+}
+
+export function isValidSpinSeconds(seconds: number): boolean {
+  return (
+    Number.isFinite(seconds) &&
+    seconds >= minSpinSeconds &&
+    seconds <= maxSpinSeconds &&
+    Number.isInteger(seconds * 2)
+  )
+}
+
+export function isValidSpinTurnsPerSecond(turns: number): boolean {
+  return (
+    Number.isFinite(turns) &&
+    turns >= minSpinTurnsPerSecond &&
+    turns <= maxSpinTurnsPerSecond &&
+    Number.isInteger(turns * 10)
+  )
+}
+
+// How long the spin lasts and how many full turns it makes. Reduced motion
+// shortens it to one second and one turn, whatever the settings.
+export function spinPlan(
+  wheel: WheelSettings,
+  reducedMotion: boolean,
+): { durationMs: number; turns: number } {
+  if (reducedMotion) return { durationMs: 1000, turns: 1 }
+  return {
+    durationMs: wheel.spinSeconds * 1000,
+    turns: Math.max(1, Math.round(wheel.spinSeconds * wheel.spinTurnsPerSecond)),
+  }
 }
 
 export function isValidSliceCount(count: number): boolean {

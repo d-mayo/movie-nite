@@ -4,8 +4,11 @@ import {
   defaultWheelSettings,
   effectiveSetting,
   isValidSliceCount,
+  isValidSpinSeconds,
+  isValidSpinTurnsPerSecond,
   isValidWeight,
   isValidWildcardCount,
+  spinPlan,
   type WheelSettings,
 } from './edit.ts'
 import type { Slice } from './layout.ts'
@@ -98,5 +101,33 @@ describe('validity', () => {
     expect(isValidWildcardCount(12)).toBe(true)
     expect(isValidWildcardCount(13)).toBe(false)
     expect(isValidWildcardCount(1.5)).toBe(false)
+  })
+})
+
+describe('the spin', () => {
+  const plan = (spinSeconds: number, spinTurnsPerSecond: number, reduced = false) =>
+    spinPlan(wheel({ spinSeconds, spinTurnsPerSecond }), reduced)
+
+  test('the factory settings give the old 6 s, 5 turn spin', () => {
+    expect(spinPlan(defaultWheelSettings, false)).toEqual({ durationMs: 6000, turns: 5 })
+  })
+
+  test('turns are the rounded product, at least one', () => {
+    expect(plan(15, 3)).toEqual({ durationMs: 15000, turns: 45 })
+    expect(plan(2, 0.3).turns).toBe(1)
+    expect(plan(4.5, 0.7).turns).toBe(3)
+    expect(plan(2, 0.2).turns).toBe(1)
+  })
+
+  test('reduced motion gives 1 s and one turn whatever the settings', () => {
+    expect(spinPlan(defaultWheelSettings, true)).toEqual({ durationMs: 1000, turns: 1 })
+    expect(plan(15, 3, true)).toEqual({ durationMs: 1000, turns: 1 })
+  })
+
+  test('the validity checks are exact', () => {
+    for (const s of [2, 6.5, 15]) expect(isValidSpinSeconds(s)).toBe(true)
+    for (const s of [1.5, 15.5, 6.25, NaN]) expect(isValidSpinSeconds(s)).toBe(false)
+    for (let i = 3; i <= 30; i++) expect(isValidSpinTurnsPerSecond(i / 10)).toBe(true)
+    for (const t of [0.2, 3.1, 0.85, NaN]) expect(isValidSpinTurnsPerSecond(t)).toBe(false)
   })
 })

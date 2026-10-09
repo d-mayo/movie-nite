@@ -1,6 +1,12 @@
 import { useEffect, useRef, type RefObject } from 'react'
 import { viewersOnWheel } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
+import {
+  maxSpinSeconds,
+  maxSpinTurnsPerSecond,
+  minSpinSeconds,
+  minSpinTurnsPerSecond,
+} from '../wheel/edit.ts'
 import Slider from './Slider.tsx'
 import Stepper from './Stepper.tsx'
 
@@ -23,6 +29,8 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
     setWildcardWeight,
     setDefaultSlices,
     setDefaultWeight,
+    setSpinSeconds,
+    setSpinTurnsPerSecond,
   } = useApp()
   const { wheel } = settings
   const dialog = useRef<HTMLDialogElement>(null)
@@ -104,6 +112,29 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
               min={0.5}
               max={20}
               onChange={setWildcardWeight}
+            />
+          </section>
+          <section className="inset-card" aria-labelledby="spin-heading">
+            <div className="card-head">
+              <h3 id="spin-heading">Spin</h3>
+            </div>
+            <Slider
+              label="Length"
+              value={wheel.spinSeconds}
+              step={0.5}
+              min={minSpinSeconds}
+              max={maxSpinSeconds}
+              format={(n) => `${n} s`}
+              onChange={setSpinSeconds}
+            />
+            <Slider
+              label="Intensity"
+              value={wheel.spinTurnsPerSecond}
+              step={0.1}
+              min={minSpinTurnsPerSecond}
+              max={maxSpinTurnsPerSecond}
+              format={(n) => `${n} turns/s`}
+              onChange={setSpinTurnsPerSecond}
             />
           </section>
           <section className="inset-card" aria-labelledby="defaults-heading">
