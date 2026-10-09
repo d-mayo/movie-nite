@@ -497,7 +497,7 @@ test('each Slices change in a cell redraws the wheel at once, and a weight is ke
   nightWithViewer()
   openCell('Ann')
   for (const n of [4, 5, 6]) {
-    fireEvent.change(screen.getByLabelText('Slices for Ann'), { target: { value: String(n) } })
+    fireEvent.click(screen.getByRole('button', { name: 'Increase Slices for Ann' }))
     expect(
       screen.getAllByTestId('wedge').filter((w) => w.getAttribute('data-kind') === 'nomination'),
     ).toHaveLength(n)

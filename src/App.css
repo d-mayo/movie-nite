@@ -825,37 +825,6 @@ dialog.wheel-drawer::backdrop {
   display: none;
 }
 
-.setup .cell-sliders {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.cell-sliders .slider {
-  display: flex;
-  width: 100%;
-}
-
-.cell-sliders .slider label {
-  display: flex;
-  flex: 1;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.cell-sliders .slider-label {
-  flex: 0 0 7.5rem;
-  overflow-wrap: anywhere;
-}
-
-.cell-sliders .slider input[type='range'] {
-  flex: 1;
-  width: auto;
-  min-width: 0;
-  margin: 0;
-}
-
 .setup .cell-body > div {
   display: flex;
   flex-wrap: wrap;
@@ -863,8 +832,11 @@ dialog.wheel-drawer::backdrop {
   gap: var(--space-2) var(--space-3);
 }
 
-.setup .cell-body > .cell-sliders {
+.setup .cell-body > .inset-card {
+  flex-direction: column;
   flex-wrap: nowrap;
+  align-items: stretch;
+  gap: var(--space-3);
 }
 
 .cell-menu {
