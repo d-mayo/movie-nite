@@ -107,19 +107,20 @@ test('with nobody on the wheel the note sits under Wildcards', () => {
   expect(note.previousElementSibling).toHaveTextContent('Wildcards')
 })
 
-test('the popover shows a Wildcards card and a Defaults card and nothing of the old list', () => {
+test('the popover shows Wildcards, Spin and Defaults cards and nothing of the old list', () => {
   setup()
   openEditor()
   const drawer = screen.getByRole('dialog', { name: 'Wheel settings' })
   const cards = drawer.querySelectorAll('.inset-card')
-  expect(cards).toHaveLength(2)
+  expect(cards).toHaveLength(3)
   expect(within(cards[0] as HTMLElement).getByRole('heading', { name: 'Wildcards' })).toBeInTheDocument()
   expect(within(cards[0] as HTMLElement).getByRole('switch', { name: 'One per viewer' })).toBeChecked()
   expect(within(cards[0] as HTMLElement).getByRole('group', { name: 'Wildcard count' })).toBeInTheDocument()
   expect(within(cards[0] as HTMLElement).getByLabelText('Wildcard weight')).toBeInTheDocument()
-  expect(within(cards[1] as HTMLElement).getByRole('heading', { name: 'Defaults' })).toBeInTheDocument()
-  expect(within(cards[1] as HTMLElement).getByRole('group', { name: 'Slices per viewer' })).toBeInTheDocument()
-  expect(within(cards[1] as HTMLElement).getByLabelText('Weight per viewer')).toBeInTheDocument()
+  expect(within(cards[1] as HTMLElement).getByRole('heading', { name: 'Spin' })).toBeInTheDocument()
+  expect(within(cards[2] as HTMLElement).getByRole('heading', { name: 'Defaults' })).toBeInTheDocument()
+  expect(within(cards[2] as HTMLElement).getByRole('group', { name: 'Slices per viewer' })).toBeInTheDocument()
+  expect(within(cards[2] as HTMLElement).getByLabelText('Weight per viewer')).toBeInTheDocument()
   for (const gone of [/Add wildcard/, /Remove wildcard/, /^Move slice/, /^Drag slice/, /Spread evenly/, /Reset to default/]) {
     expect(screen.queryByRole('button', { name: gone })).toBeNull()
   }
@@ -159,6 +160,23 @@ test('the controls apply as they change: weight, defaults, and adjusted viewers 
   expect(header('Bo')).toHaveTextContent('4 slices · weight 8')
 })
 
+test('the Spin card shows and saves the length and intensity', () => {
+  const store = setup()
+  openEditor()
+  const length = screen.getByLabelText('Length')
+  const intensity = screen.getByLabelText('Intensity')
+  expect(length.closest('.slider')!.querySelector('output')).toHaveTextContent('6 s')
+  expect(length).toHaveAttribute('aria-valuetext', '6 s')
+  expect(intensity.closest('.slider')!.querySelector('output')).toHaveTextContent('0.8 turns/s')
+  expect(intensity).toHaveAttribute('aria-valuetext', '0.8 turns/s')
+  fireEvent.change(length, { target: { value: '10' } })
+  fireEvent.change(intensity, { target: { value: '1.5' } })
+  expect(store.getState().settings.wheel.spinSeconds).toBe(10)
+  expect(store.getState().settings.wheel.spinTurnsPerSecond).toBe(1.5)
+  expect(length.closest('.slider')!.querySelector('output')).toHaveTextContent('10 s')
+  expect(intensity.closest('.slider')!.querySelector('output')).toHaveTextContent('1.5 turns/s')
+})
+
 test('Wheel settings is unavailable during a spin and its reveal', async () => {
   setup({ random: () => 0.5, spinMs: 20 })
   fireEvent.click(spin())
@@ -182,6 +200,8 @@ test('a locked drawer disables every control, tick clicks included, but not Done
   expect(screen.getByRole('switch', { name: 'One per viewer' })).toBeDisabled()
   expect(screen.getByLabelText('Wildcard weight')).toBeDisabled()
   expect(screen.getByLabelText('Weight per viewer')).toBeDisabled()
+  expect(screen.getByLabelText('Length')).toBeDisabled()
+  expect(screen.getByLabelText('Intensity')).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Increase Slices per viewer' })).toBeDisabled()
   const slices = screen.getByRole('group', { name: 'Slices per viewer' })
   fireEvent.click(slices.querySelectorAll('.stepper-tick')[8])
