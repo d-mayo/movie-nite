@@ -833,6 +833,8 @@ dialog.wheel-drawer::backdrop {
 }
 
 .setup .cell-body > .inset-card {
+  box-sizing: border-box;
+  width: 100%;
   flex-direction: column;
   flex-wrap: nowrap;
   align-items: stretch;
