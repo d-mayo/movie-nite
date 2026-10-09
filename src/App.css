@@ -687,8 +687,19 @@ dialog.wheel-drawer::backdrop {
   background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 
+.cell-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  min-width: 0;
+}
+
 .cell-name {
   overflow-wrap: anywhere;
+}
+
+.cell-adjusted {
+  cursor: help;
 }
 
 .cell-film {

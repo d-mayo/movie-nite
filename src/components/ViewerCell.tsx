@@ -260,7 +260,17 @@ export default function ViewerCell({
           aria-controls={expandable ? bodyId : undefined}
           onClick={onHeaderClick}
         >
-          <strong className="cell-name">{viewer.name}</strong>
+          <span className="cell-title">
+            <strong className="cell-name">{viewer.name}</strong>
+            {adjusted && (
+              <>
+                <span className="cell-adjusted" title="Adjusted tonight" aria-hidden="true">
+                  *
+                </span>
+                <span className="visually-hidden">Adjusted tonight</span>
+              </>
+            )}
+          </span>
           <span className="cell-film">
             {film ? (
               <>
