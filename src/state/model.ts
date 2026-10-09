@@ -2,6 +2,8 @@ import {
   defaultWheelSettings,
   effectiveSetting,
   isValidSliceCount,
+  isValidSpinSeconds,
+  isValidSpinTurnsPerSecond,
   isValidWeight,
   isValidWildcardCount,
   type Adjustment,
@@ -221,6 +223,18 @@ export function setDefaultSlices(state: AppState, count: number): AppState {
 export function setDefaultWeight(state: AppState, weight: number): AppState {
   if (!isValidWeight(weight) || weight === state.settings.wheel.defaultWeight) return state
   return withWheel(state, { defaultWeight: weight })
+}
+
+export function setSpinSeconds(state: AppState, seconds: number): AppState {
+  if (!isValidSpinSeconds(seconds) || seconds === state.settings.wheel.spinSeconds) return state
+  return withWheel(state, { spinSeconds: seconds })
+}
+
+export function setSpinTurnsPerSecond(state: AppState, turns: number): AppState {
+  if (!isValidSpinTurnsPerSecond(turns) || turns === state.settings.wheel.spinTurnsPerSecond) {
+    return state
+  }
+  return withWheel(state, { spinTurnsPerSecond: turns })
 }
 
 function adjust(state: AppState, viewerId: string, change: Adjustment): AppState {

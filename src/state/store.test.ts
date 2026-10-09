@@ -127,6 +127,8 @@ test('wheel settings and adjustments survive a reload', () => {
   a.getState().setWildcardWeight(4)
   a.getState().setDefaultSlices(2)
   a.getState().setDefaultWeight(7)
+  a.getState().setSpinSeconds(10)
+  a.getState().setSpinTurnsPerSecond(1.5)
 
   const b = createAppStore(persistence).getState()
   expect(b.night.adjustments).toEqual({ [ann]: { weight: 9 } })
@@ -136,6 +138,8 @@ test('wheel settings and adjustments survive a reload', () => {
     wildcardWeight: 4,
     defaultSlices: 2,
     defaultWeight: 7,
+    spinSeconds: 10,
+    spinTurnsPerSecond: 1.5,
   })
 })
 
@@ -153,6 +157,26 @@ test('a stored state without settings.wheel loads the factory settings, field by
   expect(partial.getState().settings.wheel).toEqual({
     ...defaultState.settings.wheel,
     wildcardWeight: 4,
+  })
+})
+
+test('stored spin settings that are missing or invalid load as the factory values', () => {
+  const load = (wheel: object) =>
+    createAppStore(
+      createMemoryPersistence({
+        ...defaultState,
+        settings: { tmdbToken: 'tok', viewersHidden: false, wheel },
+      } as never),
+    ).getState().settings.wheel
+  expect(load({ wildcardWeight: 4 })).toMatchObject({
+    wildcardWeight: 4,
+    spinSeconds: 6,
+    spinTurnsPerSecond: 0.8,
+  })
+  expect(load({ spinSeconds: 40 }).spinSeconds).toBe(6)
+  expect(load({ spinSeconds: 9, spinTurnsPerSecond: 5 })).toMatchObject({
+    spinSeconds: 9,
+    spinTurnsPerSecond: 0.8,
   })
 })
 

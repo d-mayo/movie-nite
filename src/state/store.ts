@@ -20,6 +20,8 @@ import {
   setWildcardWeight,
   setHoldoverDismissed,
   setPresent,
+  setSpinSeconds,
+  setSpinTurnsPerSecond,
   setToken,
   setViewersHidden,
   setViewerColor,
@@ -35,6 +37,8 @@ import type { Persistence } from './persistence.ts'
 import {
   defaultWheelSettings,
   isValidSliceCount,
+  isValidSpinSeconds,
+  isValidSpinTurnsPerSecond,
   isValidWeight,
   isValidWildcardCount,
   maxWeight,
@@ -67,6 +71,8 @@ export interface AppActions {
   setWildcardWeight(weight: number): void
   setDefaultSlices(count: number): void
   setDefaultWeight(weight: number): void
+  setSpinSeconds(seconds: number): void
+  setSpinTurnsPerSecond(turns: number): void
 }
 
 export type AppStore = StoreApi<AppState & AppActions>
@@ -94,6 +100,14 @@ function mergeWheel(stored: Partial<WheelSettings> | undefined): WheelSettings {
       typeof w.defaultWeight === 'number' && isValidWeight(w.defaultWeight)
         ? w.defaultWeight
         : d.defaultWeight,
+    spinSeconds:
+      typeof w.spinSeconds === 'number' && isValidSpinSeconds(w.spinSeconds)
+        ? w.spinSeconds
+        : d.spinSeconds,
+    spinTurnsPerSecond:
+      typeof w.spinTurnsPerSecond === 'number' && isValidSpinTurnsPerSecond(w.spinTurnsPerSecond)
+        ? w.spinTurnsPerSecond
+        : d.spinTurnsPerSecond,
   }
 }
 
@@ -183,6 +197,8 @@ export function createAppStore(persistence: Persistence): AppStore {
       setWildcardWeight: (weight) => update((s) => setWildcardWeight(s, weight)),
       setDefaultSlices: (count) => update((s) => setDefaultSlices(s, count)),
       setDefaultWeight: (weight) => update((s) => setDefaultWeight(s, weight)),
+      setSpinSeconds: (seconds) => update((s) => setSpinSeconds(s, seconds)),
+      setSpinTurnsPerSecond: (turns) => update((s) => setSpinTurnsPerSecond(s, turns)),
     }
   })
 

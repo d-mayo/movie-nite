@@ -12,6 +12,8 @@ import {
   resetViewerSettings,
   setDefaultSlices,
   setDefaultWeight,
+  setSpinSeconds,
+  setSpinTurnsPerSecond,
   setWildcardCount,
   setWildcardsPerViewer,
   setWildcardWeight,
@@ -226,6 +228,8 @@ describe('global wheel settings', () => {
       wildcardWeight: 1,
       defaultSlices: 3,
       defaultWeight: 5,
+      spinSeconds: 6,
+      spinTurnsPerSecond: 0.8,
     })
   })
 
@@ -241,6 +245,14 @@ describe('global wheel settings', () => {
     expect(setDefaultSlices(defaultState, 0)).toBe(defaultState)
     expect(setDefaultWeight(defaultState, 0.5).settings.wheel.defaultWeight).toBe(0.5)
     expect(setDefaultWeight(defaultState, 21)).toBe(defaultState)
+    expect(setSpinSeconds(defaultState, 15).settings.wheel.spinSeconds).toBe(15)
+    expect(setSpinSeconds(defaultState, 2).settings.wheel.spinSeconds).toBe(2)
+    expect(setSpinSeconds(defaultState, 1.5)).toBe(defaultState)
+    expect(setSpinSeconds(defaultState, 6.25)).toBe(defaultState)
+    expect(setSpinTurnsPerSecond(defaultState, 3).settings.wheel.spinTurnsPerSecond).toBe(3)
+    expect(setSpinTurnsPerSecond(defaultState, 0.3).settings.wheel.spinTurnsPerSecond).toBe(0.3)
+    expect(setSpinTurnsPerSecond(defaultState, 0.2)).toBe(defaultState)
+    expect(setSpinTurnsPerSecond(defaultState, 0.85)).toBe(defaultState)
   })
 
   test('turning One per viewer off sets the count to the viewers on the wheel; on leaves it', () => {
@@ -263,7 +275,10 @@ describe('global wheel settings', () => {
   })
 
   test('New night keeps the settings', () => {
-    const s = setDefaultSlices(setWildcardsPerViewer(three(), false), 5)
+    const s = setSpinTurnsPerSecond(
+      setSpinSeconds(setDefaultSlices(setWildcardsPerViewer(three(), false), 5), 9),
+      1.5,
+    )
     expect(newNight(s).settings.wheel).toEqual(s.settings.wheel)
   })
 })

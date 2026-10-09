@@ -5,14 +5,11 @@ import type { TmdbClient } from '../tmdb/client.ts'
 import { useApp } from '../state/store.ts'
 import { cryptoRandom, drawSlice, restRotation } from '../wheel/draw.ts'
 import { buildWedges, type Wedge } from '../wheel/wedges.ts'
+import { spinPlan } from '../wheel/edit.ts'
 import { prefersReducedMotion } from '../wheel/reducedMotion.ts'
 import NightOver from './NightOver.tsx'
 import Reveal from './Reveal.tsx'
 import Wheel from './Wheel.tsx'
-
-const defaultSpinMs = 6000
-const reducedSpinMs = 1000
-const fullTurns = 5
 
 interface Spin {
   wedges: Wedge[]
@@ -77,15 +74,15 @@ export default function WheelPanel({
     const wedges = buildWedges(night, roster, settings.wheel)
     const slices = wedges.map((w) => w.slice)
     const drawn = drawSlice(slices, random)
-    const reduced = prefersReducedMotion()
-    const duration = reduced ? reducedSpinMs : (spinMs ?? defaultSpinMs)
+    const plan = spinPlan(settings.wheel, prefersReducedMotion())
+    const duration = spinMs ?? plan.durationMs
     const from = rotation
     const to = restRotation(
       from,
       wedges.map((w) => w.arc),
       drawn,
       random,
-      reduced ? 1 : fullTurns,
+      plan.turns,
     )
     setSpin({ wedges, drawn, revealedAt: null })
     onBusyChange(true)
