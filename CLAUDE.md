@@ -5,7 +5,7 @@ A web app for the FFF movie-night group to pick tonight's film: viewers nominate
 A static single-page app (React, TypeScript, Vite) hosted on GitHub Pages, with no backend.
 
 ## Commands
-<!-- covers: package.json, .github/workflows/*.yml; verified: 2026-10-08 -->
+<!-- covers: package.json, .github/workflows/*.yml; verified: 2026-10-09 -->
 - Run tests: `npm test`
 - Lint: `npm run lint`
 - Dev server: `npm run dev` (serves at http://localhost:5173/movie-nite/)
@@ -14,7 +14,7 @@ A static single-page app (React, TypeScript, Vite) hosted on GitHub Pages, with 
 - Full check (what CI runs): `npm ci && npm run lint && npm test && npm run build`
 
 ## Layout
-<!-- covers: src/**, public/**, .github/workflows/*.yml; verified: 2026-10-07 -->
+<!-- covers: src/**, public/**, .github/workflows/*.yml; verified: 2026-10-09 -->
 - `src/`: the React app: `src/main.tsx` builds the store on the `localStorage` persistence and mounts `src/App.tsx`; `src/assets/` holds the TMDB logo and the Movie Nite logo set (`src/assets/logo/`: the six final SVGs, including the simplified square M-and-reel icon in light and dark, plus `src/assets/logo/old-iterations/`, the earlier designs kept for reference), which feed the site banner in `src/App.tsx` (its TMDB attribution footer shows only on the token prompt) and the README logo block, and which `src/assets/logo.test.ts` checks (including that README block); `src/test/setup.ts` is the Vitest setup
 - `src/index.css`: the shared look: color (the logo's six greys plus one `--danger`), spacing, radius and shadow tokens on `:root`, redefined under `prefers-color-scheme: dark`, and base styles for bare controls inside `:where()` (zero specificity, so the spin button and other class rules still win) with the `primary`, `quiet` and `danger` button variants and the `card` class; `src/styles.test.ts` checks its palette and WCAG contrast; the shared control rules (the inset-card, stepper and slider classes and the range input) live there too; component layout rules live in `src/App.css`
 - `public/`: files Vite serves as-is under the base path; `public/favicon.svg` is the site favicon, a copy of `src/assets/logo/logo-icon-light.svg` that `src/assets/logo.test.ts` keeps identical
