@@ -358,6 +358,7 @@ body {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 50%;
+  box-sizing: border-box;
   clip-path: none;
   transform: none;
   transition: translate 0.15s;
