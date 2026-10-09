@@ -67,7 +67,7 @@ body {
     opacity 0.15s;
 }
 
-:where(button:not(.spin-button):hover:not(:disabled)) {
+:where(button:not(.spin-button):hover:not(:disabled, [aria-disabled='true'])) {
   background: color-mix(in srgb, var(--text) 8%, var(--card));
 }
 
@@ -88,7 +88,7 @@ body {
   box-shadow: none;
 }
 
-:where(button.quiet:hover:not(:disabled)) {
+:where(button.quiet:hover:not(:disabled, [aria-disabled='true'])) {
   background: color-mix(in srgb, var(--text) 10%, transparent);
 }
 
@@ -152,7 +152,11 @@ body {
 
 :where(input[type='range'])::-webkit-slider-runnable-track {
   height: 6px;
-  background: var(--card-border);
+  background: linear-gradient(
+    to right,
+    var(--accent) var(--fill, 0%),
+    var(--card-border) var(--fill, 0%)
+  );
   border: 1px solid var(--border);
   border-radius: 999px;
 }
@@ -172,6 +176,12 @@ body {
   height: 6px;
   background: var(--card-border);
   border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+:where(input[type='range'])::-moz-range-progress {
+  height: 6px;
+  background: var(--accent);
   border-radius: 999px;
 }
 

@@ -88,6 +88,11 @@ describe('color tokens', () => {
 })
 
 describe('shared control rules', () => {
+  test('the slider track is drawn from --fill in both engines', () => {
+    expect(css).toMatch(/::-webkit-slider-runnable-track[^}]*var\(--fill/)
+    expect(css).toContain('::-moz-range-progress')
+  })
+
   const rules = (selector: string) =>
     [...css.matchAll(/(^|\n)([^{}\n@][^{}]*)\{([^}]*)\}/g)]
       .filter((m) => m[2].split(',').some((s) => s.trim().startsWith(selector)))

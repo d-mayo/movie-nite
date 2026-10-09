@@ -211,6 +211,19 @@ test('pressing + up to its limit and once more keeps focus there and the cell op
   expect(isOpen('Ann')).toBe(true)
 })
 
+test('a mouse-clicked stepper button does not hold the cell open', () => {
+  canHover(true)
+  mount()
+  mouseClick('Bo')
+  focusVisible = false
+  const more = screen.getByRole('button', { name: 'Increase Slices for Bo' })
+  fireEvent.focus(more)
+  enter('Bo')
+  leave('Bo')
+  wait(400)
+  expect(isOpen('Bo')).toBe(false)
+})
+
 test('a slider drag keeps the cell open until the pointer is released', () => {
   canHover(true)
   mount()
