@@ -9,13 +9,16 @@ interface StepperProps {
   // At most 12: the tick bar always has 12 ticks, those above max dimmed.
   max: number
   onChange: (n: number) => void
+  // Inert and dimmed: no buttons, keys or ticks do anything.
+  disabled?: boolean
 }
 
 // A whole-number count: − and + buttons around the value, over a bar of 12 ticks.
 // The ticks are pointer shortcuts only; the buttons and keys cover every value.
-export default function Stepper({ label, value, min, max, onChange }: StepperProps) {
+export default function Stepper({ label, value, min, max, onChange, disabled = false }: StepperProps) {
   const labelId = useId()
   const set = (n: number) => {
+    if (disabled) return
     const next = Math.min(max, Math.max(min, n))
     if (next !== value) onChange(next)
   }
@@ -28,12 +31,18 @@ export default function Stepper({ label, value, min, max, onChange }: StepperPro
       Home: min,
       End: max,
     }
-    if (!(e.key in target)) return
+    if (disabled || !(e.key in target)) return
     e.preventDefault()
     set(target[e.key])
   }
   return (
-    <div className="stepper" role="group" aria-labelledby={labelId} onKeyDown={onKeyDown}>
+    <div
+      className="stepper"
+      role="group"
+      aria-labelledby={labelId}
+      data-disabled={disabled || undefined}
+      onKeyDown={onKeyDown}
+    >
       <div className="stepper-row">
         <span id={labelId} className="stepper-label">
           {label}
@@ -42,7 +51,8 @@ export default function Stepper({ label, value, min, max, onChange }: StepperPro
           type="button"
           className="quiet stepper-button"
           aria-label={`Decrease ${label}`}
-          aria-disabled={value <= min}
+          disabled={disabled}
+          aria-disabled={disabled ? undefined : value <= min}
           onClick={() => set(value - 1)}
         >
           <span aria-hidden="true">−</span>
@@ -52,7 +62,8 @@ export default function Stepper({ label, value, min, max, onChange }: StepperPro
           type="button"
           className="quiet stepper-button"
           aria-label={`Increase ${label}`}
-          aria-disabled={value >= max}
+          disabled={disabled}
+          aria-disabled={disabled ? undefined : value >= max}
           onClick={() => set(value + 1)}
         >
           <span aria-hidden="true">+</span>

@@ -2,6 +2,7 @@ import { useEffect, useRef, type RefObject } from 'react'
 import { viewersOnWheel } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import Slider from './Slider.tsx'
+import Stepper from './Stepper.tsx'
 
 interface Props {
   locked?: boolean
@@ -14,7 +15,16 @@ interface Props {
 // dialog: Done and a backdrop click unmount it directly, and Escape does so
 // through the native `close` event.
 export default function WheelEditor({ locked = false, onClosed, anchor }: Props) {
-  const { night, settings, setWildcardWeight } = useApp()
+  const {
+    night,
+    settings,
+    setWildcardsPerViewer,
+    setWildcardCount,
+    setWildcardWeight,
+    setDefaultSlices,
+    setDefaultWeight,
+  } = useApp()
+  const { wheel } = settings
   const dialog = useRef<HTMLDialogElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   // True when the press that began a click landed on the backdrop, not in the drawer.
@@ -65,16 +75,58 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
           Wheel settings
         </h2>
         <fieldset disabled={locked} className="setup wheel-editor">
-          <h3>Wildcards</h3>
-          {onWheel.length === 0 && <p>Nobody is on the wheel.</p>}
-          <Slider
-            label="Wildcard weight"
-            value={settings.wheel.wildcardWeight}
-            step={0.5}
-            min={0.5}
-            max={20}
-            onChange={setWildcardWeight}
-          />
+          <section className="inset-card" aria-labelledby="wildcards-heading">
+            <div className="card-head">
+              <h3 id="wildcards-heading">Wildcards</h3>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={wheel.wildcardsPerViewer}
+                  onChange={(e) => setWildcardsPerViewer(e.target.checked)}
+                />
+                One per viewer
+              </label>
+            </div>
+            {onWheel.length === 0 && <p>Nobody is on the wheel.</p>}
+            <Stepper
+              label="Wildcard count"
+              value={wheel.wildcardsPerViewer ? onWheel.length : wheel.wildcardCount}
+              min={0}
+              max={12}
+              disabled={locked || wheel.wildcardsPerViewer}
+              onChange={setWildcardCount}
+            />
+            <Slider
+              label="Wildcard weight"
+              value={wheel.wildcardWeight}
+              step={0.5}
+              min={0.5}
+              max={20}
+              onChange={setWildcardWeight}
+            />
+          </section>
+          <section className="inset-card" aria-labelledby="defaults-heading">
+            <div className="card-head">
+              <h3 id="defaults-heading">Defaults</h3>
+            </div>
+            <Stepper
+              label="Slices per viewer"
+              value={wheel.defaultSlices}
+              min={1}
+              max={12}
+              disabled={locked}
+              onChange={setDefaultSlices}
+            />
+            <Slider
+              label="Weight per viewer"
+              value={wheel.defaultWeight}
+              step={0.5}
+              min={0.5}
+              max={20}
+              onChange={setDefaultWeight}
+            />
+          </section>
         </fieldset>
         <div className="drawer-footer">
           <button type="button" className="primary" onClick={dismiss}>
