@@ -186,8 +186,38 @@ test('keyboard-visible focus inside a cell keeps it open; a clicked slider does 
   mouseClick('Bo')
   expect(isOpen('Bo')).toBe(true)
   focusVisible = false
-  const slices = screen.getByLabelText('Slices for Bo')
+  const slices = screen.getByLabelText('Weight for Bo')
   fireEvent.focus(slices)
+  enter('Bo')
+  leave('Bo')
+  wait(400)
+  expect(isOpen('Bo')).toBe(false)
+})
+
+test('pressing + up to its limit and once more keeps focus there and the cell open', () => {
+  canHover(true)
+  mount()
+  mouseClick('Ann')
+  focusVisible = true
+  const more = screen.getByRole('button', { name: 'Increase Slices for Ann' })
+  more.focus()
+  for (let i = 0; i < 10; i++) fireEvent.click(more)
+  expect(more).toHaveAttribute('aria-disabled', 'true')
+  expect(more).toHaveFocus()
+  fireEvent.focus(more)
+  enter('Ann')
+  leave('Ann')
+  wait(1000)
+  expect(isOpen('Ann')).toBe(true)
+})
+
+test('a mouse-clicked stepper button does not hold the cell open', () => {
+  canHover(true)
+  mount()
+  mouseClick('Bo')
+  focusVisible = false
+  const more = screen.getByRole('button', { name: 'Increase Slices for Bo' })
+  fireEvent.focus(more)
   enter('Bo')
   leave('Bo')
   wait(400)
@@ -199,7 +229,7 @@ test('a slider drag keeps the cell open until the pointer is released', () => {
   mount()
   mouseClick('Bo')
   enter('Bo')
-  fireEvent.pointerDown(screen.getByLabelText('Slices for Bo'))
+  fireEvent.pointerDown(screen.getByLabelText('Weight for Bo'))
   leave('Bo')
   wait(1000)
   expect(isOpen('Bo')).toBe(true)

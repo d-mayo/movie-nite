@@ -20,6 +20,7 @@ import NominationSearch from './NominationSearch.tsx'
 import { filmLabel } from './NightOver.tsx'
 import { placeUnder } from './placePopover.ts'
 import Slider from './Slider.tsx'
+import Stepper from './Stepper.tsx'
 
 // Matches the 900 px breakpoint in App.css where the pane sits beside the wheel.
 const wideScreenPx = 900
@@ -343,11 +344,10 @@ export default function ViewerCell({
             </div>
           </div>
           {status === 'wheel' && setting && (
-            <div className="cell-sliders">
-              <Slider
+            <div className="inset-card">
+              <Stepper
                 label={`Slices for ${viewer.name}`}
                 value={setting.slices}
-                step={1}
                 min={1}
                 max={12}
                 onChange={(n) => setViewerSlices(viewer.id, n)}

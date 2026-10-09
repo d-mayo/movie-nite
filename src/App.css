@@ -353,22 +353,6 @@ footer p {
   gap: 0.5rem;
 }
 
-.slider {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.slider input[type='range'] {
-  width: 8rem;
-  margin-left: var(--space-1);
-}
-
-.slider output {
-  min-width: 2.5ch;
-  font-variant-numeric: tabular-nums;
-}
-
 .token-prompt {
   display: flex;
   flex-direction: column;
@@ -702,7 +686,12 @@ dialog.wheel-drawer::backdrop {
   text-align: left;
 }
 
-.setup .cell-header:hover:not(:disabled) {
+.setup .cell-head {
+  border-radius: var(--radius-sm);
+}
+
+/* The hover shade covers the whole row, eye toggle included. */
+.setup .cell-head:hover {
   background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 
@@ -797,6 +786,15 @@ dialog.wheel-drawer::backdrop {
 .setup .cell-body > .cell-main {
   flex-wrap: nowrap;
   align-items: flex-end;
+  /* Without this the film input's own width sets the row's minimum, pushing the
+     menu past the panel's edge on a phone. */
+  min-width: 0;
+}
+
+.cell-main .film-search input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
 }
 
 /* The film control takes the room, with the color swatch and menu beside it. */
@@ -841,37 +839,6 @@ dialog.wheel-drawer::backdrop {
   display: none;
 }
 
-.setup .cell-sliders {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.cell-sliders .slider {
-  display: flex;
-  width: 100%;
-}
-
-.cell-sliders .slider label {
-  display: flex;
-  flex: 1;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.cell-sliders .slider-label {
-  flex: 0 0 7.5rem;
-  overflow-wrap: anywhere;
-}
-
-.cell-sliders .slider input[type='range'] {
-  flex: 1;
-  width: auto;
-  min-width: 0;
-  margin: 0;
-}
-
 .setup .cell-body > div {
   display: flex;
   flex-wrap: wrap;
@@ -879,8 +846,13 @@ dialog.wheel-drawer::backdrop {
   gap: var(--space-2) var(--space-3);
 }
 
-.setup .cell-body > .cell-sliders {
+.setup .cell-body > .inset-card {
+  box-sizing: border-box;
+  width: 100%;
+  flex-direction: column;
   flex-wrap: nowrap;
+  align-items: stretch;
+  gap: var(--space-3);
 }
 
 .cell-menu {
