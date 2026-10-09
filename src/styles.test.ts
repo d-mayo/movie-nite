@@ -86,3 +86,21 @@ describe('color tokens', () => {
     }
   })
 })
+
+describe('shared control rules', () => {
+  const rules = (selector: string) =>
+    [...css.matchAll(/(^|\n)([^{}\n@][^{}]*)\{([^}]*)\}/g)]
+      .filter((m) => m[2].split(',').some((s) => s.trim().startsWith(selector)))
+      .map((m) => m[3])
+
+  test.each(['.inset-card', '.stepper', '.slider'])('%s has rules that use only color tokens', (selector) => {
+    const found = rules(selector)
+    expect(found.length, selector).toBeGreaterThan(0)
+    for (const body of found) {
+      for (const m of body.matchAll(/(?:^|[\s;])(?:color|background|border|border-color|outline):\s*([^;]+);/g)) {
+        const value = m[1].replace(/color-mix\([^)]*\)/g, '')
+        expect(value, `${selector}: ${m[0].trim()}`).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i)
+      }
+    }
+  })
+})

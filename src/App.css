@@ -353,22 +353,6 @@ footer p {
   gap: 0.5rem;
 }
 
-.slider {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.slider input[type='range'] {
-  width: 8rem;
-  margin-left: var(--space-1);
-}
-
-.slider output {
-  min-width: 2.5ch;
-  font-variant-numeric: tabular-nums;
-}
-
 .token-prompt {
   display: flex;
   flex-direction: column;
