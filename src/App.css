@@ -686,7 +686,12 @@ dialog.wheel-drawer::backdrop {
   text-align: left;
 }
 
-.setup .cell-header:hover:not(:disabled) {
+.setup .cell-head {
+  border-radius: var(--radius-sm);
+}
+
+/* The hover shade covers the whole row, eye toggle included. */
+.setup .cell-head:hover {
   background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 
@@ -781,6 +786,15 @@ dialog.wheel-drawer::backdrop {
 .setup .cell-body > .cell-main {
   flex-wrap: nowrap;
   align-items: flex-end;
+  /* Without this the film input's own width sets the row's minimum, pushing the
+     menu past the panel's edge on a phone. */
+  min-width: 0;
+}
+
+.cell-main .film-search input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
 }
 
 /* The film control takes the room, with the color swatch and menu beside it. */
