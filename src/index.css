@@ -217,3 +217,62 @@ body {
 :where([role='alert']) {
   color: var(--danger);
 }
+
+.stepper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.stepper-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.stepper-label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.stepper-button {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.stepper-button[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.stepper-value {
+  min-width: 2ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper-ticks {
+  display: flex;
+  gap: 3px;
+}
+
+.stepper-tick {
+  flex: 1;
+  height: 0.75rem;
+  background: var(--card-border);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.stepper-tick[data-filled='true'] {
+  background: var(--accent);
+}
+
+.stepper-tick[data-available='false'] {
+  opacity: 0.4;
+  cursor: default;
+}
