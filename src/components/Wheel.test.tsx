@@ -6,6 +6,7 @@ import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import { labelTextColor, presetColors } from '../wheel/colors.ts'
 import { markAway, markHere, removeViewer } from '../test/cells.ts'
+import { defaultWheelSettings } from '../wheel/edit.ts'
 
 function film(id: number, posterPath: string | null): Nomination {
   return {
@@ -21,7 +22,7 @@ function film(id: number, posterPath: string | null): Nomination {
 
 function setup() {
   const store = createAppStore(
-    createMemoryPersistence({ ...defaultState, settings: { tmdbToken: 'tok', viewersHidden: false } }),
+    createMemoryPersistence({ ...defaultState, settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings } }),
   )
   render(<App store={store} fetchFn={vi.fn()} />)
   return store

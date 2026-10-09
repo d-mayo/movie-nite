@@ -1,6 +1,6 @@
 import { viewersOnWheel, type AppState, type Nomination } from '../state/model.ts'
-import { resolveLayout } from './edit.ts'
-import { defaultLayout, sliceArcs, type Arc, type Slice } from './layout.ts'
+import { deriveSlices, type WheelSettings } from './edit.ts'
+import { sliceArcs, type Arc, type Slice } from './layout.ts'
 
 export interface Wedge {
   slice: Slice
@@ -12,11 +12,16 @@ export interface Wedge {
 
 const wildcardColor = 'hsl(0 0% 25%)'
 
-// Resolves every slice of the edited layout, or of the default one, with what a wedge draws.
-export function buildWedges(night: AppState['night'], roster: AppState['roster']): Wedge[] {
-  const slices = night.layout
-    ? resolveLayout(night.layout)
-    : defaultLayout(viewersOnWheel(night), night.nominations)
+// Derives the wheel from the viewers on it, in roster order, and resolves every
+// slice with what a wedge draws.
+export function buildWedges(
+  night: AppState['night'],
+  roster: AppState['roster'],
+  wheel: WheelSettings,
+): Wedge[] {
+  const onWheel = viewersOnWheel(night)
+  const ordered = roster.map((v) => v.id).filter((id) => onWheel.includes(id))
+  const slices = deriveSlices(ordered, wheel, night.adjustments)
   const arcs = sliceArcs(slices)
   return slices.map((slice, i) => {
     if (slice.kind === 'wildcard') {

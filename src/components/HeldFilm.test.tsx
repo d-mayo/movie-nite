@@ -4,6 +4,7 @@ import App from '../App.tsx'
 import { defaultState, type AppState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
+import { defaultWheelSettings } from '../wheel/edit.ts'
 
 const film: Nomination = {
   tmdbId: 1,
@@ -19,7 +20,7 @@ function setup(night: Partial<AppState['night']> = {}, holdover: Nomination | nu
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: token, viewersHidden: false },
+      settings: { tmdbToken: token, viewersHidden: false, wheel: defaultWheelSettings },
       roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
       night: {
         ...defaultState.night,

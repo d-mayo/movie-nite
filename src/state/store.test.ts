@@ -3,6 +3,7 @@ import { defaultState, type Nomination } from './model.ts'
 import { createMemoryPersistence } from './persistence.ts'
 import { createAppStore } from './store.ts'
 import { presetColors } from '../wheel/colors.ts'
+import { buildWedges } from '../wheel/wedges.ts'
 
 const film: Nomination = {
   tmdbId: 1,
@@ -42,7 +43,7 @@ test('a remote change replaces the state', () => {
   const store = createAppStore(persistence)
   persistence.emitRemoteChange({
     ...defaultState,
-    settings: { tmdbToken: 'remote', viewersHidden: false },
+    settings: { tmdbToken: 'remote', viewersHidden: false, wheel: defaultState.settings.wheel },
   })
   expect(store.getState().settings.tmdbToken).toBe('remote')
 })
@@ -70,7 +71,7 @@ test('stored data missing a field is merged over the defaults', () => {
     wonFilms: [],
     watched: [],
     ended: false,
-    layout: null,
+    adjustments: {},
     spun: false,
     holdoverDismissed: false,
   })
@@ -114,46 +115,90 @@ test('night progress and the holdover survive a reload, and clearing is saved', 
   expect(createAppStore(persistence).getState().holdover).toBeNull()
 })
 
-test('an edited layout survives a reload, including hand-placed', () => {
+test('wheel settings and adjustments survive a reload', () => {
   const persistence = createMemoryPersistence()
   const a = createAppStore(persistence)
   a.getState().addViewer('Ann')
   a.getState().addViewer('Bo')
-  a.getState().setViewerWeight(a.getState().roster[0].id, 9)
-  a.getState().moveSlice(0, 2)
+  const ann = a.getState().roster[0].id
+  a.getState().setViewerWeight(ann, 9)
+  a.getState().setWildcardsPerViewer(false)
+  a.getState().setWildcardCount(5)
+  a.getState().setWildcardWeight(4)
+  a.getState().setDefaultSlices(2)
+  a.getState().setDefaultWeight(7)
 
-  const b = createAppStore(persistence)
-  expect(b.getState().night.layout).toEqual(a.getState().night.layout)
-  expect(b.getState().night.layout?.handPlaced).toBe(true)
-  expect(b.getState().night.layout?.viewers[a.getState().roster[0].id].weight).toBe(9)
+  const b = createAppStore(persistence).getState()
+  expect(b.night.adjustments).toEqual({ [ann]: { weight: 9 } })
+  expect(b.settings.wheel).toEqual({
+    wildcardsPerViewer: false,
+    wildcardCount: 5,
+    wildcardWeight: 4,
+    defaultSlices: 2,
+    defaultWeight: 7,
+  })
 })
 
-test('a stored document without a layout loads with null', () => {
-  const store = createAppStore(
-    createMemoryPersistence({ ...defaultState, night: { ...defaultState.night, layout: undefined } } as never),
+test('a stored state without settings.wheel loads the factory settings, field by field', () => {
+  const none = createAppStore(
+    createMemoryPersistence({ ...defaultState, settings: { tmdbToken: 'tok' } } as never),
   )
-  expect(store.getState().night.layout ?? null).toBeNull()
+  expect(none.getState().settings.wheel).toEqual(defaultState.settings.wheel)
+  const partial = createAppStore(
+    createMemoryPersistence({
+      ...defaultState,
+      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: { wildcardWeight: 4 } },
+    } as never),
+  )
+  expect(partial.getState().settings.wheel).toEqual({
+    ...defaultState.settings.wheel,
+    wildcardWeight: 4,
+  })
 })
 
-test('a stored layout with per-wildcard weights loads normalised', () => {
-  const old = {
-    viewers: { a: { weight: 50, slices: 3 } },
-    wildcards: [{ id: 'w0', weight: 2 }, { id: 'w1', weight: 30 }],
-    order: [],
-    handPlaced: false,
+test('a stored night without adjustments loads with none', () => {
+  const store = createAppStore(
+    createMemoryPersistence({ ...defaultState, night: { ...defaultState.night, adjustments: undefined } } as never),
+  )
+  expect(store.getState().night.adjustments).toEqual({})
+})
+
+test('a stored layout becomes adjustments and is not kept', () => {
+  const layout = {
+    viewers: {
+      a: { slices: 3, weight: 5 },
+      b: { slices: 5, weight: 5 },
+      c: { slices: 2, weight: 9 },
+      d: { slices: 3, weight: 40 },
+    },
+    wildcardWeight: 4,
+    wildcards: [{ id: 'w0' }],
+    order: [
+      { kind: 'nomination', id: 'b#0', viewerId: 'b' },
+      { kind: 'wildcard', id: 'w0' },
+    ],
+    handPlaced: true,
   }
+  const roster = ['a', 'b', 'c', 'd'].map((id, i) => ({ id, name: id.toUpperCase(), color: presetColors[i] }))
+  const { adjustments: _none, ...oldNight } = defaultState.night
+  void _none
   const store = createAppStore(
-    createMemoryPersistence({ ...defaultState, night: { ...defaultState.night, layout: old } } as never),
+    createMemoryPersistence({
+      ...defaultState,
+      roster,
+      night: { ...oldNight, presentIds: ['a', 'b'], layout },
+    } as never),
   )
-  const layout = store.getState().night.layout
-  expect(layout?.wildcardWeight).toBe(2)
-  expect(layout?.wildcards).toEqual([{ id: 'w0' }, { id: 'w1' }])
-  expect(layout?.viewers.a.weight).toBe(20)
-})
-
-test('a stored layout of null loads as null', () => {
-  const store = createAppStore(createMemoryPersistence({ ...defaultState } as never))
-  expect(store.getState().night.layout).toBeNull()
+  const state = store.getState()
+  expect(state.night.adjustments).toEqual({
+    b: { slices: 5 },
+    c: { slices: 2, weight: 9 },
+    d: { weight: 20 },
+  })
+  expect('layout' in state.night).toBe(false)
+  expect(state.settings.wheel.wildcardWeight).toBe(1)
+  const wedges = buildWedges(state.night, state.roster, state.settings.wheel)
+  expect(wedges.filter((w) => w.slice.kind === 'nomination' && w.slice.viewerId === 'b')).toHaveLength(5)
 })
 
 test('a saved roster name longer than 20 characters loads unchanged', () => {

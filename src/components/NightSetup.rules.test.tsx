@@ -7,6 +7,7 @@ import { AppStoreContext, createAppStore } from '../state/store.ts'
 import { header } from '../test/cells.ts'
 import { createTmdbClient } from '../tmdb/client.ts'
 import NightSetup from './NightSetup.tsx'
+import { defaultWheelSettings } from '../wheel/edit.ts'
 
 const film: Nomination = {
   tmdbId: 1,
@@ -56,7 +57,7 @@ function mount(locked = false) {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false },
+      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },

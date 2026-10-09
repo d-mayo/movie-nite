@@ -1,23 +1,6 @@
-import {
-  closestCenter,
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core'
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 import { viewersOnWheel } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
-import { materialiseDefault, type SliceRef } from '../wheel/edit.ts'
 import Slider from './Slider.tsx'
 
 interface Props {
@@ -27,59 +10,11 @@ interface Props {
   anchor?: RefObject<HTMLElement | null>
 }
 
-function SortableSlice({
-  id,
-  index,
-  locked,
-  children,
-}: {
-  id: string
-  index: number
-  locked: boolean
-  children: ReactNode
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id,
-    disabled: locked,
-  })
-  return (
-    <li
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.6 : 1,
-      }}
-    >
-      <button
-        type="button"
-        className="drag-handle quiet"
-        aria-label={`Drag slice ${index + 1}`}
-        disabled={locked}
-        {...attributes}
-        {...listeners}
-      >
-        ⠿
-      </button>
-      {children}
-    </li>
-  )
-}
-
 // The Wheel settings popover. Mounted only while shown, like the End night
 // dialog: Done and a backdrop click unmount it directly, and Escape does so
 // through the native `close` event.
 export default function WheelEditor({ locked = false, onClosed, anchor }: Props) {
-  const {
-    roster,
-    night,
-    setWildcardWeight,
-    addWildcard,
-    removeWildcard,
-    moveSlice,
-    spreadEvenly,
-    resetLayout,
-  } = useApp()
+  const { night, settings, setWildcardWeight } = useApp()
   const dialog = useRef<HTMLDialogElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   // True when the press that began a click landed on the backdrop, not in the drawer.
@@ -113,25 +48,6 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
     onClosed()
   }
   const onWheel = viewersOnWheel(night)
-  const layout = night.layout ?? materialiseDefault(onWheel)
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
-  const nameOf = (id: string) => roster.find((v) => v.id === id)?.name ?? ''
-
-  function dragEnd({ active, over }: DragEndEvent) {
-    if (!over || active.id === over.id) return
-    const ids = layout.order.map((r) => r.id)
-    moveSlice(ids.indexOf(String(active.id)), ids.indexOf(String(over.id)))
-  }
-
-  function sliceLabel(ref: SliceRef): string {
-    if (ref.kind === 'wildcard') return 'Wildcard'
-    const film = night.nominations[ref.viewerId]
-    return `${nameOf(ref.viewerId)}: ${film ? film.title : 'no film yet'}`
-  }
-
   return (
     <dialog
       ref={dialog}
@@ -153,74 +69,12 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
           {onWheel.length === 0 && <p>Nobody is on the wheel.</p>}
           <Slider
             label="Wildcard weight"
-            value={layout.wildcardWeight}
+            value={settings.wheel.wildcardWeight}
             step={0.5}
             min={0.5}
             max={20}
             onChange={setWildcardWeight}
           />
-          <ul>
-            {layout.wildcards.map((w, i) => (
-              <li key={w.id}>
-                Wildcard {i + 1}
-                <button
-                  type="button"
-                  className="danger"
-                  aria-label={`Remove wildcard ${i + 1}`}
-                  onClick={() => removeWildcard(w.id)}
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button type="button" onClick={addWildcard} disabled={onWheel.length === 0}>
-            Add wildcard
-          </button>
-          <h3>Slices</h3>
-          {layout.handPlaced && (
-            <p>
-              Slices are placed by hand. The wheel no longer spreads itself evenly.{' '}
-              <button type="button" onClick={spreadEvenly}>
-                Spread evenly
-              </button>
-            </p>
-          )}
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={dragEnd}>
-            <SortableContext
-              items={layout.order.map((r) => r.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <ol>
-                {layout.order.map((ref, i) => (
-                  <SortableSlice key={ref.id} id={ref.id} index={i} locked={locked}>
-                    {sliceLabel(ref)}
-                    <button
-                      type="button"
-                      className="quiet"
-                      aria-label={`Move slice ${i + 1} up`}
-                      disabled={i === 0}
-                      onClick={() => moveSlice(i, i - 1)}
-                    >
-                      Move up
-                    </button>
-                    <button
-                      type="button"
-                      className="quiet"
-                      aria-label={`Move slice ${i + 1} down`}
-                      disabled={i === layout.order.length - 1}
-                      onClick={() => moveSlice(i, i + 1)}
-                    >
-                      Move down
-                    </button>
-                  </SortableSlice>
-                ))}
-              </ol>
-            </SortableContext>
-          </DndContext>
-          <button type="button" onClick={resetLayout}>
-            Reset to default
-          </button>
         </fieldset>
         <div className="drawer-footer">
           <button type="button" className="primary" onClick={dismiss}>

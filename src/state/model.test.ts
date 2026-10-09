@@ -4,15 +4,18 @@ import {
   clearHoldover,
   endNight,
   defaultState,
-  addWheelWildcard,
-  moveWheelSlice,
   newNight,
   nominate,
   recordOutcome,
   removeNomination,
+  resetViewerSetting,
   resetViewerSettings,
+  setDefaultSlices,
+  setDefaultWeight,
+  setWildcardCount,
+  setWildcardsPerViewer,
+  setWildcardWeight,
   removeViewer,
-  resetLayout,
   setHoldoverDismissed,
   setPresent,
   setToken,
@@ -20,13 +23,13 @@ import {
   startSpin,
   setViewerSliceCount,
   setViewerWeightOnWheel,
-  spreadWheelEvenly,
   viewersOnWheel,
   type Nomination,
   setViewerColor,
   maxViewers,
 } from './model.ts'
 import { presetColors } from '../wheel/colors.ts'
+import { defaultWheelSettings, effectiveSetting } from '../wheel/edit.ts'
 
 const film = (tmdbId: number): Nomination => ({
   tmdbId,
@@ -209,103 +212,113 @@ describe('newNight with a night in progress', () => {
   })
 })
 
-describe('an edited wheel', () => {
-  const kinds = (s: typeof defaultState) =>
-    s.night.layout!.order.map((r) => (r.kind === 'wildcard' ? 'W' : r.viewerId))
-  const count = (s: typeof defaultState, id: string) => kinds(s).filter((x) => x === id).length
-
-  function edited(handPlaced = false) {
-    let s = addViewer(defaultState, 'Ann', 'a')
-    s = addViewer(s, 'Bo', 'b')
-    s = addViewer(s, 'Cy', 'c')
-    s = nominate(s, 'a', film(1))
-    s = nominate(s, 'b', film(2))
-    s = nominate(s, 'c', film(3))
-    s = setViewerWeightOnWheel(s, 'b', 8)
-    return handPlaced ? moveWheelSlice(s, 0, 1) : s
+describe('global wheel settings', () => {
+  const three = () => {
+    let s = defaultState
+    for (const [id, name] of [['a', 'Ann'], ['b', 'Bo'], ['c', 'Cy']]) s = addViewer(s, name, id)
+    return s
   }
 
-  test('the first edit saves the layout; an invalid edit leaves the wheel derived', () => {
-    expect(setViewerWeightOnWheel(defaultState, 'a', 0)).toBe(defaultState)
-    const s = addViewer(defaultState, 'Ann', 'a')
+  test('start at the factory values', () => {
+    expect(defaultState.settings.wheel).toEqual({
+      wildcardsPerViewer: true,
+      wildcardCount: 3,
+      wildcardWeight: 1,
+      defaultSlices: 3,
+      defaultWeight: 5,
+    })
+  })
+
+  test('each setter accepts its range and ignores values outside it', () => {
+    expect(setWildcardCount(defaultState, 0).settings.wheel.wildcardCount).toBe(0)
+    expect(setWildcardCount(defaultState, 12).settings.wheel.wildcardCount).toBe(12)
+    expect(setWildcardCount(defaultState, 13)).toBe(defaultState)
+    expect(setWildcardCount(defaultState, -1)).toBe(defaultState)
+    expect(setWildcardWeight(defaultState, 20).settings.wheel.wildcardWeight).toBe(20)
+    expect(setWildcardWeight(defaultState, 0)).toBe(defaultState)
+    expect(setWildcardWeight(defaultState, 1.3)).toBe(defaultState)
+    expect(setDefaultSlices(defaultState, 12).settings.wheel.defaultSlices).toBe(12)
+    expect(setDefaultSlices(defaultState, 0)).toBe(defaultState)
+    expect(setDefaultWeight(defaultState, 0.5).settings.wheel.defaultWeight).toBe(0.5)
+    expect(setDefaultWeight(defaultState, 21)).toBe(defaultState)
+  })
+
+  test('turning One per viewer off sets the count to the viewers on the wheel; on leaves it', () => {
+    const off = setWildcardsPerViewer(three(), false)
+    expect(off.settings.wheel.wildcardsPerViewer).toBe(false)
+    expect(off.settings.wheel.wildcardCount).toBe(3)
+    const fewer = setWildcardsPerViewer(setPresent(three(), 'c', false), false)
+    expect(fewer.settings.wheel.wildcardCount).toBe(2)
+    const on = setWildcardsPerViewer(setWildcardCount(off, 7), true)
+    expect(on.settings.wheel.wildcardCount).toBe(7)
+    const same = three()
+    expect(setWildcardsPerViewer(same, true)).toBe(same)
+  })
+
+  test('a changed default is followed by unadjusted viewers only', () => {
+    let s = setViewerWeightOnWheel(three(), 'a', 8)
+    s = setDefaultWeight(s, 6)
+    expect(effectiveSetting(s.settings.wheel, s.night.adjustments, 'a').weight).toBe(8)
+    expect(effectiveSetting(s.settings.wheel, s.night.adjustments, 'b').weight).toBe(6)
+  })
+
+  test('New night keeps the settings', () => {
+    const s = setDefaultSlices(setWildcardsPerViewer(three(), false), 5)
+    expect(newNight(s).settings.wheel).toEqual(s.settings.wheel)
+  })
+})
+
+describe('adjustments', () => {
+  const three = () => {
+    let s = defaultState
+    for (const [id, name] of [['a', 'Ann'], ['b', 'Bo'], ['c', 'Cy']]) s = addViewer(s, name, id)
+    return s
+  }
+
+  test('setting a changed value records only that field', () => {
+    expect(setViewerSliceCount(three(), 'b', 4).night.adjustments).toEqual({ b: { slices: 4 } })
+    expect(setViewerWeightOnWheel(three(), 'b', 8).night.adjustments).toEqual({ b: { weight: 8 } })
+  })
+
+  test('setting it back to the default keeps the adjustment; a no-op records nothing', () => {
+    const back = setViewerSliceCount(setViewerSliceCount(three(), 'b', 4), 'b', 3)
+    expect(back.night.adjustments).toEqual({ b: { slices: 3 } })
+    const s = three()
+    expect(setViewerSliceCount(s, 'b', 3)).toBe(s)
+    expect(setViewerWeightOnWheel(s, 'b', 5)).toBe(s)
+  })
+
+  test('invalid values and unknown viewers change nothing', () => {
+    const s = three()
+    expect(setViewerWeightOnWheel(s, 'a', 0)).toBe(s)
     expect(setViewerWeightOnWheel(s, 'a', 100)).toBe(s)
-    expect(edited().night.layout?.viewers.b.weight).toBe(8)
+    expect(setViewerSliceCount(s, 'a', 13)).toBe(s)
+    expect(setViewerSliceCount(s, 'zz', 4)).toBe(s)
   })
 
-  test('a win on an auto-spread wheel removes the winner and a wildcard and re-spreads', () => {
-    const s = recordOutcome(edited(), film(1), 'watch', true)
-    expect(count(s, 'a')).toBe(0)
-    expect(kinds(s)).toHaveLength(8)
-    expect(s.night.layout!.wildcards).toHaveLength(2)
-    expect(s.night.layout!.viewers.b.weight).toBe(8)
+  test('reset deletes one viewer entry, reset all deletes every entry, away viewers included', () => {
+    let s = setViewerWeightOnWheel(setViewerSliceCount(three(), 'a', 4), 'b', 2)
+    s = setPresent(s, 'b', false)
+    expect(resetViewerSetting(s, 'a').night.adjustments).toEqual({ b: { weight: 2 } })
+    expect(resetViewerSetting(s, 'c')).toBe(s)
+    expect(resetViewerSettings(s).night.adjustments).toEqual({})
+    const none = three()
+    expect(resetViewerSettings(none)).toBe(none)
   })
 
-  test('a win on a hand-placed wheel keeps the remaining order', () => {
-    const start = edited(true)
-    const s = recordOutcome(start, film(1), 'tooLong', true)
-    const expected = start.night
-      .layout!.order.filter((r) => r.kind === 'wildcard' || r.viewerId !== 'a')
-      .map((r) => r.id)
-    const got = s.night.layout!.order.map((r) => r.id)
-    expect(expected.filter((id) => got.includes(id))).toEqual(got)
+  test('New night clears them, Remove drops the entry, leaving and joining keeps them', () => {
+    const s = setViewerSliceCount(three(), 'b', 4)
+    expect(newNight(s).night.adjustments).toEqual({})
+    expect(removeViewer(s, 'b').night.adjustments).toEqual({})
+    const back = setPresent(setPresent(s, 'b', false), 'b', true)
+    expect(back.night.adjustments).toEqual({ b: { slices: 4 } })
+    expect(defaultWheelSettings.defaultSlices).toBe(3)
   })
 
-  test('duplicates remove both viewers and two wildcards; fromWheel false changes nothing', () => {
-    let s = edited()
-    s = nominate(s, 'b', film(1))
-    const out = recordOutcome(s, film(1), 'watch', true)
-    expect(count(out, 'a') + count(out, 'b')).toBe(0)
-    expect(out.night.layout!.wildcards).toHaveLength(1)
-    const unchanged = recordOutcome(edited(), film(9), 'watch', false)
-    expect(unchanged.night.layout).toEqual(edited().night.layout)
-  })
-
-  test('unticking removes the viewer and a wildcard; re-ticking restores their settings', () => {
-    const off = setPresent(edited(), 'b', false)
-    expect(count(off, 'b')).toBe(0)
-    expect(off.night.layout!.wildcards).toHaveLength(2)
-    const on = setPresent(setViewerSliceCount(setPresent(edited(), 'b', true), 'b', 4), 'b', false)
-    const back = setPresent(on, 'b', true)
-    expect(count(back, 'b')).toBe(4)
-    expect(back.night.layout!.viewers.b).toEqual({ weight: 8, slices: 4 })
-  })
-
-  test('removeViewer drops the entry; addViewer adds a joiner', () => {
-    const gone = removeViewer(edited(), 'b')
-    expect(gone.night.layout!.viewers.b).toBeUndefined()
-    expect(count(gone, 'b')).toBe(0)
-    const joined = addViewer(edited(), 'Di', 'd')
-    expect(count(joined, 'd')).toBe(3)
-    expect(joined.night.layout!.wildcards).toHaveLength(4)
-  })
-
-  test('nominating changes nothing on the wheel', () => {
-    const s = edited()
-    expect(nominate(s, 'a', film(7)).night.layout).toBe(s.night.layout)
-  })
-
-  test('unticking everyone empties the wheel; re-ticking one brings back kept settings', () => {
-    let s = addWheelWildcard(edited())
-    for (const id of ['a', 'b', 'c']) s = setPresent(s, id, false)
-    expect(s.night.layout!.order).toEqual([])
-    expect(s.night.layout!.wildcards).toEqual([])
-    s = setPresent(s, 'b', true)
-    expect(count(s, 'b')).toBe(3)
-    expect(s.night.layout!.wildcards).toHaveLength(1)
-    expect(s.night.layout!.viewers.b.weight).toBe(8)
-  })
-
-  test('reset returns to the derived wheel without won viewers; new night too', () => {
-    let s = recordOutcome(edited(), film(1), 'watch', true)
-    expect(resetLayout(s).night.layout).toBeNull()
-    expect(newNight(s).night.layout).toBeNull()
-    s = resetLayout(s)
-    expect(viewersOnWheel(s.night)).toEqual(['b', 'c'])
-  })
-
-  test('spread evenly keeps the order hand-placed', () => {
-    const s = spreadWheelEvenly(edited(true))
-    expect(s.night.layout!.handPlaced).toBe(true)
+  test('a win does not change the adjustments', () => {
+    let s = setViewerSliceCount(three(), 'b', 4)
+    s = nominate(s, 'a', film(1))
+    expect(recordOutcome(s, film(1), 'watch', true).night.adjustments).toEqual(s.night.adjustments)
   })
 })
 
@@ -355,28 +368,6 @@ describe('removeNomination', () => {
     expect(removeNomination(removed, 'a')).toBe(removed)
     const won = recordOutcome(s, film(1), 'watch', true)
     expect(removeNomination(won, 'a')).toBe(won)
-  })
-})
-
-describe('resetViewerSettings', () => {
-  test('puts every viewer back to the defaults, away ones included, keeping wildcards and order', () => {
-    let s = addViewer(addViewer(defaultState, 'Ann', 'a'), 'Bo', 'b')
-    s = setPresent(s, 'a', true)
-    s = setPresent(s, 'b', true)
-    s = setViewerSliceCount(setViewerWeightOnWheel(s, 'a', 9), 'a', 6)
-    s = setViewerWeightOnWheel(s, 'b', 2)
-    s = setPresent(s, 'b', false)
-    const before = s.night.layout!
-    const reset = resetViewerSettings(s)
-    expect(reset.night.layout!.viewers.a).toEqual({ slices: 3, weight: 5 })
-    expect(reset.night.layout!.viewers.b).toEqual({ slices: 3, weight: 5 })
-    expect(reset.night.layout!.wildcardWeight).toBe(before.wildcardWeight)
-    expect(resetViewerSettings(reset)).toBe(reset)
-  })
-
-  test('leaves a derived wheel derived', () => {
-    const s = addViewer(defaultState, 'Ann', 'a')
-    expect(resetViewerSettings(s)).toBe(s)
   })
 })
 
@@ -430,7 +421,11 @@ describe('setViewersHidden', () => {
     expect(defaultState.settings.viewersHidden).toBe(false)
     const s = setToken(addViewer(defaultState, 'Ann', 'a'), 'tok')
     const hidden = setViewersHidden(s, true)
-    expect(hidden.settings).toEqual({ tmdbToken: 'tok', viewersHidden: true })
+    expect(hidden.settings).toEqual({
+      tmdbToken: 'tok',
+      viewersHidden: true,
+      wheel: defaultWheelSettings,
+    })
     expect(hidden.roster).toBe(s.roster)
     expect(hidden.night).toBe(s.night)
     expect(hidden.holdover).toBe(s.holdover)

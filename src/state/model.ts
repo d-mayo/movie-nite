@@ -1,16 +1,11 @@
 import {
-  addWildcard,
-  defaultViewerSetting,
-  forgetViewer,
-  materialiseDefault,
-  moveSlice,
-  removeWildcard,
-  setViewerSlices,
-  setViewerWeight,
-  setWildcardWeight,
-  spreadEvenly,
-  syncLayout,
-  type WheelLayout,
+  defaultWheelSettings,
+  effectiveSetting,
+  isValidSliceCount,
+  isValidWeight,
+  isValidWildcardCount,
+  type Adjustment,
+  type WheelSettings,
 } from '../wheel/edit.ts'
 import { firstFreePreset, isPreset, maxViewers } from '../wheel/colors.ts'
 
@@ -32,7 +27,7 @@ export interface Viewer {
 
 export interface AppState {
   version: 1
-  settings: { tmdbToken: string | null; viewersHidden: boolean }
+  settings: { tmdbToken: string | null; viewersHidden: boolean; wheel: WheelSettings }
   roster: Viewer[]
   night: {
     presentIds: string[]
@@ -40,8 +35,8 @@ export interface AppState {
     wonFilms: number[]
     watched: Nomination[]
     ended: boolean
-    // null while the wheel is still derived from the viewers on it.
-    layout: WheelLayout | null
+    // What the host changed for a viewer tonight; the wheel is derived from these.
+    adjustments: Record<string, Adjustment>
     // True once a spin has started this night; the first one clears the held film.
     spun: boolean
     // True while the held film's corner card is shrunk to the banner chip.
@@ -52,7 +47,7 @@ export interface AppState {
 
 export const defaultState: AppState = {
   version: 1,
-  settings: { tmdbToken: null, viewersHidden: false },
+  settings: { tmdbToken: null, viewersHidden: false, wheel: defaultWheelSettings },
   roster: [],
   night: {
     presentIds: [],
@@ -60,7 +55,7 @@ export const defaultState: AppState = {
     wonFilms: [],
     watched: [],
     ended: false,
-    layout: null,
+    adjustments: {},
     spun: false,
     holdoverDismissed: false,
   },
@@ -86,11 +81,11 @@ export function addViewer(state: AppState, name: string, id: string): AppState {
   if (state.roster.some((v) => v.name.toLowerCase() === lower)) return state
   const color = firstFreePreset(state.roster.map((v) => v.color))
   if (color === null) return state
-  return syncNight({
+  return {
     ...state,
     roster: [...state.roster, { id, name: trimmed, color }],
     night: { ...state.night, presentIds: [...state.night.presentIds, id] },
-  })
+  }
 }
 
 export function setViewerColor(state: AppState, id: string, color: string): AppState {
@@ -111,17 +106,18 @@ function withoutNomination(
 }
 
 export function removeViewer(state: AppState, id: string): AppState {
-  const synced = syncNight({
+  const { [id]: _dropped, ...adjustments } = state.night.adjustments
+  void _dropped
+  return {
     ...state,
     roster: state.roster.filter((v) => v.id !== id),
     night: {
       ...state.night,
       presentIds: state.night.presentIds.filter((p) => p !== id),
       nominations: withoutNomination(state.night.nominations, id),
+      adjustments,
     },
-  })
-  const { layout } = synced.night
-  return layout ? { ...synced, night: { ...synced.night, layout: forgetViewer(layout, id) } } : synced
+  }
 }
 
 function hasWon(night: AppState['night'], viewerId: string): boolean {
@@ -134,7 +130,7 @@ export function setPresent(state: AppState, id: string, present: boolean): AppSt
   const isPresent = state.night.presentIds.includes(id)
   if (present === isPresent) return state
   // An away viewer keeps their film, so hiding someone briefly loses nothing.
-  return syncNight({
+  return {
     ...state,
     night: {
       ...state.night,
@@ -142,7 +138,7 @@ export function setPresent(state: AppState, id: string, present: boolean): AppSt
         ? [...state.night.presentIds, id]
         : state.night.presentIds.filter((p) => p !== id),
     },
-  })
+  }
 }
 
 // Takes a viewer's film back off the wheel. A film that has won is not taken back.
@@ -182,7 +178,7 @@ export function newNight(state: AppState): AppState {
       wonFilms: [],
       watched: [],
       ended: false,
-      layout: null,
+      adjustments: {},
       spun: false,
       holdoverDismissed: false,
     },
@@ -193,87 +189,79 @@ export function viewersOnWheel(night: AppState['night']): string[] {
   return night.presentIds.filter((id) => !hasWon(night, id))
 }
 
-// After a night rule changes who is on the wheel, an edited layout follows.
-function syncNight(state: AppState): AppState {
-  const { layout } = state.night
-  if (!layout) return state
-  const synced = syncLayout(layout, viewersOnWheel(state.night))
-  return synced === layout ? state : { ...state, night: { ...state.night, layout: synced } }
+function withWheel(state: AppState, change: Partial<WheelSettings>): AppState {
+  return { ...state, settings: { ...state.settings, wheel: { ...state.settings.wheel, ...change } } }
 }
 
-// The first edit saves the derived default as the layout, then applies the
-// change. An edit that changes nothing leaves the wheel derived.
-export function editLayout(
-  state: AppState,
-  change: (layout: WheelLayout, onWheel: string[]) => WheelLayout,
-): AppState {
-  const onWheel = viewersOnWheel(state.night)
-  const base = state.night.layout ?? materialiseDefault(onWheel)
-  const next = change(base, onWheel)
-  if (next === base) return state
-  return { ...state, night: { ...state.night, layout: next } }
-}
-
-export function setViewerWeightOnWheel(state: AppState, viewerId: string, weight: number): AppState {
-  return editLayout(state, (l) => setViewerWeight(l, viewerId, weight))
-}
-
-export function setViewerSliceCount(state: AppState, viewerId: string, count: number): AppState {
-  return editLayout(state, (l, onWheel) => setViewerSlices(l, onWheel, viewerId, count))
-}
-
-// Every viewer's slice count and weight back to the defaults, away viewers'
-// kept settings included; wildcards and slice order are left alone.
-export function resetViewerSettings(state: AppState): AppState {
-  return editLayout(state, (layout, onWheel) => {
-    let next = layout
-    for (const id of onWheel) {
-      const now = next.viewers[id] ?? defaultViewerSetting
-      if (now.weight !== defaultViewerSetting.weight) {
-        next = setViewerWeight(next, id, defaultViewerSetting.weight)
-      }
-      if (now.slices !== defaultViewerSetting.slices) {
-        next = setViewerSlices(next, onWheel, id, defaultViewerSetting.slices)
-      }
-    }
-    const viewers = { ...next.viewers }
-    let changed = false
-    for (const [id, setting] of Object.entries(viewers)) {
-      if (
-        !onWheel.includes(id) &&
-        (setting.slices !== defaultViewerSetting.slices || setting.weight !== defaultViewerSetting.weight)
-      ) {
-        viewers[id] = { ...defaultViewerSetting }
-        changed = true
-      }
-    }
-    return changed ? { ...next, viewers } : next
+// Turning One per viewer off keeps the wildcards the wheel had: the count
+// becomes tonight's number of viewers on the wheel.
+export function setWildcardsPerViewer(state: AppState, on: boolean): AppState {
+  if (state.settings.wheel.wildcardsPerViewer === on) return state
+  return withWheel(state, {
+    wildcardsPerViewer: on,
+    ...(on ? {} : { wildcardCount: viewersOnWheel(state.night).length }),
   })
 }
 
-export function setWildcardWeightOnWheel(state: AppState, weight: number): AppState {
-  return editLayout(state, (l) => setWildcardWeight(l, weight))
+export function setWildcardCount(state: AppState, count: number): AppState {
+  if (!isValidWildcardCount(count) || count === state.settings.wheel.wildcardCount) return state
+  return withWheel(state, { wildcardCount: count })
 }
 
-export function addWheelWildcard(state: AppState): AppState {
-  return editLayout(state, addWildcard)
+export function setWildcardWeight(state: AppState, weight: number): AppState {
+  if (!isValidWeight(weight) || weight === state.settings.wheel.wildcardWeight) return state
+  return withWheel(state, { wildcardWeight: weight })
 }
 
-export function removeWheelWildcard(state: AppState, id: string): AppState {
-  return editLayout(state, (l, onWheel) => removeWildcard(l, onWheel, id))
+export function setDefaultSlices(state: AppState, count: number): AppState {
+  if (!isValidSliceCount(count) || count === state.settings.wheel.defaultSlices) return state
+  return withWheel(state, { defaultSlices: count })
 }
 
-export function moveWheelSlice(state: AppState, from: number, to: number): AppState {
-  return editLayout(state, (l) => moveSlice(l, from, to))
+export function setDefaultWeight(state: AppState, weight: number): AppState {
+  if (!isValidWeight(weight) || weight === state.settings.wheel.defaultWeight) return state
+  return withWheel(state, { defaultWeight: weight })
 }
 
-export function spreadWheelEvenly(state: AppState): AppState {
-  return editLayout(state, (l, onWheel) => spreadEvenly(l, onWheel))
+function adjust(state: AppState, viewerId: string, change: Adjustment): AppState {
+  if (!state.roster.some((v) => v.id === viewerId)) return state
+  return {
+    ...state,
+    night: {
+      ...state.night,
+      adjustments: {
+        ...state.night.adjustments,
+        [viewerId]: { ...state.night.adjustments[viewerId], ...change },
+      },
+    },
+  }
 }
 
-export function resetLayout(state: AppState): AppState {
-  if (!state.night.layout) return state
-  return { ...state, night: { ...state.night, layout: null } }
+// A set that matches the current effective value records nothing; any other
+// valid set is kept as an adjustment, even one that equals the default.
+export function setViewerWeightOnWheel(state: AppState, viewerId: string, weight: number): AppState {
+  const now = effectiveSetting(state.settings.wheel, state.night.adjustments, viewerId)
+  if (!isValidWeight(weight) || weight === now.weight) return state
+  return adjust(state, viewerId, { weight })
+}
+
+export function setViewerSliceCount(state: AppState, viewerId: string, count: number): AppState {
+  const now = effectiveSetting(state.settings.wheel, state.night.adjustments, viewerId)
+  if (!isValidSliceCount(count) || count === now.slices) return state
+  return adjust(state, viewerId, { slices: count })
+}
+
+export function resetViewerSetting(state: AppState, viewerId: string): AppState {
+  if (!state.night.adjustments[viewerId]) return state
+  const { [viewerId]: _dropped, ...adjustments } = state.night.adjustments
+  void _dropped
+  return { ...state, night: { ...state.night, adjustments } }
+}
+
+// Deletes every adjustment, away viewers' included.
+export function resetViewerSettings(state: AppState): AppState {
+  if (Object.keys(state.night.adjustments).length === 0) return state
+  return { ...state, night: { ...state.night, adjustments: {} } }
 }
 
 export type Outcome = 'watch' | 'tooLong'
@@ -291,11 +279,11 @@ export function recordOutcome(
   }
   if (fromWheel && viewersOnWheel(night).length === 0) night.ended = true
   if (outcome === 'tooLong') night.holdoverDismissed = false
-  return syncNight({
+  return {
     ...state,
     night,
     holdover: outcome === 'tooLong' ? nomination : state.holdover,
-  })
+  }
 }
 
 export function endNight(state: AppState): AppState {
