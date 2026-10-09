@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent, type RefObject } from 'react'
-import { maxNameLength, maxViewers, viewersOnWheel } from '../state/model.ts'
+import { maxNameLength, maxViewers } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
-import { defaultViewerSetting, materialiseDefault } from '../wheel/edit.ts'
+import { effectiveSetting } from '../wheel/edit.ts'
 import { canHover } from './canHover.ts'
 import { placeUnder } from './placePopover.ts'
 import ViewerCell, { type CellStatus } from './ViewerCell.tsx'
@@ -26,7 +26,7 @@ const rank: Record<CellStatus, number> = { wheel: 0, won: 1, away: 2 }
 // The viewer pane: one cell per roster viewer, on the wheel first, then those
 // who have won tonight, then those who are away. At most one cell is open.
 export default function NightSetup({ client, onAuthError, locked = false, onHide, hideRef }: Props) {
-  const { roster, night, addViewer, resetAllViewerSettings } = useApp()
+  const { roster, night, settings, addViewer, resetAllViewerSettings } = useApp()
   const menu = useRef<HTMLDivElement>(null)
   const [name, setName] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
@@ -126,10 +126,7 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
     return hasWon(viewerId) ? 'won' : 'wheel'
   }
 
-  const layout = night.layout ?? materialiseDefault(viewersOnWheel(night))
-  const allDefault = Object.values(layout.viewers).every(
-    (v) => v.slices === defaultViewerSetting.slices && v.weight === defaultViewerSetting.weight,
-  )
+  const anyAdjusted = Object.keys(night.adjustments).length > 0
   // Array.prototype.sort is stable, so each group keeps roster order.
   const cells = roster
     .map((viewer) => ({ viewer, status: statusOf(viewer.id) }))
@@ -175,7 +172,7 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
         <div id="pane-menu" popover="auto" ref={menu} className="card cell-menu">
           <button
             type="button"
-            disabled={allDefault || locked}
+            disabled={!anyAdjusted || locked}
             onClick={() => {
               menu.current?.hidePopover()
               resetAllViewerSettings()
@@ -196,7 +193,8 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
               status={status}
               won={hasWon(viewer.id)}
               film={night.nominations[viewer.id]}
-              setting={layout.viewers[viewer.id]}
+              setting={effectiveSetting(settings.wheel, night.adjustments, viewer.id)}
+              adjusted={night.adjustments[viewer.id] !== undefined}
               open={shownId === viewer.id}
               client={client}
               onAuthError={onAuthError}

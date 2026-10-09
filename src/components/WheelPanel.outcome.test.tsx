@@ -4,7 +4,8 @@ import App from '../App.tsx'
 import { defaultState, type AppState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
-import { defaultLayout, type Slice } from '../wheel/layout.ts'
+import { type Slice } from '../wheel/layout.ts'
+import { defaultWheelSettings, deriveSlices } from '../wheel/edit.ts'
 
 afterEach(() => vi.useRealTimers())
 
@@ -24,7 +25,7 @@ const spinButton = () => screen.getByRole('button', { name: 'Spin' })
 
 // A `random` value that lands in the middle of the first slice matching `pick`.
 function landOn(pick: (s: Slice) => boolean): () => number {
-  const slices = defaultLayout(['a', 'b', 'c'], {})
+  const slices = deriveSlices(['a', 'b', 'c'], defaultWheelSettings, {})
   const total = slices.reduce((sum, s) => sum + s.weight, 0)
   let before = 0
   for (const s of slices) {
@@ -48,7 +49,7 @@ function setupNight(
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false },
+      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },

@@ -12,7 +12,6 @@ import App from './App.tsx'
 import {
   addViewer,
   defaultState,
-  editLayout,
   nominate,
   setPresent,
   setToken,
@@ -21,6 +20,7 @@ import {
 import { createMemoryPersistence } from './state/persistence.ts'
 import { createAppStore } from './state/store.ts'
 import { openCell } from './test/cells.ts'
+import { defaultWheelSettings } from './wheel/edit.ts'
 
 const attribution =
   'This product uses the TMDB API but is not endorsed or certified by TMDB.'
@@ -38,7 +38,7 @@ function expectFooter() {
 function setup(fetchFn: typeof fetch, token: string | null = null) {
   const persistence = createMemoryPersistence({
     ...defaultState,
-    settings: { tmdbToken: token, viewersHidden: false },
+    settings: { tmdbToken: token, viewersHidden: false, wheel: defaultWheelSettings },
   })
   const store = createAppStore(persistence)
   render(<App store={store} fetchFn={fetchFn} />)
@@ -127,7 +127,7 @@ test('Cancel returns to the night with its saved state untouched', () => {
     ),
   )
   const store = createAppStore(persistence)
-  store.setState(editLayout(store.getState(), (l) => ({ ...l, wildcardWeight: 3 })))
+  act(() => store.getState().setViewerWeight('a', 8))
   const before = store.getState()
   render(<App store={store} fetchFn={fetchFn} />)
   clickChange()
@@ -137,7 +137,7 @@ test('Cancel returns to the night with its saved state untouched', () => {
   expect(after.roster).toEqual(before.roster)
   expect(after.night.presentIds).toEqual(before.night.presentIds)
   expect(after.night.nominations).toEqual(before.night.nominations)
-  expect(after.night.layout).toEqual(before.night.layout)
+  expect(after.night.adjustments).toEqual(before.night.adjustments)
   expect(after.settings.tmdbToken).toBe('tok')
   expect(fetchFn).not.toHaveBeenCalled()
 })
@@ -276,7 +276,7 @@ function nightWithViewer() {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false },
+      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
       roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
       night: { ...defaultState.night, presentIds: ['a'], nominations: { a: film } },
     }),
@@ -303,14 +303,11 @@ test('the viewer list is a card with Add primary and Remove danger', () => {
   expect(screen.getByRole('button', { name: 'Remove' })).toHaveClass('danger')
 })
 
-test('the Wheel settings drawer is a card with Done primary, Remove danger and Move quiet', () => {
+test('the Wheel settings drawer is a card with Done primary', () => {
   nightWithViewer()
   fireEvent.click(screen.getByRole('button', { name: 'Wheel settings' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Add wildcard' }))
   expect(screen.getByRole('dialog', { name: 'Wheel settings' })).toHaveClass('card')
   expect(screen.getByRole('button', { name: 'Done' })).toHaveClass('primary')
-  expect(screen.getByRole('button', { name: 'Remove wildcard 1' })).toHaveClass('danger')
-  expect(screen.getByRole('button', { name: 'Move slice 1 up' })).toHaveClass('quiet')
 })
 
 // The banner toolbar.
@@ -324,7 +321,7 @@ function bannerNight(
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false },
+      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },

@@ -7,6 +7,7 @@ import { AppStoreContext, createAppStore } from '../state/store.ts'
 import { header, markAway, markHere, openCell, removeViewer } from '../test/cells.ts'
 import { createTmdbClient } from '../tmdb/client.ts'
 import NightSetup from './NightSetup.tsx'
+import { defaultWheelSettings } from '../wheel/edit.ts'
 
 const film: Nomination = {
   tmdbId: 1,
@@ -37,7 +38,7 @@ function mount(state: AppState, locked = false) {
 }
 
 function setup() {
-  return mount({ ...defaultState, settings: { tmdbToken: 'tok', viewersHidden: false } })
+  return mount({ ...defaultState, settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings } })
 }
 
 function setupWith(
@@ -49,7 +50,7 @@ function setupWith(
   return mount(
     {
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false },
+      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
       roster,
       night: { ...defaultState.night, presentIds: roster.map((v) => v.id), ...night },
       holdover,
@@ -186,14 +187,14 @@ test('a won viewer opens to only the color and the menu', () => {
   expect(screen.queryByLabelText('Search a film for Ann')).toBeNull()
 })
 
-test('slider moves save the layout from the derived wheel at once', () => {
+test('slider moves are saved as adjustments at once', () => {
   const { store } = setupWith({ nominations: { a: film }, presentIds: ['a'] })
-  expect(store.getState().night.layout).toBeNull()
+  expect(store.getState().night.adjustments).toEqual({})
   openCell('Ann')
   fireEvent.click(screen.getByRole('button', { name: 'Increase Slices for Ann' }))
-  expect(store.getState().night.layout?.viewers.a.slices).toBe(4)
+  expect(store.getState().night.adjustments.a.slices).toBe(4)
   fireEvent.change(screen.getByLabelText('Weight for Ann'), { target: { value: '7.5' } })
-  expect(store.getState().night.layout?.viewers.a.weight).toBe(7.5)
+  expect(store.getState().night.adjustments.a.weight).toBe(7.5)
   expect(screen.getByRole('group', { name: 'Slices for Ann' }).querySelector('output')).toHaveTextContent('4')
   expect(within(cellOf('Ann')).getByText('4 slices · weight 7.5')).toBeInTheDocument()
 })
@@ -313,10 +314,10 @@ test('the menu resets a viewer slices and weight, and is off when they are alrea
   for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole('button', { name: 'Increase Slices for Ann' }))
   fireEvent.change(screen.getByLabelText('Weight for Ann'), { target: { value: '12' } })
   act(() => store.getState().setViewerSlices('b', 2))
-  expect(store.getState().night.layout?.viewers.a).toEqual({ slices: 7, weight: 12 })
+  expect(store.getState().night.adjustments.a).toEqual({ slices: 7, weight: 12 })
   fireEvent.click(screen.getByRole('button', { name: 'Reset slices and weight' }))
-  expect(store.getState().night.layout?.viewers.a).toEqual({ slices: 3, weight: 5 })
-  expect(store.getState().night.layout?.viewers.b.slices).toBe(2)
+  expect(store.getState().night.adjustments.a).toBeUndefined()
+  expect(store.getState().night.adjustments.b.slices).toBe(2)
   expect(screen.getByRole('group', { name: 'Slices for Ann' }).querySelector('output')).toHaveTextContent('3')
 })
 
@@ -339,7 +340,61 @@ test('the pane menu resets every viewer to the defaults, and is off when all alr
   act(() => store.getState().setViewerWeight('b', 12))
   expect(screen.getByRole('button', { name: 'Reset all slices and weights' })).toBeEnabled()
   fireEvent.click(screen.getByRole('button', { name: 'Reset all slices and weights' }))
-  const viewers = store.getState().night.layout!.viewers
-  expect(viewers.a).toEqual({ slices: 3, weight: 5 })
-  expect(viewers.b).toEqual({ slices: 3, weight: 5 })
+  expect(store.getState().night.adjustments).toEqual({})
+})
+
+test('an unadjusted viewer has no asterisk; adjusting shows it, and Reset removes it', () => {
+  setupWith({ nominations: { a: film }, presentIds: ['a'] }, null, people.slice(0, 1))
+  expect(within(cellOf('Ann')).queryByTitle('Adjusted tonight')).toBeNull()
+  expect(header('Ann')).not.toHaveAccessibleName(/Adjusted tonight/)
+  openCell('Ann')
+  fireEvent.click(screen.getByRole('button', { name: 'More for Ann' }))
+  expect(screen.getByRole('button', { name: 'Reset slices and weight' })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'More for Ann' }))
+
+  fireEvent.click(screen.getByRole('button', { name: 'Increase Slices for Ann' }))
+  expect(within(cellOf('Ann')).getByTitle('Adjusted tonight')).toHaveTextContent('*')
+  expect(header('Ann')).toHaveAccessibleName(/Adjusted tonight/)
+  fireEvent.click(screen.getByRole('button', { name: 'More for Ann' }))
+  expect(screen.getByRole('button', { name: 'Reset slices and weight' })).toBeEnabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Reset slices and weight' }))
+  expect(within(cellOf('Ann')).queryByTitle('Adjusted tonight')).toBeNull()
+  expect(screen.getByRole('group', { name: 'Slices for Ann' }).querySelector('output')).toHaveTextContent('3')
+})
+
+test('setting slices from 3 to 4 and back to 3 keeps the asterisk', () => {
+  setupWith({ nominations: { a: film }, presentIds: ['a'] }, null, people.slice(0, 1))
+  openCell('Ann')
+  fireEvent.click(screen.getByRole('button', { name: 'Increase Slices for Ann' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Decrease Slices for Ann' }))
+  expect(within(cellOf('Ann')).getByTitle('Adjusted tonight')).toBeInTheDocument()
+})
+
+test('an away viewer keeps the asterisk, and Reset all is enabled for it alone and clears it', () => {
+  const { store } = setupWith({ presentIds: ['a', 'b'] })
+  fireEvent.click(screen.getByRole('button', { name: 'More for all viewers' }))
+  expect(screen.getByRole('button', { name: 'Reset all slices and weights' })).toBeDisabled()
+  act(() => store.getState().setViewerSlices('b', 5))
+  markAway('Bo')
+  expect(within(cellOf('Bo')).getByTitle('Adjusted tonight')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Reset all slices and weights' })).toBeEnabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Reset all slices and weights' }))
+  expect(within(cellOf('Bo')).queryByTitle('Adjusted tonight')).toBeNull()
+  expect(store.getState().night.adjustments).toEqual({})
+})
+
+test('removing an adjusted viewer and adding one with the same name shows no asterisk', () => {
+  const { store } = setupWith({ presentIds: ['a', 'b'] })
+  act(() => store.getState().setViewerSlices('a', 5))
+  removeViewer('Ann')
+  add('Ann')
+  expect(within(cellOf('Ann')).queryByTitle('Adjusted tonight')).toBeNull()
+})
+
+test('the summary shows the effective slices and weight', () => {
+  const { store } = setupWith({ presentIds: ['a'] }, null, people.slice(0, 1))
+  expect(within(cellOf('Ann')).getByText('3 slices · weight 5')).toBeInTheDocument()
+  act(() => store.getState().setDefaultSlices(2))
+  act(() => store.getState().setDefaultWeight(7))
+  expect(within(cellOf('Ann')).getByText('2 slices · weight 7')).toBeInTheDocument()
 })

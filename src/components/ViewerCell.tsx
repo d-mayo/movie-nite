@@ -13,7 +13,7 @@ import {
 import type { Nomination, Viewer } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
-import { defaultViewerSetting, type ViewerSetting } from '../wheel/edit.ts'
+import type { ViewerSetting } from '../wheel/edit.ts'
 import ColorPicker from './ColorPicker.tsx'
 import { Poster } from './FilmSearch.tsx'
 import NominationSearch from './NominationSearch.tsx'
@@ -34,8 +34,10 @@ interface Props {
   // Whether the viewer has won tonight, even if they were then marked away.
   won: boolean
   film: Nomination | undefined
-  // The saved layout's numbers, or the default's while the wheel is derived.
-  setting: ViewerSetting | undefined
+  // The slices and weight the wheel uses: the adjustment, else the global default.
+  setting: ViewerSetting
+  // Whether the host adjusted this viewer tonight.
+  adjusted: boolean
   open: boolean
   client: TmdbClient
   onAuthError: () => void
@@ -130,6 +132,7 @@ export default function ViewerCell({
   won,
   film,
   setting,
+  adjusted,
   open: openRequested,
   client,
   onAuthError,
@@ -139,7 +142,8 @@ export default function ViewerCell({
   onHoverEnd,
   onHold,
 }: Props) {
-  const { setPresent, removeViewer, setViewerWeight, setViewerSlices } = useApp()
+  const { setPresent, removeViewer, setViewerWeight, setViewerSlices, resetViewerSettings } =
+    useApp()
   // A viewer who is away has nothing to open: no body, no menu.
   const expandable = status !== 'away'
   const open = openRequested && expandable
@@ -256,7 +260,17 @@ export default function ViewerCell({
           aria-controls={expandable ? bodyId : undefined}
           onClick={onHeaderClick}
         >
-          <strong className="cell-name">{viewer.name}</strong>
+          <span className="cell-title">
+            <strong className="cell-name">{viewer.name}</strong>
+            {adjusted && (
+              <>
+                <span className="cell-adjusted" title="Adjusted tonight" aria-hidden="true">
+                  *
+                </span>
+                <span className="visually-hidden">Adjusted tonight</span>
+              </>
+            )}
+          </span>
           <span className="cell-film">
             {film ? (
               <>
@@ -270,8 +284,7 @@ export default function ViewerCell({
           {won ? (
             <span className="cell-tag">Won tonight</span>
           ) : (
-            status === 'wheel' &&
-            setting && (
+            status === 'wheel' && (
               <span className="cell-summary">
                 {setting.slices} {setting.slices === 1 ? 'slice' : 'slices'} · weight {setting.weight}
               </span>
@@ -315,17 +328,13 @@ export default function ViewerCell({
                 className="card cell-menu"
                 onToggle={track('menu')}
               >
-                {status === 'wheel' && setting && (
+                {status === 'wheel' && (
                   <button
                     type="button"
-                    disabled={
-                      setting.slices === defaultViewerSetting.slices &&
-                      setting.weight === defaultViewerSetting.weight
-                    }
+                    disabled={!adjusted}
                     onClick={() => {
                       menu.current?.hidePopover()
-                      setViewerSlices(viewer.id, defaultViewerSetting.slices)
-                      setViewerWeight(viewer.id, defaultViewerSetting.weight)
+                      resetViewerSettings(viewer.id)
                     }}
                   >
                     Reset slices and weight
@@ -343,7 +352,7 @@ export default function ViewerCell({
               </div>
             </div>
           </div>
-          {status === 'wheel' && setting && (
+          {status === 'wheel' && (
             <div className="inset-card">
               <Stepper
                 label={`Slices for ${viewer.name}`}

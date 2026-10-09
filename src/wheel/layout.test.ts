@@ -1,12 +1,13 @@
 import { expect, test } from 'vitest'
-import { defaultLayout, sliceArcs, type Slice } from './layout.ts'
+import { sliceArcs, type Slice } from './layout.ts'
+import { defaultWheelSettings, deriveSlices } from './edit.ts'
 
 function labels(slices: Slice[]) {
   return slices.map((s) => (s.kind === 'wildcard' ? 'W' : s.viewerId))
 }
 
 test('three viewers get A B C W three times', () => {
-  const slices = defaultLayout(['A', 'B', 'C'], {})
+  const slices = deriveSlices(['A', 'B', 'C'], defaultWheelSettings, {})
   expect(labels(slices)).toEqual(
     ['A', 'B', 'C', 'W', 'A', 'B', 'C', 'W', 'A', 'B', 'C', 'W'],
   )
@@ -22,15 +23,15 @@ test('three viewers get A B C W three times', () => {
 })
 
 test('one viewer is A A A W, none is empty, and every viewer has a wildcard', () => {
-  expect(labels(defaultLayout(['A'], {}))).toEqual(['A', 'A', 'A', 'W'])
-  expect(defaultLayout([], {})).toEqual([])
-  const two = defaultLayout(['A', 'B'], {})
+  expect(labels(deriveSlices(['A'], defaultWheelSettings, {}))).toEqual(['A', 'A', 'A', 'W'])
+  expect(deriveSlices([], defaultWheelSettings, {})).toEqual([])
+  const two = deriveSlices(['A', 'B'], defaultWheelSettings, {})
   expect(two.filter((s) => s.kind === 'wildcard')).toHaveLength(2)
   expect(two.filter((s) => s.kind === 'nomination')).toHaveLength(6)
 })
 
 test('arcs are proportional to weight, contiguous and sum to 360', () => {
-  const slices = defaultLayout(['A', 'B', 'C'], {})
+  const slices = deriveSlices(['A', 'B', 'C'], defaultWheelSettings, {})
   const arcs = sliceArcs(slices)
   expect(arcs[0].start).toBe(0)
   expect(arcs[arcs.length - 1].end).toBe(360)

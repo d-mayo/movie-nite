@@ -7,7 +7,7 @@ import { buildWedges } from './wedges.ts'
 
 const two = () => addViewer(addViewer(defaultState, 'Ann', 'a'), 'Bo', 'b')
 const annColors = (s: typeof defaultState) =>
-  buildWedges(s.night, s.roster)
+  buildWedges(s.night, s.roster, s.settings.wheel)
     .filter((w) => w.slice.kind === 'nomination' && w.slice.viewerId === 'a')
     .map((w) => w.color)
 
@@ -30,8 +30,15 @@ describe('buildWedges colors', () => {
 
   test('wildcards keep their grey', () => {
     const s = two()
-    const wild = buildWedges(s.night, s.roster).filter((w) => w.slice.kind === 'wildcard')
-    expect(wild.length).toBeGreaterThan(0)
+    const wild = buildWedges(s.night, s.roster, s.settings.wheel).filter((w) => w.slice.kind === 'wildcard')
     for (const w of wild) expect(w.color).toBe('hsl(0 0% 25%)')
+    expect(wild.length).toBeGreaterThan(0)
+  })
+
+  test('the wheel follows roster order, not the order viewers were marked present', () => {
+    const s = setPresent(setPresent(two(), 'a', false), 'a', true)
+    expect(s.night.presentIds).toEqual(['b', 'a'])
+    const first = buildWedges(s.night, s.roster, s.settings.wheel)[0]
+    expect(first.viewerName).toBe('Ann')
   })
 })

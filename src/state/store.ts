@@ -3,19 +3,21 @@ import { useStore } from 'zustand'
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import {
   addViewer,
-  addWheelWildcard,
   clearHoldover,
   defaultState,
   endNight,
-  moveWheelSlice,
   newNight,
   nominate,
   removeNomination,
   resetViewerSettings,
   recordOutcome,
   removeViewer,
-  removeWheelWildcard,
-  resetLayout,
+  resetViewerSetting,
+  setDefaultSlices,
+  setDefaultWeight,
+  setWildcardCount,
+  setWildcardsPerViewer,
+  setWildcardWeight,
   setHoldoverDismissed,
   setPresent,
   setToken,
@@ -23,8 +25,6 @@ import {
   setViewerColor,
   setViewerSliceCount,
   setViewerWeightOnWheel,
-  setWildcardWeightOnWheel,
-  spreadWheelEvenly,
   startSpin,
   type AppState,
   type Nomination,
@@ -32,7 +32,15 @@ import {
 } from './model.ts'
 import { newId } from './id.ts'
 import type { Persistence } from './persistence.ts'
-import { normaliseLayout } from '../wheel/edit.ts'
+import {
+  defaultWheelSettings,
+  isValidSliceCount,
+  isValidWeight,
+  isValidWildcardCount,
+  maxWeight,
+  type Adjustment,
+  type WheelSettings,
+} from '../wheel/edit.ts'
 import { assignColors } from '../wheel/colors.ts'
 
 export interface AppActions {
@@ -53,27 +61,85 @@ export interface AppActions {
   setHoldoverDismissed(dismissed: boolean): void
   setViewerWeight(viewerId: string, weight: number): void
   setViewerSlices(viewerId: string, count: number): void
+  resetViewerSettings(viewerId: string): void
+  setWildcardsPerViewer(on: boolean): void
+  setWildcardCount(count: number): void
   setWildcardWeight(weight: number): void
-  addWildcard(): void
-  removeWildcard(id: string): void
-  moveSlice(from: number, to: number): void
-  spreadEvenly(): void
-  resetLayout(): void
+  setDefaultSlices(count: number): void
+  setDefaultWeight(weight: number): void
 }
 
 export type AppStore = StoreApi<AppState & AppActions>
 
+// Each stored wheel setting that is missing or invalid gets its factory value.
+function mergeWheel(stored: Partial<WheelSettings> | undefined): WheelSettings {
+  const d = defaultWheelSettings
+  const w = stored ?? {}
+  return {
+    wildcardsPerViewer:
+      typeof w.wildcardsPerViewer === 'boolean' ? w.wildcardsPerViewer : d.wildcardsPerViewer,
+    wildcardCount:
+      typeof w.wildcardCount === 'number' && isValidWildcardCount(w.wildcardCount)
+        ? w.wildcardCount
+        : d.wildcardCount,
+    wildcardWeight:
+      typeof w.wildcardWeight === 'number' && isValidWeight(w.wildcardWeight)
+        ? w.wildcardWeight
+        : d.wildcardWeight,
+    defaultSlices:
+      typeof w.defaultSlices === 'number' && isValidSliceCount(w.defaultSlices)
+        ? w.defaultSlices
+        : d.defaultSlices,
+    defaultWeight:
+      typeof w.defaultWeight === 'number' && isValidWeight(w.defaultWeight)
+        ? w.defaultWeight
+        : d.defaultWeight,
+  }
+}
+
+// A night saved with an edited layout keeps each viewer's slices and weight that
+// differ from the factory ones as adjustments; order, wildcards and the
+// wildcard weight are dropped.
+function adjustmentsFromLayout(layout: unknown): Record<string, Adjustment> {
+  const viewers = (layout as { viewers?: Record<string, { slices?: unknown; weight?: unknown }> })
+    ?.viewers
+  const adjustments: Record<string, Adjustment> = {}
+  if (!viewers || typeof viewers !== 'object') return adjustments
+  for (const [id, setting] of Object.entries(viewers)) {
+    const adjustment: Adjustment = {}
+    if (
+      typeof setting?.slices === 'number' &&
+      isValidSliceCount(setting.slices) &&
+      setting.slices !== defaultWheelSettings.defaultSlices
+    ) {
+      adjustment.slices = setting.slices
+    }
+    if (typeof setting?.weight === 'number' && Number.isFinite(setting.weight)) {
+      const weight = Math.min(setting.weight, maxWeight)
+      if (isValidWeight(weight) && weight !== defaultWheelSettings.defaultWeight) {
+        adjustment.weight = weight
+      }
+    }
+    if (Object.keys(adjustment).length > 0) adjustments[id] = adjustment
+  }
+  return adjustments
+}
+
 // Merges one level deep so fields added by later versions get their defaults.
 function mergeOverDefaults(stored: AppState | null): AppState {
   if (!stored) return defaultState
-  const night = { ...defaultState.night, ...stored.night }
-  // Layouts saved before the shared wildcard weight need converting.
-  if (night.layout && typeof night.layout === 'object') night.layout = normaliseLayout(night.layout)
+  const { layout, ...storedNight } = (stored.night ?? {}) as AppState['night'] & {
+    layout?: unknown
+  }
+  const night = { ...defaultState.night, ...storedNight }
+  if (!storedNight.adjustments || typeof storedNight.adjustments !== 'object') {
+    night.adjustments = layout && typeof layout === 'object' ? adjustmentsFromLayout(layout) : {}
+  }
   return {
     ...defaultState,
     ...stored,
     roster: Array.isArray(stored.roster) ? assignColors(stored.roster) : defaultState.roster,
-    settings: { ...defaultState.settings, ...stored.settings },
+    settings: { ...defaultState.settings, ...stored.settings, wheel: mergeWheel(stored.settings?.wheel) },
     night,
   }
 }
@@ -111,12 +177,12 @@ export function createAppStore(persistence: Persistence): AppStore {
       setHoldoverDismissed: (dismissed) => update((s) => setHoldoverDismissed(s, dismissed)),
       setViewerWeight: (id, weight) => update((s) => setViewerWeightOnWheel(s, id, weight)),
       setViewerSlices: (id, count) => update((s) => setViewerSliceCount(s, id, count)),
-      setWildcardWeight: (weight) => update((s) => setWildcardWeightOnWheel(s, weight)),
-      addWildcard: () => update(addWheelWildcard),
-      removeWildcard: (id) => update((s) => removeWheelWildcard(s, id)),
-      moveSlice: (from, to) => update((s) => moveWheelSlice(s, from, to)),
-      spreadEvenly: () => update(spreadWheelEvenly),
-      resetLayout: () => update(resetLayout),
+      resetViewerSettings: (id) => update((s) => resetViewerSetting(s, id)),
+      setWildcardsPerViewer: (on) => update((s) => setWildcardsPerViewer(s, on)),
+      setWildcardCount: (count) => update((s) => setWildcardCount(s, count)),
+      setWildcardWeight: (weight) => update((s) => setWildcardWeight(s, weight)),
+      setDefaultSlices: (count) => update((s) => setDefaultSlices(s, count)),
+      setDefaultWeight: (weight) => update((s) => setDefaultWeight(s, weight)),
     }
   })
 

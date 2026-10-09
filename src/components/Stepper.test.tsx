@@ -91,3 +91,14 @@ test('the ticks are not focusable and are hidden from the accessibility tree', (
   expect(ticks()[0].parentElement).toHaveAttribute('aria-hidden', 'true')
   expect(ticks()[0]).not.toHaveAttribute('tabindex')
 })
+
+test('a disabled stepper is dimmed and takes no input from buttons, keys or ticks', () => {
+  const { onChange, ticks, group } = setup({ disabled: true })
+  expect(group).toHaveAttribute('data-disabled')
+  expect(screen.getByRole('button', { name: 'Increase Slices for Ann' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Decrease Slices for Ann' })).toBeDisabled()
+  fireEvent.keyDown(group, { key: 'ArrowUp' })
+  fireEvent.keyDown(group, { key: 'End' })
+  fireEvent.click(ticks()[8])
+  expect(onChange).not.toHaveBeenCalled()
+})

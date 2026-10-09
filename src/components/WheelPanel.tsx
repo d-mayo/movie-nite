@@ -43,7 +43,7 @@ export default function WheelPanel({
   onBusyChange,
   reasonSlot,
 }: Props) {
-  const { night, roster, holdover, recordOutcome, startSpin } = useApp()
+  const { night, roster, settings, holdover, recordOutcome, startSpin } = useApp()
   const [rotation, setRotation] = useState(0)
   // Fixed when Spin is pressed and dropped on Close, so the wheel, the draw
   // and the reveal agree even if the store changes meanwhile.
@@ -57,7 +57,7 @@ export default function WheelPanel({
     [],
   )
 
-  const live = buildWedges(night, roster)
+  const live = buildWedges(night, roster, settings.wheel)
   const onWheel = viewersOnWheel(night)
   const missing = onWheel
     .filter((id) => !night.nominations[id])
@@ -74,7 +74,7 @@ export default function WheelPanel({
 
   function start() {
     startSpin()
-    const wedges = buildWedges(night, roster)
+    const wedges = buildWedges(night, roster, settings.wheel)
     const slices = wedges.map((w) => w.slice)
     const drawn = drawSlice(slices, random)
     const reduced = prefersReducedMotion()

@@ -5,9 +5,10 @@ import {
   drawSlice,
   restRotation,
 } from './draw.ts'
-import { defaultLayout, sliceArcs } from './layout.ts'
+import { sliceArcs } from './layout.ts'
+import { defaultWheelSettings, deriveSlices } from './edit.ts'
 
-const slices = defaultLayout(['A', 'B', 'C'], {})
+const slices = deriveSlices(['A', 'B', 'C'], defaultWheelSettings, {})
 const total = slices.reduce((sum, s) => sum + s.weight, 0)
 
 // Small seeded PRNG (mulberry32).

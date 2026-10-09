@@ -4,6 +4,7 @@ import App from '../App.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
+import { defaultWheelSettings } from '../wheel/edit.ts'
 
 const { confetti } = vi.hoisted(() => ({ confetti: vi.fn() }))
 vi.mock('canvas-confetti', () => ({ default: confetti }))
@@ -32,7 +33,7 @@ function setup(random: number, a: Nomination, b: Nomination) {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false },
+      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },

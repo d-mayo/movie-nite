@@ -4,6 +4,7 @@ import App from './App.tsx'
 import { defaultState, type AppState, type Nomination } from './state/model.ts'
 import { createMemoryPersistence } from './state/persistence.ts'
 import { createAppStore } from './state/store.ts'
+import { defaultWheelSettings } from './wheel/edit.ts'
 import { header, openCell } from './test/cells.ts'
 
 afterEach(() => vi.useRealTimers())
@@ -27,7 +28,7 @@ function setup(
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden },
+      settings: { tmdbToken: 'tok', viewersHidden, wheel: defaultWheelSettings },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },

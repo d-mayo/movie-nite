@@ -319,7 +319,6 @@ footer p {
 }
 
 .setup li,
-.wheel-editor strong,
 .reveal p {
   overflow-wrap: anywhere;
 }
@@ -343,14 +342,6 @@ footer p {
 .night-over ul {
   list-style: none;
   padding: 0;
-}
-
-.wheel-editor li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.5rem;
 }
 
 .token-prompt {
@@ -494,11 +485,6 @@ fieldset.setup {
   margin: var(--space-2) var(--space-2) 0 0;
 }
 
-.drag-handle {
-  cursor: grab;
-  touch-action: none;
-}
-
 /* The Wheel settings popover: a modal dialog with a transparent backdrop,
    hung under the banner button that opens it (placed by WheelEditor), so the
    wheel stays visible and redraws behind it. */
@@ -534,6 +520,12 @@ dialog.wheel-drawer::backdrop {
   min-height: 0;
   overflow-y: auto;
   padding: var(--space-4);
+}
+
+.wheel-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 .drawer-body > h2 {
@@ -695,8 +687,19 @@ dialog.wheel-drawer::backdrop {
   background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 
+.cell-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  min-width: 0;
+}
+
 .cell-name {
   overflow-wrap: anywhere;
+}
+
+.cell-adjusted {
+  cursor: help;
 }
 
 .cell-film {

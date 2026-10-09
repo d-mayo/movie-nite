@@ -5,8 +5,9 @@ import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import { angleUnderPointer } from '../wheel/draw.ts'
-import { defaultLayout, sliceArcs } from '../wheel/layout.ts'
+import { sliceArcs } from '../wheel/layout.ts'
 import { header, markAway, markHere } from '../test/cells.ts'
+import { defaultWheelSettings, deriveSlices } from '../wheel/edit.ts'
 
 function film(id: number, posterPath: string | null = null): Nomination {
   return {
@@ -31,7 +32,7 @@ function setup(
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false },
+      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
       roster,
       night: {
         ...defaultState.night,
@@ -54,7 +55,7 @@ test('there is no Spin button with no viewers, and the empty-wheel text shows', 
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false },
+      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
     }),
   )
   render(<App store={store} fetchFn={vi.fn()} />)
@@ -90,7 +91,7 @@ test('spinning locks setup, rests in the drawn slice and shows a snapshot', asyn
   expect(spinButton()).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Ann is here' })).toBeDisabled()
 
-  const slices = defaultLayout(['a', 'b'], {})
+  const slices = deriveSlices(['a', 'b'], defaultWheelSettings, {})
   const arcs = sliceArcs(slices)
   // random() = 0.5 draws the slice holding half the total weight and rests at its middle.
   const total = slices.reduce((s, x) => s + x.weight, 0)
@@ -136,7 +137,7 @@ test('a 401 from the wildcard search unlocks setup once a new token is saved', a
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false },
+      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
       roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
       night: {
         ...defaultState.night,
@@ -146,7 +147,7 @@ test('a 401 from the wildcard search unlocks setup once a new token is saved', a
     }),
   )
   // The first wildcard in the default layout, landed on by the draw.
-  const slices = defaultLayout(['a'], {})
+  const slices = deriveSlices(['a'], defaultWheelSettings, {})
   const total = slices.reduce((sum, s) => sum + s.weight, 0)
   const at = slices.findIndex((s) => s.kind === 'wildcard')
   const before = slices.slice(0, at).reduce((sum, s) => sum + s.weight, 0)
@@ -215,7 +216,7 @@ test('the waiting message lists names with and, and a final comma and and for th
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false },
+      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
