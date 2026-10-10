@@ -8,6 +8,7 @@ import NightControls from './components/NightControls.tsx'
 import NightSetup from './components/NightSetup.tsx'
 import WheelPanel from './components/WheelPanel.tsx'
 import TokenPrompt from './components/TokenPrompt.tsx'
+import type { SoundEngine } from './sound/engine.ts'
 import { AppStoreContext, useApp, type AppStore } from './state/store.ts'
 import { createTmdbClient } from './tmdb/client.ts'
 
@@ -16,6 +17,8 @@ interface Props {
   fetchFn?: typeof fetch
   random?: () => number
   spinMs?: number
+  // The sound engine; silent when left out.
+  sound?: SoundEngine
 }
 
 const rejectedMessage = 'TMDB rejected the saved token'
@@ -45,7 +48,7 @@ function Banner({ children }: { children?: ReactNode }) {
   )
 }
 
-function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
+function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
   const { settings, setToken, setViewersHidden } = useApp()
   const [message, setMessage] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
@@ -128,6 +131,7 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
           <WheelPanel
             random={random}
             spinMs={spinMs}
+            sound={sound}
             client={client}
             onAuthError={handleAuthError}
             onBusyChange={setLocked}
@@ -167,10 +171,10 @@ function Screen({ fetchFn, random, spinMs }: Omit<Props, 'store'>) {
   )
 }
 
-function App({ store, fetchFn, random, spinMs }: Props) {
+function App({ store, fetchFn, random, spinMs, sound }: Props) {
   return (
     <AppStoreContext.Provider value={store}>
-      <Screen fetchFn={fetchFn} random={random} spinMs={spinMs} />
+      <Screen fetchFn={fetchFn} random={random} spinMs={spinMs} sound={sound} />
     </AppStoreContext.Provider>
   )
 }

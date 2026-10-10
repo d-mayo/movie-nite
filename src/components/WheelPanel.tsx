@@ -9,6 +9,7 @@ import { buildWedges, type Wedge } from '../wheel/wedges.ts'
 import { spinPlan } from '../wheel/edit.ts'
 import { buildReducedSpinPath, buildSpinPath, spinPhases } from '../wheel/motion.ts'
 import { prefersReducedMotion } from '../wheel/reducedMotion.ts'
+import type { SoundEngine } from '../sound/engine.ts'
 import NightOver from './NightOver.tsx'
 import Reveal from './Reveal.tsx'
 import Wheel from './Wheel.tsx'
@@ -52,6 +53,7 @@ export const revealHoldMs = 650
 interface Props {
   random?: () => number
   spinMs?: number
+  sound?: SoundEngine
   client: TmdbClient
   onAuthError: () => void
   onBusyChange: (busy: boolean) => void
@@ -65,6 +67,7 @@ const nameList = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunctio
 export default function WheelPanel({
   random = cryptoRandom,
   spinMs,
+  sound,
   client,
   onAuthError,
   onBusyChange,
@@ -87,6 +90,12 @@ export default function WheelPanel({
   const motion = useWheelMotion(
     spin !== null || night.ended,
     pinAngles(wedges.map((w) => w.arc)),
+    sound,
+    {
+      music: settings.wheel.soundMusic,
+      effects: settings.wheel.soundEffects,
+      volume: settings.wheel.soundVolume,
+    },
   )
   const reason = night.ended
     ? 'The night is over.'

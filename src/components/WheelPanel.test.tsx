@@ -9,6 +9,7 @@ import { angleUnderPointer } from '../wheel/draw.ts'
 import { sliceArcs } from '../wheel/layout.ts'
 import { header, markAway, markHere } from '../test/cells.ts'
 import { defaultWheelSettings, deriveSlices } from '../wheel/edit.ts'
+import type { SoundEngine, SoundSettings } from '../sound/engine.ts'
 
 function film(id: number, posterPath: string | null = null): Nomination {
   return {
@@ -24,7 +25,7 @@ function film(id: number, posterPath: string | null = null): Nomination {
 
 function setup(
   nominated: string[],
-  extra: { random?: () => number; spinMs?: number } = { spinMs: 20 },
+  extra: { random?: () => number; spinMs?: number; sound?: SoundEngine } = { spinMs: 20 },
   wheel = defaultWheelSettings,
 ) {
   const roster = [
@@ -69,7 +70,10 @@ async function sampleFlapper(ms: number): Promise<number[]> {
 }
 
 // Three viewers at 12 slices each, no wildcards: 36 slices of 10°.
-function setupCrowd(extra: { random?: () => number; spinMs?: number }, spinSeconds = 2) {
+function setupCrowd(
+  extra: { random?: () => number; spinMs?: number; sound?: SoundEngine },
+  spinSeconds = 2,
+) {
   const roster = [
     { id: 'a', name: 'Ann', color: '#e6194b' },
     { id: 'b', name: 'Bo', color: '#f58231' },
@@ -551,3 +555,91 @@ test('reduced motion: the flapper still catches pins in the 1 s spin and settles
     vi.unstubAllGlobals()
   }
 }, 9000)
+
+// An engine that records what the wheel asks of it.
+function recordingSound() {
+  const log = {
+    starts: 0,
+    ends: 0,
+    attached: 0,
+    detached: 0,
+    shares: [] as number[],
+    ticks: [] as number[],
+    applied: [] as SoundSettings[],
+  }
+  const engine: SoundEngine = {
+    attach: () => {
+      log.attached++
+      return () => log.detached++
+    },
+    apply: (settings) => void log.applied.push(settings),
+    spinStart: () => void log.starts++,
+    spinSpeed: (share) => void log.shares.push(share),
+    pinTick: (share) => void log.ticks.push(share),
+    spinEnd: () => void log.ends++,
+  }
+  return { engine, log }
+}
+
+async function spinSounds() {
+  const { engine, log } = recordingSound()
+  setupCrowd({ random: () => 0.5, sound: engine })
+  await sleep(300)
+  // The idle drift makes no sound.
+  expect(log.ticks).toEqual([])
+  expect(log.shares).toEqual([])
+  expect(log.starts).toBe(0)
+  fireEvent.click(spinButton())
+  expect(log.starts).toBe(1)
+  expect(log.ends).toBe(0)
+  await screen.findByRole('dialog', undefined, { timeout: 5000 })
+  expect(log.starts).toBe(1)
+  expect(log.ends).toBe(1)
+  expect(log.ticks.length).toBeGreaterThan(0)
+  expect(log.shares.length).toBeGreaterThan(5)
+  expect(Math.max(...log.shares)).toBeLessThanOrEqual(1)
+  expect(Math.max(...log.shares)).toBeGreaterThan(0.9)
+  expect(log.shares[log.shares.length - 1]).toBeLessThan(0.15)
+  // After the spin it is quiet again.
+  const ticks = log.ticks.length
+  const shares = log.shares.length
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+  await sleep(300)
+  expect(log.ticks.length).toBe(ticks)
+  expect(log.shares.length).toBe(shares)
+  expect(log.starts).toBe(1)
+}
+
+test('a spin plays the projector, speed shares falling to the stop and pin ticks, and nothing else does', async () => {
+  await spinSounds()
+}, 9000)
+
+test('reduced motion: the 1 s spin makes the same sounds', async () => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('prefers-reduced-motion'),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+  try {
+    await spinSounds()
+  } finally {
+    vi.unstubAllGlobals()
+  }
+}, 9000)
+
+test('the sound settings reach the engine without a spin, and the engine is attached once', async () => {
+  const { engine, log } = recordingSound()
+  const store = setup(['a', 'b'], { spinMs: 20, sound: engine })
+  expect(log.attached).toBe(1)
+  expect(log.applied.at(-1)).toEqual({ music: true, effects: true, volume: 70 })
+  act(() => store.getState().setSoundVolume(35))
+  expect(log.applied.at(-1)).toEqual({ music: true, effects: true, volume: 35 })
+  act(() => store.getState().setSoundEffects(false))
+  expect(log.applied.at(-1)).toEqual({ music: true, effects: false, volume: 35 })
+  act(() => store.getState().setSoundMusic(false))
+  expect(log.applied.at(-1)).toEqual({ music: false, effects: false, volume: 35 })
+  expect(log.starts).toBe(0)
+  cleanup()
+  expect(log.detached).toBe(log.attached)
+})
