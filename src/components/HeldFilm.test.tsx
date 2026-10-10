@@ -89,8 +89,8 @@ test('Dismiss shows the chip before End night and focuses it; the chip brings th
   expect(card()).toBeNull()
   const c = chip()!
   expect(c).toHaveFocus()
-  const wheel = screen.getByRole('button', { name: 'End night' })
-  expect(c.compareDocumentPosition(wheel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  const endNight = screen.getByRole('button', { name: 'End night' })
+  expect(c.compareDocumentPosition(endNight) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   fireEvent.click(c)
   expect(chip()).toBeNull()
   expect(card()).toBeInTheDocument()

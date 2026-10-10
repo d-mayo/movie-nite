@@ -135,19 +135,28 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
         clearTimer()
       } else {
         outside.current = true
-        if (wasInside.current && !outsidePress.current) scheduleClose()
+        // A held button is a drag, such as a slider's: it ends with pointerup.
+        if (wasInside.current && !outsidePress.current && e.buttons === 0) scheduleClose()
       }
     }
-    function onLeaveDocument() {
-      if (confirmingRef.current || !canHover()) return
+    function onLeaveDocument(e: PointerEvent) {
+      if (confirmingRef.current || e.pointerType === 'touch' || !canHover()) return
       outside.current = true
       if (wasInside.current && !outsidePress.current) scheduleClose()
     }
+    // A drag that ends outside the popover leaves it open for the usual delay.
+    function onUp() {
+      if (outside.current && wasInside.current && !outsidePress.current && !confirmingRef.current && canHover()) {
+        scheduleClose()
+      }
+    }
     document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup', onUp)
     document.documentElement.addEventListener('pointerleave', onLeaveDocument)
     return () => {
       window.removeEventListener('resize', place)
       document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup', onUp)
       document.documentElement.removeEventListener('pointerleave', onLeaveDocument)
       el.removeEventListener('close', onClosed)
       clearTimer()
@@ -196,6 +205,7 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
         }}
         onPointerCancel={pressEnded}
         onContextMenu={pressEnded}
+        onAuxClick={pressEnded}
       >
         <div className="drawer-body">
           <fieldset disabled={locked} className="setup wheel-editor">

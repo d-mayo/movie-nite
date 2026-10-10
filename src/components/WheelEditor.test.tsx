@@ -194,6 +194,17 @@ describe('closing when the pointer leaves', () => {
     expect(isOpen()).toBe(false)
   })
 
+  test('a drag that leaves the popover waits for its release, then closes it after the delay', () => {
+    open()
+    move(200, 200)
+    fireEvent.pointerMove(document, { ...at(10, 10), buttons: 1 })
+    act(() => vi.advanceTimersByTime(1000))
+    expect(isOpen()).toBe(true)
+    fireEvent.pointerUp(document, at(10, 10))
+    act(() => vi.advanceTimersByTime(300))
+    expect(isOpen()).toBe(false)
+  })
+
   test('the pointer leaving the document counts as leaving', () => {
     open()
     move(200, 200)
