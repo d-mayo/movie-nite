@@ -125,8 +125,8 @@ describe('the spin', () => {
   })
 
   test('the validity checks are exact', () => {
-    for (const s of [2, 6.5, 15]) expect(isValidSpinSeconds(s)).toBe(true)
-    for (const s of [1.5, 15.5, 6.25, NaN]) expect(isValidSpinSeconds(s)).toBe(false)
+    for (const s of [2, 6.5, 20]) expect(isValidSpinSeconds(s)).toBe(true)
+    for (const s of [1.5, 20.5, 6.25, NaN]) expect(isValidSpinSeconds(s)).toBe(false)
     for (let i = 3; i <= 30; i++) expect(isValidSpinTurnsPerSecond(i / 10)).toBe(true)
     for (const t of [0.2, 3.1, 0.85, NaN]) expect(isValidSpinTurnsPerSecond(t)).toBe(false)
   })

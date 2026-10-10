@@ -40,7 +40,7 @@ export const maxSlices = 12
 export const minWildcards = 0
 export const maxWildcards = 12
 export const minSpinSeconds = 2
-export const maxSpinSeconds = 15
+export const maxSpinSeconds = 20
 export const minSpinTurnsPerSecond = 0.3
 export const maxSpinTurnsPerSecond = 3
 

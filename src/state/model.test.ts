@@ -246,7 +246,7 @@ describe('global wheel settings', () => {
     expect(setDefaultSlices(defaultState, 0)).toBe(defaultState)
     expect(setDefaultWeight(defaultState, 0.5).settings.wheel.defaultWeight).toBe(0.5)
     expect(setDefaultWeight(defaultState, 21)).toBe(defaultState)
-    expect(setSpinSeconds(defaultState, 15).settings.wheel.spinSeconds).toBe(15)
+    expect(setSpinSeconds(defaultState, 20).settings.wheel.spinSeconds).toBe(20)
     expect(setSpinSeconds(defaultState, 2).settings.wheel.spinSeconds).toBe(2)
     expect(setSpinSeconds(defaultState, 1.5)).toBe(defaultState)
     expect(setSpinSeconds(defaultState, 6.25)).toBe(defaultState)
