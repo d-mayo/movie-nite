@@ -303,11 +303,11 @@ test('the viewer list is a card with Add primary and Remove danger', () => {
   expect(screen.getByRole('button', { name: 'Remove' })).toHaveClass('danger')
 })
 
-test('the Wheel settings drawer is a card with Done primary', () => {
+test('the Wheel settings popover is a card', () => {
   nightWithViewer()
+  fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
   fireEvent.click(screen.getByRole('button', { name: 'Wheel settings' }))
   expect(screen.getByRole('dialog', { name: 'Wheel settings' })).toHaveClass('card')
-  expect(screen.getByRole('button', { name: 'Done' })).toHaveClass('primary')
 })
 
 // The banner toolbar.
@@ -339,16 +339,18 @@ function bannerNight(
   return store
 }
 
-test('the banner shows Wheel settings before End night, disabled once the night has ended', () => {
+test('the banner has no Wheel settings button; the gear menu lists it first, disabled once the night has ended', () => {
   const store = bannerNight()
-  const names = banner()
-    .getAllByRole('button')
-    .map((b) => b.textContent)
-  expect(names.indexOf('◐Wheel settings')).toBeGreaterThanOrEqual(0)
-  expect(names.indexOf('◐Wheel settings')).toBeLessThan(names.indexOf('☾End night'))
-  expect(banner().getByRole('button', { name: 'Wheel settings' })).toBeEnabled()
+  expect(banner().queryByRole('button', { name: 'Wheel settings' })).toBeNull()
+  fireEvent.click(banner().getByRole('button', { name: 'Settings' }))
+  const items = () =>
+    within(document.getElementById('settings-menu')!)
+      .getAllByRole('button')
+      .map((b) => b.textContent)
+  expect(items()).toEqual(['Wheel settings', 'Change TMDB token'])
+  expect(screen.getByRole('button', { name: 'Wheel settings' })).toBeEnabled()
   act(() => store.getState().endNight())
-  expect(banner().getByRole('button', { name: 'Wheel settings' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Wheel settings' })).toBeDisabled()
 })
 
 test('the banner shows End night and Settings, then New night once the night has ended', () => {
@@ -439,22 +441,19 @@ test('the banner controls are disabled during a spin and its reveal, even if the
   fireEvent.click(screen.getByRole('button', { name: 'Spin' }))
   expect(banner().getByRole('button', { name: 'End night' })).toBeDisabled()
   expect(banner().getByRole('button', { name: 'Settings' })).toBeDisabled()
-  expect(banner().getByRole('button', { name: 'Wheel settings' })).toBeDisabled()
   act(() => store.getState().endNight())
   expect(banner().getByRole('button', { name: 'New night' })).toBeDisabled()
   const dialog = await screen.findByRole('dialog')
   expect(banner().getByRole('button', { name: 'New night' })).toBeDisabled()
   expect(banner().getByRole('button', { name: 'Settings' })).toBeDisabled()
-  expect(banner().getByRole('button', { name: 'Wheel settings' })).toBeDisabled()
   fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
   expect(banner().getByRole('button', { name: 'New night' })).toBeEnabled()
   expect(banner().getByRole('button', { name: 'Settings' })).toBeEnabled()
-  expect(banner().getByRole('button', { name: 'Wheel settings' })).toBeDisabled() // the night has ended
 })
 
 test('each banner control has its name and an aria-hidden icon', () => {
   const store = bannerNight()
-  for (const name of ['Wheel settings', 'End night', 'Settings']) {
+  for (const name of ['End night', 'Settings']) {
     const button = banner().getByRole('button', { name })
     expect(button.querySelector('[aria-hidden="true"]')).not.toBeNull()
   }
@@ -466,7 +465,7 @@ test('each banner control has its name and an aria-hidden icon', () => {
 test('the token prompt banner has the logo only', () => {
   const noControls = () => {
     expect(banner().getByRole('img', { name: 'Movie Nite' })).toBeInTheDocument()
-    for (const name of ['Wheel settings', 'End night', 'New night', 'Settings'])
+    for (const name of ['End night', 'New night', 'Settings'])
       expect(banner().queryByRole('button', { name })).toBeNull()
   }
   setup(ok())

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useApp } from '../state/store.ts'
+import { canHover, closeDelayMs } from './canHover.ts'
 import WheelEditor from './WheelEditor.tsx'
 
 interface Props {
@@ -54,22 +55,23 @@ export default function NightControls({ locked, heldFilmChip, onChangeToken }: P
   const [confirming, setConfirming] = useState(false)
   const [editing, setEditing] = useState(false)
   const menu = useRef<HTMLDivElement>(null)
-  const wheelButton = useRef<HTMLButtonElement>(null)
+  const gear = useRef<HTMLButtonElement>(null)
+  // The gear menu closes shortly after the pointer leaves it, once it has been inside.
+  const menuInside = useRef(false)
+  const menuTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clearMenuTimer = () => {
+    if (menuTimer.current) clearTimeout(menuTimer.current)
+    menuTimer.current = null
+  }
+  useEffect(() => clearMenuTimer, [])
   const closeDialog = useCallback(() => setConfirming(false), [])
-  const closeDrawer = useCallback(() => setEditing(false), [])
+  const closeDrawer = useCallback(() => {
+    setEditing(false)
+    gear.current?.focus()
+  }, [])
   return (
     <div className="night-controls">
       {heldFilmChip}
-      <button
-        type="button"
-        ref={wheelButton}
-        className="quiet night-control"
-        disabled={locked || night.ended}
-        onClick={() => setEditing(true)}
-      >
-        <span className="icon" aria-hidden="true">◐</span>
-        <span className="label">Wheel settings</span>
-      </button>
       {night.ended ? (
         <button type="button" className="quiet night-control" disabled={locked} onClick={newNight}>
           <span className="icon" aria-hidden="true">↻</span>
@@ -88,14 +90,41 @@ export default function NightControls({ locked, heldFilmChip, onChangeToken }: P
       )}
       <button
         type="button"
-        className="quiet"
+        ref={gear}
+        className={editing ? 'quiet active' : 'quiet'}
         aria-label="Settings"
         popoverTarget="settings-menu"
         disabled={locked}
       >
         <span aria-hidden="true">⚙</span>
       </button>
-      <div id="settings-menu" popover="auto" ref={menu} className="card settings-menu">
+      <div id="settings-menu" popover="auto" ref={menu} className="card settings-menu"
+        onToggle={(e) => {
+          if ((e as unknown as { newState: string }).newState === 'closed') {
+            menuInside.current = false
+            clearMenuTimer()
+          }
+        }}
+        onPointerEnter={() => {
+          menuInside.current = true
+          clearMenuTimer()
+        }}
+        onPointerLeave={() => {
+          if (!menuInside.current || !canHover()) return
+          clearMenuTimer()
+          menuTimer.current = setTimeout(() => menu.current?.hidePopover(), closeDelayMs)
+        }}
+      >
+        <button
+          type="button"
+          disabled={night.ended}
+          onClick={() => {
+            menu.current?.hidePopover()
+            setEditing(true)
+          }}
+        >
+          Wheel settings
+        </button>
         <button
           type="button"
           onClick={() => {
@@ -106,7 +135,7 @@ export default function NightControls({ locked, heldFilmChip, onChangeToken }: P
           Change TMDB token
         </button>
       </div>
-      {editing && <WheelEditor locked={locked} onClosed={closeDrawer} anchor={wheelButton} />}
+      {editing && <WheelEditor locked={locked} onClosed={closeDrawer} anchor={gear} />}
       {confirming && (
         <EndNightDialog onConfirm={endNight} onClosed={closeDialog} />
       )}

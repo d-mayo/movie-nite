@@ -22,6 +22,7 @@ import {
   setPresent,
   setSpinSeconds,
   setSpinTurnsPerSecond,
+  restoreWheelSettings,
   setToken,
   setViewersHidden,
   setViewerColor,
@@ -73,6 +74,7 @@ export interface AppActions {
   setDefaultWeight(weight: number): void
   setSpinSeconds(seconds: number): void
   setSpinTurnsPerSecond(turns: number): void
+  restoreWheelSettings(): void
 }
 
 export type AppStore = StoreApi<AppState & AppActions>
@@ -199,6 +201,7 @@ export function createAppStore(persistence: Persistence): AppStore {
       setDefaultWeight: (weight) => update((s) => setDefaultWeight(s, weight)),
       setSpinSeconds: (seconds) => update((s) => setSpinSeconds(s, seconds)),
       setSpinTurnsPerSecond: (turns) => update((s) => setSpinTurnsPerSecond(s, turns)),
+      restoreWheelSettings: () => update(restoreWheelSettings),
     }
   })
 

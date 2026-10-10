@@ -83,14 +83,14 @@ test('the token prompt has no card', () => {
   expect(card('From last session:')).toBeNull()
 })
 
-test('Dismiss shows the chip before Wheel settings and focuses it; the chip brings the card back and focuses Dismiss', () => {
+test('Dismiss shows the chip before End night and focuses it; the chip brings the card back and focuses Dismiss', () => {
   setup({ spun: true })
   fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
   expect(card()).toBeNull()
   const c = chip()!
   expect(c).toHaveFocus()
-  const wheel = screen.getByRole('button', { name: 'Wheel settings' })
-  expect(c.compareDocumentPosition(wheel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  const endNight = screen.getByRole('button', { name: 'End night' })
+  expect(c.compareDocumentPosition(endNight) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   fireEvent.click(c)
   expect(chip()).toBeNull()
   expect(card()).toBeInTheDocument()

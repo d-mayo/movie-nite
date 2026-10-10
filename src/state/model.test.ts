@@ -14,6 +14,7 @@ import {
   setDefaultWeight,
   setSpinSeconds,
   setSpinTurnsPerSecond,
+  restoreWheelSettings,
   setWildcardCount,
   setWildcardsPerViewer,
   setWildcardWeight,
@@ -245,7 +246,7 @@ describe('global wheel settings', () => {
     expect(setDefaultSlices(defaultState, 0)).toBe(defaultState)
     expect(setDefaultWeight(defaultState, 0.5).settings.wheel.defaultWeight).toBe(0.5)
     expect(setDefaultWeight(defaultState, 21)).toBe(defaultState)
-    expect(setSpinSeconds(defaultState, 15).settings.wheel.spinSeconds).toBe(15)
+    expect(setSpinSeconds(defaultState, 20).settings.wheel.spinSeconds).toBe(20)
     expect(setSpinSeconds(defaultState, 2).settings.wheel.spinSeconds).toBe(2)
     expect(setSpinSeconds(defaultState, 1.5)).toBe(defaultState)
     expect(setSpinSeconds(defaultState, 6.25)).toBe(defaultState)
@@ -272,6 +273,20 @@ describe('global wheel settings', () => {
     s = setDefaultWeight(s, 6)
     expect(effectiveSetting(s.settings.wheel, s.night.adjustments, 'a').weight).toBe(8)
     expect(effectiveSetting(s.settings.wheel, s.night.adjustments, 'b').weight).toBe(6)
+  })
+
+  test('restoring gives the factory wheel settings and keeps adjustments', () => {
+    let s = setViewerWeightOnWheel(three(), 'a', 8)
+    s = setWildcardsPerViewer(s, false)
+    s = setWildcardCount(s, 5)
+    s = setWildcardWeight(s, 4)
+    s = setDefaultSlices(s, 2)
+    s = setDefaultWeight(s, 7)
+    s = setSpinSeconds(s, 10)
+    s = setSpinTurnsPerSecond(s, 1.5)
+    const restored = restoreWheelSettings(s)
+    expect(restored.settings.wheel).toEqual(defaultWheelSettings)
+    expect(restored.night.adjustments).toEqual({ a: { weight: 8 } })
   })
 
   test('New night keeps the settings', () => {
