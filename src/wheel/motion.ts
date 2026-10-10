@@ -19,7 +19,9 @@ const driftEaseSeconds = 1 / 3
 // this, so the wheel never jumps on return.
 export const maxFrameSeconds = 0.1
 
-const decay = 4.2
+// Lower than the first design's 4.2: the speed falls less steeply, so the last
+// seconds crawl through several slices instead of looking parked.
+const decay = 2
 const rampShare = 0.06
 const tableSize = 512
 
