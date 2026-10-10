@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState, type Ref } from 'react'
 import { createPortal } from 'react-dom'
 import { viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
@@ -13,11 +13,40 @@ import Reveal from './Reveal.tsx'
 import Wheel from './Wheel.tsx'
 import { useWheelMotion } from './useWheelMotion.ts'
 
+// The reel's hub: a steel disc with three rounded windows and rivets that turns with the
+// wheel, drawn behind the upright SPIN label.
+function Hub({ hubRef }: { hubRef: Ref<SVGGElement> }) {
+  return (
+    <svg viewBox="-25 -25 50 50" className="hub" aria-hidden="true" focusable="false">
+      <g ref={hubRef} data-testid="hub-disc">
+        <circle r="24.2" className="hub-disc" />
+        {[0, 120, 240].map((angle) => (
+          <rect key={angle} x="-3.6" y="-22.2" width="7.2" height="7.2" rx="1.8" className="hub-window" transform={`rotate(${angle})`} />
+        ))}
+        {[60, 120, 180, 240, 300, 360].map((angle) => (
+          <circle
+            key={angle}
+            cx={(21 * Math.sin((angle * Math.PI) / 180)).toFixed(2)}
+            cy={(-21 * Math.cos((angle * Math.PI) / 180)).toFixed(2)}
+            r="0.9"
+            className="hub-rivet"
+          />
+        ))}
+      </g>
+    </svg>
+  )
+}
+
 interface Spin {
   wedges: Wedge[]
   drawn: number
+  // The wheel has landed: the flicker plays, and the reveal opens `revealHoldMs` later.
+  landed: boolean
   revealedAt: Date | null
 }
+
+// How long the projector flicker plays on the open wheel before the reveal opens.
+export const revealHoldMs = 650
 
 interface Props {
   random?: () => number
@@ -45,6 +74,8 @@ export default function WheelPanel({
   // and the reveal agree even if the store changes meanwhile.
   const [spin, setSpin] = useState<Spin | null>(null)
   const motion = useWheelMotion(spin !== null || night.ended)
+  const holdTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(holdTimer.current), [])
 
   const live = buildWedges(night, roster, settings.wheel)
   const onWheel = viewersOnWheel(night)
@@ -79,12 +110,24 @@ export default function WheelPanel({
           to,
           phases: spinPhases(plan.durationMs, spinMs),
         })
-    setSpin({ wedges, drawn, revealedAt: null })
+    setSpin({ wedges, drawn, landed: false, revealedAt: null })
     onBusyChange(true)
-    motion.play(path, () => setSpin((s) => s && { ...s, revealedAt: new Date() }))
+    motion.play(path, () => {
+      // With reduced motion there is no flicker, and a test-length spin opens at once.
+      if (reduced || spinMs !== undefined) {
+        setSpin((s) => s && { ...s, landed: !reduced, revealedAt: new Date() })
+        return
+      }
+      setSpin((s) => s && { ...s, landed: true })
+      holdTimer.current = setTimeout(
+        () => setSpin((s) => s && { ...s, revealedAt: new Date() }),
+        revealHoldMs,
+      )
+    })
   }
 
   function close() {
+    clearTimeout(holdTimer.current)
     setSpin(null)
     onBusyChange(false)
   }
@@ -105,9 +148,11 @@ export default function WheelPanel({
             onClick={start}
             disabled={!canSpin || spin !== null}
           >
-            Spin
+            <Hub hubRef={motion.hubRef} />
+            <span className="hub-label">Spin</span>
           </button>
         )}
+        {spin?.landed && <div className="flicker" data-testid="flicker" aria-hidden="true" />}
       </div>
       {reason && !reasonSlot && <p>{reason}</p>}
       {reason && reasonSlot && createPortal(<p>{reason}</p>, reasonSlot)}

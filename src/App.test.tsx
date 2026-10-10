@@ -479,8 +479,7 @@ test('the token prompt banner has the logo only', () => {
 test('choosing a color in the picker repaints the wheel at once', () => {
   nightWithViewer()
   const fills = () =>
-    Array.from(document.querySelectorAll('[data-kind="nomination"] > path:not([clip-path])'))
-      .map((p) => p.getAttribute('fill'))
+    Array.from(document.querySelectorAll('[data-testid="frame"]')).map((p) => p.getAttribute('fill'))
   expect(fills()).toContain('#e6194b')
   openCell('Ann')
   fireEvent.click(screen.getByRole('button', { name: "Ann's color" }))

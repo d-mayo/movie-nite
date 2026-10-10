@@ -9,10 +9,12 @@ import { prefersReducedMotion, watchReducedMotion } from '../wheel/reducedMotion
 
 // One requestAnimationFrame loop for the wheel's whole life: it drifts the
 // wheel while idle and plays a spin path, and writes the angle straight to the
-// rotating group's `transform`, so React never re-renders per frame. `stopped`
+// rotating group's and the hub's `transform`, so React never re-renders per frame. `stopped`
 // (a spin, the reveal or Night over is up) eases the drift to a halt.
 export function useWheelMotion(stopped: boolean) {
   const groupRef = useRef<SVGGElement>(null)
+  // The Spin button's reel hub turns with the wheel, from this same loop.
+  const hubRef = useRef<SVGGElement>(null)
   const angle = useRef(0)
   const speed = useRef(0)
   const reduced = useRef(false)
@@ -24,7 +26,9 @@ export function useWheelMotion(stopped: boolean) {
   } | null>(null)
 
   function write() {
-    groupRef.current?.setAttribute('transform', `rotate(${angle.current})`)
+    const transform = `rotate(${angle.current})`
+    groupRef.current?.setAttribute('transform', transform)
+    hubRef.current?.setAttribute('transform', transform)
   }
 
   // A wheel that mounts again (empty, then with viewers) shows the angle at once.
@@ -74,6 +78,7 @@ export function useWheelMotion(stopped: boolean) {
 
   return {
     groupRef,
+    hubRef,
     // The angle and drift speed (degrees a second) right now.
     current: () => ({ angle: angle.current, speed: speed.current }),
     // Plays `path`, holding the drift at zero until the next idle frame after

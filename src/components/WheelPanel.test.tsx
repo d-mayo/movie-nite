@@ -277,8 +277,8 @@ test('the spin lasts the length set plus the wind-up', async () => {
   fireEvent.click(spinButton())
   await new Promise((r) => setTimeout(r, 2000))
   expect(screen.queryByRole('dialog')).toBeNull()
-  await screen.findByRole('dialog', undefined, { timeout: 3500 })
-}, 8000)
+  await screen.findByRole('dialog', undefined, { timeout: 4500 })
+}, 9000)
 
 const sleep = (ms: number) => act(() => new Promise<void>((r) => setTimeout(r, ms)))
 
@@ -312,7 +312,7 @@ test('the wheel holds the rest point under the reveal, drifts after Close, and s
   const ended = wheelRotation()
   await sleep(300)
   expect(wheelRotation()).toBe(ended)
-}, 8000)
+}, 9000)
 
 test('React commits nothing while the wheel drifts, and a spin costs a fixed few', async () => {
   let commits = 0
@@ -397,4 +397,63 @@ test('reduced motion: no drift, before or after a spin', async () => {
   } finally {
     vi.unstubAllGlobals()
   }
+})
+
+const hubRotation = () => {
+  const transform = screen.getByTestId('hub-disc').getAttribute('transform')!
+  return Number(/rotate\(([^)]+)\)/.exec(transform)![1])
+}
+
+test('the Spin button is a hub: its disc turns with the wheel and the label stays upright', async () => {
+  setup(['a', 'b'], { random: () => 0.5, spinMs: 20 })
+  const hubSvg = spinButton().querySelector('svg')!
+  expect(hubSvg).toHaveAttribute('aria-hidden', 'true')
+  const label = within(spinButton()).getByText('Spin')
+  expect(hubSvg.contains(label)).toBe(false)
+  expect(screen.getByTestId('hub-disc').closest('[data-testid="hub-disc"]')!.contains(label)).toBe(false)
+
+  const first = hubRotation()
+  await sleep(300)
+  expect(hubRotation()).toBeGreaterThan(first)
+  expect(hubRotation()).toBeCloseTo(wheelRotation(), 0)
+
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(hubRotation()).toBe(wheelRotation())
+})
+
+test('on landing the flicker plays and the reveal opens 0.65 s later, Spin staying disabled', async () => {
+  setup(['a', 'b'], { random: () => 0.5 }, { ...defaultWheelSettings, spinSeconds: 2 })
+  fireEvent.click(spinButton())
+  await screen.findByTestId('flicker', undefined, { timeout: 4500 })
+  const landedAt = Date.now()
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(spinButton()).toBeDisabled()
+  await screen.findByRole('dialog', undefined, { timeout: 2000 })
+  expect(Date.now() - landedAt).toBeGreaterThanOrEqual(550)
+  expect(spinButton()).toBeDisabled()
+}, 9000)
+
+test('with reduced motion there is no flicker and the reveal opens on landing', async () => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('prefers-reduced-motion'),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+  try {
+    setup(['a', 'b'], { random: () => 0.5 })
+    fireEvent.click(spinButton())
+    await screen.findByRole('dialog', undefined, { timeout: 2500 })
+    expect(screen.queryByTestId('flicker')).toBeNull()
+  } finally {
+    vi.unstubAllGlobals()
+  }
+}, 6000)
+
+test('a test-length spin still shows the flicker while the reveal opens at once', async () => {
+  setup(['a', 'b'], { random: () => 0.5, spinMs: 20 })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(screen.getByTestId('flicker')).toBeInTheDocument()
 })

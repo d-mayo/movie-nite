@@ -21,7 +21,8 @@ const light = tokens(block(css.slice(0, darkStart), ':root'))
 const dark = tokens(block(css.slice(darkStart), ':root'))
 
 const isColor = (value: string) => /^#[0-9a-f]{6}$/i.test(value)
-const colorNames = Object.keys(light).filter((name) => isColor(light[name]))
+const isFilm = (name: string) => name.startsWith('--film-')
+const colorNames = Object.keys(light).filter((name) => isColor(light[name]) && !isFilm(name))
 const isShadow = (name: string) => name.startsWith('--shadow')
 
 const channel = (v: number) => {
@@ -51,7 +52,7 @@ describe('color tokens', () => {
 
   test('every color and shadow token in light is also in dark, and body uses tokens', () => {
     for (const name of Object.keys(light)) {
-      if (isColor(light[name]) || isShadow(name)) {
+      if ((isColor(light[name]) && !isFilm(name)) || isShadow(name)) {
         expect(dark, name).toHaveProperty(name)
       }
     }
@@ -84,6 +85,17 @@ describe('color tokens', () => {
       }
       expect(contrast(set['--accent-text'], set['--accent']), `${scheme} accent-text`).toBeGreaterThanOrEqual(4.5)
     }
+  })
+})
+
+describe('film tokens', () => {
+  test('stock and cream are the design colors, with steel greys, on :root only', () => {
+    expect(light['--film-stock']).toBe('#121211')
+    expect(light['--film-cream']).toBe('#f5f1dc')
+    for (const name of ['--film-steel-light', '--film-steel', '--film-steel-dark']) {
+      expect(light[name], name).toMatch(/^#[0-9a-f]{6}$/i)
+    }
+    expect(Object.keys(dark).filter(isFilm)).toEqual([])
   })
 })
 

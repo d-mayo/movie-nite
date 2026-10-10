@@ -35,21 +35,16 @@ export function isPreset(color: unknown): color is string {
   return typeof color === 'string' && (presetColors as readonly string[]).includes(color)
 }
 
-export function luminance(hex: string): number {
-  const channel = (i: number) => {
-    const c = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-  }
-  return 0.2126 * channel(0) + 0.7152 * channel(1) + 0.0722 * channel(2)
-}
-
-export function contrast(a: string, b: string): number {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
-  return (hi + 0.05) / (lo + 0.05)
-}
-
-export function labelTextColor(hex: string): '#000000' | '#ffffff' {
-  return contrast(hex, '#000000') >= contrast(hex, '#ffffff') ? '#000000' : '#ffffff'
+// Mixes `hex` toward `target` by `amount` (0 keeps hex, 1 gives target), as #rrggbb.
+export function mixColor(hex: string, target: string, amount: number): string {
+  const out = [1, 3, 5].map((i) => {
+    const from = parseInt(hex.slice(i, i + 2), 16)
+    const to = parseInt(target.slice(i, i + 2), 16)
+    return Math.round(from + (to - from) * amount)
+      .toString(16)
+      .padStart(2, '0')
+  })
+  return `#${out.join('')}`
 }
 
 export function firstFreePreset(taken: Iterable<string>): string | null {
