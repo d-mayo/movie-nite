@@ -147,37 +147,7 @@ footer p {
 
   /* The wheel spans both rows of the pane's column; the "waiting for" message
      sits under the pane, or at the bottom of the screen with the pane hidden. */
-  .night > /* The projector's light flickering out over the wheel when it lands. */
-.flicker {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  pointer-events: none;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--film-cream) 90%, transparent) 0%,
-    color-mix(in srgb, var(--film-cream) 35%, transparent) 55%,
-    transparent 78%
-  );
-  mix-blend-mode: screen;
-  opacity: 0;
-  animation: projector 1.4s linear;
-}
-
-@keyframes projector {
-  0% { opacity: 0.9; }
-  8% { opacity: 0.35; }
-  16% { opacity: 0.8; }
-  26% { opacity: 0.25; }
-  38% { opacity: 0.6; }
-  50% { opacity: 0.18; }
-  62% { opacity: 0.38; }
-  78% { opacity: 0.1; }
-  90% { opacity: 0.16; }
-  100% { opacity: 0; }
-}
-
-.wheel-panel {
+  .night > .wheel-panel {
     grid-column: 1;
     grid-row: 1 / span 2;
   }
@@ -409,174 +379,34 @@ footer p {
   opacity: 0.45;
 }
 
-.wheel-panel {
-    grid-column: 1;
-    grid-row: 1 / span 2;
-  }
-
-  .night > .setup-column {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .wheel-reason-slot {
-    grid-column: 2;
-    grid-row: 2;
-    margin-top: var(--space-3);
-  }
-
-  .night.viewers-hidden .wheel-reason-slot {
-    position: fixed;
-    bottom: var(--space-4);
-    left: 50%;
-    translate: -50% 0;
-    margin: 0;
-    padding: var(--space-2) var(--space-4);
-    z-index: 2;
-    background: var(--card);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-card);
-  }
-
-  .wheel-reason-slot p {
-    margin: 0;
-  }
-
-  .night.viewers-hidden .wheel-stage {
-    margin-inline: auto;
-  }
-
-  .night.viewers-hidden .setup-column {
-    translate: 100vw 0;
-    visibility: hidden;
-    transition:
-      translate 0.3s ease,
-      visibility 0s linear 0.3s;
-  }
-
-  .night:not(.viewers-hidden) .setup-column {
-    transition: translate 0.3s ease;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .night,
-  .night.viewers-hidden .setup-column,
-  .night:not(.viewers-hidden) .setup-column {
-    transition: none;
-  }
-}
-
-/* An empty message slot takes no room. */
-.wheel-reason-slot:empty {
-  display: none;
-}
-
-/* Hide and Show viewers exist only where the pane can slide away. */
-.hide-viewers,
-.show-viewers {
-  display: none;
-}
-
-@media (min-width: 900px) {
-  .hide-viewers {
-    display: inline-block;
-  }
-
-  .show-viewers {
-    display: block;
-    position: fixed;
-    top: 50%;
-    right: 0;
-    z-index: 2;
-    translate: 0 -50%;
-    padding: var(--space-4) var(--space-3) var(--space-4) var(--space-2);
-    min-width: 3rem;
-    font-size: 1.25rem;
-    background: var(--card);
-    border: 1px solid var(--card-border);
-    border-right: 0;
-    border-radius: var(--radius-md) 0 0 var(--radius-md);
-    box-shadow: var(--shadow-card);
-  }
-
-  /* The base class sets the background, which would beat the zero-specificity hover rule. */
-  .show-viewers:hover {
-    background: color-mix(in srgb, var(--text) 8%, var(--card));
-  }
-}
-
-.wheel-stage {
-  position: relative;
-  width: 100%;
-  max-width: min(1600px, 88vh);
-}
-
-.wheel {
-  display: block;
-  width: 100%;
-  filter: drop-shadow(0 6px 18px rgb(0 0 0 / 0.45));
-}
-
-/* The reel's fixed film colors (see the film tokens in index.css). */
-.wheel .film-stock {
-  stroke: var(--film-stock);
-}
-
-.wheel .film-edge {
-  stroke: color-mix(in srgb, var(--film-stock) 40%, #000);
-}
-
-.wheel .film-hole {
-  fill: var(--film-cream);
-}
-
-.wheel .film-pointer {
-  fill: var(--film-cream);
-  stroke: var(--film-stock);
-  stroke-width: 1.2;
-  stroke-linejoin: round;
-}
-
-.wheel-empty {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  aspect-ratio: 1;
-  border: 2px dashed currentColor;
-  border-radius: 50%;
-  opacity: 0.6;
-}
-
-.spin-button {
+/* The projector's light flickering out over the wheel when it lands. */
+.flicker {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  translate: -50% -50%;
-  width: 17%;
-  aspect-ratio: 1;
-  border: 4px solid #fff;
+  inset: 0;
   border-radius: 50%;
-  background: #e5484d;
-  color: #fff;
-  font-size: clamp(0.9rem, 2.6vw, 1.6rem);
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgb(0 0 0 / 0.5);
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--film-cream) 90%, transparent) 0%,
+    color-mix(in srgb, var(--film-cream) 35%, transparent) 55%,
+    transparent 78%
+  );
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: projector 1.4s linear;
 }
 
-.spin-button:hover:not(:disabled) {
-  background: #f2555a;
-}
-
-.spin-button:disabled {
-  background: #555;
-  border-color: #aaa;
-  color: #ccc;
-  cursor: not-allowed;
+@keyframes projector {
+  0% { opacity: 0.9; }
+  8% { opacity: 0.35; }
+  16% { opacity: 0.8; }
+  26% { opacity: 0.25; }
+  38% { opacity: 0.6; }
+  50% { opacity: 0.18; }
+  62% { opacity: 0.38; }
+  78% { opacity: 0.1; }
+  90% { opacity: 0.16; }
+  100% { opacity: 0; }
 }
 
 .wheel-panel {
