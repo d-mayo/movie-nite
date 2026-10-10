@@ -326,12 +326,12 @@ test('with nobody on the wheel the note sits under Wildcards', () => {
   expect(note.previousElementSibling).toHaveTextContent('Wildcards')
 })
 
-test('the popover shows Wildcards, Spin and Viewer Defaults cards and nothing of the old list', () => {
+test('the popover shows Wildcards, Spin, Viewer Defaults and Sound cards and nothing of the old list', () => {
   setup()
   openEditor()
   const drawer = screen.getByRole('dialog', { name: 'Wheel settings' })
   const cards = drawer.querySelectorAll('.inset-card')
-  expect(cards).toHaveLength(3)
+  expect(cards).toHaveLength(4)
   expect(within(cards[0] as HTMLElement).getByRole('heading', { name: 'Wildcards' })).toBeInTheDocument()
   expect(within(cards[0] as HTMLElement).getByRole('switch', { name: 'One per viewer' })).toBeChecked()
   expect(within(cards[0] as HTMLElement).getByRole('group', { name: 'Wildcard count' })).toBeInTheDocument()
@@ -340,6 +340,12 @@ test('the popover shows Wildcards, Spin and Viewer Defaults cards and nothing of
   expect(within(cards[2] as HTMLElement).getByRole('heading', { name: 'Viewer Defaults' })).toBeInTheDocument()
   expect(within(cards[2] as HTMLElement).getByRole('group', { name: 'Slices per viewer' })).toBeInTheDocument()
   expect(within(cards[2] as HTMLElement).getByLabelText('Weight per viewer')).toBeInTheDocument()
+  expect(within(cards[3] as HTMLElement).getByRole('heading', { name: 'Sound' })).toBeInTheDocument()
+  expect(within(cards[3] as HTMLElement).getByRole('switch', { name: 'Music' })).toBeChecked()
+  expect(within(cards[3] as HTMLElement).getByRole('switch', { name: 'Effects' })).toBeChecked()
+  expect(within(cards[3] as HTMLElement).getByLabelText('Volume')).toBeInTheDocument()
+  // Sound comes last among the cards, and Restore All Defaults after it.
+  expect(cards[3].nextElementSibling).toBe(screen.getByRole('button', { name: 'Restore All Defaults' }))
   for (const gone of [/Add wildcard/, /Remove wildcard/, /^Move slice/, /^Drag slice/, /Spread evenly/, /Reset to default/]) {
     expect(screen.queryByRole('button', { name: gone })).toBeNull()
   }
@@ -418,6 +424,38 @@ test('the gear is unavailable during a spin and its reveal', async () => {
   expect(gear()).toBeEnabled()
 })
 
+test('the Sound card shows and saves music, effects and volume', () => {
+  const store = setup()
+  openEditor()
+  const volume = screen.getByLabelText('Volume')
+  expect(volume.closest('.slider')!.querySelector('output')).toHaveTextContent('70%')
+  expect(volume).toHaveAttribute('aria-valuetext', '70%')
+  expect(volume).toHaveAttribute('step', '5')
+  fireEvent.change(volume, { target: { value: '35' } })
+  fireEvent.click(screen.getByRole('switch', { name: 'Music' }))
+  fireEvent.click(screen.getByRole('switch', { name: 'Effects' }))
+  const wheel = store.getState().settings.wheel
+  expect(wheel.soundVolume).toBe(35)
+  expect(wheel.soundMusic).toBe(false)
+  expect(wheel.soundEffects).toBe(false)
+  expect(volume.closest('.slider')!.querySelector('output')).toHaveTextContent('35%')
+  expect(screen.getByRole('switch', { name: 'Music' })).not.toBeChecked()
+})
+
+test('Restore All Defaults is enabled by a sound setting alone, and resets it', () => {
+  const store = setup()
+  openEditor()
+  const restore = screen.getByRole('button', { name: 'Restore All Defaults' })
+  expect(restore).toBeDisabled()
+  fireEvent.click(screen.getByRole('switch', { name: 'Music' }))
+  expect(restore).toBeEnabled()
+  fireEvent.click(restore)
+  expect(screen.getByText(/sound setting/)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Restore' }))
+  expect(store.getState().settings.wheel.soundMusic).toBe(true)
+  expect(restore).toBeDisabled()
+})
+
 test('a locked drawer disables every control, tick clicks included', () => {
   const store = setup()
   cleanup()
@@ -433,6 +471,9 @@ test('a locked drawer disables every control, tick clicks included', () => {
   expect(screen.getByLabelText('Weight per viewer')).toBeDisabled()
   expect(screen.getByLabelText('Length')).toBeDisabled()
   expect(screen.getByLabelText('Intensity')).toBeDisabled()
+  expect(screen.getByRole('switch', { name: 'Music' })).toBeDisabled()
+  expect(screen.getByRole('switch', { name: 'Effects' })).toBeDisabled()
+  expect(screen.getByLabelText('Volume')).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Increase Slices per viewer' })).toBeDisabled()
   const slices = screen.getByRole('group', { name: 'Slices per viewer' })
   fireEvent.click(slices.querySelectorAll('.stepper-tick')[8])

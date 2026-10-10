@@ -3,8 +3,10 @@ import { viewersOnWheel } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import {
   defaultWheelSettings,
+  maxSoundVolume,
   maxSpinSeconds,
   maxSpinTurnsPerSecond,
+  minSoundVolume,
   minSpinSeconds,
   minSpinTurnsPerSecond,
 } from '../wheel/edit.ts'
@@ -38,7 +40,7 @@ function RestoreDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClose
   return (
     <dialog ref={ref} className="card confirm" aria-labelledby="restore-heading">
       <h2 id="restore-heading">Restore all wheel settings?</h2>
-      <p>Every wildcard, spin and default setting goes back to its factory value. Adjustments made for a viewer stay.</p>
+      <p>Every wildcard, spin, default and sound setting goes back to its factory value. Adjustments made for a viewer stay.</p>
       <div className="confirm-actions">
         <button
           type="button"
@@ -72,6 +74,9 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
     setDefaultWeight,
     setSpinSeconds,
     setSpinTurnsPerSecond,
+    setSoundMusic,
+    setSoundEffects,
+    setSoundVolume,
     restoreWheelSettings,
   } = useApp()
   const { wheel } = settings
@@ -279,6 +284,38 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
                 min={0.5}
                 max={20}
                 onChange={setDefaultWeight}
+              />
+            </section>
+            <section className="inset-card" aria-labelledby="sound-heading">
+              <div className="card-head">
+                <h3 id="sound-heading">Sound</h3>
+              </div>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={wheel.soundMusic}
+                  onChange={(e) => setSoundMusic(e.target.checked)}
+                />
+                Music
+              </label>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={wheel.soundEffects}
+                  onChange={(e) => setSoundEffects(e.target.checked)}
+                />
+                Effects
+              </label>
+              <Slider
+                label="Volume"
+                value={wheel.soundVolume}
+                step={5}
+                min={minSoundVolume}
+                max={maxSoundVolume}
+                format={(n) => `${n}%`}
+                onChange={setSoundVolume}
               />
             </section>
             <button
