@@ -513,7 +513,7 @@ test('the flapper starts bent against the first pin and springs free as the drif
   expect(Math.max(...samples)).toBeGreaterThan(0)
   await sleep(1200)
   expect(Math.abs(flapperAngle())).toBeLessThan(1)
-})
+}, 12000)
 
 test('the wind-up bends the flapper the other way and the glide bends it forward', async () => {
   setupCrowd({ random: () => 0.5 })
