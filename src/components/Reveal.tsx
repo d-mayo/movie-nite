@@ -1,5 +1,4 @@
-import { motion } from 'motion/react'
-import { useState } from 'react'
+import { useLayoutEffect, useState, type CSSProperties } from 'react'
 import type { Nomination, Outcome } from '../state/model.ts'
 import { posterUrl, type TmdbClient } from '../tmdb/client.ts'
 import { prefersReducedMotion } from '../wheel/reducedMotion.ts'
@@ -8,6 +7,18 @@ import type { Wedge } from '../wheel/wedges.ts'
 import FilmSearch from './FilmSearch.tsx'
 
 const snippetChars = 200
+
+// A wildcard's grey would vanish on the black stock, so its dot is the steel light.
+const wildcardDot = 'var(--film-steel-light)'
+
+function Eyebrow({ color, children }: { color: string; children: string }) {
+  return (
+    <p className="reveal-eyebrow">
+      <span className="reveal-dot" style={{ '--dot': color } as CSSProperties} />
+      {children}
+    </p>
+  )
+}
 
 interface Props {
   wedge: Wedge
@@ -25,6 +36,22 @@ interface Pick {
   at: Date
 }
 
+// The frame sits over the wheel, so it centers on the wheel's stage rather than the
+// viewport, which the viewer pane skews. Null (centered in the viewport) until measured.
+function useStageCenter(): number | null {
+  const [x, setX] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    const measure = () => {
+      const rect = document.querySelector('.wheel-stage')?.getBoundingClientRect()
+      setX(rect && rect.width > 0 ? rect.left + rect.width / 2 : null)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+  return x
+}
+
 export default function Reveal({
   wedge,
   revealedAt,
@@ -35,6 +62,7 @@ export default function Reveal({
   onClose,
 }: Props) {
   const reduced = prefersReducedMotion()
+  const centerX = useStageCenter()
   // The film a wildcard search landed on, with the moment of the pick.
   const [picked, setPicked] = useState<Pick | null>(null)
 
@@ -44,52 +72,64 @@ export default function Reveal({
     : picked
   const fromWheel = wedge.nomination !== null
 
+  const dot = fromWheel ? wedge.color : wildcardDot
+
   return (
-    <motion.div
+    <div
       role="dialog"
       aria-labelledby="reveal-heading"
-      className="reveal"
-      initial={reduced ? false : { opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.3 }}
+      className={reduced ? 'reveal' : 'reveal reveal-thread'}
+      style={centerX === null ? undefined : { left: centerX }}
     >
-      {shown ? (
-        <FilmReveal
-          nomination={shown.nomination}
-          at={shown.at}
-          heldFilm={heldFilm}
-          byline={fromWheel ? `Nominated by ${wedge.viewerName}` : 'Wildcard pick'}
-          onOutcome={(outcome) => onOutcome(shown.nomination, outcome, fromWheel)}
-          onClose={onClose}
-        />
-      ) : (
-        <>
-          <h2 id="reveal-heading">Wildcard!</h2>
-          <FilmSearch
-            label="Search for a wildcard film"
-            client={client}
-            onAuthError={onAuthError}
-            onPick={(nomination) => setPicked({ nomination, at: new Date() })}
+      <div className="reveal-film">
+        {shown ? (
+          <FilmReveal
+            nomination={shown.nomination}
+            at={shown.at}
+            dot={dot}
+            byline={fromWheel ? `Nominated by ${wedge.viewerName}` : 'Wildcard pick'}
+            heldFilm={heldFilm}
+            onOutcome={(outcome) => onOutcome(shown.nomination, outcome, fromWheel)}
+            onClose={onClose}
           />
-          <button type="button" onClick={onClose}>
-            Back to the wheel
-          </button>
-        </>
-      )}
-    </motion.div>
+        ) : (
+          <>
+            <div className="reveal-poster">
+              <span className="poster-placeholder reveal-unknown" aria-hidden="true">
+                ?
+              </span>
+            </div>
+            <div className="reveal-info">
+              <Eyebrow color={dot}>Wildcard</Eyebrow>
+              <h2 id="reveal-heading">Wildcard!</h2>
+              <FilmSearch
+                label="Search for a wildcard film"
+                client={client}
+                onAuthError={onAuthError}
+                onPick={(nomination) => setPicked({ nomination, at: new Date() })}
+              />
+              <button type="button" className="reveal-back" onClick={onClose}>
+                Back to the wheel
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 
 interface FilmRevealProps {
   nomination: Nomination
   at: Date
+  dot: string
   byline: string
   heldFilm: Nomination | null
   onOutcome: (outcome: Outcome) => void
   onClose: () => void
 }
 
-function FilmReveal({ nomination, at, byline, heldFilm, onOutcome, onClose }: FilmRevealProps) {
+function FilmReveal({ nomination, at, dot, byline, heldFilm, onOutcome, onClose }: FilmRevealProps) {
   const [confirming, setConfirming] = useState(false)
   const window = finishWindow(at, nomination.runtime)
   return (
@@ -97,52 +137,61 @@ function FilmReveal({ nomination, at, byline, heldFilm, onOutcome, onClose }: Fi
       <button type="button" className="reveal-close" aria-label="Close" onClick={onClose}>
         ×
       </button>
-      <h2 id="reveal-heading">{nomination.title}</h2>
-      <p>{byline}</p>
-      {nomination.posterPath ? (
-        <img
-          src={posterUrl(nomination.posterPath, 'w185')}
-          alt={`Poster of ${nomination.title}`}
-          width="185"
-        />
-      ) : (
-        <span role="img" aria-label="No poster" className="poster-placeholder" />
-      )}
-      {nomination.year !== null && <p>{nomination.year}</p>}
-      {nomination.overview && <p>{synopsisSnippet(nomination.overview, snippetChars)}</p>}
-      {nomination.runtime !== null && <p>{formatRuntime(nomination.runtime)}</p>}
-      <p>
-        {window
-          ? `Ends around ${window.start}–${window.end}`
-          : 'End time unknown (no runtime on TMDB)'}
-      </p>
-      <div className="reveal-actions">
-        <button type="button" className="primary reveal-watch" onClick={() => onOutcome('watch')}>
-          Watch
-        </button>
-        {confirming && heldFilm ? (
-          <div role="alert" className="reveal-replace">
-            <p>
-              This will replace {heldFilm.title}, already saved for next week.
-            </p>
-            <div className="reveal-replace-actions">
-              <button type="button" className="danger" onClick={() => onOutcome('tooLong')}>
-                Replace it
-              </button>
-              <button type="button" className="quiet" onClick={() => setConfirming(false)}>
-                Keep it
-              </button>
-            </div>
-          </div>
+      <div className="reveal-poster">
+        {nomination.posterPath ? (
+          <img
+            src={posterUrl(nomination.posterPath, 'w185')}
+            alt={`Poster of ${nomination.title}`}
+            width="185"
+          />
         ) : (
-          <button
-            type="button"
-            className="quiet reveal-save"
-            onClick={() => (heldFilm ? setConfirming(true) : onOutcome('tooLong'))}
-          >
-            Save for Next Week
-          </button>
+          <span role="img" aria-label="No poster" className="poster-placeholder" />
         )}
+      </div>
+      <div className="reveal-info">
+        <Eyebrow color={dot}>Now showing</Eyebrow>
+        <h2 id="reveal-heading">{nomination.title}</h2>
+        {nomination.year !== null && <p className="reveal-year">{nomination.year}</p>}
+        <p className="reveal-byline">{byline}</p>
+        <p className="reveal-meta">
+          {nomination.runtime !== null && <span>{formatRuntime(nomination.runtime)}</span>}
+          <span>
+            {window
+              ? `Ends around ${window.start}–${window.end}`
+              : 'End time unknown (no runtime on TMDB)'}
+          </span>
+        </p>
+        {nomination.overview && (
+          <p className="reveal-synopsis">{synopsisSnippet(nomination.overview, snippetChars)}</p>
+        )}
+        <div className="reveal-actions">
+          <button type="button" className="primary reveal-watch" onClick={() => onOutcome('watch')}>
+            Watch
+          </button>
+          {confirming && heldFilm ? (
+            <div role="alert" className="reveal-replace">
+              <p>
+                This will replace {heldFilm.title}, already saved for next week.
+              </p>
+              <div className="reveal-replace-actions">
+                <button type="button" className="danger" onClick={() => onOutcome('tooLong')}>
+                  Replace it
+                </button>
+                <button type="button" className="quiet" onClick={() => setConfirming(false)}>
+                  Keep it
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="quiet reveal-save"
+              onClick={() => (heldFilm ? setConfirming(true) : onOutcome('tooLong'))}
+            >
+              Save for Next Week
+            </button>
+          )}
+        </div>
       </div>
     </>
   )
