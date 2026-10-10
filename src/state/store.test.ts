@@ -3,6 +3,7 @@ import { defaultState, type Nomination } from './model.ts'
 import { createMemoryPersistence } from './persistence.ts'
 import { createAppStore } from './store.ts'
 import { presetColors } from '../wheel/colors.ts'
+import { defaultWheelSettings } from '../wheel/edit.ts'
 import { buildWedges } from '../wheel/wedges.ts'
 
 const film: Nomination = {
@@ -285,4 +286,19 @@ test('a stored roster of 14 loads, the last two taking presets 0 and 1', () => {
   expect(s.roster).toHaveLength(14)
   expect(s.roster[12].color).toBe(presetColors[0])
   expect(s.roster[13].color).toBe(presetColors[1])
+})
+
+test('restoring the wheel settings is saved and keeps adjustments', () => {
+  const persistence = createMemoryPersistence()
+  const a = createAppStore(persistence)
+  a.getState().addViewer('Ann')
+  const ann = a.getState().roster[0].id
+  a.getState().setViewerWeight(ann, 9)
+  a.getState().setWildcardWeight(4)
+  a.getState().setSpinSeconds(10)
+  a.getState().restoreWheelSettings()
+
+  const b = createAppStore(persistence).getState()
+  expect(b.settings.wheel).toEqual(defaultWheelSettings)
+  expect(b.night.adjustments).toEqual({ [ann]: { weight: 9 } })
 })

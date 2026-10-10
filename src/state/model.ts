@@ -237,6 +237,11 @@ export function setSpinTurnsPerSecond(state: AppState, turns: number): AppState 
   return withWheel(state, { spinTurnsPerSecond: turns })
 }
 
+// Every global wheel setting back to its factory value; viewers' adjustments stay.
+export function restoreWheelSettings(state: AppState): AppState {
+  return withWheel(state, defaultWheelSettings)
+}
+
 function adjust(state: AppState, viewerId: string, change: Adjustment): AppState {
   if (!state.roster.some((v) => v.id === viewerId)) return state
   return {
