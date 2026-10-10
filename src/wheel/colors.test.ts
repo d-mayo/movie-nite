@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { assignColors, contrast, labelTextColor, presetColors } from './colors.ts'
+import { assignColors, mixColor, presetColors } from './colors.ts'
 
 describe('presets', () => {
   test('there are 12 distinct hex colors', () => {
@@ -8,16 +8,11 @@ describe('presets', () => {
     for (const c of presetColors) expect(c).toMatch(/^#[0-9a-f]{6}$/)
   })
 
-  test('labelTextColor picks black on white and white on black', () => {
-    expect(labelTextColor('#ffffff')).toBe('#000000')
-    expect(labelTextColor('#000000')).toBe('#ffffff')
-  })
-
-  test.each([...presetColors])('%s reaches 4.5:1 with its label color', (preset) => {
-    const label = labelTextColor(preset)
-    const other = label === '#000000' ? '#ffffff' : '#000000'
-    expect(contrast(preset, label)).toBeGreaterThanOrEqual(4.5)
-    expect(contrast(preset, label)).toBeGreaterThanOrEqual(contrast(preset, other))
+  test('mixColor mixes toward a target', () => {
+    expect(mixColor('#e6194b', '#000000', 0)).toBe('#e6194b')
+    expect(mixColor('#e6194b', '#000000', 1)).toBe('#000000')
+    expect(mixColor('#ffffff', '#000000', 0.5)).toBe('#808080')
+    expect(mixColor('#000000', '#ffffff', 0.14)).toBe('#242424')
   })
 })
 

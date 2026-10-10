@@ -1,10 +1,10 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
 import App from '../App.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
-import { labelTextColor, presetColors } from '../wheel/colors.ts'
+import { presetColors } from '../wheel/colors.ts'
 import { markAway, markHere, removeViewer } from '../test/cells.ts'
 import { defaultWheelSettings } from '../wheel/edit.ts'
 
@@ -82,28 +82,81 @@ test('a viewer name of 20 characters is shortened on the wheel, a short one is n
   expect(screen.getAllByText('Ann', { selector: 'text' })).not.toHaveLength(0)
 })
 
-test('a nomination label sits on the viewer color with contrasting text, a wildcard on dark', () => {
-  const store = setup()
-  for (const name of ['Ann', 'Bo']) {
+function addViewers(names: string[]) {
+  for (const name of names) {
     fireEvent.change(screen.getByLabelText('Add a viewer'), { target: { value: name } })
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
   }
+}
+
+test('every label is white on a 42% black scrim, on a light color and a dark one', () => {
+  const store = setup()
+  addViewers(['Ann', 'Bo'])
   const [ann, bo] = store.getState().roster
+  act(() => store.getState().setViewerColor(ann.id, '#ffe119'))
   act(() => store.getState().setViewerColor(bo.id, presetColors[7]))
   act(() => store.getState().nominate(ann.id, film(1, null)))
-  const textOf = (color: string, kind: string) => {
-    const g = document.querySelector(`[data-kind="${kind}"] rect[fill="${color}"]`)?.parentElement
-    return g
+  const scrims = screen.getAllByTestId('scrim')
+  expect(scrims.length).toBeGreaterThan(0)
+  for (const rect of scrims) {
+    expect(rect.getAttribute('fill')).toBe('#000000')
+    expect(rect.getAttribute('opacity')).toBe('0.42')
+    for (const t of Array.from(rect.parentElement!.querySelectorAll('text')))
+      expect(t.getAttribute('fill')).toBe('#ffffff')
   }
-  for (const [color] of [[ann.color], [presetColors[7]]]) {
-    const g = textOf(color, 'nomination')
-    expect(g).not.toBeNull()
-    const rect = g!.querySelector('rect')!
-    expect(Number(rect.getAttribute('opacity'))).toBeGreaterThanOrEqual(0.8)
-    for (const t of Array.from(g!.querySelectorAll('text')))
-      expect(t.getAttribute('fill')).toBe(labelTextColor(color))
-  }
-  const wild = document.querySelector('[data-kind="wildcard"] rect')!
-  expect(wild.getAttribute('fill')).toBe('#000')
-  expect(wild.parentElement!.querySelector('text')!.getAttribute('fill')).toBe('#ffffff')
+})
+
+test('the wheel has the grown viewBox, with the reel turning with the wedges and a fixed gloss', () => {
+  const store = setup()
+  addViewers(['Ann', 'Bo'])
+  const svg = document.querySelector('svg.wheel')!
+  expect(svg.getAttribute('viewBox')).toBe('-128 -128 256 256')
+  const group = svg.querySelector(':scope > g')!
+  const reel = within(group as HTMLElement).getByTestId('reel')
+  const frames = within(reel as HTMLElement).getAllByTestId('frame')
+  expect(frames).toHaveLength(wedges().length)
+  const [ann, bo] = store.getState().roster
+  const fills = frames.map((f) => f.getAttribute('fill'))
+  expect(fills.filter((f) => f === ann.color)).toHaveLength(3)
+  expect(fills.filter((f) => f === bo.color)).toHaveLength(3)
+  expect(fills.filter((f) => f === '#3a3a3a')).toHaveLength(frames.length - 6)
+  const holes = within(reel as HTMLElement).getByTestId('sprocket-holes')
+  expect(holes.getAttribute('d')!.match(/M /g)).toHaveLength(288)
+  expect(within(reel as HTMLElement).getByTestId('reel-ring').getAttribute('r')).toBe('100')
+  const gloss = screen.getByTestId('gloss')
+  expect(group.contains(gloss)).toBe(false)
+  expect(gloss.getAttribute('pointer-events')).toBe('none')
+})
+
+test('wedges fill from shared gradients that run dark at the hub to the viewer color', () => {
+  const store = setup()
+  addViewers(['Ann', 'Bo'])
+  const [ann] = store.getState().roster
+  act(() => store.getState().nominate(ann.id, film(1, '/a.jpg')))
+  const fillId = (w: Element) => w.querySelector(':scope > path')!.getAttribute('fill')!.slice(5, -1)
+  const [annWedge, ...others] = wedges().filter((w) => w.getAttribute('data-kind') === 'nomination')
+  const gradient = document.getElementById(fillId(annWedge))!
+  const stops = Array.from(gradient.querySelectorAll('stop'))
+  expect(stops.map((x) => x.getAttribute('offset'))).toEqual(['0', '0.3', '0.75', '1'])
+  expect(stops[2].getAttribute('stop-color')).toBe(ann.color)
+  expect(stops[0].getAttribute('stop-color')).not.toBe(ann.color)
+  expect(annWedge.querySelector(':scope > path')!.getAttribute('stroke')).toBe('#0d0d0d')
+  // Ann's three slices share one gradient; the radial ones are two viewers, the wildcard and the gloss.
+  const annIds = new Set(wedges().filter((w) => fillId(w) === fillId(annWedge)))
+  expect(annIds.size).toBe(3)
+  expect(others.length).toBeGreaterThan(0)
+  expect(document.querySelectorAll('radialGradient')).toHaveLength(4)
+  const wild = wedges().find((w) => w.getAttribute('data-kind') === 'wildcard')!
+  expect(document.getElementById(fillId(wild))).not.toBeNull()
+  expect(fillId(wild)).not.toBe(fillId(annWedge))
+  expect(annWedge.querySelectorAll('[data-testid="poster-fade"]')).toHaveLength(1)
+})
+
+test('the pointer hangs above the strip with its tip over the frames', () => {
+  setup()
+  addViewers(['Ann'])
+  const points = screen.getByTestId('pointer').getAttribute('points')!.split(' ')
+  const tipY = Number(points[2].split(',')[1])
+  expect(tipY).toBeGreaterThanOrEqual(-111)
+  expect(tipY).toBeLessThanOrEqual(-104.6)
 })

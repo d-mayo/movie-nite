@@ -257,6 +257,26 @@ footer p {
   filter: drop-shadow(0 6px 18px rgb(0 0 0 / 0.45));
 }
 
+/* The reel's fixed film colors (see the film tokens in index.css). */
+.wheel .film-stock {
+  stroke: var(--film-stock);
+}
+
+.wheel .film-edge {
+  stroke: color-mix(in srgb, var(--film-stock) 40%, #000);
+}
+
+.wheel .film-hole {
+  fill: var(--film-cream);
+}
+
+.wheel .film-pointer {
+  fill: var(--film-cream);
+  stroke: var(--film-stock);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
 .wheel-empty {
   display: grid;
   place-items: center;
