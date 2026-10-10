@@ -3,6 +3,7 @@ import {
   angleUnderPointer,
   cryptoRandom,
   drawSlice,
+  edgeMargin,
   restRotation,
 } from './draw.ts'
 import { sliceArcs } from './layout.ts'
@@ -57,19 +58,44 @@ test('cryptoRandom stays in [0, 1)', () => {
   }
 })
 
-test('restRotation puts the pointer in the middle 80% and adds the turns', () => {
-  const arcs = sliceArcs(slices)
-  const random = seeded(7)
-  for (let n = 0; n < 2000; n++) {
-    const index = Math.floor(random() * slices.length)
-    const current = random() * 2000
-    const turns = 4 + Math.floor(random() * 3)
-    const final = restRotation(current, arcs, index, random, turns)
-    expect(final - current).toBeGreaterThanOrEqual(turns * 360)
-    const angle = angleUnderPointer(final)
-    const { start, end } = arcs[index]
-    const width = end - start
-    expect(angle).toBeGreaterThanOrEqual(start + width * 0.1 - 1e-6)
-    expect(angle).toBeLessThanOrEqual(end - width * 0.1 + 1e-6)
+test('restRotation spreads the pointer across the slice but its margins and adds the turns', () => {
+  const wide = sliceArcs(slices)
+  const narrow = sliceArcs(
+    Array.from({ length: 156 }, () => ({ kind: 'wildcard' as const, weight: 1 })),
+  )
+  for (const arcs of [wide, narrow]) {
+    const random = seeded(7)
+    let nearEdge = 0
+    for (let n = 0; n < 2000; n++) {
+      const index = Math.floor(random() * arcs.length)
+      const current = random() * 2000
+      const turns = 4 + Math.floor(random() * 3)
+      const final = restRotation(current, arcs, index, random, turns)
+      expect(final - current).toBeGreaterThanOrEqual(turns * 360)
+      expect(final - current).toBeLessThan((turns + 1) * 360)
+      const angle = angleUnderPointer(final)
+      const { start, end } = arcs[index]
+      const margin = edgeMargin(arcs[index])
+      expect(margin).toBe(Math.min(1.2, (end - start) / 4))
+      expect(angle).toBeGreaterThanOrEqual(start + margin - 1e-6)
+      expect(angle).toBeLessThanOrEqual(end - margin + 1e-6)
+      const width = end - start
+      if (angle < start + width * 0.02 + margin || angle > end - width * 0.02 - margin) {
+        nearEdge++
+      }
+    }
+    // The old middle-80% rule never came within 10% of an edge.
+    if (arcs === wide) expect(nearEdge).toBeGreaterThan(0)
   }
+})
+
+test('restRotation lands on the margins at the ends of random', () => {
+  const arcs = sliceArcs(slices)
+  arcs.forEach((arc, index) => {
+    const margin = edgeMargin(arc)
+    const low = angleUnderPointer(restRotation(0, arcs, index, () => 0, 3))
+    const high = angleUnderPointer(restRotation(0, arcs, index, () => 1 - 1e-12, 3))
+    expect(low).toBeCloseTo(arc.start + margin, 6)
+    expect(high).toBeCloseTo(arc.end - margin, 6)
+  })
 })
