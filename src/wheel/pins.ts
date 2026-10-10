@@ -8,7 +8,7 @@
 import type { Arc } from './layout.ts'
 
 // A pin starts to bend the flapper this far (degrees of wheel) before the pointer.
-export const pinReachDegrees = 3.6
+export const pinReachDegrees = 2
 export const maxBendDegrees = 30
 // The flapper hangs from a pivot screw this far from the hub (SVG y, above the strip).
 export const pivotY = -118

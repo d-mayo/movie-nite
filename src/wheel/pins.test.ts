@@ -54,24 +54,24 @@ describe('pinAngles', () => {
 describe('targetBend', () => {
   test('forward: bends toward +x by how near the pin is, only before the pointer', () => {
     expect(targetBend([0], -pinReachDegrees, 1)).toBe(0)
-    expect(targetBend([0], -1.8, 1)).toBeCloseTo(-maxBendDegrees / 2)
+    expect(targetBend([0], -pinReachDegrees / 2, 1)).toBeCloseTo(-maxBendDegrees / 2)
     const near = targetBend([0], -0.01, 1)
-    expect(near).toBeLessThan(-29.9)
+    expect(near).toBeLessThan(-29.7)
     expect(near).toBeGreaterThanOrEqual(-maxBendDegrees)
     expect(targetBend([0], 0.01, 1)).toBe(0)
   })
 
   test('backward mirrors it', () => {
-    expect(targetBend([0], 1.8, -1)).toBeCloseTo(maxBendDegrees / 2)
-    expect(targetBend([0], 0.01, -1)).toBeGreaterThan(29.9)
+    expect(targetBend([0], pinReachDegrees / 2, -1)).toBeCloseTo(maxBendDegrees / 2)
+    expect(targetBend([0], 0.01, -1)).toBeGreaterThan(29.7)
     expect(targetBend([0], -0.01, -1)).toBe(0)
   })
 
-  test('the nearer of two pins decides, and pins wrap round 360°', () => {
+  test('only a pin within reach counts, and pins wrap round 360°', () => {
     // Pins at 0 and 2, wheel at -2.5: the pin at 2 is 0.5 short; the one at 0 is 2.5 short.
-    expect(targetBend([0, 2], -2.5, 1)).toBeCloseTo(-30 * (1 - 0.5 / 3.6))
+    expect(targetBend([0, 2], -2.5, 1)).toBeCloseTo(-30 * (1 - 0.5 / pinReachDegrees))
     // A pin at 359 with the wheel at 0.2 sits at 359.2, which is 0.8 short of the pointer.
-    expect(targetBend([359], 0.2, 1)).toBeCloseTo(-30 * (1 - 0.8 / 3.6))
+    expect(targetBend([359], 0.2, 1)).toBeCloseTo(-30 * (1 - 0.8 / pinReachDegrees))
     expect(targetBend([359], 1, 1)).toBe(-30)
   })
 })
