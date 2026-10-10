@@ -26,7 +26,9 @@ const tableSize = 512
 // Moves `speed` toward `target` over a frame of `seconds`.
 export function driftSpeedStep(speed: number, target: number, seconds: number): number {
   const dt = Math.min(Math.max(seconds, 0), maxFrameSeconds)
-  return speed + (target - speed) * (1 - Math.exp(-dt / driftEaseSeconds))
+  const next = speed + (target - speed) * (1 - Math.exp(-dt / driftEaseSeconds))
+  // Close enough: land on the target so a stopped wheel is exactly still.
+  return Math.abs(target - next) < 0.01 ? target : next
 }
 
 // The glide's speed at u in [0, 1]: a smooth ramp up over the first 6%, then

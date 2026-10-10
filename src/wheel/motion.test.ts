@@ -139,5 +139,7 @@ test('the drift speed eases toward its target and caps a long frame', () => {
   expect(speed).toBeLessThan(4)
   for (let i = 0; i < 60; i++) speed = driftSpeedStep(speed, 0, 1 / 60)
   expect(speed).toBeLessThan(0.2)
+  for (let i = 0; i < 180; i++) speed = driftSpeedStep(speed, 0, 1 / 60)
+  expect(speed).toBe(0)
   expect(driftSpeedStep(0, 4, 10)).toBe(driftSpeedStep(0, 4, 0.1))
 })
