@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import App from '../App.tsx'
 import WheelEditor from './WheelEditor.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
@@ -74,7 +74,16 @@ test('Wheel settings opens from the gear menu, which closes with it, and reopens
   expect(screen.getByRole('dialog', { name: 'Wheel settings' })).toBeInTheDocument()
 })
 
-test('Escape and a backdrop click close the drawer, but a slider drag released over it does not', () => {
+// The dialog's rectangle, since jsdom has no layout: left 100, top 100, right 400, bottom 500.
+function stubRect(dialog: HTMLElement) {
+  vi.spyOn(dialog, 'getBoundingClientRect').mockReturnValue({
+    left: 100, top: 100, right: 400, bottom: 500, width: 300, height: 400, x: 100, y: 100,
+    toJSON: () => ({}),
+  })
+}
+const at = (x: number, y: number) => ({ clientX: x, clientY: y })
+
+test('Escape closes the popover, and so does a press that starts outside it and its click', () => {
   setup()
   openEditor()
   // dialog.close() stands in for Escape, which closes a modal dialog natively.
@@ -83,14 +92,203 @@ test('Escape and a backdrop click close the drawer, but a slider drag released o
 
   openEditor()
   const drawer = screen.getByRole('dialog')
-  fireEvent.click(screen.getByLabelText('Wildcard weight'))
-  expect(screen.getByRole('dialog')).toBeInTheDocument()
-  fireEvent.pointerDown(screen.getByLabelText('Wildcard weight'))
-  fireEvent.click(drawer)
-  expect(screen.getByRole('dialog')).toBeInTheDocument()
-  fireEvent.pointerDown(drawer)
+  stubRect(drawer)
+  fireEvent.pointerDown(drawer, at(10, 10))
   fireEvent.click(drawer)
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+test('a press on the popover padding, or a slider drag released outside it, leaves it open', () => {
+  setup()
+  openEditor()
+  const drawer = screen.getByRole('dialog')
+  stubRect(drawer)
+  fireEvent.pointerDown(drawer, at(110, 110))
+  fireEvent.click(drawer)
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  fireEvent.pointerDown(screen.getByLabelText('Wildcard weight'), at(200, 200))
+  fireEvent.click(drawer)
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+})
+
+test('an outside press that ends without a click leaves the popover open', () => {
+  setup()
+  openEditor()
+  const drawer = screen.getByRole('dialog')
+  stubRect(drawer)
+  fireEvent.pointerDown(drawer, at(10, 10))
+  fireEvent.pointerCancel(drawer)
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  // A click without a press of its own does nothing.
+  fireEvent.click(drawer)
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+})
+
+describe('closing when the pointer leaves', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query }))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+  const move = (x: number, y: number) => fireEvent.pointerMove(document, at(x, y))
+  const open = () => {
+    setup()
+    openEditor()
+    const drawer = screen.getByRole('dialog')
+    stubRect(drawer)
+    return drawer
+  }
+  const isOpen = () => screen.queryByRole('dialog', { name: 'Wheel settings' }) !== null
+
+  test('a pointer that has not been inside never closes it', () => {
+    open()
+    move(10, 10)
+    move(20, 20)
+    act(() => vi.advanceTimersByTime(1000))
+    expect(isOpen()).toBe(true)
+  })
+
+  test('leaving closes it 300 ms later unless the pointer comes back', () => {
+    open()
+    move(200, 200)
+    move(10, 10)
+    act(() => vi.advanceTimersByTime(299))
+    expect(isOpen()).toBe(true)
+    act(() => vi.advanceTimersByTime(1))
+    expect(isOpen()).toBe(false)
+  })
+
+  test('coming back in time keeps it open', () => {
+    open()
+    move(200, 200)
+    move(10, 10)
+    act(() => vi.advanceTimersByTime(200))
+    move(200, 200)
+    act(() => vi.advanceTimersByTime(1000))
+    expect(isOpen()).toBe(true)
+  })
+
+  test('a press outside cancels the timer, and its click closes it', () => {
+    const drawer = open()
+    move(200, 200)
+    move(10, 10)
+    fireEvent.pointerDown(drawer, at(10, 10))
+    act(() => vi.advanceTimersByTime(1000))
+    expect(isOpen()).toBe(true)
+    fireEvent.click(drawer)
+    expect(isOpen()).toBe(false)
+  })
+
+  test('an outside press without a click restarts the timer', () => {
+    const drawer = open()
+    move(200, 200)
+    move(10, 10)
+    fireEvent.pointerDown(drawer, at(10, 10))
+    fireEvent.pointerCancel(drawer)
+    act(() => vi.advanceTimersByTime(299))
+    expect(isOpen()).toBe(true)
+    act(() => vi.advanceTimersByTime(1))
+    expect(isOpen()).toBe(false)
+  })
+
+  test('the pointer leaving the document counts as leaving', () => {
+    open()
+    move(200, 200)
+    fireEvent.pointerLeave(document.documentElement)
+    act(() => vi.advanceTimersByTime(300))
+    expect(isOpen()).toBe(false)
+  })
+
+  test('a device that cannot hover never closes it by moving', () => {
+    vi.unstubAllGlobals()
+    open()
+    move(200, 200)
+    move(10, 10)
+    fireEvent.pointerLeave(document.documentElement)
+    act(() => vi.advanceTimersByTime(1000))
+    expect(isOpen()).toBe(true)
+  })
+
+  test('the Restore confirmation suspends it, and the pointer must come back in afterwards', () => {
+    const drawer = open()
+    move(200, 200)
+    fireEvent.change(screen.getByLabelText('Weight per viewer'), { target: { value: '8' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Restore defaults' }))
+    const confirm = screen.getByRole('dialog', { name: 'Restore all wheel settings?' })
+    move(10, 10)
+    fireEvent.pointerLeave(document.documentElement)
+    fireEvent.pointerDown(confirm, at(10, 10))
+    fireEvent.click(confirm)
+    act(() => vi.advanceTimersByTime(1000))
+    expect(drawer).toBeInTheDocument()
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }))
+    expect(drawer).toHaveFocus()
+    move(10, 10)
+    act(() => vi.advanceTimersByTime(1000))
+    expect(isOpen()).toBe(true)
+    move(200, 200)
+    move(10, 10)
+    act(() => vi.advanceTimersByTime(300))
+    expect(isOpen()).toBe(false)
+  })
+})
+
+describe('Restore defaults', () => {
+  const restore = () => screen.getByRole('button', { name: 'Restore defaults' })
+  const confirmation = () => screen.queryByRole('dialog', { name: 'Restore all wheel settings?' })
+
+  test('it sits in the Defaults card header and is enabled only once a setting has changed', () => {
+    setup()
+    openEditor()
+    expect(restore().closest('.card-head')).toHaveTextContent('Defaults')
+    expect(restore()).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Wildcard weight'), { target: { value: '4' } })
+    expect(restore()).toBeEnabled()
+  })
+
+  test('Cancel and Escape change nothing and leave the popover open', () => {
+    const store = setup()
+    openEditor()
+    fireEvent.change(screen.getByLabelText('Wildcard weight'), { target: { value: '4' } })
+    fireEvent.click(restore())
+    expect(confirmation()).toBeInTheDocument()
+    fireEvent.click(within(confirmation()!).getByRole('button', { name: 'Cancel' }))
+    expect(confirmation()).toBeNull()
+    expect(store.getState().settings.wheel.wildcardWeight).toBe(4)
+    expect(screen.getByRole('dialog', { name: 'Wheel settings' })).toHaveFocus()
+
+    fireEvent.click(restore())
+    act(() => (confirmation() as unknown as HTMLDialogElement).close())
+    expect(confirmation()).toBeNull()
+    expect(store.getState().settings.wheel.wildcardWeight).toBe(4)
+    expect(screen.getByRole('dialog', { name: 'Wheel settings' })).toHaveFocus()
+  })
+
+  test('Restore puts every setting back, keeps adjustments and leaves the popover open', () => {
+    const store = setup()
+    act(() => {
+      const s = store.getState()
+      s.setViewerSlices('a', 5)
+      s.setWildcardsPerViewer(false)
+      s.setWildcardCount(4)
+      s.setWildcardWeight(4)
+      s.setDefaultSlices(2)
+      s.setDefaultWeight(7)
+      s.setSpinSeconds(10)
+      s.setSpinTurnsPerSecond(1.5)
+    })
+    openEditor()
+    fireEvent.click(restore())
+    fireEvent.click(within(confirmation()!).getByRole('button', { name: 'Restore' }))
+    expect(store.getState().settings.wheel).toEqual(defaultWheelSettings)
+    expect(store.getState().night.adjustments).toEqual({ a: { slices: 5 } })
+    expect(confirmation()).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Wheel settings' })).toHaveFocus()
+    expect(restore()).toBeDisabled()
+  })
 })
 
 test('the Wildcard weight slider has its range and shows its value', () => {
