@@ -517,6 +517,7 @@ footer p {
 
 .reveal-info {
   min-width: 0;
+  text-align: left;
   padding-right: var(--space-5);
 }
 
