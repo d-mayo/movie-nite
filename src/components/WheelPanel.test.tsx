@@ -398,3 +398,26 @@ test('reduced motion: no drift, before or after a spin', async () => {
     vi.unstubAllGlobals()
   }
 })
+
+const hubRotation = () => {
+  const transform = screen.getByTestId('hub-disc').getAttribute('transform')!
+  return Number(/rotate\(([^)]+)\)/.exec(transform)![1])
+}
+
+test('the Spin button is a hub: its disc turns with the wheel and the label stays upright', async () => {
+  setup(['a', 'b'], { random: () => 0.5, spinMs: 20 })
+  const hubSvg = spinButton().querySelector('svg')!
+  expect(hubSvg).toHaveAttribute('aria-hidden', 'true')
+  const label = within(spinButton()).getByText('Spin')
+  expect(hubSvg.contains(label)).toBe(false)
+  expect(screen.getByTestId('hub-disc').closest('[data-testid="hub-disc"]')!.contains(label)).toBe(false)
+
+  const first = hubRotation()
+  await sleep(300)
+  expect(hubRotation()).toBeGreaterThan(first)
+  expect(hubRotation()).toBeCloseTo(wheelRotation(), 0)
+
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(hubRotation()).toBe(wheelRotation())
+})

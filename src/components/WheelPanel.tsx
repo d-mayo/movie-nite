@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type Ref } from 'react'
 import { createPortal } from 'react-dom'
 import { viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
@@ -12,6 +12,32 @@ import NightOver from './NightOver.tsx'
 import Reveal from './Reveal.tsx'
 import Wheel from './Wheel.tsx'
 import { useWheelMotion } from './useWheelMotion.ts'
+
+// The reel's hub: a steel disc with three windows that turns with the wheel, drawn
+// behind the upright SPIN label.
+function Hub({ hubRef }: { hubRef: Ref<SVGGElement> }) {
+  return (
+    <svg viewBox="-50 -50 100 100" className="hub" aria-hidden="true" focusable="false">
+      <defs>
+        <radialGradient id="hub-steel" cx="0.35" cy="0.3" r="0.8">
+          <stop offset="0" className="hub-steel-light" />
+          <stop offset="0.6" className="hub-steel" />
+          <stop offset="1" className="hub-steel-dark" />
+        </radialGradient>
+      </defs>
+      <g ref={hubRef} data-testid="hub-disc">
+        <circle r="49" fill="url(#hub-steel)" className="hub-rim" />
+        {[0, 120, 240].map((angle) => (
+          <g key={angle} transform={`rotate(${angle})`}>
+            <rect x="-9" y="-44" width="18" height="21" rx="7" className="hub-window" />
+            <circle cx="0" cy="-46" r="1.6" className="hub-rivet" />
+          </g>
+        ))}
+        <circle r="4" className="hub-rivet" />
+      </g>
+    </svg>
+  )
+}
 
 interface Spin {
   wedges: Wedge[]
@@ -105,7 +131,8 @@ export default function WheelPanel({
             onClick={start}
             disabled={!canSpin || spin !== null}
           >
-            Spin
+            <Hub hubRef={motion.hubRef} />
+            <span className="hub-label">Spin</span>
           </button>
         )}
       </div>

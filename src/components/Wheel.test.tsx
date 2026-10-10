@@ -145,7 +145,7 @@ test('wedges fill from shared gradients that run dark at the hub to the viewer c
   const annIds = new Set(wedges().filter((w) => fillId(w) === fillId(annWedge)))
   expect(annIds.size).toBe(3)
   expect(others.length).toBeGreaterThan(0)
-  expect(document.querySelectorAll('radialGradient')).toHaveLength(4)
+  expect(document.querySelectorAll('svg.wheel radialGradient')).toHaveLength(4)
   const wild = wedges().find((w) => w.getAttribute('data-kind') === 'wildcard')!
   expect(document.getElementById(fillId(wild))).not.toBeNull()
   expect(fillId(wild)).not.toBe(fillId(annWedge))
