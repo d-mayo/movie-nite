@@ -54,6 +54,52 @@ const wheelRotation = () => {
   return Number(/rotate\(([^)]+)\)/.exec(transform)![1])
 }
 
+const flapperTransform = () => screen.getByTestId('flapper').getAttribute('transform')!
+// The flapper's bend in degrees about its pivot: negative swings the tip toward +x.
+const flapperAngle = () => Number(/rotate\(([^ )]+)/.exec(flapperTransform())![1])
+
+// Samples the flapper's angle about every 10 ms for `ms`.
+async function sampleFlapper(ms: number): Promise<number[]> {
+  const samples: number[] = []
+  for (let t = 0; t < ms; t += 10) {
+    await sleep(10)
+    samples.push(flapperAngle())
+  }
+  return samples
+}
+
+// Three viewers at 12 slices each, no wildcards: 36 slices of 10°.
+function setupCrowd(extra: { random?: () => number; spinMs?: number }, spinSeconds = 2) {
+  const roster = [
+    { id: 'a', name: 'Ann', color: '#e6194b' },
+    { id: 'b', name: 'Bo', color: '#f58231' },
+    { id: 'c', name: 'Cy', color: '#3cb44b' },
+  ]
+  const store = createAppStore(
+    createMemoryPersistence({
+      ...defaultState,
+      settings: {
+        tmdbToken: 'tok',
+        viewersHidden: false,
+        wheel: {
+          ...defaultWheelSettings,
+          wildcardsPerViewer: false,
+          wildcardCount: 0,
+          defaultSlices: 12,
+          spinSeconds,
+        },
+      },
+      roster,
+      night: {
+        ...defaultState.night,
+        presentIds: ['a', 'b', 'c'],
+        nominations: { a: film(1), b: film(2), c: film(3) },
+      },
+    }),
+  )
+  render(<App store={store} fetchFn={vi.fn()} {...extra} />)
+}
+
 const spinButton = () => screen.getByRole('button', { name: 'Spin' })
 const hrefs = () =>
   Array.from(document.querySelectorAll('image')).map((i) => i.getAttribute('href'))
@@ -343,8 +389,10 @@ test('React commits nothing while the wheel drifts, and a spin costs a fixed few
   await sleep(50)
   const idleStart = commits
   const before = wheelRotation()
+  const flapperBefore = flapperTransform()
   await sleep(300)
   expect(wheelRotation()).toBeGreaterThan(before)
+  expect(flapperTransform()).not.toBe(flapperBefore)
   expect(commits).toBe(idleStart)
 
   const spinCommits = async (ms: number) => {
@@ -457,3 +505,49 @@ test('a test-length spin still shows the flicker while the reveal opens at once'
   await screen.findByRole('dialog')
   expect(screen.getByTestId('flicker')).toBeInTheDocument()
 })
+
+test('the flapper starts bent against the first pin and springs free as the drift moves the wheel', async () => {
+  setup(['a', 'b'])
+  const samples = await sampleFlapper(600)
+  expect(Math.min(...samples)).toBeLessThan(-20)
+  expect(Math.max(...samples)).toBeGreaterThan(0)
+  await sleep(1200)
+  expect(Math.abs(flapperAngle())).toBeLessThan(1)
+})
+
+test('the wind-up bends the flapper the other way and the glide bends it forward', async () => {
+  setupCrowd({ random: () => 0.5 })
+  await sleep(50)
+  fireEvent.click(spinButton())
+  const windUp = await sampleFlapper(480)
+  expect(Math.max(...windUp)).toBeGreaterThan(5)
+  const glide = await sampleFlapper(1000)
+  expect(Math.min(...glide)).toBeLessThan(-5)
+}, 9000)
+
+test('reduced motion: the flapper still catches pins in the 1 s spin and settles after it', async () => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('prefers-reduced-motion'),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+  try {
+    setupCrowd({ random: () => 0.5 })
+    await sleep(50)
+    // The wheel does not drift, so the flapper rests bent against the first pin.
+    expect(flapperAngle()).toBeLessThan(-20)
+    fireEvent.click(spinButton())
+    const during = await sampleFlapper(900)
+    expect(new Set(during).size).toBeGreaterThan(3)
+    expect(Math.min(...during)).toBeLessThan(-5)
+    await screen.findByRole('dialog')
+    await sleep(1200)
+    const rest = flapperAngle()
+    await sleep(100)
+    expect(flapperAngle()).toBe(rest)
+    expect(rest).toBeLessThanOrEqual(0)
+  } finally {
+    vi.unstubAllGlobals()
+  }
+}, 9000)

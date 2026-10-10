@@ -5,17 +5,35 @@ import {
   maxFrameSeconds,
   type SpinPath,
 } from '../wheel/motion.ts'
+import {
+  flapperStep,
+  isSettled,
+  nextDirection,
+  pivotY,
+  targetBend,
+  type Direction,
+  type Flapper,
+} from '../wheel/pins.ts'
 import { prefersReducedMotion, watchReducedMotion } from '../wheel/reducedMotion.ts'
 
 // One requestAnimationFrame loop for the wheel's whole life: it drifts the
 // wheel while idle and plays a spin path, and writes the angle straight to the
-// rotating group's and the hub's `transform`, so React never re-renders per frame. `stopped`
-// (a spin, the reveal or Night over is up) eases the drift to a halt.
-export function useWheelMotion(stopped: boolean) {
+// rotating group's and the hub's `transform`, so React never re-renders per frame.
+// The same loop bends the pointer's flapper as the wheel's pins (`pins`, the
+// angles on the wedges on screen) pass it, and writes its `transform` too.
+// `stopped` (a spin, the reveal or Night over is up) eases the drift to a halt.
+export function useWheelMotion(stopped: boolean, pins: number[]) {
   const groupRef = useRef<SVGGElement>(null)
   // The Spin button's reel hub turns with the wheel, from this same loop.
   const hubRef = useRef<SVGGElement>(null)
+  const flapperRef = useRef<SVGGElement>(null)
+  const pinsRef = useRef(pins)
   const angle = useRef(0)
+  // The flapper's state, the direction the wheel last moved (forward at first)
+  // and the angle the last frame saw.
+  const flapper = useRef<Flapper>({ angle: 0, velocity: 0 })
+  const direction = useRef<Direction>(1)
+  const lastAngle = useRef(0)
   const speed = useRef(0)
   const reduced = useRef(false)
   const stoppedRef = useRef(stopped)
@@ -29,11 +47,13 @@ export function useWheelMotion(stopped: boolean) {
     const transform = `rotate(${angle.current})`
     groupRef.current?.setAttribute('transform', transform)
     hubRef.current?.setAttribute('transform', transform)
+    flapperRef.current?.setAttribute('transform', `rotate(${flapper.current.angle} 0 ${pivotY})`)
   }
 
   // A wheel that mounts again (empty, then with viewers) shows the angle at once.
   useLayoutEffect(() => {
     stoppedRef.current = stopped
+    pinsRef.current = pins
     write()
   })
 
@@ -43,6 +63,18 @@ export function useWheelMotion(stopped: boolean) {
       reduced.current = now
       if (now) speed.current = 0
     })
+    // Bends or releases the flapper for this frame's pins and direction, and
+    // writes it only when it moved.
+    function moveFlapper(dt: number) {
+      direction.current = nextDirection(direction.current, angle.current - lastAngle.current)
+      lastAngle.current = angle.current
+      const bend = targetBend(pinsRef.current, angle.current, direction.current)
+      const before = flapper.current.angle
+      const next = flapperStep(flapper.current, bend, dt)
+      flapper.current = bend === 0 && isSettled(next) ? { angle: 0, velocity: 0 } : next
+      if (flapper.current.angle !== before) write()
+    }
+
     let last: number | null = null
     let frame = requestAnimationFrame(function step(now) {
       const dt = last === null ? 0 : Math.min((now - last) / 1000, maxFrameSeconds)
@@ -68,6 +100,7 @@ export function useWheelMotion(stopped: boolean) {
           write()
         }
       }
+      moveFlapper(dt)
       frame = requestAnimationFrame(step)
     })
     return () => {
@@ -79,6 +112,7 @@ export function useWheelMotion(stopped: boolean) {
   return {
     groupRef,
     hubRef,
+    flapperRef,
     // The angle and drift speed (degrees a second) right now.
     current: () => ({ angle: angle.current, speed: speed.current }),
     // Plays `path`, holding the drift at zero until the next idle frame after

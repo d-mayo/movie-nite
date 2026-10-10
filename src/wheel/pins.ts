@@ -10,6 +10,8 @@ import type { Arc } from './layout.ts'
 // A pin starts to bend the flapper this far (degrees of wheel) before the pointer.
 export const pinReachDegrees = 3.6
 export const maxBendDegrees = 30
+// The flapper hangs from a pivot screw this far from the hub (SVG y, above the strip).
+export const pivotY = -118
 export const springStiffness = 900
 export const springDamping = 16
 // No two pins on the wheel are closer than this, wrapping round at 360°.
@@ -60,7 +62,7 @@ export function targetBend(pins: number[], rotation: number, direction: Directio
 // One frame of the flapper: a pin that bends it more than it is bent now holds
 // it there; otherwise it springs toward straight as a damped spring.
 export function flapperStep(state: Flapper, bend: number, seconds: number): Flapper {
-  if (bend !== 0 && (bend < 0 ? bend < state.angle : bend > state.angle)) {
+  if (bend !== 0 && (bend < 0 ? bend <= state.angle : bend >= state.angle)) {
     return { angle: bend, velocity: 0 }
   }
   const steps = Math.max(1, Math.ceil(seconds / maxSubstepSeconds))

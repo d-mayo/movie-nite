@@ -1,11 +1,11 @@
 import { useId, type Ref } from 'react'
 import { posterUrl } from '../tmdb/client.ts'
 import { mixColor } from '../wheel/colors.ts'
+import { pivotY } from '../wheel/pins.ts'
 import type { Wedge } from '../wheel/wedges.ts'
 import Reel from './Reel.tsx'
 
-// The flapper hangs from a pivot screw above the strip; its tip reaches inside the pins.
-export const pivotY = -118
+// The flapper's tongue hangs from the pivot screw at `pivotY`; its tip reaches inside the pins.
 const tongue = 'M -3.4 -118 L 3.4 -118 L 0.7 -103.3 Q 0 -102.3 -0.7 -103.3 Z'
 
 const radius = 100
