@@ -19,7 +19,7 @@ const driftEaseSeconds = 1 / 3
 // this, so the wheel never jumps on return.
 export const maxFrameSeconds = 0.1
 
-const decay = 3
+const decay = 4
 const rampShare = 0.06
 const tableSize = 512
 
