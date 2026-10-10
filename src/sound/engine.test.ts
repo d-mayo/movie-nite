@@ -191,8 +191,26 @@ describe('the pin ticks', () => {
       ctx.currentTime = ms / 1000
       sound.pinTick(0.5)
     }
-    // At 0, 0.03, 0.06 and 0.09 (to within rounding).
-    expect(ctx.oscillators).toHaveLength(4)
+    const starts = ctx.oscillators.map((o) => o.started!.when!)
+    expect(starts.length).toBeGreaterThan(3)
+    for (let i = 1; i < starts.length; i++) {
+      expect(starts[i] - starts[i - 1]).toBeGreaterThanOrEqual(0.03 - 1e-9)
+    }
+  })
+
+  test('requests faster than the gap give a steady tick rate, not an uneven one', async () => {
+    const { ctx, sound } = await ready()
+    // A pin every 9 ms for a second, seen by frames 16 ms apart.
+    for (let ms = 0; ms <= 1000; ms += 16) {
+      ctx.currentTime = ms / 1000
+      sound.pinTick(0.5)
+      sound.pinTick(0.5)
+    }
+    const starts = ctx.oscillators.map((o) => o.started!.when!)
+    const gaps = starts.slice(1).map((s, i) => s - starts[i])
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(0.03 - 1e-9)
+    expect(Math.max(...gaps)).toBeLessThan(0.04)
+    expect(starts.length).toBeGreaterThan(28)
   })
 
   test('a tick at a low speed is louder than one at a high speed', async () => {

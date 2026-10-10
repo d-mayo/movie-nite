@@ -54,7 +54,7 @@ export const minHumGain = 0.4
 const humLevel = 0.9
 // Only in this last moment before the stop does the hum fade to silence.
 export const humFadeSeconds = 0.3
-// No tick sounds sooner than this after another.
+// No tick sounds sooner than this after another (on the audio clock).
 export const minTickGap = 0.03
 
 const gestures = ['pointerdown', 'pointerup', 'keydown', 'touchend']
@@ -193,13 +193,17 @@ export function createSound(deps: SoundDeps): SoundEngine {
     pinTick(share) {
       if (!ctx) return
       const now = ctx.currentTime
-      if (now - lastTick < minTickGap - 1e-9) return
-      lastTick = now
-      // Louder the slower the wheel.
-      const level = 0.2 + 0.6 * (1 - Math.min(Math.max(share, 0), 1))
+      // A tick asked for too soon after the last waits for the next free slot,
+      // so a fast wheel ticks at a steady rate; one more is dropped while a
+      // tick is already waiting.
+      const at = Math.max(now, lastTick + minTickGap)
+      if (at - now > minTickGap + 1e-9) return
+      lastTick = at
+      // Quiet, and louder the slower the wheel.
+      const level = 0.06 + 0.2 * (1 - Math.min(Math.max(share, 0), 1))
       const out = ctx.createGain()
-      out.gain.setValueAtTime(level, now)
-      out.gain.exponentialRampToValueAtTime(0.001, now + 0.03)
+      out.gain.setValueAtTime(level, at)
+      out.gain.exponentialRampToValueAtTime(0.001, at + 0.03)
       out.connect(effects)
       const click = ctx.createBufferSource()
       click.buffer = noise
@@ -209,14 +213,14 @@ export function createSound(deps: SoundDeps): SoundEngine {
       filter.Q.value = 1.2
       click.connect(filter)
       filter.connect(out)
-      click.start(now)
+      click.start(at)
       const tone = ctx.createOscillator()
       tone.type = 'triangle'
-      tone.frequency.setValueAtTime(1900, now)
-      tone.frequency.exponentialRampToValueAtTime(600, now + 0.025)
+      tone.frequency.setValueAtTime(1900, at)
+      tone.frequency.exponentialRampToValueAtTime(600, at + 0.025)
       tone.connect(out)
-      tone.start(now)
-      tone.stop(now + 0.03)
+      tone.start(at)
+      tone.stop(at + 0.03)
     },
     spinEnd() {
       if (!ctx) return
