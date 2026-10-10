@@ -41,10 +41,14 @@ function setup(extra: { random?: () => number; spinMs?: number } = { spinMs: 20 
 }
 
 const wedgeKinds = () => screen.getAllByTestId('wedge').map((w) => w.getAttribute('data-kind'))
-const openEditor = () => fireEvent.click(screen.getByRole('button', { name: 'Wheel settings' }))
+const gear = () => screen.getByRole('button', { name: 'Settings' })
+const openEditor = () => {
+  fireEvent.click(gear())
+  fireEvent.click(screen.getByRole('button', { name: 'Wheel settings' }))
+}
 const spin = () => screen.getByRole('button', { name: 'Spin' })
 
-test('Wheel settings opens a drawer beside the viewer list, which Done closes and reopens', () => {
+test('Wheel settings opens from the gear menu, which closes with it, and reopens', () => {
   setup()
   expect(screen.getByText("Tonight's viewers")).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Edit wheel' })).not.toBeInTheDocument()
@@ -55,11 +59,16 @@ test('Wheel settings opens a drawer beside the viewer list, which Done closes an
   expect(within(drawer).getByLabelText('Wildcard weight')).toBeInTheDocument()
   expect(within(drawer).queryByLabelText(/^(Weight|Slices) for /)).toBeNull()
   expect(within(drawer).queryByRole('heading', { name: 'Viewers' })).toBeNull()
-  expect(document.activeElement).toBe(
-    within(drawer).getByRole('heading', { name: 'Wheel settings' }),
-  )
-  fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+  expect(document.activeElement).toBe(drawer)
+  expect(within(drawer).queryByRole('heading', { name: 'Wheel settings' })).toBeNull()
+  for (const name of ['Done', 'Close']) {
+    expect(within(drawer).queryByRole('button', { name })).toBeNull()
+  }
+  expect(screen.queryByRole('button', { name: 'Change TMDB token' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Wheel settings' })).toBeNull()
+  act(() => (drawer as HTMLDialogElement).close())
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(document.activeElement).toBe(gear())
   expect(screen.getByText("Tonight's viewers")).toBeInTheDocument()
   openEditor()
   expect(screen.getByRole('dialog', { name: 'Wheel settings' })).toBeInTheDocument()
@@ -156,7 +165,7 @@ test('the controls apply as they change: weight, defaults, and adjusted viewers 
   expect(wedgeKinds()).toHaveLength(11)
   fireEvent.change(screen.getByLabelText('Weight per viewer'), { target: { value: '8' } })
   expect(store.getState().settings.wheel.defaultWeight).toBe(8)
-  fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+  act(() => (screen.getByRole('dialog') as HTMLDialogElement).close())
   expect(header('Bo')).toHaveTextContent('4 slices · weight 8')
 })
 
@@ -177,17 +186,29 @@ test('the Spin card shows and saves the length and intensity', () => {
   expect(intensity.closest('.slider')!.querySelector('output')).toHaveTextContent('1.5 turns/s')
 })
 
-test('Wheel settings is unavailable during a spin and its reveal', async () => {
-  setup({ random: () => 0.5, spinMs: 20 })
-  fireEvent.click(spin())
-  expect(screen.getByRole('button', { name: 'Wheel settings' })).toBeDisabled()
-  await screen.findByRole('dialog')
-  expect(screen.getByRole('button', { name: 'Wheel settings' })).toBeDisabled()
-  fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-  expect(screen.getByRole('button', { name: 'Wheel settings' })).toBeEnabled()
+test('the gear hangs the popover under it and looks pressed while it is open', () => {
+  setup()
+  const rect = { top: 10, bottom: 50, left: 600, right: 640, width: 40, height: 40, x: 600, y: 10, toJSON: () => ({}) }
+  vi.spyOn(gear(), 'getBoundingClientRect').mockReturnValue(rect)
+  expect(gear()).not.toHaveClass('active')
+  openEditor()
+  expect(screen.getByRole('dialog').style.top).toBe('58px')
+  expect(gear()).toHaveClass('active')
+  act(() => (screen.getByRole('dialog') as HTMLDialogElement).close())
+  expect(gear()).not.toHaveClass('active')
 })
 
-test('a locked drawer disables every control, tick clicks included, but not Done', () => {
+test('the gear is unavailable during a spin and its reveal', async () => {
+  setup({ random: () => 0.5, spinMs: 20 })
+  fireEvent.click(spin())
+  expect(gear()).toBeDisabled()
+  await screen.findByRole('dialog')
+  expect(gear()).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+  expect(gear()).toBeEnabled()
+})
+
+test('a locked drawer disables every control, tick clicks included', () => {
   const store = setup()
   cleanup()
   const onClosed = vi.fn()
@@ -207,7 +228,4 @@ test('a locked drawer disables every control, tick clicks included, but not Done
   fireEvent.click(slices.querySelectorAll('.stepper-tick')[8])
   fireEvent.keyDown(slices, { key: 'ArrowUp' })
   expect(store.getState().settings.wheel).toEqual(before)
-  expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled()
-  fireEvent.click(screen.getByRole('button', { name: 'Done' }))
-  expect(onClosed).toHaveBeenCalled()
 })

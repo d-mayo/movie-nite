@@ -486,7 +486,7 @@ fieldset.setup {
 }
 
 /* The Wheel settings popover: a modal dialog with a transparent backdrop,
-   hung under the banner button that opens it (placed by WheelEditor), so the
+   hung under the ⚙ button that opens it (placed by WheelEditor), so the
    wheel stays visible and redraws behind it. */
 dialog.wheel-drawer {
   box-sizing: border-box;
@@ -528,22 +528,8 @@ dialog.wheel-drawer::backdrop {
   gap: var(--space-3);
 }
 
-.drawer-body > h2 {
-  margin: 0 0 var(--space-3);
-}
-
-.drawer-body > h2:focus {
+dialog.wheel-drawer:focus {
   outline: none;
-}
-
-.drawer-footer {
-  position: sticky;
-  bottom: calc(-1 * var(--space-4));
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--space-3);
-  padding: var(--space-3) 0 0;
-  background: var(--card);
 }
 
 /* The color swatch on a viewer row and the popover of presets it opens. */

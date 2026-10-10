@@ -18,8 +18,8 @@ interface Props {
 }
 
 // The Wheel settings popover. Mounted only while shown, like the End night
-// dialog: Done and a backdrop click unmount it directly, and Escape does so
-// through the native `close` event.
+// dialog: a click outside unmounts it directly, and Escape does so through the
+// native `close` event.
 export default function WheelEditor({ locked = false, onClosed, anchor }: Props) {
   const {
     night,
@@ -34,7 +34,6 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
   } = useApp()
   const { wheel } = settings
   const dialog = useRef<HTMLDialogElement>(null)
-  const heading = useRef<HTMLHeadingElement>(null)
   // True when the press that began a click landed on the backdrop, not in the drawer.
   const pressedBackdrop = useRef(false)
   useEffect(() => {
@@ -43,7 +42,7 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
     if (!el.open) el.showModal()
     el.addEventListener('close', onClosed)
     // Keep focus off the sliders, so an arrow key right after opening changes nothing.
-    heading.current?.focus()
+    el.focus()
     // Hang the popover under the button that opened it, right edges aligned.
     function place() {
       const rect = anchor?.current?.getBoundingClientRect()
@@ -70,7 +69,8 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
     <dialog
       ref={dialog}
       className="card wheel-drawer"
-      aria-labelledby="wheel-settings-heading"
+      aria-label="Wheel settings"
+      tabIndex={-1}
       onPointerDown={(e) => {
         pressedBackdrop.current = e.target === e.currentTarget
       }}
@@ -79,9 +79,6 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
       }}
     >
       <div className="drawer-body">
-        <h2 id="wheel-settings-heading" tabIndex={-1} ref={heading}>
-          Wheel settings
-        </h2>
         <fieldset disabled={locked} className="setup wheel-editor">
           <section className="inset-card" aria-labelledby="wildcards-heading">
             <div className="card-head">
@@ -159,11 +156,6 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
             />
           </section>
         </fieldset>
-        <div className="drawer-footer">
-          <button type="button" className="primary" onClick={dismiss}>
-            Done
-          </button>
-        </div>
       </div>
     </dialog>
   )

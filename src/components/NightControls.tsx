@@ -54,22 +54,15 @@ export default function NightControls({ locked, heldFilmChip, onChangeToken }: P
   const [confirming, setConfirming] = useState(false)
   const [editing, setEditing] = useState(false)
   const menu = useRef<HTMLDivElement>(null)
-  const wheelButton = useRef<HTMLButtonElement>(null)
+  const gear = useRef<HTMLButtonElement>(null)
   const closeDialog = useCallback(() => setConfirming(false), [])
-  const closeDrawer = useCallback(() => setEditing(false), [])
+  const closeDrawer = useCallback(() => {
+    setEditing(false)
+    gear.current?.focus()
+  }, [])
   return (
     <div className="night-controls">
       {heldFilmChip}
-      <button
-        type="button"
-        ref={wheelButton}
-        className="quiet night-control"
-        disabled={locked || night.ended}
-        onClick={() => setEditing(true)}
-      >
-        <span className="icon" aria-hidden="true">◐</span>
-        <span className="label">Wheel settings</span>
-      </button>
       {night.ended ? (
         <button type="button" className="quiet night-control" disabled={locked} onClick={newNight}>
           <span className="icon" aria-hidden="true">↻</span>
@@ -88,7 +81,8 @@ export default function NightControls({ locked, heldFilmChip, onChangeToken }: P
       )}
       <button
         type="button"
-        className="quiet"
+        ref={gear}
+        className={editing ? 'quiet active' : 'quiet'}
         aria-label="Settings"
         popoverTarget="settings-menu"
         disabled={locked}
@@ -96,6 +90,16 @@ export default function NightControls({ locked, heldFilmChip, onChangeToken }: P
         <span aria-hidden="true">⚙</span>
       </button>
       <div id="settings-menu" popover="auto" ref={menu} className="card settings-menu">
+        <button
+          type="button"
+          disabled={night.ended}
+          onClick={() => {
+            menu.current?.hidePopover()
+            setEditing(true)
+          }}
+        >
+          Wheel settings
+        </button>
         <button
           type="button"
           onClick={() => {
@@ -106,7 +110,7 @@ export default function NightControls({ locked, heldFilmChip, onChangeToken }: P
           Change TMDB token
         </button>
       </div>
-      {editing && <WheelEditor locked={locked} onClosed={closeDrawer} anchor={wheelButton} />}
+      {editing && <WheelEditor locked={locked} onClosed={closeDrawer} anchor={gear} />}
       {confirming && (
         <EndNightDialog onConfirm={endNight} onClosed={closeDialog} />
       )}

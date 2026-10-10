@@ -113,9 +113,10 @@ test('a cell still opens when the pane is saved hidden (a narrow screen)', () =>
 test('Wheel settings, End night, New night and the held-film card work while hidden', () => {
   setup(true, { night: { spun: true }, holdover: film(9) })
   const banner = within(screen.getByRole('banner'))
-  fireEvent.click(banner.getByRole('button', { name: 'Wheel settings' }))
+  fireEvent.click(banner.getByRole('button', { name: 'Settings' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Wheel settings' }))
   expect(screen.getByRole('dialog', { name: 'Wheel settings' })).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+  act(() => (screen.getByRole('dialog') as HTMLDialogElement).close())
 
   fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
   fireEvent.click(banner.getByRole('button', { name: /^Next:/ }))

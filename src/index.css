@@ -88,7 +88,7 @@ body {
   box-shadow: none;
 }
 
-:where(button.quiet:hover:not(:disabled, [aria-disabled='true'])) {
+:where(button.quiet.active, button.quiet:hover:not(:disabled, [aria-disabled='true'])) {
   background: color-mix(in srgb, var(--text) 10%, transparent);
 }
 
