@@ -109,6 +109,28 @@ test('T2: the overshoot is small and the pointer stays in the slice once in', ()
   }
 })
 
+test('the glide keeps creeping through the last slices', () => {
+  // At the default 6 s and 5 turns, the last 30° of the glide takes over 2 s
+  // and the last 5° about 1.5 s, and the speed has all but died out well
+  // before the end, so nothing is left to stop abruptly.
+  const { to, path } = pathFor(0, 0, 6, 5)
+  const glideEnd = 500 + 6000
+  const secondsWithin = (degrees: number) => {
+    let t = glideEnd
+    while (t > 500 && to - path.rotationAt(t) < degrees) t -= 1
+    return (glideEnd - t) / 1000
+  }
+  expect(secondsWithin(30)).toBeGreaterThan(2.2)
+  expect(secondsWithin(5)).toBeGreaterThan(1.3)
+  const speedAt = (secondsLeft: number) => {
+    const t = glideEnd - secondsLeft * 1000
+    return (path.rotationAt(t + 1) - path.rotationAt(t)) * 1000
+  }
+  expect(speedAt(1)).toBeLessThan(6)
+  expect(speedAt(0.5)).toBeLessThan(1.5)
+  expect(speedAt(0.1)).toBeLessThan(0.2)
+})
+
 test('spinPhases keeps the glide at its length and scales to a total', () => {
   expect(spinPhases(7000)).toEqual({ windUpMs: 500, glideMs: 7000, rockMs: 750 })
   const scaled = spinPhases(7000, 20)

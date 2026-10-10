@@ -19,9 +19,7 @@ const driftEaseSeconds = 1 / 3
 // this, so the wheel never jumps on return.
 export const maxFrameSeconds = 0.1
 
-// Lower than the first design's 4.2: the speed falls less steeply, so the last
-// seconds crawl through several slices instead of looking parked.
-const decay = 2
+const decay = 3
 const rampShare = 0.06
 const tableSize = 512
 
@@ -34,10 +32,13 @@ export function driftSpeedStep(speed: number, target: number, seconds: number): 
 }
 
 // The glide's speed at u in [0, 1]: a smooth ramp up over the first 6%, then
-// `e^(-k·u)` less its end value, so it reaches zero at u = 1.
+// `e^(-k·u)` times `(1-u)²`. The square brings the speed to zero with no
+// leftover motion, so the last slices click by ever more slowly and the wheel
+// settles; a tail that still has speed when it ends (a straight-line or
+// square-root fall) looks like a hand stopping the wheel.
 function glideSpeed(u: number): number {
   const ramp = u >= rampShare ? 1 : (u / rampShare) ** 2 * (3 - (2 * u) / rampShare)
-  return ramp * (Math.exp(-decay * u) - Math.exp(-decay))
+  return ramp * Math.exp(-decay * u) * (1 - u) ** 2
 }
 
 // The glide's cumulative distance, normalized to 1, at tableSize + 1 points.
