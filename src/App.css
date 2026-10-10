@@ -271,11 +271,27 @@ footer p {
   fill: var(--film-cream);
 }
 
-.wheel .film-pointer {
+.wheel .film-pin {
   fill: var(--film-cream);
-  stroke: var(--film-stock);
-  stroke-width: 1.2;
+  stroke: #000;
+  stroke-width: 0.6;
+}
+
+.wheel .film-tongue {
+  fill: var(--film-steel-light);
+  stroke: var(--film-steel-dark);
+  stroke-width: 0.8;
   stroke-linejoin: round;
+}
+
+.wheel .film-cap {
+  fill: var(--film-steel);
+  stroke: var(--film-steel-dark);
+  stroke-width: 0.8;
+}
+
+.wheel .film-slot {
+  fill: var(--film-steel-dark);
 }
 
 .wheel-empty {

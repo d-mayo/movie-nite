@@ -152,11 +152,36 @@ test('wedges fill from shared gradients that run dark at the hub to the viewer c
   expect(annWedge.querySelectorAll('[data-testid="poster-fade"]')).toHaveLength(1)
 })
 
-test('the pointer hangs above the strip with its tip over the frames', () => {
+test('pins sit on the turning strip and the flapper hangs outside it, its tip inside the pins', () => {
   setup()
-  addViewers(['Ann'])
-  const points = screen.getByTestId('pointer').getAttribute('points')!.split(' ')
-  const tipY = Number(points[2].split(',')[1])
-  expect(tipY).toBeGreaterThanOrEqual(-111)
-  expect(tipY).toBeLessThanOrEqual(-104.6)
+  addViewers(['Ann', 'Bo'])
+  const svg = document.querySelector('svg.wheel')!
+  const group = svg.querySelector(':scope > g')!
+  expect(svg.querySelector('g')).toBe(group)
+  expect(svg.getAttribute('viewBox')).toBe('-124 -124 248 248')
+  const pins = within(group as HTMLElement).getAllByTestId('pin')
+  expect(pins).toHaveLength(wedges().length)
+  const middle = (103.2 + 108.8) / 2
+  for (const pin of pins) {
+    expect(pin.getAttribute('class')).toBe('film-pin')
+    const r = Math.hypot(Number(pin.getAttribute('cx')), Number(pin.getAttribute('cy')))
+    expect(r).toBeCloseTo(middle, 1)
+    // Half-width under 1.2° of arc, so a rest at the edge margin never looks like a tie.
+    expect((Number(pin.getAttribute('r')) / middle) * (180 / Math.PI)).toBeLessThan(1.2)
+  }
+  const first = pins[0]
+  expect(Number(first.getAttribute('cx'))).toBeCloseTo(0, 2)
+  expect(Number(first.getAttribute('cy'))).toBeCloseTo(-middle, 1)
+
+  const pointer = screen.getByTestId('pointer')
+  expect(group.contains(pointer)).toBe(false)
+  const tongue = pointer.querySelector('.film-tongue')!
+  const cap = pointer.querySelector('.film-cap')!
+  expect(pointer.querySelector('.film-slot')).not.toBeNull()
+  expect(Number(cap.getAttribute('cy'))).toBeLessThan(-112)
+  const ys = tongue.getAttribute('d')!.match(/-?\d+(\.\d+)?/g)!.map(Number).filter((_, i) => i % 2 === 1)
+  const tip = Math.max(...ys)
+  const pinInner = middle - Number(first.getAttribute('r')) - 0.3
+  expect(-tip).toBeLessThan(pinInner)
+  expect(-tip).toBeGreaterThan(100)
 })

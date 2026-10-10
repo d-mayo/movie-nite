@@ -1,4 +1,5 @@
 import { memo } from 'react'
+import { pinAngles } from '../wheel/pins.ts'
 import type { Wedge } from '../wheel/wedges.ts'
 
 export const stripInner = 100
@@ -9,6 +10,9 @@ const holeRadii = [101.6, 110.4]
 const holeStep = 2.5
 const holeSize = 1.9
 const holeCorner = 0.5
+// A pin is a cream stud with a black ring, centered on the frame band.
+export const pinRadius = (frameInner + frameOuter) / 2
+export const pinSize = 1.5
 const frameInset = 0.25
 export const wildcardFrame = '#5a5a54'
 
@@ -68,6 +72,10 @@ function Reel({ wedges }: { wedges: Wedge[] }) {
           opacity="0.95"
         />
       ))}
+      {pinAngles(wedges.map((w) => w.arc)).map((angle) => {
+        const [x, y] = point(angle, pinRadius).split(' ')
+        return <circle key={angle} data-testid="pin" cx={x} cy={y} r={pinSize} className="film-pin" />
+      })}
       <circle data-testid="reel-ring" r={stripInner} fill="none" strokeWidth="0.8" className="film-edge" />
     </g>
   )
