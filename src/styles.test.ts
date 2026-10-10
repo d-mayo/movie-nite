@@ -121,3 +121,23 @@ describe('shared control rules', () => {
     }
   })
 })
+
+describe('reveal frame', () => {
+  const reveal = tokens(block(css.slice(css.lastIndexOf('@media (prefers-color-scheme: dark)')), '.reveal'))
+  const revealBody = block(css.slice(css.lastIndexOf('@media (prefers-color-scheme: dark)')), '.reveal')
+
+  test('sets color-scheme dark and every color token to its dark value', () => {
+    expect(revealBody).toMatch(/color-scheme:\s*dark/)
+    expect(reveal['--danger']).toBeDefined()
+    for (const [name, value] of Object.entries(reveal)) {
+      expect(value, name).toBe(dark[name])
+    }
+    for (const name of colorNames) expect(reveal[name], name).toBe(dark[name])
+  })
+
+  test('text, muted, danger and cream read on the film stock', () => {
+    for (const color of [reveal['--text'], reveal['--muted'], reveal['--danger'], light['--film-cream']]) {
+      expect(contrast(color, light['--film-stock']), color).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+})
