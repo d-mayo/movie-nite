@@ -66,9 +66,10 @@ export function useWheelMotion(stopped: boolean, pins: number[]) {
     // Bends or releases the flapper for this frame's pins and direction, and
     // writes it only when it moved.
     function moveFlapper(dt: number) {
-      direction.current = nextDirection(direction.current, angle.current - lastAngle.current)
+      const from = lastAngle.current
+      direction.current = nextDirection(direction.current, angle.current - from)
       lastAngle.current = angle.current
-      const bend = targetBend(pinsRef.current, angle.current, direction.current)
+      const bend = targetBend(pinsRef.current, from, angle.current, direction.current)
       const before = flapper.current.angle
       const next = flapperStep(flapper.current, bend, dt)
       flapper.current = bend === 0 && isSettled(next) ? { angle: 0, velocity: 0 } : next

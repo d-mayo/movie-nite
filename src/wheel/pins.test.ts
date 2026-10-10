@@ -7,7 +7,6 @@ import {
   minPinGapDegrees,
   nextDirection,
   pinAngles,
-  pinReachDegrees,
   targetBend,
   type Flapper,
 } from './pins.ts'
@@ -52,27 +51,43 @@ describe('pinAngles', () => {
 })
 
 describe('targetBend', () => {
-  test('forward: bends toward +x by how near the pin is, only before the pointer', () => {
-    expect(targetBend([0], -pinReachDegrees, 1)).toBe(0)
-    expect(targetBend([0], -pinReachDegrees / 2, 1)).toBeCloseTo(-maxBendDegrees / 2)
-    const near = targetBend([0], -0.01, 1)
-    expect(near).toBeLessThan(-29.7)
-    expect(near).toBeGreaterThanOrEqual(-maxBendDegrees)
-    expect(targetBend([0], 0.01, 1)).toBe(0)
+  // The bend as the wheel creeps forward past a pin at 0 (rotation r, a tiny step).
+  const creep = (r: number) => targetBend([0], r - 0.01, r, 1)
+
+  test('forward: a pin pushes the tongue along from where it touches until it slips off', () => {
+    expect(creep(-3)).toBe(0)
+    expect(creep(-1.6)).toBe(0)
+    const bends = [-1.2, -0.6, 0, 0.6, 1.2, 1.7].map(creep)
+    for (const bend of bends) expect(bend).toBeLessThan(0)
+    for (let i = 1; i < bends.length; i++) expect(bends[i]).toBeLessThan(bends[i - 1])
+    expect(bends[bends.length - 1]).toBeGreaterThan(-maxBendDegrees - 1e-9)
+    expect(bends[bends.length - 1]).toBeLessThan(-28)
+    // Past the end the tongue has slipped off the pin.
+    expect(creep(2)).toBe(0)
+    expect(creep(5)).toBe(0)
   })
 
   test('backward mirrors it', () => {
-    expect(targetBend([0], pinReachDegrees / 2, -1)).toBeCloseTo(maxBendDegrees / 2)
-    expect(targetBend([0], 0.01, -1)).toBeGreaterThan(29.7)
-    expect(targetBend([0], -0.01, -1)).toBe(0)
+    const back = (r: number) => targetBend([0], r + 0.01, r, -1)
+    expect(back(1.6)).toBe(0)
+    expect(back(0.6)).toBeCloseTo(-creep(-0.6), 1)
+    expect(back(0.6)).toBeGreaterThan(0)
+    expect(back(-2)).toBe(0)
   })
 
-  test('only a pin within reach counts, and pins wrap round 360°', () => {
-    // Pins at 0 and 2, wheel at -2.5: the pin at 2 is 0.5 short; the one at 0 is 2.5 short.
-    expect(targetBend([0, 2], -2.5, 1)).toBeCloseTo(-30 * (1 - 0.5 / pinReachDegrees))
-    // A pin at 359 with the wheel at 0.2 sits at 359.2, which is 0.8 short of the pointer.
-    expect(targetBend([359], 0.2, 1)).toBeCloseTo(-30 * (1 - 0.8 / pinReachDegrees))
-    expect(targetBend([359], 1, 1)).toBe(-30)
+  test('a frame that crosses a pin whole bends the tongue fully, one that stops short does not', () => {
+    expect(targetBend([0], -8, 8, 1)).toBeCloseTo(-maxBendDegrees, 5)
+    expect(targetBend([0], 8, -8, -1)).toBeCloseTo(maxBendDegrees, 5)
+    expect(targetBend([0], -10, -5, 1)).toBe(0)
+    expect(targetBend([0], -8, 3, 1)).toBeCloseTo(-maxBendDegrees, 5)
+  })
+
+  test('a still wheel is held by a pin in the push range, and pins wrap round 360°', () => {
+    expect(targetBend([0], 0, 0, 1)).toBeLessThan(-5)
+    expect(targetBend([0], -5, -5, 1)).toBe(0)
+    expect(targetBend([359], 0.5, 0.51, 1)).toBeLessThan(0)
+    expect(targetBend([0], 360, 360.01, 1)).toBeLessThan(0)
+    expect(targetBend([0], 719.5, 719.51, 1)).toBeLessThan(0)
   })
 })
 
@@ -86,7 +101,7 @@ describe('nextDirection', () => {
 
   test('a still wheel keeps its bend against a pin on the side it came from', () => {
     const direction = nextDirection(1, 0)
-    expect(targetBend([0], -1.2, direction)).toBeLessThan(0)
+    expect(targetBend([0], -1, -1, direction)).toBeLessThan(0)
   })
 })
 

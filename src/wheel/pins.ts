@@ -7,11 +7,15 @@
 
 import type { Arc } from './layout.ts'
 
-// A pin starts to bend the flapper this far (degrees of wheel) before the pointer.
-export const pinReachDegrees = 2
 export const maxBendDegrees = 30
 // The flapper hangs from a pivot screw this far from the hub (SVG y, above the strip).
 export const pivotY = -118
+// Pins are centered on this radius, and the flapper's tongue meets them there.
+export const pinTrackRadius = 106
+// How far the contact point is from the pivot, and how far from a pin's center the
+// tongue's side is when they touch (the pin's radius plus half the tongue's width).
+const lever = -pivotY - pinTrackRadius
+const contactClearance = 2.7
 export const springStiffness = 900
 export const springDamping = 16
 // No two pins on the wheel are closer than this, wrapping round at 360°.
@@ -44,19 +48,45 @@ export function nextDirection(direction: Direction, change: number): Direction {
   return change > 0 ? 1 : change < 0 ? -1 : direction
 }
 
-// The bend a pin asks for: toward the direction of motion, by the maximum times
-// how near the pin is, for a pin within reach on the side the wheel is moving from.
-export function targetBend(pins: number[], rotation: number, direction: Direction): number {
-  let nearness = 0
+const degrees = (rad: number) => (rad * 180) / Math.PI
+
+// Where a pin pushes the tongue, as the pin's angle from the pointer (clockwise
+// positive): it touches the tongue's near side `contactClearance` before the
+// pointer and keeps pushing until the tongue is bent the maximum, and then the
+// tongue slips off it.
+const pushStart = -degrees(Math.asin(contactClearance / pinTrackRadius))
+const pushEnd = degrees(
+  Math.asin((lever * Math.sin((maxBendDegrees * Math.PI) / 180) - contactClearance) / pinTrackRadius),
+)
+
+// The bend (degrees, positive) of a tongue pushed by a pin at `at` degrees from the pointer.
+function pushedBend(at: number): number {
+  const x = pinTrackRadius * Math.sin((at * Math.PI) / 180) + contactClearance
+  return degrees(Math.asin(Math.min(Math.max(x / lever, 0), 1)))
+}
+
+// The bend the pins ask for over one frame, as the wheel turns from `from` to `to`:
+// a pin pushes the tongue along with it, toward the direction of motion, from
+// where it touches until the tongue slips off; the most any pin pushed it during
+// the frame counts, so a fast wheel that crosses a pin in one frame still bends
+// it fully. A still wheel (`from` equal to `to`) is held by a pin in the push range.
+export function targetBend(pins: number[], from: number, to: number, direction: Direction): number {
+  let bend = 0
   for (const pin of pins) {
-    // Where the pin is from the pointer, in (-180, 180]: negative is counter-clockwise.
-    let at = (((pin + rotation) % 360) + 360) % 360
-    if (at > 180) at -= 360
-    const distance = direction === 1 ? -at : at
-    if (distance < 0 || distance >= pinReachDegrees) continue
-    nearness = Math.max(nearness, 1 - distance / pinReachDegrees)
+    const start = direction * ((((pin + from) % 360) + 540) % 360 - 180)
+    // Taking the pin's angle in (-180, 180]; its images a turn away matter for a fast frame.
+    for (const turn of [-360, 0, 360]) {
+      const a0 = start + direction * turn
+      const a1 = a0 + direction * (to - from)
+      const low = Math.min(a0, a1)
+      const high = Math.max(a0, a1)
+      if (high < pushStart || low > pushEnd) continue
+      // `a1` is where the pin ends up; a pin moving the other way gets nothing from this side.
+      if (a1 < a0) continue
+      bend = Math.max(bend, pushedBend(Math.min(Math.max(a1, pushStart), pushEnd)))
+    }
   }
-  return nearness === 0 ? 0 : -direction * maxBendDegrees * nearness
+  return bend === 0 ? 0 : -direction * Math.min(bend, maxBendDegrees)
 }
 
 // One frame of the flapper: a pin that bends it more than it is bent now holds

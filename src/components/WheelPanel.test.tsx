@@ -536,7 +536,7 @@ test('reduced motion: the flapper still catches pins in the 1 s spin and settles
     setupCrowd({ random: () => 0.5 })
     await sleep(50)
     // The wheel does not drift, so the flapper rests bent against the first pin.
-    expect(flapperAngle()).toBeLessThan(-20)
+    expect(flapperAngle()).toBeLessThan(-8)
     fireEvent.click(spinButton())
     const during = await sampleFlapper(900)
     expect(new Set(during).size).toBeGreaterThan(3)
