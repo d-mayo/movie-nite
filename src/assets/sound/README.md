@@ -6,7 +6,7 @@ remake the cuts. Times below are seconds in the source file.
 
 | File | Source | Cut |
 | --- | --- | --- |
-| `projector-on.mp3` | [702451, overhead projector](https://freesound.org/people/Stefan021/sounds/702451/) (44.1 kHz mono) | 0.99 to 1.65: both clunks (about 1.02 and 1.42); 4 ms fade in, 100 ms fade out |
+| `projector-on.mp3` | [702451, overhead projector](https://freesound.org/people/Stefan021/sounds/702451/) (44.1 kHz mono) | 1.017 to 1.65: both clunks (the first rises at 1.020, the second at about 1.42); 2 ms fade in, 100 ms fade out |
 | `projector-hum.mp3` | [412145, 8 mm projector long run with finish](https://freesound.org/people/Stefan021/sounds/412145/), mixed to mono | the steady run, 55.0 to 63.5 (the knocks at about 48.3, 79.8 and 87.5 are avoided), +6 dB |
 | `projector-off.mp3` | the same file | 95.33 to 96.1: the final clicks; 4 ms fade in, 220 ms fade out |
 
