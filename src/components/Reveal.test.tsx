@@ -25,17 +25,20 @@ beforeEach(() => {
 })
 afterEach(() => vi.useRealTimers())
 
-function setup(random: number, a: Nomination, b: Nomination) {
+function setup(random: number, a: Nomination, b: Nomination, holdover: Nomination | null = null) {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
       settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      holdover,
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
       ],
       night: {
         ...defaultState.night,
+        spun: holdover !== null,
+        holdoverDismissed: holdover !== null,
         presentIds: ['a', 'b'],
         nominations: { a, b },
       },
@@ -107,6 +110,16 @@ test('Watch comes before Save for Next Week', async () => {
   const dialog = await screen.findByRole('dialog')
   const save = within(dialog).getByRole('button', { name: 'Save for Next Week' })
   expect(position(within(dialog).getByRole('button', { name: 'Watch' }), save)).toBeTruthy()
+})
+
+test('with a held film, Save for Next Week asks in the frame and Keep it goes back', async () => {
+  setup(0.01, film(1), film(2), film(7, { title: 'Held One' }))
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save for Next Week' }))
+  expect(within(dialog).getByRole('alert')).toHaveTextContent('This will replace Held One')
+  expect(within(dialog).queryByRole('button', { name: 'Save for Next Week' })).toBeNull()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Keep it' }))
+  expect(within(dialog).getByRole('button', { name: 'Save for Next Week' })).toBeInTheDocument()
 })
 
 const pickFetch = vi.fn((url: string) => {

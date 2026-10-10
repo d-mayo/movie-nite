@@ -54,7 +54,7 @@
 
 /* The reveal is a frame of the film print on black stock, so inside it the app's
    color tokens take their dark-scheme values in both modes (danger is the soft
-   salmon), and the focus ring is cream. Placed after the dark block so it wins. */
+   salmon). Its cream focus ring is set in App.css. Placed after the dark block so it wins. */
 .reveal {
   color-scheme: dark;
   --page: #262626;

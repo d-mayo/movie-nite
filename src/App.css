@@ -591,6 +591,44 @@ footer p {
   color: var(--film-cream);
 }
 
+.reveal .film-search label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  font-size: 0.85rem;
+}
+
+.reveal .film-search input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.reveal .film-search ul {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+}
+
+.reveal .film-search ul button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+
+.reveal .film-search ul img,
+.reveal .film-search ul .poster-placeholder {
+  flex: none;
+  width: 32px;
+  height: 48px;
+  border-radius: 2px;
+  background: var(--film-steel-dark);
+}
+
 .reveal-back {
   margin-top: var(--space-3);
 }
