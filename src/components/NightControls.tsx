@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useApp } from '../state/store.ts'
+import { canHover, closeDelayMs } from './canHover.ts'
 import WheelEditor from './WheelEditor.tsx'
 
 interface Props {
@@ -55,6 +56,14 @@ export default function NightControls({ locked, heldFilmChip, onChangeToken }: P
   const [editing, setEditing] = useState(false)
   const menu = useRef<HTMLDivElement>(null)
   const gear = useRef<HTMLButtonElement>(null)
+  // The gear menu closes shortly after the pointer leaves it, once it has been inside.
+  const menuInside = useRef(false)
+  const menuTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clearMenuTimer = () => {
+    if (menuTimer.current) clearTimeout(menuTimer.current)
+    menuTimer.current = null
+  }
+  useEffect(() => clearMenuTimer, [])
   const closeDialog = useCallback(() => setConfirming(false), [])
   const closeDrawer = useCallback(() => {
     setEditing(false)
@@ -89,7 +98,23 @@ export default function NightControls({ locked, heldFilmChip, onChangeToken }: P
       >
         <span aria-hidden="true">⚙</span>
       </button>
-      <div id="settings-menu" popover="auto" ref={menu} className="card settings-menu">
+      <div id="settings-menu" popover="auto" ref={menu} className="card settings-menu"
+        onToggle={(e) => {
+          if ((e as unknown as { newState: string }).newState === 'closed') {
+            menuInside.current = false
+            clearMenuTimer()
+          }
+        }}
+        onPointerEnter={() => {
+          menuInside.current = true
+          clearMenuTimer()
+        }}
+        onPointerLeave={() => {
+          if (!menuInside.current || !canHover()) return
+          clearMenuTimer()
+          menuTimer.current = setTimeout(() => menu.current?.hidePopover(), closeDelayMs)
+        }}
+      >
         <button
           type="button"
           disabled={night.ended}

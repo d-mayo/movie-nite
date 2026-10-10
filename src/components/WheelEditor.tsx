@@ -8,7 +8,7 @@ import {
   minSpinSeconds,
   minSpinTurnsPerSecond,
 } from '../wheel/edit.ts'
-import { canHover } from './canHover.ts'
+import { canHover, closeDelayMs } from './canHover.ts'
 import Slider from './Slider.tsx'
 import Stepper from './Stepper.tsx'
 
@@ -18,9 +18,6 @@ interface Props {
   // The button the popover hangs from.
   anchor?: RefObject<HTMLElement | null>
 }
-
-// How long after the pointer leaves the popover it closes, as a viewer cell does.
-const closeDelayMs = 300
 
 // Mounted only while shown, like the End night dialog: Cancel and confirming
 // unmount it directly, and Escape does so through the native `close` event.
@@ -265,10 +262,7 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
             </section>
             <section className="inset-card" aria-labelledby="defaults-heading">
               <div className="card-head">
-                <h3 id="defaults-heading">Defaults</h3>
-                <button type="button" className="quiet" disabled={atFactory} onClick={showConfirm}>
-                  Restore defaults
-                </button>
+                <h3 id="defaults-heading">Viewer Defaults</h3>
               </div>
               <Stepper
                 label="Slices per viewer"
@@ -287,6 +281,14 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
                 onChange={setDefaultWeight}
               />
             </section>
+            <button
+              type="button"
+              className="quiet restore-all"
+              disabled={atFactory}
+              onClick={showConfirm}
+            >
+              Restore All Defaults
+            </button>
           </fieldset>
         </div>
       </dialog>

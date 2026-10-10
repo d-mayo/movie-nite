@@ -151,11 +151,11 @@ describe('closing when the pointer leaves', () => {
     expect(isOpen()).toBe(true)
   })
 
-  test('leaving closes it 300 ms later unless the pointer comes back', () => {
+  test('leaving closes it 150 ms later unless the pointer comes back', () => {
     open()
     move(200, 200)
     move(10, 10)
-    act(() => vi.advanceTimersByTime(299))
+    act(() => vi.advanceTimersByTime(149))
     expect(isOpen()).toBe(true)
     act(() => vi.advanceTimersByTime(1))
     expect(isOpen()).toBe(false)
@@ -165,7 +165,7 @@ describe('closing when the pointer leaves', () => {
     open()
     move(200, 200)
     move(10, 10)
-    act(() => vi.advanceTimersByTime(200))
+    act(() => vi.advanceTimersByTime(100))
     move(200, 200)
     act(() => vi.advanceTimersByTime(1000))
     expect(isOpen()).toBe(true)
@@ -188,7 +188,7 @@ describe('closing when the pointer leaves', () => {
     move(10, 10)
     fireEvent.pointerDown(drawer, at(10, 10))
     fireEvent.pointerCancel(drawer)
-    act(() => vi.advanceTimersByTime(299))
+    act(() => vi.advanceTimersByTime(149))
     expect(isOpen()).toBe(true)
     act(() => vi.advanceTimersByTime(1))
     expect(isOpen()).toBe(false)
@@ -201,7 +201,7 @@ describe('closing when the pointer leaves', () => {
     act(() => vi.advanceTimersByTime(1000))
     expect(isOpen()).toBe(true)
     fireEvent.pointerUp(document, at(10, 10))
-    act(() => vi.advanceTimersByTime(300))
+    act(() => vi.advanceTimersByTime(150))
     expect(isOpen()).toBe(false)
   })
 
@@ -209,7 +209,7 @@ describe('closing when the pointer leaves', () => {
     open()
     move(200, 200)
     fireEvent.pointerLeave(document.documentElement)
-    act(() => vi.advanceTimersByTime(300))
+    act(() => vi.advanceTimersByTime(150))
     expect(isOpen()).toBe(false)
   })
 
@@ -227,7 +227,7 @@ describe('closing when the pointer leaves', () => {
     const drawer = open()
     move(200, 200)
     fireEvent.change(screen.getByLabelText('Weight per viewer'), { target: { value: '8' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Restore defaults' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Restore All Defaults' }))
     const confirm = screen.getByRole('dialog', { name: 'Restore all wheel settings?' })
     move(10, 10)
     fireEvent.pointerLeave(document.documentElement)
@@ -242,19 +242,20 @@ describe('closing when the pointer leaves', () => {
     expect(isOpen()).toBe(true)
     move(200, 200)
     move(10, 10)
-    act(() => vi.advanceTimersByTime(300))
+    act(() => vi.advanceTimersByTime(150))
     expect(isOpen()).toBe(false)
   })
 })
 
-describe('Restore defaults', () => {
-  const restore = () => screen.getByRole('button', { name: 'Restore defaults' })
+describe('Restore All Defaults', () => {
+  const restore = () => screen.getByRole('button', { name: 'Restore All Defaults' })
   const confirmation = () => screen.queryByRole('dialog', { name: 'Restore all wheel settings?' })
 
-  test('it sits in the Defaults card header and is enabled only once a setting has changed', () => {
+  test('it sits at the bottom of the popover, outside the cards, and is enabled only once a setting has changed', () => {
     setup()
     openEditor()
-    expect(restore().closest('.card-head')).toHaveTextContent('Defaults')
+    expect(restore().closest('.inset-card')).toBeNull()
+    expect(restore().closest('fieldset')!.lastElementChild).toBe(restore())
     expect(restore()).toBeDisabled()
     fireEvent.change(screen.getByLabelText('Wildcard weight'), { target: { value: '4' } })
     expect(restore()).toBeEnabled()
@@ -325,7 +326,7 @@ test('with nobody on the wheel the note sits under Wildcards', () => {
   expect(note.previousElementSibling).toHaveTextContent('Wildcards')
 })
 
-test('the popover shows Wildcards, Spin and Defaults cards and nothing of the old list', () => {
+test('the popover shows Wildcards, Spin and Viewer Defaults cards and nothing of the old list', () => {
   setup()
   openEditor()
   const drawer = screen.getByRole('dialog', { name: 'Wheel settings' })
@@ -336,7 +337,7 @@ test('the popover shows Wildcards, Spin and Defaults cards and nothing of the ol
   expect(within(cards[0] as HTMLElement).getByRole('group', { name: 'Wildcard count' })).toBeInTheDocument()
   expect(within(cards[0] as HTMLElement).getByLabelText('Wildcard weight')).toBeInTheDocument()
   expect(within(cards[1] as HTMLElement).getByRole('heading', { name: 'Spin' })).toBeInTheDocument()
-  expect(within(cards[2] as HTMLElement).getByRole('heading', { name: 'Defaults' })).toBeInTheDocument()
+  expect(within(cards[2] as HTMLElement).getByRole('heading', { name: 'Viewer Defaults' })).toBeInTheDocument()
   expect(within(cards[2] as HTMLElement).getByRole('group', { name: 'Slices per viewer' })).toBeInTheDocument()
   expect(within(cards[2] as HTMLElement).getByLabelText('Weight per viewer')).toBeInTheDocument()
   for (const gone of [/Add wildcard/, /Remove wildcard/, /^Move slice/, /^Drag slice/, /Spread evenly/, /Reset to default/]) {
@@ -437,4 +438,44 @@ test('a locked drawer disables every control, tick clicks included', () => {
   fireEvent.click(slices.querySelectorAll('.stepper-tick')[8])
   fireEvent.keyDown(slices, { key: 'ArrowUp' })
   expect(store.getState().settings.wheel).toEqual(before)
+})
+
+describe('the gear menu', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query }))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+  const menu = () => document.getElementById('settings-menu')!
+  const isShown = () => menu().dataset.popoverOpen === 'true'
+
+  test('closes 150 ms after the pointer leaves it, but only once it has been inside', () => {
+    setup()
+    fireEvent.click(gear())
+    expect(isShown()).toBe(true)
+    fireEvent.pointerLeave(menu())
+    act(() => vi.advanceTimersByTime(1000))
+    expect(isShown()).toBe(true)
+
+    fireEvent.pointerEnter(menu())
+    fireEvent.pointerLeave(menu())
+    act(() => vi.advanceTimersByTime(149))
+    expect(isShown()).toBe(true)
+    act(() => vi.advanceTimersByTime(1))
+    expect(isShown()).toBe(false)
+  })
+
+  test('coming back in time keeps it open', () => {
+    setup()
+    fireEvent.click(gear())
+    fireEvent.pointerEnter(menu())
+    fireEvent.pointerLeave(menu())
+    act(() => vi.advanceTimersByTime(100))
+    fireEvent.pointerEnter(menu())
+    act(() => vi.advanceTimersByTime(1000))
+    expect(isShown()).toBe(true)
+  })
 })

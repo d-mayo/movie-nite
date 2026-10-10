@@ -3,7 +3,7 @@ import { maxNameLength, maxViewers } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import { effectiveSetting } from '../wheel/edit.ts'
-import { canHover } from './canHover.ts'
+import { canHover, closeDelayMs } from './canHover.ts'
 import { placeUnder } from './placePopover.ts'
 import ViewerCell, { type CellStatus } from './ViewerCell.tsx'
 
@@ -19,7 +19,6 @@ interface Props {
 // How long the pointer rests on a cell before it opens, and how long it must be
 // gone before the cell closes.
 const openDelayMs = 80
-const closeDelayMs = 300
 
 const rank: Record<CellStatus, number> = { wheel: 0, won: 1, away: 2 }
 
