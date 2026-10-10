@@ -1,3 +1,4 @@
+import type { Ref } from 'react'
 import { posterUrl } from '../tmdb/client.ts'
 import { labelTextColor } from '../wheel/colors.ts'
 import type { Wedge } from '../wheel/wedges.ts'
@@ -86,10 +87,11 @@ function WedgeShape({ wedge, id }: { wedge: Wedge; id: string }) {
 
 interface Props {
   wedges: Wedge[]
-  rotation: number
+  // The rotating group; its transform is written by the wheel's motion loop.
+  groupRef: Ref<SVGGElement>
 }
 
-export default function Wheel({ wedges, rotation }: Props) {
+export default function Wheel({ wedges, groupRef }: Props) {
   if (wedges.length === 0) {
     return (
       <div className="wheel-empty">
@@ -99,7 +101,7 @@ export default function Wheel({ wedges, rotation }: Props) {
   }
   return (
     <svg viewBox="-108 -108 216 216" className="wheel" role="img" aria-label="Wheel">
-      <g transform={`rotate(${rotation})`}>
+      <g ref={groupRef}>
         {wedges.map((wedge, i) => (
           <WedgeShape key={i} wedge={wedge} id={String(i)} />
         ))}

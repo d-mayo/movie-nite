@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
@@ -6,10 +6,12 @@ import { useApp } from '../state/store.ts'
 import { cryptoRandom, drawSlice, restRotation } from '../wheel/draw.ts'
 import { buildWedges, type Wedge } from '../wheel/wedges.ts'
 import { spinPlan } from '../wheel/edit.ts'
+import { buildReducedSpinPath, buildSpinPath, spinPhases } from '../wheel/motion.ts'
 import { prefersReducedMotion } from '../wheel/reducedMotion.ts'
 import NightOver from './NightOver.tsx'
 import Reveal from './Reveal.tsx'
 import Wheel from './Wheel.tsx'
+import { useWheelMotion } from './useWheelMotion.ts'
 
 interface Spin {
   wedges: Wedge[]
@@ -30,8 +32,6 @@ interface Props {
 // "Ann", "Ann and Bo", "Ann, Bo, and Cy".
 const nameList = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' })
 
-const easeOut = (t: number) => 1 - (1 - t) ** 3
-
 export default function WheelPanel({
   random = cryptoRandom,
   spinMs,
@@ -41,18 +41,10 @@ export default function WheelPanel({
   reasonSlot,
 }: Props) {
   const { night, roster, settings, holdover, recordOutcome, startSpin } = useApp()
-  const [rotation, setRotation] = useState(0)
   // Fixed when Spin is pressed and dropped on Close, so the wheel, the draw
   // and the reveal agree even if the store changes meanwhile.
   const [spin, setSpin] = useState<Spin | null>(null)
-  const frame = useRef<number | null>(null)
-
-  useEffect(
-    () => () => {
-      if (frame.current !== null) cancelAnimationFrame(frame.current)
-    },
-    [],
-  )
+  const motion = useWheelMotion(spin !== null || night.ended)
 
   const live = buildWedges(night, roster, settings.wheel)
   const onWheel = viewersOnWheel(night)
@@ -74,31 +66,22 @@ export default function WheelPanel({
     const wedges = buildWedges(night, roster, settings.wheel)
     const slices = wedges.map((w) => w.slice)
     const drawn = drawSlice(slices, random)
-    const plan = spinPlan(settings.wheel, prefersReducedMotion())
-    const duration = spinMs ?? plan.durationMs
-    const from = rotation
-    const to = restRotation(
-      from,
-      wedges.map((w) => w.arc),
-      drawn,
-      random,
-      plan.turns,
-    )
+    const reduced = prefersReducedMotion()
+    const plan = spinPlan(settings.wheel, reduced)
+    const { angle: from, speed } = motion.current()
+    const arcs = wedges.map((w) => w.arc)
+    const to = restRotation(from, arcs, drawn, random, plan.turns)
+    const path = reduced
+      ? buildReducedSpinPath(from, to, spinMs ?? plan.durationMs)
+      : buildSpinPath({
+          from,
+          driftSpeed: speed,
+          to,
+          phases: spinPhases(plan.durationMs, spinMs),
+        })
     setSpin({ wedges, drawn, revealedAt: null })
     onBusyChange(true)
-    let began: number | null = null
-    const step = (now: number) => {
-      began ??= now
-      const t = Math.min(1, (now - began) / duration)
-      setRotation(from + (to - from) * easeOut(t))
-      if (t < 1) {
-        frame.current = requestAnimationFrame(step)
-      } else {
-        frame.current = null
-        setSpin((s) => s && { ...s, revealedAt: new Date() })
-      }
-    }
-    frame.current = requestAnimationFrame(step)
+    motion.play(path, () => setSpin((s) => s && { ...s, revealedAt: new Date() }))
   }
 
   function close() {
@@ -114,7 +97,7 @@ export default function WheelPanel({
   return (
     <div className="wheel-panel">
       <div className="wheel-stage">
-        <Wheel wedges={wedges} rotation={rotation} />
+        <Wheel wedges={wedges} groupRef={motion.groupRef} />
         {wedges.length > 0 && (
           <button
             type="button"

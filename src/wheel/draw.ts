@@ -2,7 +2,7 @@ import type { Arc, Slice } from './layout.ts'
 
 // The pointer is fixed at the top; arcs run clockwise from the top of the
 // wheel and the wheel rotates clockwise by `rotation` degrees.
-const margin = 0.1
+const maxMarginDegrees = 1.2
 
 export function cryptoRandom(): number {
   const buffer = new Uint32Array(1)
@@ -27,8 +27,14 @@ export function angleUnderPointer(rotation: number): number {
   return (((-rotation % 360) + 360) % 360)
 }
 
+// The clearance kept at each edge of a slice: 1.2°, or a quarter of a narrow
+// slice's width.
+export function edgeMargin(arc: Arc): number {
+  return Math.min(maxMarginDegrees, (arc.end - arc.start) / 4)
+}
+
 // A final rotation at least `turns` full turns past `currentRotation`, with
-// the pointer at a random point in the middle 80% of the slice at `index`.
+// the pointer anywhere in the slice at `index` but its edge margins.
 export function restRotation(
   currentRotation: number,
   arcs: Arc[],
@@ -37,8 +43,8 @@ export function restRotation(
   turns: number,
 ): number {
   const { start, end } = arcs[index]
-  const width = end - start
-  const target = start + width * (margin + random() * (1 - 2 * margin))
+  const margin = edgeMargin(arcs[index])
+  const target = start + margin + random() * (end - start - 2 * margin)
   const base = currentRotation + turns * 360
   const delta = (((-target - base) % 360) + 360) % 360
   return base + delta

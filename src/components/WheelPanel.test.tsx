@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { Profiler } from 'react'
 import { expect, test, vi } from 'vitest'
 import App from '../App.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
@@ -48,6 +49,11 @@ function setup(
   return store
 }
 
+const wheelRotation = () => {
+  const transform = document.querySelector('svg.wheel > g')!.getAttribute('transform')!
+  return Number(/rotate\(([^)]+)\)/.exec(transform)![1])
+}
+
 const spinButton = () => screen.getByRole('button', { name: 'Spin' })
 const hrefs = () =>
   Array.from(document.querySelectorAll('image')).map((i) => i.getAttribute('href'))
@@ -75,6 +81,7 @@ test('spin waits for the viewers who have not nominated', () => {
 
 test('spinning locks setup, rests in the drawn slice and shows a snapshot', async () => {
   const store = setup(['a', 'b'], { random: () => 0.5, spinMs: 20 })
+  const pressedAt = wheelRotation()
   fireEvent.click(spinButton())
 
   expect(spinButton()).toBeDisabled()
@@ -98,12 +105,11 @@ test('spinning locks setup, rests in the drawn slice and shows a snapshot', asyn
   const total = slices.reduce((s, x) => s + x.weight, 0)
   let cumulative = 0
   const index = slices.findIndex((s) => (cumulative += s.weight) > total / 2)
-  const transform = document.querySelector('svg.wheel > g')!.getAttribute('transform')!
-  const rotation = Number(/rotate\(([^)]+)\)/.exec(transform)![1])
+  const rotation = wheelRotation()
   const angle = angleUnderPointer(rotation)
   expect(angle).toBeGreaterThan(arcs[index].start)
   expect(angle).toBeLessThan(arcs[index].end)
-  expect(rotation).toBeGreaterThanOrEqual(5 * 360)
+  expect(rotation - pressedAt).toBeGreaterThanOrEqual(5 * 360)
 })
 
 test('Close makes the wheel live and unlocks setup', async () => {
@@ -230,51 +236,165 @@ test('the waiting message lists names with and, and a final comma and and for th
   expect(screen.getByText('Waiting for Ann, Bo, and Cy to nominate.')).toBeInTheDocument()
 })
 
-const wheelRotation = () => {
-  const transform = document.querySelector('svg.wheel > g')!.getAttribute('transform')!
-  return Number(/rotate\(([^)]+)\)/.exec(transform)![1])
-}
-
 test('the turns come from the spin settings', async () => {
   setup(['a', 'b'], { random: () => 0.5, spinMs: 20 }, {
     ...defaultWheelSettings,
     spinSeconds: 6,
     spinTurnsPerSecond: 2,
   })
+  const pressedAt = wheelRotation()
   fireEvent.click(spinButton())
   await screen.findByRole('dialog')
-  expect(wheelRotation()).toBeGreaterThanOrEqual(12 * 360)
-  expect(wheelRotation()).toBeLessThan(13 * 360)
+  expect(wheelRotation() - pressedAt).toBeGreaterThanOrEqual(12 * 360)
+  expect(wheelRotation() - pressedAt).toBeLessThan(13 * 360)
 })
 
 test('reduced motion makes one turn whatever the settings', async () => {
-  const original = Object.getOwnPropertyDescriptor(window, 'matchMedia')
-  window.matchMedia = ((query: string) => ({
+  vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query.includes('prefers-reduced-motion'),
     media: query,
     addEventListener: () => {},
     removeEventListener: () => {},
-  })) as never
+  }))
   try {
     setup(['a', 'b'], { random: () => 0.5, spinMs: 20 }, {
       ...defaultWheelSettings,
       spinSeconds: 6,
       spinTurnsPerSecond: 2,
     })
+    const pressedAt = wheelRotation()
     fireEvent.click(spinButton())
     await screen.findByRole('dialog')
-    expect(wheelRotation()).toBeGreaterThanOrEqual(360)
-    expect(wheelRotation()).toBeLessThan(2 * 360)
+    expect(wheelRotation() - pressedAt).toBeGreaterThanOrEqual(360)
+    expect(wheelRotation() - pressedAt).toBeLessThan(2 * 360)
   } finally {
-    if (original) Object.defineProperty(window, 'matchMedia', original)
-    else delete (window as { matchMedia?: unknown }).matchMedia
+    vi.unstubAllGlobals()
   }
 })
 
-test('the spin lasts the length set, without a spinMs override', async () => {
+test('the spin lasts the length set plus the wind-up', async () => {
   setup(['a', 'b'], { random: () => 0.5 }, { ...defaultWheelSettings, spinSeconds: 2 })
   fireEvent.click(spinButton())
-  await new Promise((r) => setTimeout(r, 1000))
+  await new Promise((r) => setTimeout(r, 2000))
   expect(screen.queryByRole('dialog')).toBeNull()
-  await screen.findByRole('dialog', undefined, { timeout: 3000 })
+  await screen.findByRole('dialog', undefined, { timeout: 3500 })
+}, 8000)
+
+const sleep = (ms: number) => act(() => new Promise<void>((r) => setTimeout(r, ms)))
+
+test('the wheel drifts while Spin is disabled and while the settings popover is open', async () => {
+  setup([])
+  expect(spinButton()).toBeDisabled()
+  const first = wheelRotation()
+  await sleep(300)
+  const second = wheelRotation()
+  expect(second).toBeGreaterThan(first)
+  fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Wheel settings' }))
+  await sleep(200)
+  const third = wheelRotation()
+  await sleep(300)
+  expect(wheelRotation()).toBeGreaterThan(third)
+})
+
+test('the wheel holds the rest point under the reveal, drifts after Close, and stops when the night ends', async () => {
+  const store = setup(['a', 'b'], { random: () => 0.5, spinMs: 20 })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  const held = wheelRotation()
+  await sleep(300)
+  expect(wheelRotation()).toBe(held)
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+  await sleep(400)
+  expect(wheelRotation()).toBeGreaterThan(held)
+  act(() => store.getState().endNight())
+  await sleep(2500)
+  const ended = wheelRotation()
+  await sleep(300)
+  expect(wheelRotation()).toBe(ended)
+}, 8000)
+
+test('React commits nothing while the wheel drifts, and a spin costs a fixed few', async () => {
+  let commits = 0
+  const onRender = () => {
+    commits++
+  }
+  const store = createAppStore(
+    createMemoryPersistence({
+      ...defaultState,
+      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      roster: [
+        { id: 'a', name: 'Ann', color: '#e6194b' },
+        { id: 'b', name: 'Bo', color: '#f58231' },
+      ],
+      night: {
+        ...defaultState.night,
+        presentIds: ['a', 'b'],
+        nominations: { a: film(1), b: film(2) },
+      },
+    }),
+  )
+  const view = (spinMs: number) => (
+    <Profiler id="app" onRender={onRender}>
+      <App store={store} fetchFn={vi.fn()} random={() => 0.5} spinMs={spinMs} />
+    </Profiler>
+  )
+  const { rerender } = render(view(20))
+  await sleep(50)
+  const idleStart = commits
+  const before = wheelRotation()
+  await sleep(300)
+  expect(wheelRotation()).toBeGreaterThan(before)
+  expect(commits).toBe(idleStart)
+
+  const spinCommits = async (ms: number) => {
+    rerender(view(ms))
+    await sleep(50)
+    const start = commits
+    fireEvent.click(spinButton())
+    await screen.findByRole('dialog', undefined, { timeout: 2000 })
+    const used = commits - start
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    return used
+  }
+  const short = await spinCommits(20)
+  const long = await spinCommits(400)
+  expect(long).toBe(short)
+  expect(short).toBeLessThan(8)
+})
+
+test('a wheel that mounts again shows the current angle at once', async () => {
+  const store = setup(['a', 'b'])
+  await sleep(200)
+  markAway('Ann')
+  markAway('Bo')
+  expect(document.querySelector('svg.wheel')).toBeNull()
+  markHere('Ann')
+  expect(document.querySelector('svg.wheel > g')!.getAttribute('transform')).toMatch(
+    /^rotate\(/,
+  )
+  expect(store.getState().night.presentIds).toContain('a')
+})
+
+test('reduced motion: no drift, before or after a spin', async () => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('prefers-reduced-motion'),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+  try {
+    setup(['a', 'b'], { random: () => 0.5, spinMs: 20 })
+    const idle = wheelRotation()
+    await sleep(300)
+    expect(wheelRotation()).toBe(idle)
+    fireEvent.click(spinButton())
+    await screen.findByRole('dialog')
+    const held = wheelRotation()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await sleep(300)
+    expect(wheelRotation()).toBe(held)
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })
