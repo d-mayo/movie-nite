@@ -9,12 +9,33 @@ import {
   flapperStep,
   isSettled,
   nextDirection,
+  pinExits,
   pivotY,
   targetBend,
   type Direction,
   type Flapper,
 } from '../wheel/pins.ts'
+import { silentSound, type SoundEngine, type SoundSettings } from '../sound/engine.ts'
 import { prefersReducedMotion, watchReducedMotion } from '../wheel/reducedMotion.ts'
+
+// The path's speed (degrees a second) at `ms`, from a short window round it, so
+// it does not depend on the frame rate.
+const speedWindowMs = 20
+function pathSpeed(path: SpinPath, ms: number): number {
+  const a = Math.max(ms - speedWindowMs, 0)
+  const b = Math.min(ms + speedWindowMs, path.durationMs)
+  return b > a ? (Math.abs(path.rotationAt(b) - path.rotationAt(a)) / (b - a)) * 1000 : 0
+}
+
+function peakSpeed(path: SpinPath): number {
+  let peak = 0
+  for (let ms = 0; ms <= path.durationMs; ms += 10) peak = Math.max(peak, pathSpeed(path, ms))
+  return peak
+}
+
+function speedShareAt(path: SpinPath, ms: number, peak: number): number {
+  return peak > 0 ? Math.min(pathSpeed(path, ms) / peak, 1) : 0
+}
 
 // One requestAnimationFrame loop for the wheel's whole life: it drifts the
 // wheel while idle and plays a spin path, and writes the angle straight to the
@@ -22,7 +43,15 @@ import { prefersReducedMotion, watchReducedMotion } from '../wheel/reducedMotion
 // The same loop bends the pointer's flapper as the wheel's pins (`pins`, the
 // angles on the wedges on screen) pass it, and writes its `transform` too.
 // `stopped` (a spin, the reveal or Night over is up) eases the drift to a halt.
-export function useWheelMotion(stopped: boolean, pins: number[]) {
+// A spin, and only a spin, drives the sound engine from the same loop: the
+// projector's switch-on at the press, the hum following the wheel's speed each
+// frame, a tick for each pin that slips off the flapper, the switch-off at the stop.
+export function useWheelMotion(
+  stopped: boolean,
+  pins: number[],
+  sound: SoundEngine = silentSound,
+  soundSettings: SoundSettings = { music: true, effects: true, volume: 70 },
+) {
   const groupRef = useRef<SVGGElement>(null)
   // The Spin button's reel hub turns with the wheel, from this same loop.
   const hubRef = useRef<SVGGElement>(null)
@@ -37,11 +66,16 @@ export function useWheelMotion(stopped: boolean, pins: number[]) {
   const speed = useRef(0)
   const reduced = useRef(false)
   const stoppedRef = useRef(stopped)
+  const soundRef = useRef(sound)
   const playing = useRef<{
     path: SpinPath
     began: number | null
     done: () => void
+    // The spin's fastest speed, in degrees a second.
+    peak: number
   } | null>(null)
+  // This frame's wheel speed as a share of the spin's peak, set while a spin runs.
+  const share = useRef<number | null>(null)
 
   function write() {
     const transform = `rotate(${angle.current})`
@@ -54,8 +88,14 @@ export function useWheelMotion(stopped: boolean, pins: number[]) {
   useLayoutEffect(() => {
     stoppedRef.current = stopped
     pinsRef.current = pins
+    soundRef.current = sound
     write()
   })
+
+  useEffect(() => sound.attach(document), [sound])
+
+  const { music, effects, volume } = soundSettings
+  useEffect(() => sound.apply({ music, effects, volume }), [sound, music, effects, volume])
 
   useEffect(() => {
     reduced.current = prefersReducedMotion()
@@ -69,6 +109,11 @@ export function useWheelMotion(stopped: boolean, pins: number[]) {
       const from = lastAngle.current
       direction.current = nextDirection(direction.current, angle.current - from)
       lastAngle.current = angle.current
+      if (share.current !== null) {
+        for (let i = pinExits(pinsRef.current, from, angle.current, direction.current); i > 0; i--) {
+          soundRef.current.pinTick(share.current)
+        }
+      }
       const bend = targetBend(pinsRef.current, from, angle.current, direction.current)
       const before = flapper.current.angle
       const next = flapperStep(flapper.current, bend, dt)
@@ -81,6 +126,7 @@ export function useWheelMotion(stopped: boolean, pins: number[]) {
       const dt = last === null ? 0 : Math.min((now - last) / 1000, maxFrameSeconds)
       last = now
       const run = playing.current
+      let finished: typeof run = null
       if (run) {
         run.began ??= now
         const elapsed = now - run.began
@@ -88,9 +134,11 @@ export function useWheelMotion(stopped: boolean, pins: number[]) {
           playing.current = null
           angle.current = run.path.rotationAt(run.path.durationMs)
           write()
-          run.done()
+          finished = run
         } else {
           angle.current = run.path.rotationAt(elapsed)
+          share.current = speedShareAt(run.path, elapsed, run.peak)
+          soundRef.current.spinSpeed(share.current, (run.path.durationMs - elapsed) / 1000)
           write()
         }
       } else {
@@ -102,6 +150,11 @@ export function useWheelMotion(stopped: boolean, pins: number[]) {
         }
       }
       moveFlapper(dt)
+      if (finished) {
+        share.current = null
+        soundRef.current.spinEnd()
+        finished.done()
+      }
       frame = requestAnimationFrame(step)
     })
     return () => {
@@ -120,10 +173,11 @@ export function useWheelMotion(stopped: boolean, pins: number[]) {
     // `done`; `done` runs once, on the frame the path ends.
     play(path: SpinPath, done: () => void) {
       speed.current = 0
+      soundRef.current.spinStart()
       // Held until the next render says otherwise, so no drift frame slips in
       // between the path's end and the commit that shows the reveal.
       stoppedRef.current = true
-      playing.current = { path, began: null, done }
+      playing.current = { path, began: null, done, peak: peakSpeed(path) }
     },
   }
 }

@@ -14,6 +14,9 @@ import {
   setDefaultWeight,
   setSpinSeconds,
   setSpinTurnsPerSecond,
+  setSoundMusic,
+  setSoundEffects,
+  setSoundVolume,
   restoreWheelSettings,
   setWildcardCount,
   setWildcardsPerViewer,
@@ -231,6 +234,9 @@ describe('global wheel settings', () => {
       defaultWeight: 5,
       spinSeconds: 6,
       spinTurnsPerSecond: 0.8,
+      soundMusic: true,
+      soundEffects: true,
+      soundVolume: 70,
     })
   })
 
@@ -254,6 +260,26 @@ describe('global wheel settings', () => {
     expect(setSpinTurnsPerSecond(defaultState, 0.3).settings.wheel.spinTurnsPerSecond).toBe(0.3)
     expect(setSpinTurnsPerSecond(defaultState, 0.2)).toBe(defaultState)
     expect(setSpinTurnsPerSecond(defaultState, 0.85)).toBe(defaultState)
+  })
+
+  test('the sound setters change their field and ignore invalid or unchanged values', () => {
+    const music = setSoundMusic(defaultState, false)
+    expect(music.settings.wheel.soundMusic).toBe(false)
+    expect(setSoundMusic(music, false)).toBe(music)
+    const effects = setSoundEffects(defaultState, false)
+    expect(effects.settings.wheel.soundEffects).toBe(false)
+    expect(setSoundEffects(effects, false)).toBe(effects)
+    expect(setSoundVolume(defaultState, 0).settings.wheel.soundVolume).toBe(0)
+    expect(setSoundVolume(defaultState, 100).settings.wheel.soundVolume).toBe(100)
+    expect(setSoundVolume(defaultState, 70)).toBe(defaultState)
+    expect(setSoundVolume(defaultState, 101)).toBe(defaultState)
+    expect(setSoundVolume(defaultState, 7.5)).toBe(defaultState)
+  })
+
+  test('restoring the wheel settings resets the sound ones too', () => {
+    let s = setSoundMusic(setSoundEffects(setSoundVolume(defaultState, 10), false), false)
+    s = restoreWheelSettings(s)
+    expect(s.settings.wheel).toEqual(defaultState.settings.wheel)
   })
 
   test('turning One per viewer off sets the count to the viewers on the wheel; on leaves it', () => {

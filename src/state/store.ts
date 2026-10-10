@@ -22,6 +22,9 @@ import {
   setPresent,
   setSpinSeconds,
   setSpinTurnsPerSecond,
+  setSoundMusic,
+  setSoundEffects,
+  setSoundVolume,
   restoreWheelSettings,
   setToken,
   setViewersHidden,
@@ -39,6 +42,7 @@ import {
   defaultWheelSettings,
   isValidSliceCount,
   isValidSpinSeconds,
+  isValidSoundVolume,
   isValidSpinTurnsPerSecond,
   isValidWeight,
   isValidWildcardCount,
@@ -74,6 +78,9 @@ export interface AppActions {
   setDefaultWeight(weight: number): void
   setSpinSeconds(seconds: number): void
   setSpinTurnsPerSecond(turns: number): void
+  setSoundMusic(on: boolean): void
+  setSoundEffects(on: boolean): void
+  setSoundVolume(volume: number): void
   restoreWheelSettings(): void
 }
 
@@ -110,6 +117,12 @@ function mergeWheel(stored: Partial<WheelSettings> | undefined): WheelSettings {
       typeof w.spinTurnsPerSecond === 'number' && isValidSpinTurnsPerSecond(w.spinTurnsPerSecond)
         ? w.spinTurnsPerSecond
         : d.spinTurnsPerSecond,
+    soundMusic: typeof w.soundMusic === 'boolean' ? w.soundMusic : d.soundMusic,
+    soundEffects: typeof w.soundEffects === 'boolean' ? w.soundEffects : d.soundEffects,
+    soundVolume:
+      typeof w.soundVolume === 'number' && isValidSoundVolume(w.soundVolume)
+        ? w.soundVolume
+        : d.soundVolume,
   }
 }
 
@@ -201,6 +214,9 @@ export function createAppStore(persistence: Persistence): AppStore {
       setDefaultWeight: (weight) => update((s) => setDefaultWeight(s, weight)),
       setSpinSeconds: (seconds) => update((s) => setSpinSeconds(s, seconds)),
       setSpinTurnsPerSecond: (turns) => update((s) => setSpinTurnsPerSecond(s, turns)),
+      setSoundMusic: (on) => update((s) => setSoundMusic(s, on)),
+      setSoundEffects: (on) => update((s) => setSoundEffects(s, on)),
+      setSoundVolume: (volume) => update((s) => setSoundVolume(s, volume)),
       restoreWheelSettings: () => update(restoreWheelSettings),
     }
   })

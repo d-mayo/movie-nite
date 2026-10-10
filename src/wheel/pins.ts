@@ -89,6 +89,21 @@ export function targetBend(pins: number[], from: number, to: number, direction: 
   return bend === 0 ? 0 : -direction * Math.min(bend, maxBendDegrees)
 }
 
+// How many pins slipped off the tongue's tip over one frame, as the wheel turns
+// from `from` to `to`: each crossing of the end of the push range, in the
+// direction of motion, counts once, so a fast frame that crosses several pins
+// counts them all. A pin moving the other way, or stopping short, counts none.
+export function pinExits(pins: number[], from: number, to: number, direction: Direction): number {
+  const moved = direction * (to - from)
+  if (moved <= 0) return 0
+  let exits = 0
+  for (const pin of pins) {
+    const start = direction * ((((pin + from) % 360) + 540) % 360 - 180)
+    exits += Math.ceil((start + moved - pushEnd) / 360) - Math.ceil((start - pushEnd) / 360)
+  }
+  return exits
+}
+
 // One frame of the flapper: a pin that bends it more than it is bent now holds
 // it there; otherwise it springs toward straight as a damped spring.
 export function flapperStep(state: Flapper, bend: number, seconds: number): Flapper {

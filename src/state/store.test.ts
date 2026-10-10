@@ -130,6 +130,9 @@ test('wheel settings and adjustments survive a reload', () => {
   a.getState().setDefaultWeight(7)
   a.getState().setSpinSeconds(10)
   a.getState().setSpinTurnsPerSecond(1.5)
+  a.getState().setSoundMusic(false)
+  a.getState().setSoundEffects(false)
+  a.getState().setSoundVolume(35)
 
   const b = createAppStore(persistence).getState()
   expect(b.night.adjustments).toEqual({ [ann]: { weight: 9 } })
@@ -141,6 +144,9 @@ test('wheel settings and adjustments survive a reload', () => {
     defaultWeight: 7,
     spinSeconds: 10,
     spinTurnsPerSecond: 1.5,
+    soundMusic: false,
+    soundEffects: false,
+    soundVolume: 35,
   })
 })
 
@@ -178,6 +184,29 @@ test('stored spin settings that are missing or invalid load as the factory value
   expect(load({ spinSeconds: 9, spinTurnsPerSecond: 5 })).toMatchObject({
     spinSeconds: 9,
     spinTurnsPerSecond: 0.8,
+  })
+})
+
+test('stored sound settings that are missing or invalid load as the factory values', () => {
+  const load = (wheel: object) =>
+    createAppStore(
+      createMemoryPersistence({
+        ...defaultState,
+        settings: { tmdbToken: 'tok', viewersHidden: false, wheel },
+      } as never),
+    ).getState().settings.wheel
+  expect(load({})).toMatchObject({ soundMusic: true, soundEffects: true, soundVolume: 70 })
+  expect(load({ soundMusic: 'no', soundEffects: 0, soundVolume: '30' })).toMatchObject({
+    soundMusic: true,
+    soundEffects: true,
+    soundVolume: 70,
+  })
+  expect(load({ soundVolume: 150 }).soundVolume).toBe(70)
+  expect(load({ soundVolume: 7.5 }).soundVolume).toBe(70)
+  expect(load({ soundMusic: false, soundEffects: false, soundVolume: 0 })).toMatchObject({
+    soundMusic: false,
+    soundEffects: false,
+    soundVolume: 0,
   })
 })
 

@@ -10,6 +10,9 @@ export interface WheelSettings {
   defaultWeight: number
   spinSeconds: number
   spinTurnsPerSecond: number
+  soundMusic: boolean
+  soundEffects: boolean
+  soundVolume: number
 }
 
 // What the host changed for one viewer tonight; a field is present only when set.
@@ -31,6 +34,9 @@ export const defaultWheelSettings: WheelSettings = {
   defaultWeight: 5,
   spinSeconds: 6,
   spinTurnsPerSecond: 0.8,
+  soundMusic: true,
+  soundEffects: true,
+  soundVolume: 70,
 }
 
 export const minWeight = 0.5
@@ -43,6 +49,8 @@ export const minSpinSeconds = 2
 export const maxSpinSeconds = 20
 export const minSpinTurnsPerSecond = 0.3
 export const maxSpinTurnsPerSecond = 3
+export const minSoundVolume = 0
+export const maxSoundVolume = 100
 
 export function isValidWeight(weight: number): boolean {
   return (
@@ -69,6 +77,10 @@ export function isValidSpinTurnsPerSecond(turns: number): boolean {
     turns <= maxSpinTurnsPerSecond &&
     Number.isInteger(turns * 10)
   )
+}
+
+export function isValidSoundVolume(volume: number): boolean {
+  return Number.isInteger(volume) && volume >= minSoundVolume && volume <= maxSoundVolume
 }
 
 // How long the spin lasts and how many full turns it makes. Reduced motion

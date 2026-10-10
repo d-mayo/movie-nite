@@ -7,6 +7,7 @@ import {
   minPinGapDegrees,
   nextDirection,
   pinAngles,
+  pinExits,
   targetBend,
   type Flapper,
 } from './pins.ts'
@@ -88,6 +89,35 @@ describe('targetBend', () => {
     expect(targetBend([359], 0.5, 0.51, 1)).toBeLessThan(0)
     expect(targetBend([0], 360, 360.01, 1)).toBeLessThan(0)
     expect(targetBend([0], 719.5, 719.51, 1)).toBeLessThan(0)
+  })
+})
+
+describe('pinExits', () => {
+  // A pin at 0 leaves the push range at about 1.8° past the pointer.
+  test('forward: a frame that carries a pin across the end of the range counts it once', () => {
+    expect(pinExits([0], 1, 4, 1)).toBe(1)
+    expect(pinExits([0], -8, 8, 1)).toBe(1)
+    expect(pinExits([0], 359.9, 364, 1)).toBe(1)
+  })
+
+  test('a frame that stops short, or has not reached the range, counts none', () => {
+    expect(pinExits([0], -10, -5, 1)).toBe(0)
+    expect(pinExits([0], -8, 1, 1)).toBe(0)
+    expect(pinExits([0], 3, 8, 1)).toBe(0)
+    expect(pinExits([0], 2, 2, 1)).toBe(0)
+  })
+
+  test('a fast frame crossing three pins counts three', () => {
+    expect(pinExits([0, 350, 340, 330], 0, 30, 1)).toBe(3)
+    expect(pinExits([0], 0, 725, 1)).toBe(3)
+  })
+
+  test('backward mirrors it, and a pin moving away from the tongue counts none', () => {
+    expect(pinExits([0], -1, -4, -1)).toBe(1)
+    expect(pinExits([0, 10, 20, 30], 5, -25, -1)).toBe(3)
+    expect(pinExits([0], 4, 1, -1)).toBe(0)
+    expect(pinExits([0], 1, 4, -1)).toBe(0)
+    expect(pinExits([0], 4, 1, 1)).toBe(0)
   })
 })
 

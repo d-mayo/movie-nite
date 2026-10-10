@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Original recordings the cuts in src/assets/sound/ are made from
+sound-sources/
