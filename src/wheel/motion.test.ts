@@ -17,7 +17,6 @@ function pathFor(from: number, driftSpeed: number, glideSeconds: number, turns: 
     from,
     driftSpeed,
     to,
-    arc,
     phases: spinPhases(glideSeconds * 1000),
   })
   return { to, path }
@@ -34,7 +33,7 @@ test('T1: the path starts at the drift, winds up 11° back, and is continuous', 
   for (const [from, drift, length, turns] of cases) {
     const { to, path } = pathFor(from, drift, length, turns)
     const glideEnd = 500 + length * 1000
-    const total = glideEnd + 750
+    const total = glideEnd
 
     expect(path.rotationAt(0)).toBeCloseTo(from, 9)
     const speed = (path.rotationAt(0.01) - path.rotationAt(0)) * 1e5
@@ -72,7 +71,7 @@ test('T1: the path starts at the drift, winds up 11° back, and is continuous', 
   }
 })
 
-test('T2: the overshoot is small and the pointer stays in the slice once in', () => {
+test('T2: the wheel never passes the rest point, and stays in the slice once in', () => {
   for (const width of [2.3, 5, 20, 60, 180]) {
     const slice: Arc = { start: 100, end: 100 + width }
     for (const random of [0, 1 - 1e-12]) {
@@ -83,17 +82,14 @@ test('T2: the overshoot is small and the pointer stays in the slice once in', ()
         from,
         driftSpeed: 4,
         to,
-        arc: slice,
         phases: spinPhases(20_000),
       })
       expect(rest).toBeGreaterThanOrEqual(slice.start + edgeMargin(slice) - 1e-6)
-      const peak = path.rotationAt(500 + 20_000) - to
-      expect(peak).toBeLessThanOrEqual(Math.min(1.4, (rest - slice.start) / 2) + 1e-9)
-      expect(peak).toBeGreaterThanOrEqual(0)
 
       let lastEnter = 0
       let inside = false
       for (let t = 0; t <= path.durationMs; t += 2) {
+        expect(path.rotationAt(t)).toBeLessThanOrEqual(to + 1e-9)
         const angle = angleUnderPointer(path.rotationAt(t))
         const now = angle >= slice.start && angle <= slice.end
         if (now && !inside) lastEnter = t
@@ -132,9 +128,9 @@ test('the glide keeps creeping through the last slices', () => {
 })
 
 test('spinPhases keeps the glide at its length and scales to a total', () => {
-  expect(spinPhases(7000)).toEqual({ windUpMs: 500, glideMs: 7000, rockMs: 750 })
+  expect(spinPhases(7000)).toEqual({ windUpMs: 500, glideMs: 7000 })
   const scaled = spinPhases(7000, 20)
-  expect(scaled.windUpMs + scaled.glideMs + scaled.rockMs).toBeCloseTo(20, 9)
+  expect(scaled.windUpMs + scaled.glideMs).toBeCloseTo(20, 9)
 })
 
 test('glideProgress runs from 0 to 1', () => {

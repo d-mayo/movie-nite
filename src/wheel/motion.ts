@@ -1,15 +1,10 @@
-import { angleUnderPointer } from './draw.ts'
-import type { Arc } from './layout.ts'
-
 // The spin's path as a pure function of elapsed time: a wind-up that pulls
-// the wheel back, a glide that slows like friction, and a rock onto the rest
-// point. Rotation grows clockwise, so "forward" is a larger rotation and the
+// the wheel back, then a glide that slows like friction and creeps onto the
+// rest point, where it stops with no speed left. Rotation grows clockwise, so "forward" is a larger rotation and the
 // angle under the pointer falls as it grows.
 
 export const windUpMs = 500
-export const rockMs = 750
 export const windUpDegrees = 11
-export const maxOvershootDegrees = 1.4
 
 // The idle drift, in degrees a second, and how fast its speed follows its
 // target (the time constant gives about 95% of the way in a second).
@@ -66,19 +61,17 @@ export function glideProgress(u: number): number {
 export interface Phases {
   windUpMs: number
   glideMs: number
-  rockMs: number
 }
 
-// The three phases for a glide of `glideMs`. With `totalMs` they shrink in
+// The two phases for a glide of `glideMs`. With `totalMs` they shrink in
 // proportion to fit it (used by tests to keep spins short).
 export function spinPhases(glideMs: number, totalMs?: number): Phases {
-  const phases = { windUpMs, glideMs, rockMs }
+  const phases = { windUpMs, glideMs }
   if (totalMs === undefined) return phases
-  const scale = totalMs / (windUpMs + glideMs + rockMs)
+  const scale = totalMs / (windUpMs + glideMs)
   return {
     windUpMs: windUpMs * scale,
     glideMs: glideMs * scale,
-    rockMs: rockMs * scale,
   }
 }
 
@@ -91,25 +84,16 @@ interface PathInput {
   // The rotation and the forward speed (degrees a second) at the press.
   from: number
   driftSpeed: number
-  // The final rotation, and the drawn slice it lands in.
+  // The final rotation.
   to: number
-  arc: Arc
   phases: Phases
 }
 
-export function buildSpinPath({ from, driftSpeed, to, arc, phases }: PathInput): SpinPath {
-  const rest = angleUnderPointer(to)
-  const forwardRoom = Math.max(0, rest - arc.start)
-  const backRoom = Math.max(0, arc.end - rest)
-  const overshoot = Math.min(maxOvershootDegrees, forwardRoom / 2)
+export function buildSpinPath({ from, driftSpeed, to, phases }: PathInput): SpinPath {
   const windUpEnd = from - windUpDegrees
-  const glideEnd = to + overshoot
   const glideStart = phases.windUpMs
-  const rockStart = glideStart + phases.glideMs
-  const durationMs = rockStart + phases.rockMs
+  const durationMs = glideStart + phases.glideMs
   const windSeconds = phases.windUpMs / 1000
-  // The rock's formula ends a hair off the rest point; this takes it out.
-  const residual = Math.exp(-5) * Math.cos(2.4 * Math.PI)
 
   const rotationAt = (elapsedMs: number): number => {
     if (elapsedMs >= durationMs) return to
@@ -120,20 +104,13 @@ export function buildSpinPath({ from, driftSpeed, to, arc, phases }: PathInput):
       const h01 = -2 * s ** 3 + 3 * s ** 2
       return h00 * from + h10 * windSeconds * driftSpeed + h01 * windUpEnd
     }
-    if (elapsedMs < rockStart) {
-      const u = (elapsedMs - glideStart) / phases.glideMs
-      return windUpEnd + (glideEnd - windUpEnd) * glideProgress(u)
-    }
-    const u = (elapsedMs - rockStart) / phases.rockMs
-    const swing =
-      overshoot * (Math.exp(-5 * u) * Math.cos(2.4 * Math.PI * u) - u * residual)
-    return to + Math.max(swing, -0.9 * backRoom)
+    const u = (elapsedMs - glideStart) / phases.glideMs
+    return windUpEnd + (to - windUpEnd) * glideProgress(u)
   }
   return { durationMs, rotationAt }
 }
 
-// Reduced motion: the glide curve alone, from `from` to `to`, with no wind-up,
-// overshoot or rock.
+// Reduced motion: the glide curve alone, from `from` to `to`, with no wind-up.
 export function buildReducedSpinPath(
   from: number,
   to: number,

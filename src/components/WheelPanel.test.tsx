@@ -272,12 +272,12 @@ test('reduced motion makes one turn whatever the settings', async () => {
   }
 })
 
-test('the spin lasts the length set plus the wind-up and rock', async () => {
+test('the spin lasts the length set plus the wind-up', async () => {
   setup(['a', 'b'], { random: () => 0.5 }, { ...defaultWheelSettings, spinSeconds: 2 })
   fireEvent.click(spinButton())
-  await new Promise((r) => setTimeout(r, 2500))
+  await new Promise((r) => setTimeout(r, 2000))
   expect(screen.queryByRole('dialog')).toBeNull()
-  await screen.findByRole('dialog', undefined, { timeout: 4500 })
+  await screen.findByRole('dialog', undefined, { timeout: 3500 })
 }, 8000)
 
 const sleep = (ms: number) => act(() => new Promise<void>((r) => setTimeout(r, ms)))

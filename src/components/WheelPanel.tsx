@@ -77,7 +77,6 @@ export default function WheelPanel({
           from,
           driftSpeed: speed,
           to,
-          arc: arcs[drawn],
           phases: spinPhases(plan.durationMs, spinMs),
         })
     setSpin({ wedges, drawn, revealedAt: null })
