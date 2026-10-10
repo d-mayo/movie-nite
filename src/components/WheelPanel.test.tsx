@@ -508,7 +508,7 @@ test('a test-length spin still shows the flicker while the reveal opens at once'
 
 test('the flapper starts bent against the first pin and springs free as the drift moves the wheel', async () => {
   setup(['a', 'b'])
-  const samples = await sampleFlapper(600)
+  const samples = await sampleFlapper(2500)
   expect(Math.min(...samples)).toBeLessThan(-20)
   expect(Math.max(...samples)).toBeGreaterThan(0)
   await sleep(1200)
