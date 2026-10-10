@@ -1,8 +1,12 @@
 import { useId, type Ref } from 'react'
 import { posterUrl } from '../tmdb/client.ts'
 import { mixColor } from '../wheel/colors.ts'
+import { pivotY } from '../wheel/pins.ts'
 import type { Wedge } from '../wheel/wedges.ts'
 import Reel from './Reel.tsx'
+
+// The flapper's tongue hangs from the pivot screw at `pivotY`; its tip reaches inside the pins.
+const tongue = 'M -3.4 -118 L 3.4 -118 L 0.7 -103.3 Q 0 -102.3 -0.7 -103.3 Z'
 
 const radius = 100
 const posterInner = 30
@@ -147,9 +151,11 @@ interface Props {
   wedges: Wedge[]
   // The rotating group; its transform is written by the wheel's motion loop.
   groupRef: Ref<SVGGElement>
+  // The flapper's group, turned about the pivot by the same loop.
+  flapperRef?: Ref<SVGGElement>
 }
 
-export default function Wheel({ wedges, groupRef }: Props) {
+export default function Wheel({ wedges, groupRef, flapperRef }: Props) {
   const uid = useId().replace(/:/g, '')
   if (wedges.length === 0) {
     return (
@@ -169,7 +175,13 @@ export default function Wheel({ wedges, groupRef }: Props) {
         <Reel wedges={wedges} />
       </g>
       <circle data-testid="gloss" r={radius} fill={`url(#${uid}-gloss)`} pointerEvents="none" />
-      <polygon data-testid="pointer" points="-5,-121 5,-121 0,-106" className="film-pointer" />
+      <g data-testid="pointer">
+        <g ref={flapperRef} data-testid="flapper">
+          <path d={tongue} className="film-tongue" />
+        </g>
+        <circle cy={pivotY} r="3.6" className="film-cap" />
+        <rect x="-2.6" y={pivotY - 0.5} width="5.2" height="1" rx="0.3" className="film-slot" />
+      </g>
     </svg>
   )
 }

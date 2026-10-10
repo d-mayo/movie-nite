@@ -4,6 +4,7 @@ import { viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts
 import type { TmdbClient } from '../tmdb/client.ts'
 import { useApp } from '../state/store.ts'
 import { cryptoRandom, drawSlice, restRotation } from '../wheel/draw.ts'
+import { pinAngles } from '../wheel/pins.ts'
 import { buildWedges, type Wedge } from '../wheel/wedges.ts'
 import { spinPlan } from '../wheel/edit.ts'
 import { buildReducedSpinPath, buildSpinPath, spinPhases } from '../wheel/motion.ts'
@@ -73,7 +74,6 @@ export default function WheelPanel({
   // Fixed when Spin is pressed and dropped on Close, so the wheel, the draw
   // and the reveal agree even if the store changes meanwhile.
   const [spin, setSpin] = useState<Spin | null>(null)
-  const motion = useWheelMotion(spin !== null || night.ended)
   const holdTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(holdTimer.current), [])
 
@@ -84,6 +84,10 @@ export default function WheelPanel({
     .map((id) => roster.find((v) => v.id === id)?.name ?? '')
   const canSpin = !night.ended && onWheel.length > 0 && missing.length === 0
   const wedges = spin?.wedges ?? live
+  const motion = useWheelMotion(
+    spin !== null || night.ended,
+    pinAngles(wedges.map((w) => w.arc)),
+  )
   const reason = night.ended
     ? 'The night is over.'
     : onWheel.length === 0
@@ -140,7 +144,7 @@ export default function WheelPanel({
   return (
     <div className="wheel-panel">
       <div className="wheel-stage">
-        <Wheel wedges={wedges} groupRef={motion.groupRef} />
+        <Wheel wedges={wedges} groupRef={motion.groupRef} flapperRef={motion.flapperRef} />
         {wedges.length > 0 && (
           <button
             type="button"
