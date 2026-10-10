@@ -16,9 +16,9 @@
      Defined once: the reel looks the same in light and dark. */
   --film-stock: #121211;
   --film-cream: #f5f1dc;
-  --film-steel-light: #c9ccd1;
-  --film-steel: #8d9198;
-  --film-steel-dark: #3b3e44;
+  --film-steel-light: #b7b9a8;
+  --film-steel: #4a4a44;
+  --film-steel-dark: #262626;
 
   --shadow-card: 0 1px 2px rgb(38 38 38 / 0.12), 0 2px 8px rgb(38 38 38 / 0.08);
   --shadow-control: 0 1px 1px rgb(38 38 38 / 0.15);

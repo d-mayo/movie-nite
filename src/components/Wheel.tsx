@@ -5,10 +5,10 @@ import type { Wedge } from '../wheel/wedges.ts'
 import Reel from './Reel.tsx'
 
 const radius = 100
-const posterInner = 26
+const posterInner = 30
 const titleMinDegrees = 24
 const titleMaxChars = 14
-const wildcardStops = ['#0d0d0d', '#262626', '#3a3a3a']
+const wildcardStops = ['#0d0d0c', '#2a2a27', '#4a4a44']
 
 function point(angle: number, r: number): string {
   const rad = (angle * Math.PI) / 180
@@ -39,7 +39,7 @@ function Defs({ uid, colors }: { uid: string; colors: string[] }) {
     <defs>
       <radialGradient id={gradientId(uid, null)} gradientUnits="userSpaceOnUse" cx="0" cy="0" r={radius}>
         <stop offset="0" stopColor={wildcardStops[0]} />
-        <stop offset="0.3" stopColor={wildcardStops[1]} />
+        <stop offset="0.6" stopColor={wildcardStops[1]} />
         <stop offset="1" stopColor={wildcardStops[2]} />
       </radialGradient>
       {colors.map((color) => (
@@ -51,29 +51,26 @@ function Defs({ uid, colors }: { uid: string; colors: string[] }) {
         </radialGradient>
       ))}
       {colors.map((color) => {
-        const deep = mixColor(color, '#000000', 0.5)
         return (
-          // Runs along a poster's own length: rim at its top, hub end at its bottom.
+          // Over the poster's inner part: clear at 64 from the hub, the wedge's own shade at 30.
           <linearGradient
             key={color}
             id={`${gradientId(uid, color)}-fade`}
             gradientUnits="userSpaceOnUse"
             x1="0"
-            y1={-radius}
+            y1={-64}
             x2="0"
             y2={-posterInner}
           >
-            <stop offset="0" stopColor={deep} stopOpacity="0" />
-            <stop offset="0.67" stopColor={deep} stopOpacity="0" />
-            <stop offset="1" stopColor={deep} stopOpacity="1" />
+            <stop offset="0" stopColor={mixColor(color, '#000000', 0.22)} stopOpacity="0" />
+            <stop offset="1" stopColor={mixColor(color, '#000000', 0.3)} stopOpacity="1" />
           </linearGradient>
         )
       })}
-      <radialGradient id={`${uid}-gloss`} gradientUnits="userSpaceOnUse" cx="-34" cy="-40" r="140">
+      <radialGradient id={`${uid}-gloss`} gradientUnits="userSpaceOnUse" cx="-38" cy="-48" r="125">
         <stop offset="0" stopColor="#ffffff" stopOpacity="0.24" />
-        <stop offset="0.3" stopColor="#ffffff" stopOpacity="0.07" />
-        <stop offset="0.65" stopColor="#ffffff" stopOpacity="0" />
-        <stop offset="1" stopColor="#000000" stopOpacity="0.2" />
+        <stop offset="0.55" stopColor="#ffffff" stopOpacity="0.04" />
+        <stop offset="1" stopColor="#000000" stopOpacity="0.18" />
       </radialGradient>
     </defs>
   )
@@ -99,7 +96,7 @@ function WedgeShape({ wedge, id, uid }: { wedge: Wedge; id: string; uid: string 
       <clipPath id={`${uid}-clip-${id}`}>
         <path d={wedgePath(wedge)} />
       </clipPath>
-      <path d={wedgePath(wedge)} fill={`url(#${gradient})`} stroke="#0d0d0d" strokeWidth="0.5" />
+      <path d={wedgePath(wedge)} fill={`url(#${gradient})`} stroke="#000000" strokeOpacity="0.4" strokeWidth="0.5" />
       {nomination?.posterPath && (
         <g clipPath={`url(#${uid}-clip-${id})`}>
           <g transform={`rotate(${mid})`}>
@@ -114,9 +111,9 @@ function WedgeShape({ wedge, id, uid }: { wedge: Wedge; id: string; uid: string 
             <rect
               data-testid="poster-fade"
               x={-imageWidth / 2}
-              y={-radius}
+              y={-64}
               width={imageWidth}
-              height={radius - posterInner}
+              height={38}
               fill={`url(#${gradient}-fade)`}
             />
           </g>
@@ -129,7 +126,7 @@ function WedgeShape({ wedge, id, uid }: { wedge: Wedge; id: string; uid: string 
           y={showTitle ? -6.5 : -4.5}
           width={scrim + 4}
           height={showTitle ? 16 : 9}
-          rx="1.5"
+          rx="3"
           fill="#000000"
           opacity="0.42"
         />
@@ -163,7 +160,7 @@ export default function Wheel({ wedges, groupRef }: Props) {
   }
   const colors = [...new Set(wedges.filter((w) => w.slice.kind !== 'wildcard').map((w) => w.color))]
   return (
-    <svg viewBox="-128 -128 256 256" className="wheel" role="img" aria-label="Wheel">
+    <svg viewBox="-124 -124 248 248" className="wheel" role="img" aria-label="Wheel">
       <Defs uid={uid} colors={colors} />
       <g ref={groupRef}>
         {wedges.map((wedge, i) => (
@@ -172,7 +169,7 @@ export default function Wheel({ wedges, groupRef }: Props) {
         <Reel wedges={wedges} />
       </g>
       <circle data-testid="gloss" r={radius} fill={`url(#${uid}-gloss)`} pointerEvents="none" />
-      <polygon data-testid="pointer" points="-6,-125 6,-125 0,-108" className="film-pointer" />
+      <polygon data-testid="pointer" points="-5,-121 5,-121 0,-106" className="film-pointer" />
     </svg>
   )
 }

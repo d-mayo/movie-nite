@@ -110,7 +110,7 @@ test('the wheel has the grown viewBox, with the reel turning with the wedges and
   const store = setup()
   addViewers(['Ann', 'Bo'])
   const svg = document.querySelector('svg.wheel')!
-  expect(svg.getAttribute('viewBox')).toBe('-128 -128 256 256')
+  expect(svg.getAttribute('viewBox')).toBe('-124 -124 248 248')
   const group = svg.querySelector(':scope > g')!
   const reel = within(group as HTMLElement).getByTestId('reel')
   const frames = within(reel as HTMLElement).getAllByTestId('frame')
@@ -119,7 +119,7 @@ test('the wheel has the grown viewBox, with the reel turning with the wedges and
   const fills = frames.map((f) => f.getAttribute('fill'))
   expect(fills.filter((f) => f === ann.color)).toHaveLength(3)
   expect(fills.filter((f) => f === bo.color)).toHaveLength(3)
-  expect(fills.filter((f) => f === '#3a3a3a')).toHaveLength(frames.length - 6)
+  expect(fills.filter((f) => f === '#5a5a54')).toHaveLength(frames.length - 6)
   const holes = within(reel as HTMLElement).getByTestId('sprocket-holes')
   expect(holes.getAttribute('d')!.match(/M /g)).toHaveLength(288)
   expect(within(reel as HTMLElement).getByTestId('reel-ring').getAttribute('r')).toBe('100')
@@ -140,7 +140,7 @@ test('wedges fill from shared gradients that run dark at the hub to the viewer c
   expect(stops.map((x) => x.getAttribute('offset'))).toEqual(['0', '0.3', '0.75', '1'])
   expect(stops[2].getAttribute('stop-color')).toBe(ann.color)
   expect(stops[0].getAttribute('stop-color')).not.toBe(ann.color)
-  expect(annWedge.querySelector(':scope > path')!.getAttribute('stroke')).toBe('#0d0d0d')
+  expect(annWedge.querySelector(':scope > path')!.getAttribute('stroke')).toBe('#000000')
   // Ann's three slices share one gradient; the radial ones are two viewers, the wildcard and the gloss.
   const annIds = new Set(wedges().filter((w) => fillId(w) === fillId(annWedge)))
   expect(annIds.size).toBe(3)

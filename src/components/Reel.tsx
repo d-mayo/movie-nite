@@ -2,15 +2,15 @@ import { memo } from 'react'
 import type { Wedge } from '../wheel/wedges.ts'
 
 export const stripInner = 100
-export const stripOuter = 116
-const frameInner = 104.6
-const frameOuter = 111
-const holeRadii = [102.4, 113.3]
+export const stripOuter = 112
+const frameInner = 103.2
+const frameOuter = 108.8
+const holeRadii = [101.6, 110.4]
 const holeStep = 2.5
-const holeSize = 2.2
-const holeCorner = 0.55
+const holeSize = 1.9
+const holeCorner = 0.5
 const frameInset = 0.25
-export const wildcardFrame = '#3a3a3a'
+export const wildcardFrame = '#5a5a54'
 
 function rotated(x: number, y: number, angle: number): string {
   const rad = (angle * Math.PI) / 180
@@ -65,6 +65,7 @@ function Reel({ wedges }: { wedges: Wedge[] }) {
           data-testid="frame"
           d={framePath(wedge.arc.start, wedge.arc.end)}
           fill={wedge.slice.kind === 'wildcard' ? wildcardFrame : wedge.color}
+          opacity="0.95"
         />
       ))}
       <circle data-testid="reel-ring" r={stripInner} fill="none" strokeWidth="0.8" className="film-edge" />

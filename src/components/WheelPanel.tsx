@@ -13,27 +13,25 @@ import Reveal from './Reveal.tsx'
 import Wheel from './Wheel.tsx'
 import { useWheelMotion } from './useWheelMotion.ts'
 
-// The reel's hub: a steel disc with three windows that turns with the wheel, drawn
-// behind the upright SPIN label.
+// The reel's hub: a steel disc with three rounded windows and rivets that turns with the
+// wheel, drawn behind the upright SPIN label.
 function Hub({ hubRef }: { hubRef: Ref<SVGGElement> }) {
   return (
-    <svg viewBox="-50 -50 100 100" className="hub" aria-hidden="true" focusable="false">
-      <defs>
-        <radialGradient id="hub-steel" cx="0.35" cy="0.3" r="0.8">
-          <stop offset="0" className="hub-steel-light" />
-          <stop offset="0.6" className="hub-steel" />
-          <stop offset="1" className="hub-steel-dark" />
-        </radialGradient>
-      </defs>
+    <svg viewBox="-25 -25 50 50" className="hub" aria-hidden="true" focusable="false">
       <g ref={hubRef} data-testid="hub-disc">
-        <circle r="49" fill="url(#hub-steel)" className="hub-rim" />
+        <circle r="24.2" className="hub-disc" />
         {[0, 120, 240].map((angle) => (
-          <g key={angle} transform={`rotate(${angle})`}>
-            <rect x="-9" y="-44" width="18" height="21" rx="7" className="hub-window" />
-            <circle cx="0" cy="-46" r="1.6" className="hub-rivet" />
-          </g>
+          <rect key={angle} x="-3.6" y="-22.2" width="7.2" height="7.2" rx="1.8" className="hub-window" transform={`rotate(${angle})`} />
         ))}
-        <circle r="4" className="hub-rivet" />
+        {[60, 120, 180, 240, 300, 360].map((angle) => (
+          <circle
+            key={angle}
+            cx={(21 * Math.sin((angle * Math.PI) / 180)).toFixed(2)}
+            cy={(-21 * Math.cos((angle * Math.PI) / 180)).toFixed(2)}
+            r="0.9"
+            className="hub-rivet"
+          />
+        ))}
       </g>
     </svg>
   )
