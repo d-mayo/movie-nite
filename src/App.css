@@ -49,8 +49,10 @@
   gap: var(--space-1);
 }
 
-.restore-all {
+.setup > .restore-all {
   align-self: flex-end;
+  margin: calc(-1 * var(--space-2)) 0 calc(-1 * var(--space-2));
+  padding-block: var(--space-1);
 }
 
 .settings-menu {
