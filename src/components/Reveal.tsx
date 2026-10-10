@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useLayoutEffect, useState, type CSSProperties } from 'react'
 import type { Nomination, Outcome } from '../state/model.ts'
 import { posterUrl, type TmdbClient } from '../tmdb/client.ts'
 import { prefersReducedMotion } from '../wheel/reducedMotion.ts'
@@ -36,6 +36,22 @@ interface Pick {
   at: Date
 }
 
+// The frame sits over the wheel, so it centers on the wheel's stage rather than the
+// viewport, which the viewer pane skews. Null (centered in the viewport) until measured.
+function useStageCenter(): number | null {
+  const [x, setX] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    const measure = () => {
+      const rect = document.querySelector('.wheel-stage')?.getBoundingClientRect()
+      setX(rect && rect.width > 0 ? rect.left + rect.width / 2 : null)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+  return x
+}
+
 export default function Reveal({
   wedge,
   revealedAt,
@@ -46,6 +62,7 @@ export default function Reveal({
   onClose,
 }: Props) {
   const reduced = prefersReducedMotion()
+  const centerX = useStageCenter()
   // The film a wildcard search landed on, with the moment of the pick.
   const [picked, setPicked] = useState<Pick | null>(null)
 
@@ -62,6 +79,7 @@ export default function Reveal({
       role="dialog"
       aria-labelledby="reveal-heading"
       className={reduced ? 'reveal' : 'reveal reveal-thread'}
+      style={centerX === null ? undefined : { left: centerX }}
     >
       <div className="reveal-film">
         {shown ? (
