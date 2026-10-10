@@ -147,7 +147,37 @@ footer p {
 
   /* The wheel spans both rows of the pane's column; the "waiting for" message
      sits under the pane, or at the bottom of the screen with the pane hidden. */
-  .night > .wheel-panel {
+  .night > /* The projector's light flickering out over the wheel when it lands. */
+.flicker {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--film-cream) 90%, transparent) 0%,
+    color-mix(in srgb, var(--film-cream) 35%, transparent) 55%,
+    transparent 78%
+  );
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: projector 1.4s linear;
+}
+
+@keyframes projector {
+  0% { opacity: 0.9; }
+  8% { opacity: 0.35; }
+  16% { opacity: 0.8; }
+  26% { opacity: 0.25; }
+  38% { opacity: 0.6; }
+  50% { opacity: 0.18; }
+  62% { opacity: 0.38; }
+  78% { opacity: 0.1; }
+  90% { opacity: 0.16; }
+  100% { opacity: 0; }
+}
+
+.wheel-panel {
     grid-column: 1;
     grid-row: 1 / span 2;
   }

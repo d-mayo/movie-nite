@@ -1,13 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import App from '../App.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import { defaultWheelSettings } from '../wheel/edit.ts'
-
-const { confetti } = vi.hoisted(() => ({ confetti: vi.fn() }))
-vi.mock('canvas-confetti', () => ({ default: confetti }))
 
 function film(id: number, over: Partial<Nomination> = {}): Nomination {
   return {
@@ -23,7 +20,6 @@ function film(id: number, over: Partial<Nomination> = {}): Nomination {
 }
 
 beforeEach(() => {
-  confetti.mockClear()
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(2026, 9, 5, 20, 0))
 })
@@ -50,7 +46,7 @@ function setup(random: number, a: Nomination, b: Nomination) {
 }
 
 // With viewers a and b the layout is A B A W B A B W; 0.01 lands on the first slice (A).
-test('a nomination shows everything and fires confetti once', async () => {
+test('a nomination shows everything and shows its details', async () => {
   setup(0.01, film(1), film(2))
   const dialog = await screen.findByRole('dialog')
   expect(within(dialog).getByText('Film 1')).toBeInTheDocument()
@@ -63,7 +59,6 @@ test('a nomination shows everything and fires confetti once', async () => {
   expect(within(dialog).getByText('A short synopsis.')).toBeInTheDocument()
   expect(within(dialog).getByText('1h 52m')).toBeInTheDocument()
   expect(within(dialog).getByText('Ends around 9:52 PM–10:07 PM')).toBeInTheDocument()
-  await waitFor(() => expect(confetti).toHaveBeenCalledTimes(1))
 })
 
 test('no poster gets a placeholder and no runtime says the end is unknown', async () => {
@@ -73,11 +68,10 @@ test('no poster gets a placeholder and no runtime says the end is unknown', asyn
   expect(within(dialog).getByText(/End time unknown/)).toBeInTheDocument()
 })
 
-test('a wildcard says so and fires confetti, and Back to the wheel returns to the wheel', async () => {
+test('a wildcard says so, and Back to the wheel returns to the wheel', async () => {
   setup(0.45, film(1), film(2))
   const dialog = await screen.findByRole('dialog')
   expect(within(dialog).getByText('Wildcard!')).toBeInTheDocument()
-  await waitFor(() => expect(confetti).toHaveBeenCalledTimes(1))
   fireEvent.click(within(dialog).getByRole('button', { name: 'Back to the wheel' }))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Ann is here' })).toBeEnabled()

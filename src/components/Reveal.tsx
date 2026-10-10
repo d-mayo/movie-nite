@@ -1,6 +1,5 @@
-import confetti from 'canvas-confetti'
 import { motion } from 'motion/react'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import type { Nomination, Outcome } from '../state/model.ts'
 import { posterUrl, type TmdbClient } from '../tmdb/client.ts'
 import { prefersReducedMotion } from '../wheel/reducedMotion.ts'
@@ -36,7 +35,6 @@ export default function Reveal({
   onClose,
 }: Props) {
   const reduced = prefersReducedMotion()
-  const fired = useRef<unknown>(null)
   // The film a wildcard search landed on, with the moment of the pick.
   const [picked, setPicked] = useState<Pick | null>(null)
 
@@ -45,13 +43,6 @@ export default function Reveal({
     ? { nomination: wedge.nomination, at: revealedAt }
     : picked
   const fromWheel = wedge.nomination !== null
-
-  const key = shown?.nomination ?? 'wildcard'
-  useEffect(() => {
-    if (fired.current === key || reduced) return
-    fired.current = key
-    confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
-  }, [key, reduced])
 
   return (
     <motion.div
