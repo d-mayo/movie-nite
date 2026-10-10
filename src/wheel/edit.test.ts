@@ -4,6 +4,7 @@ import {
   defaultWheelSettings,
   effectiveSetting,
   isValidSliceCount,
+  isValidSoundVolume,
   isValidSpinSeconds,
   isValidSpinTurnsPerSecond,
   isValidWeight,
@@ -129,5 +130,18 @@ describe('the spin', () => {
     for (const s of [1.5, 20.5, 6.25, NaN]) expect(isValidSpinSeconds(s)).toBe(false)
     for (let i = 3; i <= 30; i++) expect(isValidSpinTurnsPerSecond(i / 10)).toBe(true)
     for (const t of [0.2, 3.1, 0.85, NaN]) expect(isValidSpinTurnsPerSecond(t)).toBe(false)
+  })
+
+  test('the sound settings default to music on, effects on and volume 70', () => {
+    expect(defaultWheelSettings).toMatchObject({
+      soundMusic: true,
+      soundEffects: true,
+      soundVolume: 70,
+    })
+  })
+
+  test('a volume is an integer from 0 to 100', () => {
+    for (const v of [0, 5, 70, 100]) expect(isValidSoundVolume(v)).toBe(true)
+    for (const v of [-1, 101, 50.5, NaN, Infinity]) expect(isValidSoundVolume(v)).toBe(false)
   })
 })

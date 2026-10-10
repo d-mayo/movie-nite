@@ -3,6 +3,7 @@ import {
   effectiveSetting,
   isValidSliceCount,
   isValidSpinSeconds,
+  isValidSoundVolume,
   isValidSpinTurnsPerSecond,
   isValidWeight,
   isValidWildcardCount,
@@ -235,6 +236,21 @@ export function setSpinTurnsPerSecond(state: AppState, turns: number): AppState 
     return state
   }
   return withWheel(state, { spinTurnsPerSecond: turns })
+}
+
+export function setSoundMusic(state: AppState, on: boolean): AppState {
+  if (state.settings.wheel.soundMusic === on) return state
+  return withWheel(state, { soundMusic: on })
+}
+
+export function setSoundEffects(state: AppState, on: boolean): AppState {
+  if (state.settings.wheel.soundEffects === on) return state
+  return withWheel(state, { soundEffects: on })
+}
+
+export function setSoundVolume(state: AppState, volume: number): AppState {
+  if (!isValidSoundVolume(volume) || volume === state.settings.wheel.soundVolume) return state
+  return withWheel(state, { soundVolume: volume })
 }
 
 // Every global wheel setting back to its factory value; viewers' adjustments stay.
