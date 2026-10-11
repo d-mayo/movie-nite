@@ -29,12 +29,12 @@ ffmpeg -i mono48.wav -filter_complex "[0:a]atrim=55.0:63.5,asetpts=PTS-STARTPTS,
 
 # Music and win sounds
 
-Three more MP3s (stereo, 96 kbps for the loop). Originals live in the
+Three more MP3s, none needing a credit (stereo, 96 kbps for the loop). Originals live in the
 gitignored `sound-sources/`. Times are seconds in the source file.
 
 | File | Source | Cut |
 | --- | --- | --- |
-| `music-loop.mp3` | Fučík's *Entrance of the Gladiators*, U.S. Marine Band recording (an Ogg Vorbis file in `sound-sources/`; free-use, source link to add). The march is public domain. | 10.0 to 44.12, with the main body starting at 12.0 |
+| `music-loop.mp3` | [Fučík's *Entrance of the Gladiators*, U.S. Marine Band](https://commons.wikimedia.org/wiki/File:Julius_Fu%C4%8D%C3%ADk's_%22Entrance_of_the_Gladiators%22,_performed_by_the_U.S._Marine_Band.oga) on Wikimedia Commons (an Ogg Vorbis file in `sound-sources/`), public domain, no credit needed | 10.0 to 44.12, with the main body starting at 12.0 |
 | `stinger.mp3` | [578572, Congrats! 2](https://freesound.org/people/nomiqbomi/sounds/578572/) by nomiqbomi, CC0 | the whole 3.03 s file: a swell from about 0.75 and the main hit at about 1.65 |
 | `applause.mp3` | [859009, Small Auditorium Crowd Applause and Cheering](https://freesound.org/people/elevatorfan2020/sounds/859009/) by ElevatorFan2020, CC0 | the whole 6.19 s file |
 
