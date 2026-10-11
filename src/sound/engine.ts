@@ -3,9 +3,10 @@
 // user gesture anywhere in the document (browsers keep audio locked until
 // then); until then, and wherever Web Audio is missing (jsdom), every call does
 // nothing. The graph is sources → effects bus (or music bus) → master gain →
-// destination, and the settings drive the three gains.
+// destination, and the settings drive the three gains. The music loop, the win
+// stinger and the applause all ride the music bus.
 
-export type SoundName = 'on' | 'hum' | 'off'
+export type SoundName = 'on' | 'hum' | 'off' | 'loop' | 'stinger' | 'applause'
 
 export interface SoundSettings {
   music: boolean
@@ -27,6 +28,12 @@ export interface SoundEngine {
   pinTick(share: number): void
   // The wheel stopped: the motor stops and the projector switches off.
   spinEnd(): void
+  // The wheel stopped and the reveal opens `revealInSeconds` later (0 for
+  // none): the loop dips under the stinger, whose hit lands as the reveal
+  // opens with the applause, and the loop settles to a quieter bed.
+  landed(revealInSeconds: number): void
+  // The reveal closed: the music fades out and stops.
+  revealClosed(): void
 }
 
 export interface SoundDeps {
@@ -42,6 +49,8 @@ export const silentSound: SoundEngine = {
   spinSpeed: () => {},
   pinTick: () => {},
   spinEnd: () => {},
+  landed: () => {},
+  revealClosed: () => {},
 }
 
 // The hum's loop points in its file: 0.1 s of margin on each side, so the
@@ -54,6 +63,22 @@ export const minHumGain = 0.4
 const humLevel = 0.9
 // Only in this last moment before the stop does the hum fade to silence.
 export const humFadeSeconds = 0.3
+// The music loop's points in its file: a 2 s lead-in (the wind-up), then the
+// body that loops, with 0.1 s of margin after the end for the encoder's padding.
+export const loopStart = 2.0
+export const loopEnd = 32.12
+// Levels on the music bus: the loop at full, dipped under the stinger, and the
+// bed it settles to while the reveal is open.
+export const loopLevel = 0.8
+export const dipLevel = 0.25
+export const bedLevel = 0.4
+const stingerLevel = 0.9
+const applauseLevel = 0.7
+// Where the stinger's main hit falls in its file, and its length.
+export const stingerHit = 1.65
+export const stingerSeconds = 3.03
+// How long the music takes to fade out when the reveal closes.
+export const musicFadeSeconds = 0.8
 // No tick sounds sooner than this after another (on the audio clock).
 export const minTickGap = 0.03
 
@@ -77,6 +102,11 @@ export function createSound(deps: SoundDeps): SoundEngine {
   const buffers: Partial<Record<SoundName, AudioBuffer>> = {}
   let hum: { source: AudioBufferSourceNode; gain: GainNode } | null = null
   let lastTick = -Infinity
+  let win: GainNode
+  // The loop while it plays or fades; the stinger and applause, which fade
+  // with it.
+  let loop: { source: AudioBufferSourceNode; gain: GainNode } | null = null
+  let wins: AudioBufferSourceNode[] = []
 
   function setGains(immediately: boolean) {
     if (!ctx) return
@@ -92,7 +122,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
   function load() {
     if (loading) return
     loading = true
-    for (const name of ['on', 'hum', 'off'] as const) {
+    for (const name of ['on', 'hum', 'off', 'loop', 'stinger', 'applause'] as const) {
       deps
         .load(name)
         .then((data) => ctx!.decodeAudioData(data))
@@ -117,6 +147,8 @@ export function createSound(deps: SoundDeps): SoundEngine {
       effects.connect(master)
       music.connect(master)
       master.connect(ctx.destination)
+      win = ctx.createGain()
+      win.connect(music)
       // A short burst of white noise, the tick's click.
       noise = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.03), ctx.sampleRate)
       const samples = noise.getChannelData(0)
@@ -136,6 +168,22 @@ export function createSound(deps: SoundDeps): SoundEngine {
     source.start()
   }
 
+  function startLoop() {
+    const buffer = buffers.loop
+    if (!ctx || !buffer) return
+    const source = ctx.createBufferSource()
+    source.buffer = buffer
+    source.loop = true
+    source.loopStart = loopStart
+    source.loopEnd = Math.min(loopEnd, buffer.duration)
+    const gain = ctx.createGain()
+    gain.gain.value = loopLevel
+    source.connect(gain)
+    gain.connect(music)
+    source.start(0, 0)
+    loop = { source, gain }
+  }
+
   function humTargets(share: number, secondsLeft: number) {
     const s = Math.min(Math.max(share, 0), 1)
     const fade = Math.min(Math.max(secondsLeft / humFadeSeconds, 0), 1)
@@ -153,6 +201,37 @@ export function createSound(deps: SoundDeps): SoundEngine {
     source.stop(ctx.currentTime + 0.06)
   }
 
+  // Ramps a gain from where it is to `value` over `seconds`, starting at `at`.
+  function ramp(gain: GainNode, value: number, at: number, seconds: number) {
+    gain.gain.cancelScheduledValues(at)
+    gain.gain.setValueAtTime(gain.gain.value, at)
+    gain.gain.linearRampToValueAtTime(value, at + seconds)
+  }
+
+  function playWin(name: 'stinger' | 'applause', when: number, offset: number, level: number) {
+    const buffer = buffers[name]
+    if (!ctx || !buffer) return
+    const source = ctx.createBufferSource()
+    source.buffer = buffer
+    const gain = ctx.createGain()
+    gain.gain.value = level
+    source.connect(gain)
+    gain.connect(win)
+    source.start(when, offset)
+    wins.push(source)
+  }
+
+  // Ends the loop and any win sounds at once.
+  function stopMusic() {
+    if (!ctx) return
+    if (loop) loop.source.stop()
+    for (const source of wins) source.stop()
+    loop = null
+    wins = []
+    win.gain.cancelScheduledValues(0)
+    win.gain.value = 1
+  }
+
   return {
     attach(target) {
       for (const type of gestures) target.addEventListener(type, unlock, true)
@@ -167,7 +246,9 @@ export function createSound(deps: SoundDeps): SoundEngine {
     spinStart() {
       if (!ctx) return
       stopHum()
+      stopMusic()
       play('on')
+      startLoop()
       const buffer = buffers.hum
       if (!buffer) return
       const source = ctx.createBufferSource()
@@ -226,6 +307,32 @@ export function createSound(deps: SoundDeps): SoundEngine {
       if (!ctx) return
       stopHum()
       play('off')
+    },
+    landed(revealInSeconds) {
+      if (!ctx) return
+      const now = ctx.currentTime
+      const hold = Math.max(revealInSeconds, 0)
+      // The hit lands as the reveal opens: start the stinger's swell early
+      // enough, or, with no hold, from its hit.
+      const lead = Math.min(stingerHit, hold)
+      playWin('stinger', now + hold - lead, stingerHit - lead, stingerLevel)
+      playWin('applause', now + hold, 0, applauseLevel)
+      if (!loop) return
+      const end = now + hold - lead + (stingerSeconds - (stingerHit - lead))
+      ramp(loop.gain, dipLevel, now, 0.15)
+      // Back up as the stinger ends, to the bed.
+      loop.gain.gain.setValueAtTime(dipLevel, end - 0.5)
+      loop.gain.gain.linearRampToValueAtTime(bedLevel, end)
+    },
+    revealClosed() {
+      if (!ctx) return
+      const now = ctx.currentTime
+      if (loop) {
+        ramp(loop.gain, 0, now, musicFadeSeconds)
+        loop.source.stop(now + musicFadeSeconds + 0.05)
+      }
+      ramp(win, 0, now, musicFadeSeconds)
+      for (const w of wins) w.stop(now + musicFadeSeconds + 0.05)
     },
   }
 }
