@@ -34,7 +34,7 @@ gitignored `sound-sources/`. Times are seconds in the source file.
 
 | File | Source | Cut |
 | --- | --- | --- |
-| `music-loop.mp3` | [Fučík's *Entrance of the Gladiators*, U.S. Marine Band](https://commons.wikimedia.org/wiki/File:Julius_Fu%C4%8D%C3%ADk's_%22Entrance_of_the_Gladiators%22,_performed_by_the_U.S._Marine_Band.oga) on Wikimedia Commons (an Ogg Vorbis file in `sound-sources/`), public domain, no credit needed | 10.0 to 44.12, with the main body starting at 12.0 |
+| `music-loop.mp3` | [Fučík's *Entrance of the Gladiators*, U.S. Marine Band](https://commons.wikimedia.org/wiki/File:Julius_Fu%C4%8D%C3%ADk's_%22Entrance_of_the_Gladiators%22,_performed_by_the_U.S._Marine_Band.oga) on Wikimedia Commons (an Ogg Vorbis file in `sound-sources/`), public domain, no credit needed | 10.0 to 42.12, with the main body starting at 12.0 |
 | `stinger.mp3` | [578572, Congrats! 2](https://freesound.org/people/nomiqbomi/sounds/578572/) by nomiqbomi, CC0 | the whole 3.03 s file: a swell from about 0.75 and the main hit at about 1.65 |
 | `applause.mp3` | [859009, Small Auditorium Crowd Applause and Cheering](https://freesound.org/people/elevatorfan2020/sounds/859009/) by ElevatorFan2020, CC0 | the whole 6.19 s file |
 
@@ -51,3 +51,11 @@ loop:
 
 The first 20 ms fades in. Total shipped: loop 387 KB, stinger 65 KB,
 applause 198 KB, about 650 KB.
+
+Remake (ffmpeg, from `sound-sources/`, with `GLAD.ogg` the Commons file;
+the second command appends the 0.1 s margin):
+
+```
+ffmpeg -i GLAD.ogg -filter_complex "[0:a]atrim=10:42.12,asetpts=PTS-STARTPTS,afade=t=in:d=0.02[a];[0:a]atrim=11:12,asetpts=PTS-STARTPTS[b];[a][b]acrossfade=d=1:c1=tri:c2=tri,aformat=channel_layouts=stereo[o]" -map "[o]" -c:a libmp3lame -b:a 96k loop.mp3
+ffmpeg -i loop.mp3 -filter_complex "[0:a]asplit=2[f][w];[w]atrim=2.0:2.1,asetpts=PTS-STARTPTS[post];[f][post]concat=n=2:v=0:a=1[o]" -map "[o]" -c:a libmp3lame -b:a 96k music-loop.mp3
+```
