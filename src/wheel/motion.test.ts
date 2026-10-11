@@ -8,6 +8,7 @@ import {
   closeCallApproachDegrees,
   closeCallCreepSeconds,
   closeCallEaseSeconds,
+  timeAtRotation,
   driftSpeedStep,
   glideProgress,
   spinPhases,
@@ -209,4 +210,15 @@ test('T3: a test scale shortens the approach in proportion', () => {
   const scaled = closeCallPaths(2, 0, 4, 3, 0.1)
   expect(scaled.path.durationMs - scaled.cueMs).toBeCloseTo((full.path.durationMs - full.cueMs) / 10, 6)
   expect(scaled.path.rotationAt(scaled.path.durationMs)).toBe(scaled.to)
+})
+
+test('timeAtRotation finds when a close-call path has turned to a point near its end', () => {
+  const { to, path, cueMs } = closeCallPaths(6)
+  // The flapper slips off a pin 1° before the stop: that comes late in the creep, before the end.
+  const slip = timeAtRotation(path, to - 1, cueMs)
+  expect(slip).toBeGreaterThan(cueMs)
+  expect(slip).toBeLessThan(path.durationMs)
+  expect(path.rotationAt(slip)).toBeCloseTo(to - 1, 3)
+  expect(path.durationMs - slip).toBeLessThan(3500)
+  expect(timeAtRotation(path, to - 0.2, cueMs)).toBeGreaterThan(slip)
 })

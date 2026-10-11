@@ -43,11 +43,14 @@ export interface SoundEngine {
   // A close call's cue, `secondsToStop` before the wheel stops: the music
   // drops out (its source keeps running), the audience gasps and a drumroll builds.
   closeCall(secondsToStop: number): void
+  // A close call's release: the drumroll ends and a cymbal crashes. At the flapper slipping
+  // off the peg for a slip, at the stop for a bend.
+  closeCallBreak(): void
   // The wheel stopped and the reveal opens `revealInSeconds` later (0 for
   // none): the loop dips under the stinger, whose hit lands as the reveal
   // opens with the applause, and the loop settles to a quieter bed. After a
-  // close call the drumroll ends and a cymbal crashes at once, a cheer joins the
-  // applause, and the loop, silent till now, returns to the bed after the stinger.
+  // close call a cheer joins the applause, and the loop, silent till now,
+  // returns to the bed after the stinger.
   landed(revealInSeconds: number, closeCall?: boolean): void
   // The reveal closed: the music fades out and stops.
   revealClosed(): void
@@ -67,6 +70,7 @@ export const silentSound: SoundEngine = {
   pinTick: () => {},
   spinEnd: () => {},
   closeCall: () => {},
+  closeCallBreak: () => {},
   landed: () => {},
   revealClosed: () => {},
 }
@@ -402,14 +406,16 @@ export function createSound(deps: SoundDeps): SoundEngine {
       gain.gain.linearRampToValueAtTime(drumrollEndLevel, now + Math.max(secondsToStop, fadeIn + 0.1))
       roll = { source, gain }
     },
+    closeCallBreak() {
+      if (!ctx) return
+      stopRoll()
+      play('cymbal', cymbalLevel)
+    },
     landed(revealInSeconds, closeCall = false) {
       if (!ctx) return
       const now = ctx.currentTime
       const hold = Math.max(revealInSeconds, 0)
-      if (closeCall) {
-        stopRoll()
-        play('cymbal', cymbalLevel)
-      }
+
       // The hit lands as the reveal opens: start the stinger's swell early
       // enough, or, with no hold, from its hit.
       const lead = Math.min(stingerHit, hold)

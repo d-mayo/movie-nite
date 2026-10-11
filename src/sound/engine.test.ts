@@ -412,7 +412,27 @@ describe('the close call', () => {
     expect(rollGain.gain.calls.at(-1)!.value).toBeGreaterThan(rollGain.gain.calls[0].value)
   })
 
-  test('the close-call landing ends the drumroll, crashes the cymbal, plays a cheer over the applause and brings the loop back to the bed after the stinger', async () => {
+  test('the break ends the drumroll and crashes the cymbal at once on the effects bus, and the landing adds no cymbal', async () => {
+    const { ctx, sound } = await ready()
+    sound.spinStart()
+    ctx.currentTime = 3
+    sound.closeCall(2.9)
+    ctx.currentTime = 5
+    sound.closeCallBreak()
+    const [roll] = ctx.sourcesOf('drumroll')
+    expect(roll.stoppedAt!).toBeGreaterThan(5)
+    expect(roll.stoppedAt!).toBeLessThan(5.2)
+    const [cymbal] = ctx.sourcesOf('cymbal')
+    expect(cymbal.started?.when).toBeUndefined()
+    expect(cymbal.reaches(ctx.effects)).toBe(true)
+    expect(cymbal.reaches(ctx.music)).toBe(false)
+    ctx.currentTime = 6
+    sound.landed(2, true)
+    expect(ctx.sourcesOf('cymbal')).toHaveLength(1)
+    expect(roll.stoppedAt!).toBeLessThan(5.2)
+  })
+
+  test('the close-call landing plays a cheer over the applause, the stinger hit on the reveal, and brings the loop back to the bed after the stinger', async () => {
     const { ctx, sound } = await ready()
     sound.spinStart()
     const loopGain = ctx.sourcesOf('loop')[0].out[0] as FakeGain
@@ -420,13 +440,6 @@ describe('the close call', () => {
     sound.closeCall(2.9)
     ctx.currentTime = 5.9
     sound.landed(2, true)
-    const [roll] = ctx.sourcesOf('drumroll')
-    expect(roll.stoppedAt!).toBeGreaterThan(5.9)
-    expect(roll.stoppedAt!).toBeLessThan(6.1)
-    const [cymbal] = ctx.sourcesOf('cymbal')
-    expect(cymbal.started?.when).toBeUndefined()
-    expect(cymbal.reaches(ctx.effects)).toBe(true)
-    expect(cymbal.reaches(ctx.music)).toBe(false)
     // The stinger's hit lands as the reveal opens, 2 s on, on the music bus.
     const [stinger] = ctx.sourcesOf('stinger')
     expect(stinger.started!.when! + (1.65 - stinger.started!.offset!)).toBeCloseTo(7.9)
@@ -459,6 +472,7 @@ describe('the close call', () => {
       sound.spinStart()
       expect(() => {
         sound.closeCall(2.9)
+        sound.closeCallBreak()
         sound.landed(2, true)
       }).not.toThrow()
       expect(audio.ctx.sourcesOf('stinger')).toHaveLength(1)
@@ -480,6 +494,7 @@ describe('the close call', () => {
     const sound = createSound(fakeAudio().deps)
     expect(() => {
       sound.closeCall(1)
+      sound.closeCallBreak()
       sound.landed(1, true)
     }).not.toThrow()
   })

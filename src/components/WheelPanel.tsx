@@ -4,7 +4,14 @@ import { viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts
 import type { TmdbClient } from '../tmdb/client.ts'
 import { useApp } from '../state/store.ts'
 import { angleUnderPointer, cryptoRandom, drawSlice, restRotation } from '../wheel/draw.ts'
-import { closeCallChance, forcedRestRotation, isCloseCall } from '../wheel/closeCall.ts'
+import {
+  closeCallChance,
+  closeCallKind,
+  closeCallMinSpinSeconds,
+  forcedRestRotation,
+  isCloseCall,
+  slipDegrees,
+} from '../wheel/closeCall.ts'
 import { pinAngles } from '../wheel/pins.ts'
 import { buildWedges, type Wedge } from '../wheel/wedges.ts'
 import { spinPlan } from '../wheel/edit.ts'
@@ -15,6 +22,7 @@ import {
   closeCallEaseOutMs,
   closeCallHoldMs,
   spinPhases,
+  timeAtRotation,
   windUpMs,
 } from '../wheel/motion.ts'
 import { prefersReducedMotion } from '../wheel/reducedMotion.ts'
@@ -22,7 +30,7 @@ import { silentSound, type SoundEngine } from '../sound/engine.ts'
 import NightOver from './NightOver.tsx'
 import Reveal from './Reveal.tsx'
 import Wheel from './Wheel.tsx'
-import { useWheelMotion } from './useWheelMotion.ts'
+import { useWheelMotion, type Cue } from './useWheelMotion.ts'
 
 // The reel's hub: a steel disc with three rounded windows and rivets that turns with the
 // wheel, drawn behind the upright SPIN label.
@@ -134,6 +142,7 @@ export default function WheelPanel({
       muted: settings.wheel.soundMuted,
     },
   )
+  const closeCallsAvailable = settings.wheel.spinSeconds >= closeCallMinSpinSeconds
   const reason = night.ended
     ? 'The night is over.'
     : onWheel.length === 0
@@ -154,11 +163,16 @@ export default function WheelPanel({
     const natural = restRotation(from, arcs, drawn, random, plan.turns)
     // A share of spins (all of them with the debug checkbox) rest in a close-call zone of the
     // drawn slice, when it has one: the winner is the same, only where in the slice it stops.
+    // Close calls need a long enough spin: a shorter one is still turning when the zoom would begin.
+    const closeCallsOn = settings.wheel.spinSeconds >= closeCallMinSpinSeconds
     const steer =
-      forceCloseCalls || (!isCloseCall(slices, arcs, drawn, angleUnderPointer(natural)) && random() < closeCallChance)
+      closeCallsOn &&
+      (forceCloseCalls || (!isCloseCall(slices, arcs, drawn, angleUnderPointer(natural)) && random() < closeCallChance))
     const forced = steer ? forcedRestRotation(from, slices, arcs, drawn, random, plan.turns) : null
     const to = forced ?? natural
-    const closeCall = isCloseCall(slices, arcs, drawn, angleUnderPointer(to))
+    const rest = angleUnderPointer(to)
+    const kind = closeCallsOn ? closeCallKind(slices, arcs, drawn, rest) : null
+    const closeCall = kind !== null
     const ordinary = reduced
       ? buildReducedSpinPath(from, to, spinMs ?? plan.durationMs)
       : buildSpinPath({ from, driftSpeed: speed, to, phases: spinPhases(plan.durationMs, spinMs) })
@@ -173,27 +187,36 @@ export default function WheelPanel({
     setSpin({ wedges, drawn, landed: false, revealedAt: null, closeCall, zoom: null })
     onBusyChange(true)
     musicOn.current = true
-    // The cue: the zoom and the sounds, where the stretch begins (at the start with reduced motion).
-    const cue = closeCall
-      ? {
-      atMs: cueMs,
-      fire: () => {
-        sound.closeCall((path.durationMs - cueMs) / 1000)
-        if (!reduced) {
-          // The zoom is about the pointer: the vignette closes in round that spot of the screen.
-          const rect = stageRef.current?.getBoundingClientRect()
-          if (rect) {
-            vignetteRef.current?.style.setProperty('--pointer-x', `${rect.left + rect.width / 2}px`)
-            vignetteRef.current?.style.setProperty('--pointer-y', `${rect.top + rect.width * pointerShare}px`)
+    // The cue: the zoom and the sounds, where the approach begins (at the start with reduced motion).
+    const cues: Cue[] = []
+    if (closeCall) {
+      cues.push({
+        atMs: cueMs,
+        fire: () => {
+          sound.closeCall((path.durationMs - cueMs) / 1000)
+          if (!reduced) {
+            // The zoom is about the pointer: the vignette closes in round that spot of the screen.
+            const rect = stageRef.current?.getBoundingClientRect()
+            if (rect) {
+              vignetteRef.current?.style.setProperty('--pointer-x', `${rect.left + rect.width / 2}px`)
+              vignetteRef.current?.style.setProperty('--pointer-y', `${rect.top + rect.width * pointerShare}px`)
+            }
+            setSpin((s) => s && { ...s, zoom: 'in' })
           }
-          setSpin((s) => s && { ...s, zoom: 'in' })
-        }
-      },
+        },
+      })
+      // A slip releases the tension where the flapper slips off the peg, before the stop; a bend, at the stop.
+      if (kind === 'slip') {
+        cues.push({
+          atMs: timeAtRotation(path, to - slipDegrees(arcs[drawn], rest), cueMs),
+          fire: () => sound.closeCallBreak(),
+        })
+      }
     }
-      : undefined
     motion.play(
       path,
       () => {
+        if (kind === 'bend') sound.closeCallBreak()
         // The reveal opens at once with reduced motion or a test-length spin.
         const immediate = reduced || spinMs !== undefined
         const holdMs = closeCall && !immediate ? closeCallHoldMs : revealHoldMs
@@ -216,7 +239,7 @@ export default function WheelPanel({
           holdMs,
         )
       },
-      cue,
+      cues,
     )
   }
 
@@ -260,10 +283,11 @@ export default function WheelPanel({
           <input
             type="checkbox"
             checked={forceCloseCalls}
-            disabled={spin !== null}
+            disabled={spin !== null || !closeCallsAvailable}
             onChange={(e) => setForceCloseCalls(e.target.checked)}
           />{' '}
           Force close calls
+          {!closeCallsAvailable && ` (needs a spin Length of ${closeCallMinSpinSeconds} s or more)`}
         </label>
       )}
       {reason && !reasonSlot && <p>{reason}</p>}

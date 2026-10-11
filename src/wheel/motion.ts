@@ -191,3 +191,16 @@ export function buildCloseCallPath(base: SpinPath, to: number, scale = 1): Close
   }
   return { path: { durationMs, rotationAt }, cueMs: handoff }
 }
+
+// The first time (ms into `path`, from `fromMs` on) at which the path has turned to `rotation`,
+// for a path that only moves forward from `fromMs`.
+export function timeAtRotation(path: SpinPath, rotation: number, fromMs = 0): number {
+  let lo = fromMs
+  let hi = path.durationMs
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2
+    if (path.rotationAt(mid) < rotation) lo = mid
+    else hi = mid
+  }
+  return hi
+}
