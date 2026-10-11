@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { fakeAudio, type FakeGain } from '../test/fakeAudio.ts'
 import {
   bedLevel,
+  closeCallApplauseLevel,
   createSound,
   dipLevel,
   humLoopEnd,
@@ -38,7 +39,7 @@ describe('unlocking on a gesture', () => {
     document.dispatchEvent(new Event('pointerup'))
     expect(audio.contexts).toHaveLength(1)
     expect(audio.ctx.resumes).toBe(1)
-    expect(audio.loaded).toEqual(['on', 'hum', 'off', 'loop', 'stinger', 'applause'])
+    expect(audio.loaded).toEqual(['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal'])
     detach()
   })
 
@@ -58,7 +59,7 @@ describe('unlocking on a gesture', () => {
     document.dispatchEvent(new Event('keydown'))
     expect(audio.contexts).toHaveLength(1)
     expect(audio.ctx.resumes).toBe(2)
-    expect(audio.loaded).toHaveLength(6)
+    expect(audio.loaded).toHaveLength(9)
     detach()
   })
 
@@ -69,7 +70,7 @@ describe('unlocking on a gesture', () => {
     const detach = sound.attach(document)
     document.dispatchEvent(new Event('pointerup'))
     expect(audio.contexts).toHaveLength(1)
-    expect(audio.loaded).toHaveLength(6)
+    expect(audio.loaded).toHaveLength(9)
     detach()
     document.dispatchEvent(new Event('keydown'))
     expect(audio.ctx.resumes).toBe(1)
@@ -376,5 +377,99 @@ describe('the music', () => {
     expect(applause.reaches(ctx.music)).toBe(false)
     expect(stinger.reaches(ctx.music)).toBe(true)
     expect(stinger.reaches(ctx.effects)).toBe(false)
+  })
+})
+
+describe('the close call', () => {
+  test('the cue drops the loop by a ramp without stopping it, and starts the gasp and the drumroll on the effects bus', async () => {
+    const { ctx, sound } = await ready()
+    sound.spinStart()
+    const [loop] = ctx.sourcesOf('loop')
+    const gain = loop.out[0] as FakeGain
+    ctx.currentTime = 3
+    sound.closeCall(2.9)
+    const ramps = gain.gain.calls.filter((c) => c.method === 'linearRampToValueAtTime')
+    expect(ramps.at(-1)!.value).toBe(0)
+    expect(gain.gain.calls.filter((c) => c.method === 'setTargetAtTime')).toEqual([])
+    expect(loop.stoppedAt).toBeNull()
+    const [gasp] = ctx.sourcesOf('gasp')
+    const [roll] = ctx.sourcesOf('drumroll')
+    for (const source of [gasp, roll]) {
+      expect(source.started).not.toBeNull()
+      expect(source.reaches(ctx.effects)).toBe(true)
+      expect(source.reaches(ctx.music)).toBe(false)
+    }
+    // The drumroll builds by a ramp.
+    const rollGain = roll.out[0] as FakeGain
+    expect(rollGain.gain.calls.at(-1)!.method).toBe('linearRampToValueAtTime')
+    expect(rollGain.gain.calls.at(-1)!.value).toBeGreaterThan(rollGain.gain.calls[0].value)
+  })
+
+  test('the close-call landing ends the drumroll, crashes the cymbal, plays the louder applause and brings the loop back to the bed after the stinger', async () => {
+    const { ctx, sound } = await ready()
+    sound.spinStart()
+    const loopGain = ctx.sourcesOf('loop')[0].out[0] as FakeGain
+    ctx.currentTime = 3
+    sound.closeCall(2.9)
+    ctx.currentTime = 5.9
+    sound.landed(2, true)
+    const [roll] = ctx.sourcesOf('drumroll')
+    expect(roll.stoppedAt!).toBeGreaterThan(5.9)
+    expect(roll.stoppedAt!).toBeLessThan(6.1)
+    const [cymbal] = ctx.sourcesOf('cymbal')
+    expect(cymbal.started?.when).toBeUndefined()
+    expect(cymbal.reaches(ctx.effects)).toBe(true)
+    expect(cymbal.reaches(ctx.music)).toBe(false)
+    // The stinger's hit lands as the reveal opens, 2 s on, on the music bus.
+    const [stinger] = ctx.sourcesOf('stinger')
+    expect(stinger.started!.when! + (1.65 - stinger.started!.offset!)).toBeCloseTo(7.9)
+    expect(stinger.reaches(ctx.music)).toBe(true)
+    expect(stinger.reaches(ctx.effects)).toBe(false)
+    const [applause] = ctx.sourcesOf('applause')
+    expect((applause.out[0] as FakeGain).gain.value).toBe(closeCallApplauseLevel)
+    expect(applause.reaches(ctx.effects)).toBe(true)
+    // The loop's last change is a ramp up to the bed, after the stinger starts.
+    const calls = loopGain.gain.calls
+    expect(calls.at(-1)).toEqual({ method: 'linearRampToValueAtTime', value: bedLevel })
+    expect(calls.filter((c) => c.method === 'setTargetAtTime')).toEqual([])
+  })
+
+  test('a missing gasp, drumroll or cymbal never stops the rest', async () => {
+    for (const missing of ['gasp', 'drumroll', 'cymbal'] as const) {
+      const audio = fakeAudio()
+      const deps = {
+        ...audio.deps,
+        load: (name: SoundName) => (name === missing ? Promise.reject(new Error('missing')) : audio.deps.load(name)),
+      }
+      const sound = createSound(deps)
+      const detach = sound.attach(document)
+      document.dispatchEvent(new Event('pointerup'))
+      await audio.finishLoads()
+      sound.spinStart()
+      expect(() => {
+        sound.closeCall(2.9)
+        sound.landed(2, true)
+      }).not.toThrow()
+      expect(audio.ctx.sourcesOf('stinger')).toHaveLength(1)
+      expect(audio.ctx.sourcesOf('applause')).toHaveLength(1)
+      expect(audio.ctx.sourcesOf(missing)).toHaveLength(0)
+      detach()
+    }
+  })
+
+  test('an ordinary landing plays no gasp, drumroll or cymbal, with the usual applause level, dip and bed', async () => {
+    const { ctx, sound } = await ready()
+    sound.spinStart()
+    sound.landed(0.65)
+    for (const name of ['gasp', 'drumroll', 'cymbal'] as const) expect(ctx.sourcesOf(name)).toHaveLength(0)
+    expect((ctx.sourcesOf('applause')[0].out[0] as FakeGain).gain.value).toBe(0.7)
+  })
+
+  test('the engine is safe before a gesture', () => {
+    const sound = createSound(fakeAudio().deps)
+    expect(() => {
+      sound.closeCall(1)
+      sound.landed(1, true)
+    }).not.toThrow()
   })
 })

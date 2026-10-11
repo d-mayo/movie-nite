@@ -94,6 +94,9 @@ export const fakeDurations: Record<SoundName, number> = {
   loop: 32.22,
   stinger: 3.03,
   applause: 6.19,
+  gasp: 2.05,
+  drumroll: 3.24,
+  cymbal: 2.23,
 }
 
 export class FakeContext {

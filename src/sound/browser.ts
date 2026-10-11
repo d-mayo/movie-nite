@@ -5,6 +5,9 @@ import offUrl from '../assets/sound/projector-off.mp3'
 import loopUrl from '../assets/sound/music-loop.mp3'
 import stingerUrl from '../assets/sound/stinger.mp3'
 import applauseUrl from '../assets/sound/applause.mp3'
+import gaspUrl from '../assets/sound/gasp.mp3'
+import drumrollUrl from '../assets/sound/drumroll.mp3'
+import cymbalUrl from '../assets/sound/cymbal.mp3'
 
 const urls: Record<SoundName, string> = {
   on: onUrl,
@@ -13,6 +16,9 @@ const urls: Record<SoundName, string> = {
   loop: loopUrl,
   stinger: stingerUrl,
   applause: applauseUrl,
+  gasp: gaspUrl,
+  drumroll: drumrollUrl,
+  cymbal: cymbalUrl,
 }
 
 type AudioContextConstructor = typeof AudioContext

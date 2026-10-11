@@ -565,6 +565,9 @@ function recordingSound() {
     starts: 0,
     ends: 0,
     landed: [] as number[],
+    // The close-call flag each landing was told, and the seconds each cue was told.
+    landedClose: [] as boolean[],
+    cues: [] as number[],
     closed: 0,
     attached: 0,
     detached: 0,
@@ -582,7 +585,11 @@ function recordingSound() {
     spinSpeed: (share) => void log.shares.push(share),
     pinTick: (share) => void log.ticks.push(share),
     spinEnd: () => void log.ends++,
-    landed: (seconds) => void log.landed.push(seconds),
+    closeCall: (seconds) => void log.cues.push(seconds),
+    landed: (seconds, closeCall = false) => {
+      log.landed.push(seconds)
+      log.landedClose.push(closeCall)
+    },
     revealClosed: () => void log.closed++,
   }
   return { engine, log }
