@@ -99,3 +99,16 @@ test('restRotation lands on the margins at the ends of random', () => {
     expect(high).toBeCloseTo(arc.end - margin, 6)
   })
 })
+
+test('restRotation returns the same values for fixed random inputs', () => {
+  const arcs = sliceArcs([
+    { kind: 'nomination', viewerId: 'a', weight: 1 },
+    { kind: 'nomination', viewerId: 'b', weight: 1 },
+    { kind: 'nomination', viewerId: 'c', weight: 1 },
+    { kind: 'nomination', viewerId: 'd', weight: 1 },
+  ])
+  // 90° slices, margin 1.2°: the target is 91.2 + r * 87.6 in slice 1.
+  expect(restRotation(0, arcs, 1, () => 0.5, 5)).toBeCloseTo(1800 + 360 - 135, 9)
+  expect(restRotation(10, arcs, 1, () => 0, 5)).toBeCloseTo(10 + 1800 + ((((-91.2 - 1810) % 360) + 360) % 360), 9)
+  expect(restRotation(0, arcs, 3, () => 0.999999, 1)).toBeCloseTo(360 + 360 - 358.8 + 0.000105, 3)
+})
