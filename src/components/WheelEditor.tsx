@@ -210,8 +210,8 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
         onAuxClick={pressEnded}
       >
         <div className="drawer-body">
-          <fieldset disabled={locked} className="setup wheel-editor">
-            <section className="inset-card" aria-labelledby="wildcards-heading">
+          <fieldset className="setup wheel-editor">
+            <fieldset className="inset-card" disabled={locked} aria-labelledby="wildcards-heading">
               <div className="card-head">
                 <h3 id="wildcards-heading">Wildcards</h3>
                 <label className="switch">
@@ -241,8 +241,8 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
                 max={20}
                 onChange={setWildcardWeight}
               />
-            </section>
-            <section className="inset-card" aria-labelledby="spin-heading">
+            </fieldset>
+            <fieldset className="inset-card" disabled={locked} aria-labelledby="spin-heading">
               <div className="card-head">
                 <h3 id="spin-heading">Spin</h3>
               </div>
@@ -264,8 +264,8 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
                 format={(n) => `${n} turns/s`}
                 onChange={setSpinTurnsPerSecond}
               />
-            </section>
-            <section className="inset-card" aria-labelledby="defaults-heading">
+            </fieldset>
+            <fieldset className="inset-card" disabled={locked} aria-labelledby="defaults-heading">
               <div className="card-head">
                 <h3 id="defaults-heading">Viewer Defaults</h3>
               </div>
@@ -285,7 +285,7 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
                 max={20}
                 onChange={setDefaultWeight}
               />
-            </section>
+            </fieldset>
             <section className="inset-card" aria-labelledby="sound-heading">
               <div className="card-head">
                 <h3 id="sound-heading">Sound</h3>
@@ -321,7 +321,7 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
             <button
               type="button"
               className="quiet restore-all"
-              disabled={atFactory}
+              disabled={locked || atFactory}
               onClick={showConfirm}
             >
               Restore All Defaults

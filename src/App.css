@@ -841,6 +841,12 @@ fieldset.setup {
   min-width: 0;
 }
 
+/* The wheel editor's cards that lock during a spin are fieldsets. */
+fieldset.inset-card {
+  min-width: 0;
+  margin: 0;
+}
+
 .setup > button {
   margin: var(--space-2) var(--space-2) 0 0;
 }
