@@ -16,6 +16,7 @@ export type SoundName =
   | 'gasp'
   | 'drumroll'
   | 'cymbal'
+  | 'cheer'
 
 export interface SoundSettings {
   // 0 to 100 each: the overall volume, and the music's and the effects' levels,
@@ -45,8 +46,8 @@ export interface SoundEngine {
   // The wheel stopped and the reveal opens `revealInSeconds` later (0 for
   // none): the loop dips under the stinger, whose hit lands as the reveal
   // opens with the applause, and the loop settles to a quieter bed. After a
-  // close call the drumroll ends and a cymbal crashes at once, the applause is
-  // louder, and the loop, silent till now, returns to the bed after the stinger.
+  // close call the drumroll ends and a cymbal crashes at once, a cheer joins the
+  // applause, and the loop, silent till now, returns to the bed after the stinger.
   landed(revealInSeconds: number, closeCall?: boolean): void
   // The reveal closed: the music fades out and stops.
   revealClosed(): void
@@ -91,9 +92,9 @@ export const dipLevel = 0.25
 export const bedLevel = 0.4
 const stingerLevel = 0.9
 const applauseLevel = 0.7
-// A close call's louder applause, and its gasp, drumroll (which builds from
+// A close call's cheer, laid over the applause, and its gasp, drumroll (which builds from
 // the first level to the second) and cymbal.
-export const closeCallApplauseLevel = 1
+export const cheerLevel = 1
 const gaspLevel = 0.8
 const drumrollStartLevel = 0.3
 const drumrollEndLevel = 1
@@ -154,7 +155,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
   function load() {
     if (loading) return
     loading = true
-    for (const name of ['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal'] as const) {
+    for (const name of ['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer'] as const) {
       deps
         .load(name)
         .then((data) => ctx!.decodeAudioData(data))
@@ -269,7 +270,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     gain.gain.setValueAtTime(0, at + seconds)
   }
 
-  function playWin(name: 'stinger' | 'applause', when: number, offset: number, level: number) {
+  function playWin(name: 'stinger' | 'applause' | 'cheer', when: number, offset: number, level: number) {
     const buffer = buffers[name]
     if (!ctx || !buffer) return
     const source = ctx.createBufferSource()
@@ -277,7 +278,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     const gain = ctx.createGain()
     gain.gain.value = level
     source.connect(gain)
-    gain.connect(name === 'applause' ? crowd : win)
+    gain.connect(name === 'stinger' ? win : crowd)
     source.start(when, offset)
     wins.push(source)
   }
@@ -401,7 +402,8 @@ export function createSound(deps: SoundDeps): SoundEngine {
       // enough, or, with no hold, from its hit.
       const lead = Math.min(stingerHit, hold)
       playWin('stinger', now + hold - lead, stingerHit - lead, stingerLevel)
-      playWin('applause', now + hold, 0, closeCall ? closeCallApplauseLevel : applauseLevel)
+      playWin('applause', now + hold, 0, applauseLevel)
+      if (closeCall) playWin('cheer', now + hold, 0, cheerLevel)
       if (!loop) return
       if (closeCall) {
         // The loop has been silent since the cue: it comes back as the stinger ends, from where it has reached.

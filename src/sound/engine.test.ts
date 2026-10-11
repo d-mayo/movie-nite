@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { fakeAudio, type FakeGain } from '../test/fakeAudio.ts'
 import {
   bedLevel,
-  closeCallApplauseLevel,
+  cheerLevel,
   createSound,
   dipLevel,
   humLoopEnd,
@@ -39,7 +39,7 @@ describe('unlocking on a gesture', () => {
     document.dispatchEvent(new Event('pointerup'))
     expect(audio.contexts).toHaveLength(1)
     expect(audio.ctx.resumes).toBe(1)
-    expect(audio.loaded).toEqual(['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal'])
+    expect(audio.loaded).toEqual(['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer'])
     detach()
   })
 
@@ -59,7 +59,7 @@ describe('unlocking on a gesture', () => {
     document.dispatchEvent(new Event('keydown'))
     expect(audio.contexts).toHaveLength(1)
     expect(audio.ctx.resumes).toBe(2)
-    expect(audio.loaded).toHaveLength(9)
+    expect(audio.loaded).toHaveLength(10)
     detach()
   })
 
@@ -70,7 +70,7 @@ describe('unlocking on a gesture', () => {
     const detach = sound.attach(document)
     document.dispatchEvent(new Event('pointerup'))
     expect(audio.contexts).toHaveLength(1)
-    expect(audio.loaded).toHaveLength(9)
+    expect(audio.loaded).toHaveLength(10)
     detach()
     document.dispatchEvent(new Event('keydown'))
     expect(audio.ctx.resumes).toBe(1)
@@ -405,7 +405,7 @@ describe('the close call', () => {
     expect(rollGain.gain.calls.at(-1)!.value).toBeGreaterThan(rollGain.gain.calls[0].value)
   })
 
-  test('the close-call landing ends the drumroll, crashes the cymbal, plays the louder applause and brings the loop back to the bed after the stinger', async () => {
+  test('the close-call landing ends the drumroll, crashes the cymbal, plays a cheer over the applause and brings the loop back to the bed after the stinger', async () => {
     const { ctx, sound } = await ready()
     sound.spinStart()
     const loopGain = ctx.sourcesOf('loop')[0].out[0] as FakeGain
@@ -426,8 +426,12 @@ describe('the close call', () => {
     expect(stinger.reaches(ctx.music)).toBe(true)
     expect(stinger.reaches(ctx.effects)).toBe(false)
     const [applause] = ctx.sourcesOf('applause')
-    expect((applause.out[0] as FakeGain).gain.value).toBe(closeCallApplauseLevel)
-    expect(applause.reaches(ctx.effects)).toBe(true)
+    const [cheer] = ctx.sourcesOf('cheer')
+    expect((applause.out[0] as FakeGain).gain.value).toBe(0.7)
+    expect((cheer.out[0] as FakeGain).gain.value).toBe(cheerLevel)
+    expect(cheer.started?.when).toBeCloseTo(7.9)
+    expect(cheer.reaches(ctx.effects)).toBe(true)
+    expect(cheer.reaches(ctx.music)).toBe(false)
     // The loop's last change is a ramp up to the bed, after the stinger starts.
     const calls = loopGain.gain.calls
     expect(calls.at(-1)).toEqual({ method: 'linearRampToValueAtTime', value: bedLevel })
@@ -435,7 +439,7 @@ describe('the close call', () => {
   })
 
   test('a missing gasp, drumroll or cymbal never stops the rest', async () => {
-    for (const missing of ['gasp', 'drumroll', 'cymbal'] as const) {
+    for (const missing of ['gasp', 'drumroll', 'cymbal', 'cheer'] as const) {
       const audio = fakeAudio()
       const deps = {
         ...audio.deps,
@@ -461,7 +465,7 @@ describe('the close call', () => {
     const { ctx, sound } = await ready()
     sound.spinStart()
     sound.landed(0.65)
-    for (const name of ['gasp', 'drumroll', 'cymbal'] as const) expect(ctx.sourcesOf(name)).toHaveLength(0)
+    for (const name of ['gasp', 'drumroll', 'cymbal', 'cheer'] as const) expect(ctx.sourcesOf(name)).toHaveLength(0)
     expect((ctx.sourcesOf('applause')[0].out[0] as FakeGain).gain.value).toBe(0.7)
   })
 

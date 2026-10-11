@@ -62,13 +62,14 @@ ffmpeg -i loop.mp3 -filter_complex "[0:a]asplit=2[f][w];[w]atrim=2.0:2.1,asetpts
 
 # Close-call sounds
 
-Three mono 64 kbps MP3s (44.1 kHz), none needing a credit: both sources are CC0. Originals live in
-the gitignored `sound-sources/`. Times are seconds in the source file. Total shipped: about 63 KB.
+Three mono 64 kbps MP3s (44.1 kHz) and a stereo 96 kbps cheer, none needing a credit: all the sources are CC0. Originals live in
+the gitignored `sound-sources/`. Times are seconds in the source file. Total shipped: about 63 KB, plus the cheer's 84 KB.
 
 | File | Source | Cut |
 | --- | --- | --- |
 | `gasp.mp3` | [764320, CRWDReac Crowd Gasping In Surprise, Voiced 02](https://freesound.org/people/ShangusBurger/sounds/764320/) by ShangusBurger, CC0 | 0.8 to 2.85, the gasp itself; 50 ms fade in, 450 ms fade out, loudness-normalized to -18 LUFS |
 | `drumroll.mp3` | [191718, drumroll](https://freesound.org/people/adriann/sounds/191718/) by adriann, CC0 (a 5.97 s mono 8-bit clip: a roll that builds, then a crash from about 3.75) | 0.5 to 3.74, the build up to the crash; 400 ms fade in, 40 ms fade out |
+| `cheer.mp3` | [430046, crowd cheer](https://freesound.org/people/beeproductive/sounds/430046/) by beeproductive, CC0 (a 15.95 s stereo clip) | 0 to 7.0, the cheer's rise and first sustain; 20 ms fade in, 1.5 s fade out. Played over the applause on a close call |
 | `cymbal.mp3` | the same file | 3.74 to 5.97, the crash and its tail; 5 ms fade in, 700 ms fade out |
 
 Remake (ffmpeg, from `sound-sources/`, with `GASP.wav` and `ROLL.wav` the two source files):
@@ -77,4 +78,5 @@ Remake (ffmpeg, from `sound-sources/`, with `GASP.wav` and `ROLL.wav` the two so
 ffmpeg -ss 0.8 -t 2.05 -i GASP.wav -af "afade=t=in:d=0.05,afade=t=out:st=1.6:d=0.45,loudnorm=I=-18:TP=-2" -ac 1 -ar 44100 -c:a libmp3lame -b:a 64k gasp.mp3
 ffmpeg -ss 0.5 -t 3.24 -i ROLL.wav -af "afade=t=in:d=0.4,afade=t=out:st=3.2:d=0.04,aresample=44100" -ac 1 -ar 44100 -c:a libmp3lame -b:a 64k drumroll.mp3
 ffmpeg -ss 3.74 -t 2.23 -i ROLL.wav -af "afade=t=in:d=0.005,afade=t=out:st=1.5:d=0.7,aresample=44100" -ac 1 -ar 44100 -c:a libmp3lame -b:a 64k cymbal.mp3
+ffmpeg -t 7 -i CHEER.wav -af "afade=t=in:d=0.02,afade=t=out:st=5.5:d=1.5,aresample=44100" -c:a libmp3lame -b:a 96k cheer.mp3
 ```
