@@ -12,8 +12,8 @@
   --accent-text: #f6f6ee;
   --danger: #9b1c1c;
 
-  /* The film reel's fixed colors (the wheel, its Spin button and the flicker).
-     Defined once: the reel looks the same in light and dark. */
+  /* The film reel's fixed colors (the wheel, its Spin button, the flicker and
+     the reveal's frame). Defined once: the reel looks the same in light and dark. */
   --film-stock: #121211;
   --film-cream: #f5f1dc;
   --film-steel-light: #b7b9a8;
@@ -50,6 +50,24 @@
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 8px rgb(0 0 0 / 0.3);
     --shadow-control: 0 1px 1px rgb(0 0 0 / 0.4);
   }
+}
+
+/* The reveal is a frame of the film print on black stock, so inside it the app's
+   color tokens take their dark-scheme values in both modes (danger is the soft
+   salmon). Its cream focus ring is set in App.css. Placed after the dark block so it wins. */
+.reveal {
+  color-scheme: dark;
+  --page: #262626;
+  --card: #262626;
+  --text: #eeeee2;
+  --muted: #8f9186;
+  --border: #8f9186;
+  --card-border: #4a4c43;
+  --accent: #b7b9a8;
+  --accent-text: #262626;
+  --danger: #f28b82;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 8px rgb(0 0 0 / 0.3);
+  --shadow-control: 0 1px 1px rgb(0 0 0 / 0.4);
 }
 
 body {
