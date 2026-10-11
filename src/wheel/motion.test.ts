@@ -4,7 +4,10 @@ import type { Arc } from './layout.ts'
 import {
   buildReducedSpinPath,
   buildSpinPath,
-  closeCallTiming,
+  buildCloseCallPath,
+  closeCallApproachDegrees,
+  closeCallCreepSeconds,
+  closeCallEaseSeconds,
   driftSpeedStep,
   glideProgress,
   spinPhases,
@@ -163,72 +166,47 @@ test('the drift speed eases toward its target and caps a long frame', () => {
   expect(driftSpeedStep(0, 4, 10)).toBe(driftSpeedStep(0, 4, 0.1))
 })
 
-function closeCallPath(glideSeconds: number, from = 0, driftSpeed = 4, turns = 3) {
+function closeCallPaths(glideSeconds: number, from = 0, driftSpeed = 4, turns = 3, scale = 1) {
   const to = restRotation(from, [arc], 0, () => 0.5, turns)
-  const timing = closeCallTiming(glideSeconds * 1000, false)
-  return {
-    to,
-    timing,
-    ordinary: buildSpinPath({ from, driftSpeed, to, phases: spinPhases(glideSeconds * 1000) }),
-    stretched: buildSpinPath({ from, driftSpeed, to, phases: timing.phases, stretch: timing.stretch! }),
-  }
+  const ordinary = buildSpinPath({ from, driftSpeed, to, phases: spinPhases(glideSeconds * 1000) })
+  return { to, ordinary, ...buildCloseCallPath(ordinary, to, scale) }
 }
 
-test('T3: a close call lasts 1.5 s longer, matches the ordinary path until 1.4 s before the glide ends, and ends on the rest', () => {
-  const { to, ordinary, stretched } = closeCallPath(4)
-  expect(stretched.durationMs).toBeCloseTo(ordinary.durationMs + 1500, 6)
-  expect(stretched.rotationAt(stretched.durationMs)).toBe(to)
-  const begin = ordinary.durationMs - 1400
-  for (let ms = 0; ms <= begin; ms += 25) {
-    expect(stretched.rotationAt(ms)).toBeCloseTo(ordinary.rotationAt(ms), 9)
+test('T3: the close-call path matches the ordinary one until the approach, ends on the rest and runs longer', () => {
+  for (const glide of [2, 4, 6]) {
+    const { to, ordinary, path, cueMs } = closeCallPaths(glide)
+    expect(path.rotationAt(path.durationMs)).toBe(to)
+    expect(path.durationMs).toBeGreaterThan(ordinary.durationMs)
+    for (let ms = 0; ms <= cueMs; ms += 25) {
+      expect(path.rotationAt(ms)).toBeCloseTo(ordinary.rotationAt(ms), 9)
+    }
+    // The approach starts with about the set distance to go.
+    expect(to - ordinary.rotationAt(cueMs)).toBeGreaterThan(closeCallApproachDegrees - 0.5)
+    expect(path.durationMs - cueMs).toBeCloseTo((closeCallEaseSeconds + closeCallCreepSeconds) * 1000, 6)
   }
-  // The stretch is the ordinary path's last stretch slowed: same rotation, later.
-  expect(stretched.rotationAt(begin + 2900)).toBeCloseTo(to, 6)
-  expect(stretched.rotationAt(begin + 1450)).toBeGreaterThan(ordinary.rotationAt(begin + 1400 * 0.3))
 })
 
-test('T3: the stretched path is monotonic and has no jump in speed where the stretch begins', () => {
-  const { stretched, ordinary } = closeCallPath(4)
-  const begin = ordinary.durationMs - 1400
-  let previous = stretched.rotationAt(begin - 1000)
-  for (let ms = begin - 1000 + 5; ms <= stretched.durationMs; ms += 5) {
-    const now = stretched.rotationAt(ms)
+test('T3: the path is monotonic with no jump in speed where the approach begins, and the wheel still visibly creeps late', () => {
+  const { to, path, cueMs } = closeCallPaths(6)
+  let previous = path.rotationAt(cueMs)
+  for (let ms = cueMs + 5; ms <= path.durationMs; ms += 5) {
+    const now = path.rotationAt(ms)
     expect(now).toBeGreaterThanOrEqual(previous - 1e-9)
     previous = now
   }
-  const speed = (ms: number) => (stretched.rotationAt(ms + 0.1) - stretched.rotationAt(ms - 0.1)) / 0.2
-  const before = speed(begin - 0.5)
-  const after = speed(begin + 0.5)
+  const speed = (ms: number) => (path.rotationAt(ms + 0.1) - path.rotationAt(ms - 0.1)) / 0.2
+  const before = speed(cueMs - 0.5)
+  const after = speed(cueMs + 0.5)
   expect(Math.abs(after - before)).toBeLessThan(Math.max(before, after) * 0.01)
+  // Two seconds before the stop the wheel still has real distance to go and moves
+  // at a visible speed, where the ordinary glide has long since stopped.
+  expect(to - path.rotationAt(path.durationMs - 2000)).toBeGreaterThan(0.5)
+  expect(speed(path.durationMs - 2000)).toBeGreaterThan(0.0005)
 })
 
-test('T3: a short glide stretches its whole self and stays monotonic', () => {
-  const { stretched, timing } = closeCallPath(0.5)
-  expect(timing.cueMs).toBe(500)
-  let previous = stretched.rotationAt(500)
-  for (let ms = 500; ms <= stretched.durationMs; ms += 5) {
-    const now = stretched.rotationAt(ms)
-    expect(now).toBeGreaterThanOrEqual(previous - 1e-9)
-    previous = now
-  }
-})
-
-test('T3: the timing rule gives the stretch, the cue 2.9 s before the stop and the hold', () => {
-  const timing = closeCallTiming(4000, false)
-  expect(timing.stretch).toEqual({ leadMs: 1400, extraMs: 1500 })
-  expect(timing.cueMs).toBe(500 + 4000 - 1400)
-  expect(500 + 4000 + 1500 - timing.cueMs).toBe(2900)
-  expect(timing.holdMs).toBe(2000)
-})
-
-test('T3: reduced motion has no stretch or hold and cues at the start', () => {
-  expect(closeCallTiming(4000, true)).toMatchObject({ stretch: null, cueMs: 0, holdMs: 0 })
-})
-
-test('T3: a test total scales the stretched spin to fit with no hold', () => {
-  const timing = closeCallTiming(4000, false, 100)
-  const path = buildSpinPath({ from: 0, driftSpeed: 0, to: 720, phases: timing.phases, stretch: timing.stretch! })
-  expect(path.durationMs).toBeCloseTo(100, 6)
-  expect(timing.holdMs).toBe(0)
-  expect(timing.cueMs).toBeLessThan(100)
+test('T3: a test scale shortens the approach in proportion', () => {
+  const full = closeCallPaths(2)
+  const scaled = closeCallPaths(2, 0, 4, 3, 0.1)
+  expect(scaled.path.durationMs - scaled.cueMs).toBeCloseTo((full.path.durationMs - full.cueMs) / 10, 6)
+  expect(scaled.path.rotationAt(scaled.path.durationMs)).toBe(scaled.to)
 })

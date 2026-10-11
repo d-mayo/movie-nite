@@ -831,23 +831,23 @@ test('the drawn wedge is the one drawSlice picks, close call or not', async () =
   expect(angleUnderPointer(wheelRotation())).toBeLessThan(arcs[0].end)
 })
 
-test('without spinMs a close call holds its zoom after the landing and opens the reveal about 2 s later', async () => {
+test('without spinMs a close call holds its zoom after the landing and opens the reveal 2 s later', async () => {
   const { engine, log } = recordingSound()
   setupCrowd({ random: closeCallRandom, sound: engine }, 2)
   fireEvent.click(spinButton())
-  await screen.findByTestId('flicker', undefined, { timeout: 7000 })
+  await screen.findByTestId('flicker', undefined, { timeout: 14000 })
   const landedAt = Date.now()
   expect(log.cues).toHaveLength(1)
   expect(log.landed).toEqual([2])
   expect(log.landedClose).toEqual([true])
   expect(stage().dataset.zoom).toBe('in')
-  await sleep(1500)
+  await sleep(1300)
   expect(stage().dataset.zoom).toBe('out')
   expect(screen.queryByRole('dialog')).toBeNull()
   await screen.findByRole('dialog', undefined, { timeout: 2000 })
   expect(Date.now() - landedAt).toBeGreaterThanOrEqual(1900)
   expect(stage().dataset.zoom).toBeUndefined()
-}, 15000)
+}, 25000)
 
 test('reduced motion: a close call keeps its sounds, has no stretch or zoom, and lands in about a second', async () => {
   vi.stubGlobal('matchMedia', (query: string) => ({

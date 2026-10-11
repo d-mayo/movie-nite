@@ -386,8 +386,10 @@ export function createSound(deps: SoundDeps): SoundEngine {
       gain.gain.value = drumrollStartLevel
       source.connect(gain)
       gain.connect(effects)
-      source.start()
-      ramp(gain, drumrollEndLevel, now, Math.max(secondsToStop, 0.1))
+      // The roll is shorter than the approach: it starts late enough to end at the stop.
+      const begin = now + Math.max(secondsToStop - buffer.duration, 0)
+      source.start(begin)
+      ramp(gain, drumrollEndLevel, begin, Math.min(secondsToStop, buffer.duration))
       roll = { source, gain }
     },
     landed(revealInSeconds, closeCall = false) {

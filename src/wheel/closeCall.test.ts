@@ -19,18 +19,18 @@ function seeded(seed: number) {
   }
 }
 
-test('a rest just past a pinned start edge or before a pinned end edge is a close call', () => {
+test('a rest just short of a pinned start edge is a close call; one just past the end edge, which the pointer has crossed, is not', () => {
   expect(isCloseCall(alternating, altArcs, 3, 45 + 1.3)).toBe(true)
-  expect(isCloseCall(alternating, altArcs, 3, 60 - 1.3)).toBe(true)
-  // Slice 0's start is the pin at 0°, and the last slice ends on it.
+  expect(isCloseCall(alternating, altArcs, 3, 60 - 1.3)).toBe(false)
+  // Slice 0's start is the pin at 0°, shared with the last slice.
   expect(isCloseCall(alternating, altArcs, 0, 1.3)).toBe(true)
-  expect(isCloseCall(alternating, altArcs, 23, 360 - 1.3)).toBe(true)
+  expect(isCloseCall(alternating, altArcs, 23, 360 - 1.3)).toBe(false)
+  expect(closeCallZones(alternating, altArcs, 3)).toEqual([[45, 45 + 1.2 + closeCallShare * 15]])
 })
 
 test('exactly margin plus 10% from the edge, or mid-slice, is not a close call', () => {
   const reach = 1.2 + closeCallShare * 15
   expect(isCloseCall(alternating, altArcs, 3, 45 + reach)).toBe(false)
-  expect(isCloseCall(alternating, altArcs, 3, 60 - reach)).toBe(false)
   expect(isCloseCall(alternating, altArcs, 3, 52.5)).toBe(false)
   expect(isCloseCall(alternating, altArcs, 3, 45 + reach - 0.01)).toBe(true)
 })
@@ -45,9 +45,11 @@ test('an edge whose pin was thinned away never counts', () => {
   const dropped = arcs[1].start
   expect(closeCallZones(slices, arcs, 1).some(([from]) => from === dropped)).toBe(false)
   expect(isCloseCall(slices, arcs, 1, dropped + 0.1)).toBe(false)
-  // A kept edge still counts at the same distance: the wide slice's end edge (the pin at 0°).
-  const last = arcs.length - 1
-  expect(isCloseCall(slices, arcs, last, 360 - 0.1 * 5)).toBe(true)
+  // A kept edge still counts at the same distance: slice 4's start edge.
+  expect(closeCallZones(slices, arcs, 4)).toHaveLength(1)
+  expect(isCloseCall(slices, arcs, 4, arcs[4].start + 0.1)).toBe(true)
+  // Slice 5's start edge was thinned away too.
+  expect(closeCallZones(slices, arcs, 5)).toEqual([])
 })
 
 test('the reach follows edgeMargin for a narrow slice', () => {
@@ -63,7 +65,7 @@ test('the reach follows edgeMargin for a narrow slice', () => {
 test('the same viewer, two wildcards and a one-viewer wheel have no close calls', () => {
   const same = [film('A'), film('A'), film('B'), film('B')]
   const sameArcs = sliceArcs(same)
-  expect(closeCallZones(same, sameArcs, 0).length).toBe(1) // only the start edge, shared with the last B
+  expect(closeCallZones(same, sameArcs, 0).length).toBe(1) // the start edge, shared with the last B
   expect(isCloseCall(same, sameArcs, 1, sameArcs[1].start + 1.3)).toBe(false)
   expect(isCloseCall(same, sameArcs, 2, sameArcs[2].start + 1.3)).toBe(true)
 
@@ -83,7 +85,9 @@ test('a wildcard next to a film counts', () => {
   const slices = [film('A'), wildcard(), film('B')]
   const arcs = sliceArcs(slices)
   expect(isCloseCall(slices, arcs, 1, arcs[1].start + 1.3)).toBe(true)
-  expect(isCloseCall(slices, arcs, 0, arcs[0].end - 1.3)).toBe(true)
+  expect(isCloseCall(slices, arcs, 2, arcs[2].start + 1.3)).toBe(true)
+  // Neither slice's end edge counts: the pointer has crossed it.
+  expect(isCloseCall(slices, arcs, 0, arcs[0].end - 1.3)).toBe(false)
 })
 
 test('the forced rest rotation lands in a zone of the drawn slice, off its margins', () => {
