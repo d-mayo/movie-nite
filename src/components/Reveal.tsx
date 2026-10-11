@@ -11,11 +11,12 @@ const snippetChars = 140
 // A wildcard's grey would vanish on the black stock, so its dot is the steel light.
 const wildcardDot = 'var(--film-steel-light)'
 
-function Eyebrow({ color, children }: { color: string; children: string }) {
+function Eyebrow({ color, closeCall, children }: { color: string; closeCall: boolean; children: string }) {
   return (
     <p className="reveal-eyebrow">
       <span className="reveal-dot" style={{ '--dot': color } as CSSProperties} />
       {children}
+      {closeCall && <span className="reveal-tag">Close call</span>}
     </p>
   )
 }
@@ -26,6 +27,8 @@ interface Props {
   client: TmdbClient
   // The film already saved for next week this night, which a second save replaces.
   heldFilm?: Nomination | null
+  // The spin was a close call: the frame carries a tag.
+  closeCall?: boolean
   onAuthError: () => void
   onOutcome: (nomination: Nomination, outcome: Outcome, fromWheel: boolean) => void
   onClose: () => void
@@ -68,6 +71,7 @@ export default function Reveal({
   revealedAt,
   client,
   heldFilm = null,
+  closeCall = false,
   onAuthError,
   onOutcome,
   onClose,
@@ -100,6 +104,7 @@ export default function Reveal({
             dot={dot}
             byline={fromWheel ? `Nominated by ${wedge.viewerName}` : 'Wildcard pick'}
             heldFilm={heldFilm}
+            closeCall={closeCall}
             onOutcome={(outcome) => onOutcome(shown.nomination, outcome, fromWheel)}
             onClose={onClose}
           />
@@ -111,7 +116,9 @@ export default function Reveal({
               </span>
             </div>
             <div className="reveal-info">
-              <Eyebrow color={dot}>Wildcard</Eyebrow>
+              <Eyebrow color={dot} closeCall={closeCall}>
+                Wildcard
+              </Eyebrow>
               <h2 id="reveal-heading">Wildcard!</h2>
               <FilmSearch
                 label="Search for a wildcard film"
@@ -152,11 +159,12 @@ interface FilmRevealProps {
   dot: string
   byline: string
   heldFilm: Nomination | null
+  closeCall: boolean
   onOutcome: (outcome: Outcome) => void
   onClose: () => void
 }
 
-function FilmReveal({ nomination, at, dot, byline, heldFilm, onOutcome, onClose }: FilmRevealProps) {
+function FilmReveal({ nomination, at, dot, byline, heldFilm, closeCall, onOutcome, onClose }: FilmRevealProps) {
   const [confirming, setConfirming] = useState(false)
   const window = finishWindow(at, nomination.runtime)
   return (
@@ -176,7 +184,9 @@ function FilmReveal({ nomination, at, dot, byline, heldFilm, onOutcome, onClose 
         )}
       </div>
       <div className="reveal-info">
-        <Eyebrow color={dot}>Now showing</Eyebrow>
+        <Eyebrow color={dot} closeCall={closeCall}>
+          Now showing
+        </Eyebrow>
         <h2 id="reveal-heading">{nomination.title}</h2>
         {nomination.year !== null && <p className="reveal-year">{nomination.year}</p>}
         <p className="reveal-byline">{byline}</p>

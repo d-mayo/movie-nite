@@ -54,10 +54,17 @@ const degrees = (rad: number) => (rad * 180) / Math.PI
 // positive): it touches the tongue's near side `contactClearance` before the
 // pointer and keeps pushing until the tongue is bent the maximum, and then the
 // tongue slips off it.
-const pushStart = -degrees(Math.asin(contactClearance / pinTrackRadius))
-const pushEnd = degrees(
+export const pushStart = -degrees(Math.asin(contactClearance / pinTrackRadius))
+export const pushEnd = degrees(
   Math.asin((lever * Math.sin((maxBendDegrees * Math.PI) / 180) - contactClearance) / pinTrackRadius),
 )
+
+// How far past the pointer (degrees) a pin must be to hold the tongue bent `bend` degrees: a
+// bend beyond what a pin right at the pointer gives (about 13°) has the pin already under the
+// tongue's tip, still pushing it, until it slips off at `maxBendDegrees`.
+export function pinPastPointer(bend: number): number {
+  return degrees(Math.asin((lever * Math.sin((bend * Math.PI) / 180) - contactClearance) / pinTrackRadius))
+}
 
 // The bend (degrees, positive) of a tongue pushed by a pin at `at` degrees from the pointer.
 function pushedBend(at: number): number {

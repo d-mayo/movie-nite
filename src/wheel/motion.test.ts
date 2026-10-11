@@ -4,6 +4,11 @@ import type { Arc } from './layout.ts'
 import {
   buildReducedSpinPath,
   buildSpinPath,
+  buildCloseCallPath,
+  closeCallApproachDegrees,
+  closeCallCreepSeconds,
+  closeCallEaseSeconds,
+  timeAtRotation,
   driftSpeedStep,
   glideProgress,
   spinPhases,
@@ -160,4 +165,60 @@ test('the drift speed eases toward its target and caps a long frame', () => {
   for (let i = 0; i < 180; i++) speed = driftSpeedStep(speed, 0, 1 / 60)
   expect(speed).toBe(0)
   expect(driftSpeedStep(0, 4, 10)).toBe(driftSpeedStep(0, 4, 0.1))
+})
+
+function closeCallPaths(glideSeconds: number, from = 0, driftSpeed = 4, turns = 3, scale = 1) {
+  const to = restRotation(from, [arc], 0, () => 0.5, turns)
+  const ordinary = buildSpinPath({ from, driftSpeed, to, phases: spinPhases(glideSeconds * 1000) })
+  return { to, ordinary, ...buildCloseCallPath(ordinary, to, scale) }
+}
+
+test('T3: the close-call path matches the ordinary one until the approach, ends on the rest and runs longer', () => {
+  for (const glide of [2, 4, 6]) {
+    const { to, ordinary, path, cueMs } = closeCallPaths(glide)
+    expect(path.rotationAt(path.durationMs)).toBe(to)
+    expect(path.durationMs).toBeGreaterThan(ordinary.durationMs)
+    for (let ms = 0; ms <= cueMs; ms += 25) {
+      expect(path.rotationAt(ms)).toBeCloseTo(ordinary.rotationAt(ms), 9)
+    }
+    // The approach starts with about the set distance to go.
+    expect(to - ordinary.rotationAt(cueMs)).toBeGreaterThan(closeCallApproachDegrees - 0.5)
+    expect(path.durationMs - cueMs).toBeCloseTo((closeCallEaseSeconds + closeCallCreepSeconds) * 1000, 6)
+  }
+})
+
+test('T3: the path is monotonic with no jump in speed where the approach begins, and the wheel still visibly creeps late', () => {
+  const { to, path, cueMs } = closeCallPaths(6)
+  let previous = path.rotationAt(cueMs)
+  for (let ms = cueMs + 5; ms <= path.durationMs; ms += 5) {
+    const now = path.rotationAt(ms)
+    expect(now).toBeGreaterThanOrEqual(previous - 1e-9)
+    previous = now
+  }
+  const speed = (ms: number) => (path.rotationAt(ms + 0.1) - path.rotationAt(ms - 0.1)) / 0.2
+  const before = speed(cueMs - 0.5)
+  const after = speed(cueMs + 0.5)
+  expect(Math.abs(after - before)).toBeLessThan(Math.max(before, after) * 0.01)
+  // Two seconds before the stop the wheel still has real distance to go and moves
+  // at a visible speed, where the ordinary glide has long since stopped.
+  expect(to - path.rotationAt(path.durationMs - 2000)).toBeGreaterThan(0.5)
+  expect(speed(path.durationMs - 2000)).toBeGreaterThan(0.0005)
+})
+
+test('T3: a test scale shortens the approach in proportion', () => {
+  const full = closeCallPaths(2)
+  const scaled = closeCallPaths(2, 0, 4, 3, 0.1)
+  expect(scaled.path.durationMs - scaled.cueMs).toBeCloseTo((full.path.durationMs - full.cueMs) / 10, 6)
+  expect(scaled.path.rotationAt(scaled.path.durationMs)).toBe(scaled.to)
+})
+
+test('timeAtRotation finds when a close-call path has turned to a point near its end', () => {
+  const { to, path, cueMs } = closeCallPaths(6)
+  // The flapper slips off a pin 1° before the stop: that comes late in the creep, before the end.
+  const slip = timeAtRotation(path, to - 1, cueMs)
+  expect(slip).toBeGreaterThan(cueMs)
+  expect(slip).toBeLessThan(path.durationMs)
+  expect(path.rotationAt(slip)).toBeCloseTo(to - 1, 3)
+  expect(path.durationMs - slip).toBeLessThan(3500)
+  expect(timeAtRotation(path, to - 0.2, cueMs)).toBeGreaterThan(slip)
 })

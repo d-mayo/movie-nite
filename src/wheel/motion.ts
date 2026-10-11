@@ -122,3 +122,85 @@ export function buildReducedSpinPath(
       from + (to - from) * glideProgress(elapsedMs / durationMs),
   }
 }
+
+// A close call's approach: from where the wheel has this far left to go, the ordinary
+// glide hands over to a longer one. It brakes smoothly for `closeCallEaseSeconds`
+// to a creep, then the creep slows to the rest over `closeCallCreepSeconds`,
+// so the wheel keeps visibly inching up to the pin until it stops. The speed carries
+// on from the ordinary glide's without a jump, and the path ends on the rest point.
+export const closeCallApproachDegrees = 24
+export const closeCallEaseSeconds = 0.6
+export const closeCallCreepSeconds = 7
+// The creep's speed falls as (1 - y)^0.6, so the distance left falls as (1 - y)^1.6: it keeps
+// moving at the end, so a pin a few degrees from the rest is crossed within a couple of seconds of the stop.
+const creepExponent = 0.6
+// How long after the stop the zoom holds, and then eases back, before the reveal opens.
+export const closeCallHoldMs = 2000
+export const closeCallEaseOutMs = 1000
+
+export interface CloseCallPath {
+  path: SpinPath
+  // Where the approach begins, in ms from the press: the cue (zoom, gasp, drumroll).
+  cueMs: number
+}
+
+// The close-call path built on the ordinary `base` that ends at `to`. `scale` shortens
+// the braking and the creep (a test's short spin).
+export function buildCloseCallPath(base: SpinPath, to: number, scale = 1): CloseCallPath {
+  const remaining = (ms: number) => to - base.rotationAt(ms)
+  // The ordinary path's forward speed, degrees a second, from a short window round `ms`.
+  const speedAt = (ms: number) => {
+    const lo = Math.max(ms - 5, 0)
+    const hi = Math.min(ms + 5, base.durationMs)
+    return ((base.rotationAt(hi) - base.rotationAt(lo)) / (hi - lo)) * 1000
+  }
+  const ease = closeCallEaseSeconds * scale
+  const creep = closeCallCreepSeconds * scale
+  const glideStart = windUpMs * scale
+  // The earliest hand-over with enough distance left for the braking and a creep.
+  let degrees = closeCallApproachDegrees
+  let handoff = base.durationMs
+  let speed = 0
+  for (;;) {
+    let lo = Math.min(glideStart, base.durationMs)
+    let hi = base.durationMs
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2
+      if (remaining(mid) > degrees) lo = mid
+      else hi = mid
+    }
+    handoff = hi
+    speed = speedAt(handoff)
+    if (2 * degrees - ease * speed > 0.1 * degrees || handoff <= glideStart + 1) break
+    degrees *= 1.5
+  }
+  const left = remaining(handoff)
+  const creepSpeed = Math.max((left - (ease * speed) / 2) / (ease / 2 + creep / (creepExponent + 1)), 0)
+  const easeDistance = (seconds: number) => {
+    const x = seconds / ease
+    return creepSpeed * seconds + (speed - creepSpeed) * ease * (x - x ** 3 + x ** 4 / 2)
+  }
+  const durationMs = handoff + (ease + creep) * 1000
+  const rotationAt = (ms: number) => {
+    if (ms <= handoff) return base.rotationAt(ms)
+    if (ms >= durationMs) return to
+    const seconds = (ms - handoff) / 1000
+    if (seconds < ease) return to - left + easeDistance(seconds)
+    const y = (seconds - ease) / creep
+    return to - left + easeDistance(ease) + ((creepSpeed * creep) / (creepExponent + 1)) * (1 - (1 - y) ** (creepExponent + 1))
+  }
+  return { path: { durationMs, rotationAt }, cueMs: handoff }
+}
+
+// The first time (ms into `path`, from `fromMs` on) at which the path has turned to `rotation`,
+// for a path that only moves forward from `fromMs`.
+export function timeAtRotation(path: SpinPath, rotation: number, fromMs = 0): number {
+  let lo = fromMs
+  let hi = path.durationMs
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2
+    if (path.rotationAt(mid) < rotation) lo = mid
+    else hi = mid
+  }
+  return hi
+}

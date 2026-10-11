@@ -45,6 +45,12 @@ export function restRotation(
   const { start, end } = arcs[index]
   const margin = edgeMargin(arcs[index])
   const target = start + margin + random() * (end - start - 2 * margin)
+  return rotationTo(currentRotation, target, turns)
+}
+
+// The rotation at least `turns` full turns past `currentRotation` that puts the
+// wheel angle `target` under the pointer.
+export function rotationTo(currentRotation: number, target: number, turns: number): number {
   const base = currentRotation + turns * 360
   const delta = (((-target - base) % 360) + 360) % 360
   return base + delta

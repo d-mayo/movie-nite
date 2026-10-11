@@ -6,7 +6,17 @@
 // destination, and the settings drive the three gains. The music loop, the win
 // stinger and the applause all ride the music bus.
 
-export type SoundName = 'on' | 'hum' | 'off' | 'loop' | 'stinger' | 'applause'
+export type SoundName =
+  | 'on'
+  | 'hum'
+  | 'off'
+  | 'loop'
+  | 'stinger'
+  | 'applause'
+  | 'gasp'
+  | 'drumroll'
+  | 'cymbal'
+  | 'cheer'
 
 export interface SoundSettings {
   // 0 to 100 each: the overall volume, and the music's and the effects' levels,
@@ -30,10 +40,18 @@ export interface SoundEngine {
   pinTick(share: number): void
   // The wheel stopped: the motor stops and the projector switches off.
   spinEnd(): void
+  // A close call's cue, `secondsToStop` before the wheel stops: the music
+  // drops out (its source keeps running), the audience gasps and a drumroll builds.
+  closeCall(secondsToStop: number): void
+  // A close call's release: the drumroll ends and a cymbal crashes. At the flapper slipping
+  // off the peg for a slip, at the stop for a bend.
+  closeCallBreak(): void
   // The wheel stopped and the reveal opens `revealInSeconds` later (0 for
   // none): the loop dips under the stinger, whose hit lands as the reveal
-  // opens with the applause, and the loop settles to a quieter bed.
-  landed(revealInSeconds: number): void
+  // opens with the applause, and the loop settles to a quieter bed. After a
+  // close call a cheer joins the applause, and the loop, silent till now,
+  // returns to the bed after the stinger.
+  landed(revealInSeconds: number, closeCall?: boolean): void
   // The reveal closed: the music fades out and stops.
   revealClosed(): void
 }
@@ -51,6 +69,8 @@ export const silentSound: SoundEngine = {
   spinSpeed: () => {},
   pinTick: () => {},
   spinEnd: () => {},
+  closeCall: () => {},
+  closeCallBreak: () => {},
   landed: () => {},
   revealClosed: () => {},
 }
@@ -76,6 +96,21 @@ export const dipLevel = 0.25
 export const bedLevel = 0.4
 const stingerLevel = 0.9
 const applauseLevel = 0.7
+// A close call's cheer, laid over the applause, and its gasp, drumroll (which builds from
+// the first level to the second) and cymbal.
+export const cheerLevel = 1
+const gaspLevel = 0.8
+const drumrollStartLevel = 0.3
+const drumrollEndLevel = 1
+const cymbalLevel = 0.9
+// How fast the loop drops at the cue, and the drumroll stops at the stop.
+const loopDropSeconds = 0.8
+const drumrollStopSeconds = 0.05
+// The drumroll's loop points in its file (0.1 s of margin each side for the encoder's padding),
+// and how long it takes to fade in, as the music fades out.
+export const drumrollLoopStart = 0.1
+export const drumrollLoopEnd = 1.7
+const drumrollFadeInSeconds = 0.8
 // Where the stinger's main hit falls in its file, and its length.
 export const stingerHit = 1.65
 export const stingerSeconds = 3.03
@@ -111,6 +146,8 @@ export function createSound(deps: SoundDeps): SoundEngine {
   // with it.
   let loop: { source: AudioBufferSourceNode; gain: GainNode } | null = null
   let wins: AudioBufferSourceNode[] = []
+  // The close call's drumroll while it plays.
+  let roll: { source: AudioBufferSourceNode; gain: GainNode } | null = null
 
   function setGains(immediately: boolean) {
     if (!ctx) return
@@ -127,7 +164,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
   function load() {
     if (loading) return
     loading = true
-    for (const name of ['on', 'hum', 'off', 'loop', 'stinger', 'applause'] as const) {
+    for (const name of ['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer'] as const) {
       deps
         .load(name)
         .then((data) => ctx!.decodeAudioData(data))
@@ -167,13 +204,30 @@ export function createSound(deps: SoundDeps): SoundEngine {
     if (ctx.state !== 'running') ctx.resume().catch(() => {})
   }
 
-  function play(name: SoundName) {
+  function play(name: SoundName, level?: number) {
     const buffer = buffers[name]
-    if (!ctx || !buffer) return
+    if (!ctx || !buffer) return null
     const source = ctx.createBufferSource()
     source.buffer = buffer
-    source.connect(effects)
+    if (level === undefined) {
+      source.connect(effects)
+    } else {
+      const gain = ctx.createGain()
+      gain.gain.value = level
+      source.connect(gain)
+      gain.connect(effects)
+    }
     source.start()
+    return source
+  }
+
+  // Ends the drumroll, if it still plays, over a moment so it does not click.
+  function stopRoll() {
+    if (!ctx || !roll) return
+    const { source, gain } = roll
+    roll = null
+    ramp(gain, 0, ctx.currentTime, drumrollStopSeconds)
+    source.stop(ctx.currentTime + drumrollStopSeconds + 0.02)
   }
 
   function startLoop() {
@@ -225,7 +279,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     gain.gain.setValueAtTime(0, at + seconds)
   }
 
-  function playWin(name: 'stinger' | 'applause', when: number, offset: number, level: number) {
+  function playWin(name: 'stinger' | 'applause' | 'cheer', when: number, offset: number, level: number) {
     const buffer = buffers[name]
     if (!ctx || !buffer) return
     const source = ctx.createBufferSource()
@@ -233,7 +287,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     const gain = ctx.createGain()
     gain.gain.value = level
     source.connect(gain)
-    gain.connect(name === 'applause' ? crowd : win)
+    gain.connect(name === 'stinger' ? win : crowd)
     source.start(when, offset)
     wins.push(source)
   }
@@ -265,6 +319,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     spinStart() {
       if (!ctx) return
       stopHum()
+      stopRoll()
       stopMusic()
       play('on')
       startLoop()
@@ -327,16 +382,55 @@ export function createSound(deps: SoundDeps): SoundEngine {
       stopHum()
       play('off')
     },
-    landed(revealInSeconds) {
+    closeCall(secondsToStop) {
+      if (!ctx) return
+      const now = ctx.currentTime
+      if (loop) ramp(loop.gain, 0, now, loopDropSeconds)
+      play('gasp', gaspLevel)
+      const buffer = buffers.drumroll
+      if (!buffer) return
+      // The roll loops for the whole approach and fades in as the music fades out, then
+      // builds by a ramp to the stop.
+      const source = ctx.createBufferSource()
+      source.buffer = buffer
+      source.loop = true
+      source.loopStart = drumrollLoopStart
+      source.loopEnd = Math.min(drumrollLoopEnd, buffer.duration)
+      const gain = ctx.createGain()
+      gain.gain.value = 0
+      source.connect(gain)
+      gain.connect(effects)
+      source.start(now, 0)
+      const fadeIn = Math.min(drumrollFadeInSeconds, secondsToStop)
+      ramp(gain, drumrollStartLevel, now, fadeIn)
+      gain.gain.linearRampToValueAtTime(drumrollEndLevel, now + Math.max(secondsToStop, fadeIn + 0.1))
+      roll = { source, gain }
+    },
+    closeCallBreak() {
+      if (!ctx) return
+      stopRoll()
+      play('cymbal', cymbalLevel)
+    },
+    landed(revealInSeconds, closeCall = false) {
       if (!ctx) return
       const now = ctx.currentTime
       const hold = Math.max(revealInSeconds, 0)
+
       // The hit lands as the reveal opens: start the stinger's swell early
       // enough, or, with no hold, from its hit.
       const lead = Math.min(stingerHit, hold)
       playWin('stinger', now + hold - lead, stingerHit - lead, stingerLevel)
       playWin('applause', now + hold, 0, applauseLevel)
+      if (closeCall) playWin('cheer', now + hold, 0, cheerLevel)
       if (!loop) return
+      if (closeCall) {
+        // The loop has been silent since the cue: it comes back as the stinger ends, from where it has reached.
+        const end = buffers.stinger ? now + hold - Math.min(stingerHit, hold) + (stingerSeconds - (stingerHit - Math.min(stingerHit, hold))) : now + hold
+        ramp(loop.gain, 0, now, 0.05)
+        loop.gain.gain.setValueAtTime(0, end - 0.5)
+        loop.gain.gain.linearRampToValueAtTime(bedLevel, end)
+        return
+      }
       // Without the stinger there is nothing to dip under.
       if (!buffers.stinger) return ramp(loop.gain, bedLevel, now, 0.5)
       const end = now + hold - lead + (stingerSeconds - (stingerHit - lead))
@@ -348,6 +442,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     revealClosed() {
       if (!ctx) return
       const now = ctx.currentTime
+      stopRoll()
       if (loop) {
         fadeOut(loop.gain, now, musicFadeSeconds)
         loop.source.stop(now + musicFadeSeconds + 0.05)

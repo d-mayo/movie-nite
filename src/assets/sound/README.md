@@ -59,3 +59,25 @@ the second command appends the 0.1 s margin):
 ffmpeg -i GLAD.ogg -filter_complex "[0:a]atrim=10:42.12,asetpts=PTS-STARTPTS,afade=t=in:d=0.02[a];[0:a]atrim=11:12,asetpts=PTS-STARTPTS[b];[a][b]acrossfade=d=1:c1=tri:c2=tri,aformat=channel_layouts=stereo[o]" -map "[o]" -c:a libmp3lame -b:a 96k loop.mp3
 ffmpeg -i loop.mp3 -filter_complex "[0:a]asplit=2[f][w];[w]atrim=2.0:2.1,asetpts=PTS-STARTPTS[post];[f][post]concat=n=2:v=0:a=1[o]" -map "[o]" -c:a libmp3lame -b:a 96k music-loop.mp3
 ```
+
+# Close-call sounds
+
+Three mono 64 kbps MP3s (44.1 kHz) and a stereo 96 kbps cheer, none needing a credit: all the sources are CC0. Originals live in
+the gitignored `sound-sources/`. Times are seconds in the source file. Total shipped: about 63 KB, plus the cheer's 84 KB.
+
+| File | Source | Cut |
+| --- | --- | --- |
+| `gasp.mp3` | [764320, CRWDReac Crowd Gasping In Surprise, Voiced 02](https://freesound.org/people/ShangusBurger/sounds/764320/) by ShangusBurger, CC0 | 0.8 to 2.85, the gasp itself; 50 ms fade in, 450 ms fade out, loudness-normalized to -18 LUFS |
+| `drumroll.mp3` | [191718, drumroll](https://freesound.org/people/adriann/sounds/191718/) by adriann, CC0 (a 5.97 s mono 8-bit clip: a roll that builds, then a crash from about 3.75) | 0.4 to 3.74 with the crescendo flattened (dynaudnorm), then 1.2 to 2.8 of that looped: the last 0.5 s cross-fades into the start, 0.1 s margin each side, so `loopStart` = 0.1 and `loopEnd` = 1.7; the engine ramps its level up through the approach |
+| `cheer.mp3` | [430046, crowd cheer](https://freesound.org/people/beeproductive/sounds/430046/) by beeproductive, CC0 (a 15.95 s stereo clip) | 0 to 7.0, the cheer's rise and first sustain; 20 ms fade in, 1.5 s fade out. Played over the applause on a close call |
+| `cymbal.mp3` | the same file | 3.74 to 5.97, the crash and its tail; 5 ms fade in, 700 ms fade out |
+
+Remake (ffmpeg, from `sound-sources/`, with `GASP.wav` and `ROLL.wav` the two source files):
+
+```
+ffmpeg -ss 0.8 -t 2.05 -i GASP.wav -af "afade=t=in:d=0.05,afade=t=out:st=1.6:d=0.45,loudnorm=I=-18:TP=-2" -ac 1 -ar 44100 -c:a libmp3lame -b:a 64k gasp.mp3
+ffmpeg -ss 0.4 -t 3.34 -i ROLL.wav -af "dynaudnorm=f=150:g=7:p=0.9:m=30,aresample=44100" -ac 1 roll-flat.wav
+ffmpeg -i roll-flat.wav -filter_complex "[0:a]atrim=1.2:3.34,asetpts=PTS-STARTPTS,asplit=2[a][b];[a]atrim=1.6:2.1,asetpts=PTS-STARTPTS[tail];[b]atrim=0:1.6,asetpts=PTS-STARTPTS[full];[tail][full]acrossfade=d=0.5:c1=tri:c2=tri,asplit=3[b1][b2][b3];[b1]atrim=1.5:1.6,asetpts=PTS-STARTPTS[pre];[b3]atrim=0:0.1,asetpts=PTS-STARTPTS[post];[pre][b2][post]concat=n=3:v=0:a=1,loudnorm=I=-20:TP=-2[o]" -map "[o]" -ac 1 -ar 44100 -c:a libmp3lame -b:a 64k drumroll.mp3
+ffmpeg -ss 3.74 -t 2.23 -i ROLL.wav -af "afade=t=in:d=0.005,afade=t=out:st=1.5:d=0.7,aresample=44100" -ac 1 -ar 44100 -c:a libmp3lame -b:a 64k cymbal.mp3
+ffmpeg -t 7 -i CHEER.wav -af "afade=t=in:d=0.02,afade=t=out:st=5.5:d=1.5,aresample=44100" -c:a libmp3lame -b:a 96k cheer.mp3
+```

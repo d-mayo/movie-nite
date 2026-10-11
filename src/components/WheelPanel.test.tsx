@@ -1,15 +1,17 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react'
 import { Profiler } from 'react'
 import { expect, test, vi } from 'vitest'
 import App from '../App.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
-import { angleUnderPointer } from '../wheel/draw.ts'
+import { angleUnderPointer, drawSlice } from '../wheel/draw.ts'
+import { closeCallKind, isCloseCall } from '../wheel/closeCall.ts'
 import { sliceArcs } from '../wheel/layout.ts'
 import { header, markAway, markHere } from '../test/cells.ts'
 import { defaultWheelSettings, deriveSlices } from '../wheel/edit.ts'
 import type { SoundEngine, SoundSettings } from '../sound/engine.ts'
+import { useWheelMotion } from './useWheelMotion.ts'
 
 function film(id: number, posterPath: string | null = null): Nomination {
   return {
@@ -564,6 +566,12 @@ function recordingSound() {
     starts: 0,
     ends: 0,
     landed: [] as number[],
+    // The close-call flag each landing was told, and the seconds each cue was told.
+    landedClose: [] as boolean[],
+    cues: [] as number[],
+    // Where the close call's release came: before the landing (a slip) or at it (a bend).
+    events: [] as string[],
+    breaks: 0,
     closed: 0,
     attached: 0,
     detached: 0,
@@ -580,8 +588,20 @@ function recordingSound() {
     spinStart: () => void log.starts++,
     spinSpeed: (share) => void log.shares.push(share),
     pinTick: (share) => void log.ticks.push(share),
-    spinEnd: () => void log.ends++,
-    landed: (seconds) => void log.landed.push(seconds),
+    spinEnd: () => {
+      log.ends++
+      log.events.push('end')
+    },
+    closeCall: (seconds) => void log.cues.push(seconds),
+    closeCallBreak: () => {
+      log.breaks++
+      log.events.push('break')
+    },
+    landed: (seconds, closeCall = false) => {
+      log.events.push('landed')
+      log.landed.push(seconds)
+      log.landedClose.push(closeCall)
+    },
     revealClosed: () => void log.closed++,
   }
   return { engine, log }
@@ -725,3 +745,292 @@ test('a real spin lands with the reveal 0.65 s away', async () => {
   fireEvent.click(spinButton())
   await waitFor(() => expect(log.landed).toEqual([0.65]), { timeout: 8000 })
 }, 12000)
+
+test('play() fires its cue once, on a frame at or after its time and before done', async () => {
+  const { result } = renderHook(() => useWheelMotion(false, []))
+  const events: string[] = []
+  const path = { durationMs: 300, rotationAt: (ms: number) => ms / 10 }
+  act(() => {
+    result.current.play(path, () => events.push('done'), [{ atMs: 100, fire: () => events.push('cue') }])
+  })
+  await waitFor(() => expect(events).toContain('done'))
+  expect(events).toEqual(['cue', 'done'])
+})
+
+test('play() fires a cue at 0 on the first frame, and with no cue calls nothing extra', async () => {
+  const { result } = renderHook(() => useWheelMotion(false, []))
+  const events: string[] = []
+  const path = { durationMs: 100, rotationAt: (ms: number) => ms / 10 }
+  act(() => {
+    result.current.play(path, () => events.push('done'), [{ atMs: 0, fire: () => events.push('cue') }])
+  })
+  await waitFor(() => expect(events).toContain('done'))
+  expect(events).toEqual(['cue', 'done'])
+  events.length = 0
+  act(() => {
+    result.current.play(path, () => events.push('done'))
+  })
+  await waitFor(() => expect(events).toEqual(['done']))
+})
+
+const stage = () => document.querySelector<HTMLElement>('.wheel-stage')!
+// 0.01 draws the first slice and rests just past its pinned edge, across from another viewer's film.
+const closeCallRandom = () => 0.01
+
+test('a close-call spin cues once before the landing, zooms from the cue and clears the zoom as the reveal opens', async () => {
+  const { engine, log } = recordingSound()
+  let commits = 0
+  const store = createAppStore(
+    createMemoryPersistence({
+      ...defaultState,
+      settings: {
+        tmdbToken: 'tok',
+        viewersHidden: false,
+        wheel: { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 },
+      },
+      roster: [
+        { id: 'a', name: 'Ann', color: '#e6194b' },
+        { id: 'b', name: 'Bo', color: '#f58231' },
+      ],
+      night: {
+        ...defaultState.night,
+        presentIds: ['a', 'b'],
+        nominations: { a: film(1), b: film(2) },
+      },
+    }),
+  )
+  render(
+    <Profiler id="app" onRender={() => void commits++}>
+      <App store={store} fetchFn={vi.fn()} random={closeCallRandom} spinMs={400} sound={engine} />
+    </Profiler>,
+  )
+  await sleep(50)
+  const before = commits
+  expect(stage().dataset.zoom).toBeUndefined()
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(log.cues).toHaveLength(1))
+  expect(log.landed).toHaveLength(0)
+  await waitFor(() => expect(stage().dataset.zoom).toBe('in'))
+  await screen.findByRole('dialog')
+  expect(log.cues).toHaveLength(1)
+  expect(log.landedClose).toEqual([true])
+  expect(log.landed).toEqual([0])
+  expect(stage().dataset.zoom).toBeUndefined()
+  expect(screen.getByText('Close call')).toBeInTheDocument()
+  expect(commits - before).toBeLessThan(10)
+})
+
+test('a spin that rests mid-slice makes no cue, no zoom and an ordinary landing', async () => {
+  const { engine, log } = recordingSound()
+  setupCrowd({ random: () => 0.5, spinMs: 200, sound: engine })
+  fireEvent.click(spinButton())
+  await sleep(100)
+  expect(stage().dataset.zoom).toBeUndefined()
+  await screen.findByRole('dialog')
+  expect(log.cues).toEqual([])
+  expect(log.landedClose).toEqual([false])
+  expect(stage().dataset.zoom).toBeUndefined()
+  expect(screen.queryByText('Close call')).toBeNull()
+})
+
+test('the winner is the drawn slice, close call or not: a bend rests the pointer just past the pin, in the neighbor, with the flapper still on the drawn film', async () => {
+  setupCrowd({ random: closeCallRandom, spinMs: 30 }, 6)
+  fireEvent.click(spinButton())
+  const dialog = await screen.findByRole('dialog')
+  const settings = { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 }
+  const slices = deriveSlices(['a', 'b', 'c'], settings, {})
+  const arcs = sliceArcs(slices)
+  const drawn = drawSlice(slices, closeCallRandom)
+  expect(drawn).toBe(0)
+  const rest = angleUnderPointer(wheelRotation())
+  expect(closeCallKind(slices, arcs, drawn, rest)).toBe('bend')
+  expect(rest).toBeGreaterThan(350)
+  // The reveal is the drawn slice's film, not the neighbor the pointer's line is in.
+  expect(within(dialog).getByText('Nominated by Ann')).toBeInTheDocument()
+})
+
+test('without spinMs a close call holds its zoom after the landing and opens the reveal 2 s later', async () => {
+  const { engine, log } = recordingSound()
+  setupCrowd({ random: closeCallRandom, sound: engine }, 5)
+  fireEvent.click(spinButton())
+  await screen.findByTestId('flicker', undefined, { timeout: 14000 })
+  const landedAt = Date.now()
+  expect(log.cues).toHaveLength(1)
+  expect(log.landed).toEqual([2])
+  expect(log.landedClose).toEqual([true])
+  expect(stage().dataset.zoom).toBe('in')
+  await sleep(1300)
+  expect(stage().dataset.zoom).toBe('out')
+  expect(screen.queryByRole('dialog')).toBeNull()
+  await screen.findByRole('dialog', undefined, { timeout: 2000 })
+  expect(Date.now() - landedAt).toBeGreaterThanOrEqual(1900)
+  expect(stage().dataset.zoom).toBeUndefined()
+}, 25000)
+
+test('reduced motion: a close call keeps its sounds, has no stretch or zoom, and lands in about a second', async () => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('prefers-reduced-motion'),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+  try {
+    const { engine, log } = recordingSound()
+    setupCrowd({ random: closeCallRandom, sound: engine }, 6)
+    const pressedAt = Date.now()
+    fireEvent.click(spinButton())
+    await waitFor(() => expect(log.cues).toHaveLength(1))
+    expect(stage().dataset.zoom).toBeUndefined()
+    await screen.findByRole('dialog', undefined, { timeout: 2500 })
+    expect(Date.now() - pressedAt).toBeLessThan(1800)
+    expect(log.landed).toEqual([0])
+    expect(log.landedClose).toEqual([true])
+    expect(stage().dataset.zoom).toBeUndefined()
+    expect(screen.getByText('Close call')).toBeInTheDocument()
+  } finally {
+    vi.unstubAllGlobals()
+  }
+}, 8000)
+
+function withQuery(query: string) {
+  window.history.pushState({}, '', `/${query}`)
+  return () => window.history.pushState({}, '', '/')
+}
+
+test('without the debug flag there is no Force close calls checkbox', () => {
+  setupCrowd({ random: () => 0.5, spinMs: 20 })
+  expect(screen.queryByLabelText('Force close calls')).toBeNull()
+})
+
+test('with the debug flag the checkbox shows, starts unchecked and locks during a spin and its reveal', async () => {
+  const restore = withQuery('?debug')
+  try {
+    setupCrowd({ random: () => 0.5, spinMs: 20 }, 6)
+    const box = screen.getByLabelText('Force close calls')
+    expect(box).not.toBeChecked()
+    expect(box).toBeEnabled()
+    fireEvent.click(spinButton())
+    expect(box).toBeDisabled()
+    await screen.findByRole('dialog')
+    expect(box).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(box).toBeEnabled()
+  } finally {
+    restore()
+  }
+})
+
+test('checked, a mid-slice random still lands on the drawn slice but is a close call; unchecked it is ordinary', async () => {
+  const restore = withQuery('?debug')
+  try {
+    const { engine, log } = recordingSound()
+    setupCrowd({ random: () => 0.5, spinMs: 30, sound: engine }, 6)
+    const slices = deriveSlices(['a', 'b', 'c'], { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 }, {})
+    const arcs = sliceArcs(slices)
+    // The same slice that drawSlice picks for 0.5, whichever way the rest point is chosen.
+    const drawn = drawSlice(slices, () => 0.5)
+    fireEvent.click(screen.getByLabelText('Force close calls'))
+    fireEvent.click(spinButton())
+    await screen.findByRole('dialog')
+    expect(log.cues).toHaveLength(1)
+    expect(log.landedClose).toEqual([true])
+    const rest = angleUnderPointer(wheelRotation())
+    expect(rest).toBeGreaterThanOrEqual(arcs[drawn].start)
+    expect(rest).toBeLessThan(arcs[drawn].end)
+    expect(isCloseCall(slices, arcs, drawn, rest)).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByLabelText('Force close calls'))
+    fireEvent.click(spinButton())
+    await screen.findByRole('dialog')
+    expect(log.cues).toHaveLength(1)
+    expect(log.landedClose).toEqual([true, false])
+  } finally {
+    restore()
+  }
+})
+
+test('a share of ordinary spins are steered into a close call, keeping the winner; the rest are not', async () => {
+  const sequence = (...values: number[]) => {
+    let i = 0
+    return () => values[Math.min(i++, values.length - 1)]
+  }
+  const { engine, log } = recordingSound()
+  // The draw and the rest point are mid-slice; then the chance roll comes up under the share, and the zone and the point in it follow.
+  setupCrowd({ random: sequence(0.5, 0.5, 0.1, 0.5, 0.5), spinMs: 40, sound: engine }, 6)
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(log.cues).toHaveLength(1)
+  expect(log.landedClose).toEqual([true])
+  const slices = deriveSlices(['a', 'b', 'c'], { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 }, {})
+  const arcs = sliceArcs(slices)
+  const drawn = drawSlice(slices, () => 0.5)
+  const rest = angleUnderPointer(wheelRotation())
+  expect(rest).toBeGreaterThanOrEqual(arcs[drawn].start)
+  expect(rest).toBeLessThan(arcs[drawn].end)
+  cleanup()
+  const quiet = recordingSound()
+  setupCrowd({ random: sequence(0.5, 0.5, 0.9, 0.5, 0.5), spinMs: 40, sound: quiet.engine })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(quiet.log.cues).toEqual([])
+  expect(quiet.log.landedClose).toEqual([false])
+})
+
+test('close calls are off at a spin Length under 5 s, even with the debug box, which is then disabled', async () => {
+  const restore = withQuery('?debug')
+  try {
+    const { engine, log } = recordingSound()
+    setupCrowd({ random: closeCallRandom, spinMs: 30, sound: engine }, 4)
+    expect(screen.getByLabelText(/Force close calls/)).toBeDisabled()
+    fireEvent.click(spinButton())
+    await screen.findByRole('dialog')
+    expect(log.cues).toEqual([])
+    expect(log.landedClose).toEqual([false])
+    expect(screen.queryByText('Close call')).toBeNull()
+  } finally {
+    restore()
+  }
+})
+
+test('a slip releases the tension (drumroll off, cymbal) before the landing; a bend releases it at the landing', async () => {
+  // 0.01 rests 1.3° past the start pin (a bend); 0.99 draws the last slice but rests mid-slice, so steer into a slip.
+  const settings = { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 }
+  const slices = deriveSlices(['a', 'b', 'c'], settings, {})
+  const arcs = sliceArcs(slices)
+  const bend = recordingSound()
+  setupCrowd({ random: closeCallRandom, spinMs: 80, sound: bend.engine }, 6)
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(bend.log.events).toEqual(['end', 'break', 'landed'])
+  expect(closeCallKind(slices, arcs, 0, angleUnderPointer(wheelRotation()))).toBe('bend')
+  cleanup()
+  const slip = recordingSound()
+  // Draw slice 17, rest mid-slice, then the chance roll under the share, the zone (second of two) and its start.
+  const rolls = [17.5 / 36, 0.5, 0.1, 0.9, 0.5]
+  let i = 0
+  setupCrowd({ random: () => rolls[Math.min(i++, rolls.length - 1)], spinMs: 80, sound: slip.engine }, 6)
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(slip.log.cues).toHaveLength(1)
+  expect(slip.log.events).toEqual(['break', 'end', 'landed'])
+  expect(slip.log.breaks).toBe(1)
+  expect(closeCallKind(slices, arcs, 17, angleUnderPointer(wheelRotation()))).toBe('slip')
+})
+
+test('a slip starts the flash and the fanfare right after the cymbal, while the wheel is still creeping', async () => {
+  const { engine, log } = recordingSound()
+  // Draw slice 17, rest mid-slice, then the chance roll under the share and the slip zone with its start.
+  const rolls = [17.5 / 36, 0.5, 0.1, 0.9, 0.5]
+  let i = 0
+  setupCrowd({ random: () => rolls[Math.min(i++, rolls.length - 1)], sound: engine }, 5)
+  fireEvent.click(spinButton())
+  await screen.findByTestId('flicker', undefined, { timeout: 20000 })
+  // The landing came behind the cymbal and before the wheel stopped.
+  expect(log.events).toEqual(['break', 'landed'])
+  expect(log.ends).toBe(0)
+  expect(log.landed[0]).toBeGreaterThanOrEqual(2)
+  expect(screen.queryByRole('dialog')).toBeNull()
+  await screen.findByRole('dialog', undefined, { timeout: 8000 })
+  expect(log.events).toEqual(['break', 'landed', 'end'])
+  expect(log.landed).toHaveLength(1)
+}, 40000)

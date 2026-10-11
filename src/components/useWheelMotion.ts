@@ -18,6 +18,12 @@ import {
 import { silentSound, type SoundEngine, type SoundSettings } from '../sound/engine.ts'
 import { prefersReducedMotion, watchReducedMotion } from '../wheel/reducedMotion.ts'
 
+// Something the spin does part way through, on the first frame at or after `atMs` into it.
+export interface Cue {
+  atMs: number
+  fire: () => void
+}
+
 // The path's speed (degrees a second) at `ms`, from a short window round it, so
 // it does not depend on the frame rate.
 const speedWindowMs = 20
@@ -73,6 +79,8 @@ export function useWheelMotion(
     done: () => void
     // The spin's fastest speed, in degrees a second.
     peak: number
+    // The close call's cues, each fired once on the first frame at or past its `atMs`, in time order.
+    cues: Cue[]
   } | null>(null)
   // This frame's wheel speed as a share of the spin's peak, set while a spin runs.
   const share = useRef<number | null>(null)
@@ -130,6 +138,9 @@ export function useWheelMotion(
       if (run) {
         run.began ??= now
         const elapsed = now - run.began
+        while (run.cues.length > 0 && (elapsed >= run.cues[0].atMs || elapsed >= run.path.durationMs)) {
+          run.cues.shift()!.fire()
+        }
         if (elapsed >= run.path.durationMs) {
           playing.current = null
           angle.current = run.path.rotationAt(run.path.durationMs)
@@ -170,14 +181,15 @@ export function useWheelMotion(
     // The angle and drift speed (degrees a second) right now.
     current: () => ({ angle: angle.current, speed: speed.current }),
     // Plays `path`, holding the drift at zero until the next idle frame after
-    // `done`; `done` runs once, on the frame the path ends.
-    play(path: SpinPath, done: () => void) {
+    // `done`; `done` runs once, on the frame the path ends. The `cues` each fire once,
+    // on the first frame at or after its time, and always before `done`.
+    play(path: SpinPath, done: () => void, cues: Cue[] = []) {
       speed.current = 0
       soundRef.current.spinStart()
       // Held until the next render says otherwise, so no drift frame slips in
       // between the path's end and the commit that shows the reveal.
       stoppedRef.current = true
-      playing.current = { path, began: null, done, peak: peakSpeed(path) }
+      playing.current = { path, began: null, done, peak: peakSpeed(path), cues: [...cues].sort((a, b) => a.atMs - b.atMs) }
     },
   }
 }
