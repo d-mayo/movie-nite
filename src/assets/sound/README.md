@@ -26,3 +26,28 @@ mono at 48 kHz):
 ```
 ffmpeg -i mono48.wav -filter_complex "[0:a]atrim=55.0:63.5,asetpts=PTS-STARTPTS,volume=2,asplit=2[a][b];[a]atrim=8.0:8.5,asetpts=PTS-STARTPTS[tail];[b]atrim=0:8.0,asetpts=PTS-STARTPTS[full];[tail][full]acrossfade=d=0.5:c1=tri:c2=tri,asplit=3[b1][b2][b3];[b1]atrim=7.9:8.0,asetpts=PTS-STARTPTS[pre];[b3]atrim=0:0.1,asetpts=PTS-STARTPTS[post];[pre][b2][post]concat=n=3:v=0:a=1,aresample=44100[o]" -map "[o]" -ac 1 -c:a libmp3lame -b:a 96k projector-hum.mp3
 ```
+
+# Music and win sounds
+
+Three more MP3s (stereo, 96 kbps for the loop). Originals live in the
+gitignored `sound-sources/`. Times are seconds in the source file.
+
+| File | Source | Cut |
+| --- | --- | --- |
+| `music-loop.mp3` | Fučík's *Entrance of the Gladiators*, U.S. Marine Band recording (an Ogg Vorbis file in `sound-sources/`; free-use, source link to add). The march is public domain. | 10.0 to 44.12, with the main body starting at 12.0 |
+| `stinger.mp3` | [578572, Congrats! 2](https://freesound.org/people/nomiqbomi/sounds/578572/) by nomiqbomi, CC0 | the whole 3.03 s file: a swell from about 0.75 and the main hit at about 1.65 |
+| `applause.mp3` | [859009, Small Auditorium Crowd Applause and Cheering](https://freesound.org/people/elevatorfan2020/sounds/859009/) by ElevatorFan2020, CC0 | the whole 6.19 s file |
+
+## The music loop
+
+The file is a 2 s lead-in (10 to 12 in the source) then a 30.12 s body, the
+tail of which (the last 1 s) cross-fades (triangular) into the 1 s before the
+body, so the end of the body runs straight into its start. 0.1 s of the
+body's start is appended after the end so the encoder's padding falls past the
+loop:
+
+- `loopStart` = 2.0
+- `loopEnd` = 32.12
+
+The first 20 ms fades in. Total shipped: loop 387 KB, stinger 65 KB,
+applause 198 KB, about 650 KB.
