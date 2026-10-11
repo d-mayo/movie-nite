@@ -9,9 +9,9 @@
 export type SoundName = 'on' | 'hum' | 'off' | 'loop' | 'stinger' | 'applause'
 
 export interface SoundSettings {
-  music: boolean
-  effects: boolean
-  // 0 to 100.
+  // 0 to 100 each: the music's and the effects' levels, and the overall volume.
+  music: number
+  effects: number
   volume: number
 }
 
@@ -78,7 +78,8 @@ const applauseLevel = 0.7
 export const stingerHit = 1.65
 export const stingerSeconds = 3.03
 // How long the music takes to fade out when the reveal closes.
-export const musicFadeSeconds = 0.8
+export const musicFadeSeconds = 2
+const fadeFloor = 0.001
 // No tick sounds sooner than this after another (on the audio clock).
 export const minTickGap = 0.03
 
@@ -97,12 +98,13 @@ export function createSound(deps: SoundDeps): SoundEngine {
   let effects: GainNode
   let music: GainNode
   let noise: AudioBuffer
-  let settings: SoundSettings = { music: true, effects: true, volume: 70 }
+  let settings: SoundSettings = { music: 100, effects: 100, volume: 70 }
   let loading = false
   const buffers: Partial<Record<SoundName, AudioBuffer>> = {}
   let hum: { source: AudioBufferSourceNode; gain: GainNode } | null = null
   let lastTick = -Infinity
   let win: GainNode
+  let crowd: GainNode
   // The loop while it plays or fades; the stinger and applause, which fade
   // with it.
   let loop: { source: AudioBufferSourceNode; gain: GainNode } | null = null
@@ -115,8 +117,8 @@ export function createSound(deps: SoundDeps): SoundEngine {
       else gain.gain.setTargetAtTime(value, ctx!.currentTime, 0.01)
     }
     set(master, volumeGain(settings.volume))
-    set(effects, settings.effects ? 1 : 0)
-    set(music, settings.music ? 1 : 0)
+    set(effects, volumeGain(settings.effects))
+    set(music, volumeGain(settings.music))
   }
 
   function load() {
@@ -149,6 +151,9 @@ export function createSound(deps: SoundDeps): SoundEngine {
       master.connect(ctx.destination)
       win = ctx.createGain()
       win.connect(music)
+      // The applause is an effect: it rides the effects bus.
+      crowd = ctx.createGain()
+      crowd.connect(effects)
       // A short burst of white noise, the tick's click.
       noise = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.03), ctx.sampleRate)
       const samples = noise.getChannelData(0)
@@ -208,6 +213,15 @@ export function createSound(deps: SoundDeps): SoundEngine {
     gain.gain.linearRampToValueAtTime(value, at + seconds)
   }
 
+  // A fade to silence that sounds even: a fall of equal decibels per second
+  // (exponential), not a straight line, which seems to drop away at the end.
+  function fadeOut(gain: GainNode, at: number, seconds: number) {
+    gain.gain.cancelScheduledValues(at)
+    gain.gain.setValueAtTime(Math.max(gain.gain.value, fadeFloor), at)
+    gain.gain.exponentialRampToValueAtTime(fadeFloor, at + seconds)
+    gain.gain.setValueAtTime(0, at + seconds)
+  }
+
   function playWin(name: 'stinger' | 'applause', when: number, offset: number, level: number) {
     const buffer = buffers[name]
     if (!ctx || !buffer) return
@@ -216,7 +230,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     const gain = ctx.createGain()
     gain.gain.value = level
     source.connect(gain)
-    gain.connect(win)
+    gain.connect(name === 'applause' ? crowd : win)
     source.start(when, offset)
     wins.push(source)
   }
@@ -228,8 +242,10 @@ export function createSound(deps: SoundDeps): SoundEngine {
     for (const source of wins) source.stop()
     loop = null
     wins = []
-    win.gain.cancelScheduledValues(0)
-    win.gain.value = 1
+    for (const gain of [win, crowd]) {
+      gain.gain.cancelScheduledValues(0)
+      gain.gain.value = 1
+    }
   }
 
   return {
@@ -330,10 +346,11 @@ export function createSound(deps: SoundDeps): SoundEngine {
       if (!ctx) return
       const now = ctx.currentTime
       if (loop) {
-        ramp(loop.gain, 0, now, musicFadeSeconds)
+        fadeOut(loop.gain, now, musicFadeSeconds)
         loop.source.stop(now + musicFadeSeconds + 0.05)
       }
-      ramp(win, 0, now, musicFadeSeconds)
+      fadeOut(win, now, musicFadeSeconds)
+      fadeOut(crowd, now, musicFadeSeconds)
       for (const w of wins) w.stop(now + musicFadeSeconds + 0.05)
     },
   }

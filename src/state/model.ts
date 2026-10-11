@@ -238,14 +238,14 @@ export function setSpinTurnsPerSecond(state: AppState, turns: number): AppState 
   return withWheel(state, { spinTurnsPerSecond: turns })
 }
 
-export function setSoundMusic(state: AppState, on: boolean): AppState {
-  if (state.settings.wheel.soundMusic === on) return state
-  return withWheel(state, { soundMusic: on })
+export function setSoundMusic(state: AppState, level: number): AppState {
+  if (!isValidSoundVolume(level) || level === state.settings.wheel.soundMusic) return state
+  return withWheel(state, { soundMusic: level })
 }
 
-export function setSoundEffects(state: AppState, on: boolean): AppState {
-  if (state.settings.wheel.soundEffects === on) return state
-  return withWheel(state, { soundEffects: on })
+export function setSoundEffects(state: AppState, level: number): AppState {
+  if (!isValidSoundVolume(level) || level === state.settings.wheel.soundEffects) return state
+  return withWheel(state, { soundEffects: level })
 }
 
 export function setSoundVolume(state: AppState, volume: number): AppState {

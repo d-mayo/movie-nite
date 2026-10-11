@@ -130,8 +130,8 @@ test('wheel settings and adjustments survive a reload', () => {
   a.getState().setDefaultWeight(7)
   a.getState().setSpinSeconds(10)
   a.getState().setSpinTurnsPerSecond(1.5)
-  a.getState().setSoundMusic(false)
-  a.getState().setSoundEffects(false)
+  a.getState().setSoundMusic(0)
+  a.getState().setSoundEffects(0)
   a.getState().setSoundVolume(35)
 
   const b = createAppStore(persistence).getState()
@@ -144,8 +144,8 @@ test('wheel settings and adjustments survive a reload', () => {
     defaultWeight: 7,
     spinSeconds: 10,
     spinTurnsPerSecond: 1.5,
-    soundMusic: false,
-    soundEffects: false,
+    soundMusic: 0,
+    soundEffects: 0,
     soundVolume: 35,
   })
 })
@@ -195,17 +195,22 @@ test('stored sound settings that are missing or invalid load as the factory valu
         settings: { tmdbToken: 'tok', viewersHidden: false, wheel },
       } as never),
     ).getState().settings.wheel
-  expect(load({})).toMatchObject({ soundMusic: true, soundEffects: true, soundVolume: 70 })
-  expect(load({ soundMusic: 'no', soundEffects: 0, soundVolume: '30' })).toMatchObject({
-    soundMusic: true,
-    soundEffects: true,
+  expect(load({})).toMatchObject({ soundMusic: 100, soundEffects: 100, soundVolume: 70 })
+  expect(load({ soundMusic: 'no', soundEffects: 150, soundVolume: '30' })).toMatchObject({
+    soundMusic: 100,
+    soundEffects: 100,
     soundVolume: 70,
+  })
+  // The old on/off switches become 100 and 0.
+  expect(load({ soundMusic: false, soundEffects: true })).toMatchObject({
+    soundMusic: 0,
+    soundEffects: 100,
   })
   expect(load({ soundVolume: 150 }).soundVolume).toBe(70)
   expect(load({ soundVolume: 7.5 }).soundVolume).toBe(70)
-  expect(load({ soundMusic: false, soundEffects: false, soundVolume: 0 })).toMatchObject({
-    soundMusic: false,
-    soundEffects: false,
+  expect(load({ soundMusic: 0, soundEffects: 0, soundVolume: 0 })).toMatchObject({
+    soundMusic: 0,
+    soundEffects: 0,
     soundVolume: 0,
   })
 })

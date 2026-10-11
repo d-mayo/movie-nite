@@ -290,24 +290,24 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
               <div className="card-head">
                 <h3 id="sound-heading">Sound</h3>
               </div>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  role="switch"
-                  checked={wheel.soundMusic}
-                  onChange={(e) => setSoundMusic(e.target.checked)}
-                />
-                Music
-              </label>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  role="switch"
-                  checked={wheel.soundEffects}
-                  onChange={(e) => setSoundEffects(e.target.checked)}
-                />
-                Effects
-              </label>
+              <Slider
+                label="Music"
+                value={wheel.soundMusic}
+                step={5}
+                min={minSoundVolume}
+                max={maxSoundVolume}
+                format={(n) => `${n}%`}
+                onChange={setSoundMusic}
+              />
+              <Slider
+                label="Effects"
+                value={wheel.soundEffects}
+                step={5}
+                min={minSoundVolume}
+                max={maxSoundVolume}
+                format={(n) => `${n}%`}
+                onChange={setSoundEffects}
+              />
               <Slider
                 label="Volume"
                 value={wheel.soundVolume}

@@ -234,8 +234,8 @@ describe('global wheel settings', () => {
       defaultWeight: 5,
       spinSeconds: 6,
       spinTurnsPerSecond: 0.8,
-      soundMusic: true,
-      soundEffects: true,
+      soundMusic: 100,
+      soundEffects: 100,
       soundVolume: 70,
     })
   })
@@ -263,12 +263,12 @@ describe('global wheel settings', () => {
   })
 
   test('the sound setters change their field and ignore invalid or unchanged values', () => {
-    const music = setSoundMusic(defaultState, false)
-    expect(music.settings.wheel.soundMusic).toBe(false)
-    expect(setSoundMusic(music, false)).toBe(music)
-    const effects = setSoundEffects(defaultState, false)
-    expect(effects.settings.wheel.soundEffects).toBe(false)
-    expect(setSoundEffects(effects, false)).toBe(effects)
+    const music = setSoundMusic(defaultState, 0)
+    expect(music.settings.wheel.soundMusic).toBe(0)
+    expect(setSoundMusic(music, 0)).toBe(music)
+    const effects = setSoundEffects(defaultState, 0)
+    expect(effects.settings.wheel.soundEffects).toBe(0)
+    expect(setSoundEffects(effects, 0)).toBe(effects)
     expect(setSoundVolume(defaultState, 0).settings.wheel.soundVolume).toBe(0)
     expect(setSoundVolume(defaultState, 100).settings.wheel.soundVolume).toBe(100)
     expect(setSoundVolume(defaultState, 70)).toBe(defaultState)
@@ -277,7 +277,7 @@ describe('global wheel settings', () => {
   })
 
   test('restoring the wheel settings resets the sound ones too', () => {
-    let s = setSoundMusic(setSoundEffects(setSoundVolume(defaultState, 10), false), false)
+    let s = setSoundMusic(setSoundEffects(setSoundVolume(defaultState, 10), 0), 0)
     s = restoreWheelSettings(s)
     expect(s.settings.wheel).toEqual(defaultState.settings.wheel)
   })

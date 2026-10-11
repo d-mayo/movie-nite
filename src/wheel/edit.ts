@@ -10,8 +10,9 @@ export interface WheelSettings {
   defaultWeight: number
   spinSeconds: number
   spinTurnsPerSecond: number
-  soundMusic: boolean
-  soundEffects: boolean
+  // 0 to 100 each, on top of the overall volume.
+  soundMusic: number
+  soundEffects: number
   soundVolume: number
 }
 
@@ -34,8 +35,8 @@ export const defaultWheelSettings: WheelSettings = {
   defaultWeight: 5,
   spinSeconds: 6,
   spinTurnsPerSecond: 0.8,
-  soundMusic: true,
-  soundEffects: true,
+  soundMusic: 100,
+  soundEffects: 100,
   soundVolume: 70,
 }
 

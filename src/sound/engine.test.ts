@@ -79,7 +79,7 @@ describe('unlocking on a gesture', () => {
     for (const sound of [silentSound, createSound({ createContext: () => null, load: () => Promise.reject() })]) {
       const detach = sound.attach(document)
       document.dispatchEvent(new Event('pointerup'))
-      sound.apply({ music: true, effects: true, volume: 50 })
+      sound.apply({ music: 100, effects: 100, volume: 50 })
       sound.spinStart()
       sound.spinSpeed(0.5, 1)
       sound.pinTick(0.5)
@@ -102,11 +102,11 @@ describe('unlocking on a gesture', () => {
 
 describe('the settings', () => {
   test('master gain is the square of the volume; the buses follow their switches', async () => {
-    const { ctx, sound } = await ready((s) => s.apply({ music: true, effects: false, volume: 70 }))
+    const { ctx, sound } = await ready((s) => s.apply({ music: 100, effects: 0, volume: 70 }))
     expect(ctx.master.gain.value).toBeCloseTo(0.49)
     expect(ctx.effects.gain.value).toBe(0)
     expect(ctx.music.gain.value).toBe(1)
-    sound.apply({ music: false, effects: true, volume: 0 })
+    sound.apply({ music: 0, effects: 100, volume: 0 })
     expect(ctx.master.gain.value).toBe(0)
     expect(ctx.effects.gain.value).toBe(1)
     expect(ctx.music.gain.value).toBe(0)
@@ -269,7 +269,6 @@ describe('the music', () => {
     const [applause] = ctx.sourcesOf('applause')
     expect(stinger.reaches(ctx.music)).toBe(true)
     expect(stinger.reaches(ctx.effects)).toBe(false)
-    expect(applause.reaches(ctx.music)).toBe(true)
     // The swell starts now, into the file; its hit falls 0.65 s later.
     expect(stinger.started?.when).toBeCloseTo(5)
     expect(stinger.started?.offset).toBeCloseTo(1.0)
@@ -317,7 +316,7 @@ describe('the music', () => {
     detach()
   })
 
-  test('revealClosed ramps the loop to 0 and stops it by about a second; the win sounds fade with it', async () => {
+  test('revealClosed fades the loop out evenly over a couple of seconds and stops it; the win sounds fade with it', async () => {
     const { ctx, sound } = await ready()
     sound.spinStart()
     sound.landed(0.65)
@@ -325,13 +324,16 @@ describe('the music', () => {
     const gain = loop.out[0] as FakeGain
     ctx.currentTime = 7
     sound.revealClosed()
-    const last = gain.gain.calls.at(-1)!
-    expect(last).toEqual({ method: 'linearRampToValueAtTime', value: 0 })
-    expect(loop.stoppedAt).toBeGreaterThan(7)
-    expect(loop.stoppedAt! - 7).toBeLessThanOrEqual(1)
+    const methods = gain.gain.calls.map((c) => c.method)
+    expect(methods.at(-2)).toBe('exponentialRampToValueAtTime')
+    expect(gain.gain.calls.at(-1)).toEqual({ method: 'setValueAtTime', value: 0 })
+    expect(musicFadeSeconds).toBeGreaterThanOrEqual(1.5)
     expect(loop.stoppedAt! - 7).toBeGreaterThanOrEqual(musicFadeSeconds)
+    expect(loop.stoppedAt! - 7).toBeLessThan(musicFadeSeconds + 0.2)
     for (const name of ['stinger', 'applause'] as const) {
-      expect(ctx.sourcesOf(name)[0].stoppedAt! - 7).toBeLessThanOrEqual(1)
+      const stopped = ctx.sourcesOf(name)[0].stoppedAt!
+      expect(stopped - 7).toBeGreaterThanOrEqual(musicFadeSeconds)
+      expect(stopped - 7).toBeLessThan(musicFadeSeconds + 0.2)
     }
   })
 
@@ -352,13 +354,25 @@ describe('the music', () => {
     expect(ctx.sources).toHaveLength(0)
   })
 
-  test('Music off silences the music bus and leaves the effects; Effects off the reverse', async () => {
+  test('Music and Effects are levels, each scaling its own bus', async () => {
     const { ctx, sound } = await ready()
-    sound.apply({ music: false, effects: true, volume: 70 })
+    sound.apply({ music: 0, effects: 100, volume: 70 })
     expect(ctx.music.gain.value).toBe(0)
     expect(ctx.effects.gain.value).toBe(1)
-    sound.apply({ music: true, effects: false, volume: 70 })
-    expect(ctx.music.gain.value).toBe(1)
+    sound.apply({ music: 50, effects: 0, volume: 70 })
+    expect(ctx.music.gain.value).toBeCloseTo(0.25)
     expect(ctx.effects.gain.value).toBe(0)
+  })
+
+  test('the applause rides the effects bus, the stinger the music bus', async () => {
+    const { ctx, sound } = await ready()
+    sound.spinStart()
+    sound.landed(0.65)
+    const [applause] = ctx.sourcesOf('applause')
+    const [stinger] = ctx.sourcesOf('stinger')
+    expect(applause.reaches(ctx.effects)).toBe(true)
+    expect(applause.reaches(ctx.music)).toBe(false)
+    expect(stinger.reaches(ctx.music)).toBe(true)
+    expect(stinger.reaches(ctx.effects)).toBe(false)
   })
 })
