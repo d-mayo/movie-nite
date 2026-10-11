@@ -341,8 +341,8 @@ test('the popover shows Wildcards, Spin, Viewer Defaults and Sound cards and not
   expect(within(cards[2] as HTMLElement).getByRole('group', { name: 'Slices per viewer' })).toBeInTheDocument()
   expect(within(cards[2] as HTMLElement).getByLabelText('Weight per viewer')).toBeInTheDocument()
   expect(within(cards[3] as HTMLElement).getByRole('heading', { name: 'Sound' })).toBeInTheDocument()
-  expect(within(cards[3] as HTMLElement).getByLabelText('Music')).toHaveValue('100')
-  expect(within(cards[3] as HTMLElement).getByLabelText('Effects')).toHaveValue('100')
+  expect(within(cards[3] as HTMLElement).getByLabelText('Music')).toHaveValue('70')
+  expect(within(cards[3] as HTMLElement).getByLabelText('Effects')).toHaveValue('70')
   expect(within(cards[3] as HTMLElement).getByLabelText('Volume')).toBeInTheDocument()
   // Sound comes last among the cards, and Restore All Defaults after it.
   expect(cards[3].nextElementSibling).toBe(screen.getByRole('button', { name: 'Restore All Defaults' }))
@@ -440,11 +440,11 @@ test('the popover opened during a spin keeps the Sound card live and locks the r
   expect(volume).toBeEnabled()
   fireEvent.change(volume, { target: { value: '35' } })
   fireEvent.change(within(drawer).getByLabelText('Music'), { target: { value: '0' } })
-  fireEvent.change(within(drawer).getByLabelText('Effects'), { target: { value: '40' } })
+  fireEvent.change(within(drawer).getByLabelText('Effects'), { target: { value: '30' } })
   const wheel = store.getState().settings.wheel
   expect(wheel.soundVolume).toBe(35)
   expect(wheel.soundMusic).toBe(0)
-  expect(wheel.soundEffects).toBe(40)
+  expect(wheel.soundEffects).toBe(30)
   // Closing the popover leaves the reveal open and usable.
   act(() => (drawer as HTMLDialogElement).close())
   fireEvent.click(screen.getByRole('button', { name: 'Watch' }))
@@ -467,11 +467,11 @@ test('the Sound card shows and saves music, effects and volume', () => {
   expect(volume).toHaveAttribute('step', '5')
   fireEvent.change(volume, { target: { value: '35' } })
   fireEvent.change(screen.getByLabelText('Music'), { target: { value: '0' } })
-  fireEvent.change(screen.getByLabelText('Effects'), { target: { value: '40' } })
+  fireEvent.change(screen.getByLabelText('Effects'), { target: { value: '30' } })
   const wheel = store.getState().settings.wheel
   expect(wheel.soundVolume).toBe(35)
   expect(wheel.soundMusic).toBe(0)
-  expect(wheel.soundEffects).toBe(40)
+  expect(wheel.soundEffects).toBe(30)
   expect(volume.closest('.slider')!.querySelector('output')).toHaveTextContent('35%')
   expect(screen.getByLabelText('Music').closest('.slider')!.querySelector('output')).toHaveTextContent('0%')
 })
@@ -483,7 +483,7 @@ test('Volume comes first with a mute button, and Music and Effects are nested un
   const sliders = Array.from(card.querySelectorAll('input[type="range"]')).map((i) => i.id)
   const label = (id: string) => card.querySelector(`label[for="${id}"]`)!.textContent
   expect(sliders.map(label)).toEqual(['Volume', 'Music', 'Effects'])
-  const subs = screen.getByRole('group', { name: 'Shares of the volume' })
+  const subs = screen.getByRole('group', { name: 'Levels under the volume' })
   expect(within(subs).getByLabelText('Music')).toBeInTheDocument()
   expect(within(subs).getByLabelText('Effects')).toBeInTheDocument()
   expect(within(subs).queryByLabelText('Volume')).toBeNull()
@@ -492,11 +492,26 @@ test('Volume comes first with a mute button, and Music and Effects are nested un
   fireEvent.click(mute)
   expect(store.getState().settings.wheel.soundMuted).toBe(true)
   expect(mute).toHaveAttribute('aria-pressed', 'true')
-  // The levels are kept, and the sliders stay usable while muted.
+  // The levels are kept, and all three sliders grey out while muted.
   expect(store.getState().settings.wheel.soundVolume).toBe(70)
-  expect(screen.getByLabelText('Music')).toBeEnabled()
+  for (const name of ['Volume', 'Music', 'Effects']) expect(screen.getByLabelText(name)).toBeDisabled()
   fireEvent.click(mute)
   expect(store.getState().settings.wheel.soundMuted).toBe(false)
+  for (const name of ['Volume', 'Music', 'Effects']) expect(screen.getByLabelText(name)).toBeEnabled()
+})
+
+test('Music and Effects cannot be set above Volume, and come back when it rises', () => {
+  const store = setup()
+  openEditor()
+  const music = screen.getByLabelText('Music')
+  expect(music).toHaveAttribute('max', '70')
+  fireEvent.change(screen.getByLabelText('Volume'), { target: { value: '40' } })
+  expect(music).toHaveAttribute('max', '40')
+  expect(music).toHaveValue('40')
+  // The stored level is kept, and shows again when Volume rises.
+  expect(store.getState().settings.wheel.soundMusic).toBe(100)
+  fireEvent.change(screen.getByLabelText('Volume'), { target: { value: '90' } })
+  expect(screen.getByLabelText('Music')).toHaveValue('90')
 })
 
 test('Restore All Defaults is enabled by a sound setting alone, and resets it', () => {

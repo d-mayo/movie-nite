@@ -10,7 +10,7 @@ export interface WheelSettings {
   defaultWeight: number
   spinSeconds: number
   spinTurnsPerSecond: number
-  // 0 to 100 each, shares of the overall volume.
+  // 0 to 100 each; in effect never above the overall volume.
   soundMusic: number
   soundEffects: number
   soundVolume: number

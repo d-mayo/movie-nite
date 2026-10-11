@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import { viewersOnWheel } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import {
@@ -290,46 +290,71 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
             <section className="inset-card" aria-labelledby="sound-heading">
               <div className="card-head">
                 <h3 id="sound-heading">Sound</h3>
-              </div>
-              <div className="volume-row">
-                <Slider
-                  label="Volume"
-                  value={wheel.soundVolume}
-                  step={5}
-                  min={minSoundVolume}
-                  max={maxSoundVolume}
-                  format={(n) => `${n}%`}
-                  onChange={setSoundVolume}
-                />
                 <button
                   type="button"
-                  className="quiet mute-button"
+                  className="mute-button"
                   aria-pressed={wheel.soundMuted}
                   aria-label="Mute"
                   title={wheel.soundMuted ? 'Unmute' : 'Mute'}
                   onClick={() => setSoundMuted(!wheel.soundMuted)}
                 >
-                  <span aria-hidden="true">{wheel.soundMuted ? '🔇' : '🔊'}</span>
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                    <path d="M3 9v6h4l5 4V5L7 9z" fill="currentColor" />
+                    {wheel.soundMuted ? (
+                      <path
+                        d="M16 9l5 6M21 9l-5 6"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    ) : (
+                      <path
+                        d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    )}
+                  </svg>
                 </button>
               </div>
-              {/* Music and Effects are shares of Volume, drawn nested under it. */}
-              <div className="sound-subs" role="group" aria-label="Shares of the volume">
+              <Slider
+                label="Volume"
+                value={wheel.soundVolume}
+                step={5}
+                min={minSoundVolume}
+                max={maxSoundVolume}
+                format={(n) => `${n}%`}
+                disabled={wheel.soundMuted}
+                onChange={setSoundVolume}
+              />
+              {/* Music and Effects are levels under the Volume: their tracks end at its thumb. */}
+              <div
+                className="sound-subs"
+                role="group"
+                aria-label="Levels under the volume"
+                style={{ '--volume': `${wheel.soundVolume}%` } as CSSProperties}
+              >
                 <Slider
                   label="Music"
-                  value={wheel.soundMusic}
+                  value={Math.min(wheel.soundMusic, wheel.soundVolume)}
                   step={5}
                   min={minSoundVolume}
-                  max={maxSoundVolume}
+                  max={wheel.soundVolume}
                   format={(n) => `${n}%`}
+                  disabled={wheel.soundMuted}
                   onChange={setSoundMusic}
                 />
                 <Slider
                   label="Effects"
-                  value={wheel.soundEffects}
+                  value={Math.min(wheel.soundEffects, wheel.soundVolume)}
                   step={5}
                   min={minSoundVolume}
-                  max={maxSoundVolume}
+                  max={wheel.soundVolume}
                   format={(n) => `${n}%`}
+                  disabled={wheel.soundMuted}
                   onChange={setSoundEffects}
                 />
               </div>

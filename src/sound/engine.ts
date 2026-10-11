@@ -9,8 +9,8 @@
 export type SoundName = 'on' | 'hum' | 'off' | 'loop' | 'stinger' | 'applause'
 
 export interface SoundSettings {
-  // 0 to 100 each: the overall volume, and the music's and the effects' shares
-  // of it; muted silences everything and keeps the levels.
+  // 0 to 100 each: the overall volume, and the music's and the effects' levels,
+  // which can't pass it; muted silences everything and keeps the levels.
   music: number
   effects: number
   volume: number
@@ -118,9 +118,10 @@ export function createSound(deps: SoundDeps): SoundEngine {
       if (immediately) gain.gain.value = value
       else gain.gain.setTargetAtTime(value, ctx!.currentTime, 0.01)
     }
-    set(master, settings.muted ? 0 : volumeGain(settings.volume))
-    set(effects, volumeGain(settings.effects))
-    set(music, volumeGain(settings.music))
+    // Music and Effects are levels that can't pass the overall volume.
+    set(master, settings.muted ? 0 : 1)
+    set(effects, volumeGain(Math.min(settings.effects, settings.volume)))
+    set(music, volumeGain(Math.min(settings.music, settings.volume)))
   }
 
   function load() {
