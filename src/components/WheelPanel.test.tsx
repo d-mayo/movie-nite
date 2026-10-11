@@ -833,14 +833,20 @@ test('a spin that rests mid-slice makes no cue, no zoom and an ordinary landing'
   expect(screen.queryByText('Close call')).toBeNull()
 })
 
-test('the drawn wedge is the one drawSlice picks, close call or not', async () => {
+test('the winner is the drawn slice, close call or not: a bend rests the pointer just past the pin, in the neighbor, with the flapper still on the drawn film', async () => {
   setupCrowd({ random: closeCallRandom, spinMs: 30 }, 6)
   fireEvent.click(spinButton())
-  await screen.findByRole('dialog')
-  const slices = deriveSlices(['a', 'b', 'c'], { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 }, {})
+  const dialog = await screen.findByRole('dialog')
+  const settings = { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 }
+  const slices = deriveSlices(['a', 'b', 'c'], settings, {})
   const arcs = sliceArcs(slices)
-  expect(angleUnderPointer(wheelRotation())).toBeGreaterThanOrEqual(arcs[0].start)
-  expect(angleUnderPointer(wheelRotation())).toBeLessThan(arcs[0].end)
+  const drawn = drawSlice(slices, closeCallRandom)
+  expect(drawn).toBe(0)
+  const rest = angleUnderPointer(wheelRotation())
+  expect(closeCallKind(slices, arcs, drawn, rest)).toBe('bend')
+  expect(rest).toBeGreaterThan(350)
+  // The reveal is the drawn slice's film, not the neighbor the pointer's line is in.
+  expect(within(dialog).getByText('Nominated by Ann')).toBeInTheDocument()
 })
 
 test('without spinMs a close call holds its zoom after the landing and opens the reveal 2 s later', async () => {

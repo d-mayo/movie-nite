@@ -1,14 +1,14 @@
 import { expect, test } from 'vitest'
 import {
-  bendFarthest,
-  bendNearest,
+  bendLeast,
+  bendMost,
   closeCallZones,
   forcedRestRotation,
   isCloseCall,
   slipClearance,
   slipReach,
 } from './closeCall.ts'
-import { pushEnd, targetBend } from './pins.ts'
+import { maxBendDegrees, pinPastPointer, pushEnd, targetBend } from './pins.ts'
 import { angleUnderPointer, edgeMargin, restRotation } from './draw.ts'
 import { sliceArcs, type Slice } from './layout.ts'
 
@@ -28,13 +28,28 @@ function seeded(seed: number) {
   }
 }
 
-test('a rest just short of a pinned start edge (the flapper bent, same film) is a close call', () => {
-  expect(isCloseCall(alternating, altArcs, 3, 45 + bendNearest)).toBe(true)
-  expect(isCloseCall(alternating, altArcs, 3, 45 + bendFarthest - 0.01)).toBe(true)
-  expect(isCloseCall(alternating, altArcs, 3, 45 + bendFarthest)).toBe(false)
-  expect(isCloseCall(alternating, altArcs, 3, 45 + bendNearest - 0.01)).toBe(false)
-  // Slice 0's start is the pin at 0°, shared with the last slice.
-  expect(isCloseCall(alternating, altArcs, 0, 0.5)).toBe(true)
+// A still wheel with the pin at wheel angle `pin` lying `past` degrees past the pointer.
+const bendWith = (pin: number, past: number) => Math.abs(targetBend([pin], -(pin - past), -(pin - past), 1))
+
+test('a bend is a rest where the start edge pin holds the flapper between half and 80% bent, on the drawn film', () => {
+  const near = 45 - pinPastPointer(bendLeast)
+  const far = 45 - pinPastPointer(bendMost)
+  // Past the pointer's line, in the neighbor's angles, with the flapper held bent.
+  expect(near).toBeLessThan(45)
+  expect(isCloseCall(alternating, altArcs, 3, near - 0.01)).toBe(true)
+  expect(isCloseCall(alternating, altArcs, 3, far)).toBe(true)
+  // Less than half bent (the peg barely touching, or only at the pointer's line) is not one.
+  expect(isCloseCall(alternating, altArcs, 3, near + 0.01)).toBe(false)
+  expect(isCloseCall(alternating, altArcs, 3, 45)).toBe(false)
+  expect(isCloseCall(alternating, altArcs, 3, 45 + 0.5)).toBe(false)
+  // Bent too far, close to slipping off the peg: not one.
+  expect(isCloseCall(alternating, altArcs, 3, far - 0.01)).toBe(false)
+  // The bends at the edges of the zone, from the flapper's own figures.
+  expect(bendWith(45, pinPastPointer(bendLeast))).toBeCloseTo(bendLeast, 3)
+  expect(bendWith(45, pinPastPointer(bendMost))).toBeCloseTo(bendMost, 3)
+  expect(bendLeast).toBe(maxBendDegrees / 2)
+  // Slice 0's start is the pin at 0°, so its bend is just under 360°.
+  expect(isCloseCall(alternating, altArcs, 0, 360 - pinPastPointer(bendLeast) - 0.1)).toBe(true)
 })
 
 test('a rest just past a pinned end edge, once the flapper has slipped off it, is a close call', () => {
@@ -61,21 +76,21 @@ test('an edge whose pin was thinned away never counts', () => {
   const arcs = sliceArcs(slices)
   // Slice 5's start edge is under 2° from the pin before it, so only its end edge (the pin at 0°) has a zone.
   expect(closeCallZones(slices, arcs, 5)).toHaveLength(1)
-  expect(isCloseCall(slices, arcs, 5, arcs[5].start + 0.5)).toBe(false)
+  expect(isCloseCall(slices, arcs, 5, arcs[5].start - 0.5)).toBe(false)
   expect(isCloseCall(slices, arcs, 5, 360 - 3)).toBe(true)
   // Slice 4's start edge keeps its pin.
-  expect(isCloseCall(slices, arcs, 4, arcs[4].start + 0.3 * 1)).toBe(true)
+  expect(isCloseCall(slices, arcs, 4, arcs[4].start - 0.5)).toBe(true)
 })
 
-test('a narrow slice cuts the zones to where it can rest', () => {
+test('a narrow slice cuts the slip zone to where it can rest, and the bend zone sits just before its start', () => {
   const slices = [film('A', 10), film('B', 0.3), film('C', 20)]
   const arcs = sliceArcs(slices)
   expect(arcs[1].end - arcs[1].start).toBeLessThan(slipReach)
-  for (const [from, to] of closeCallZones(slices, arcs, 1)) {
-    expect(from).toBeGreaterThanOrEqual(arcs[1].start - 1e-9)
-    expect(to).toBeLessThanOrEqual(arcs[1].end - edgeMargin(arcs[1]) + 1e-9)
-    expect(to).toBeGreaterThan(from)
-  }
+  const [bend, slip] = closeCallZones(slices, arcs, 1)
+  expect(bend[1]).toBeLessThanOrEqual(arcs[1].start)
+  expect(slip[0]).toBeGreaterThanOrEqual(arcs[1].start + edgeMargin(arcs[1]) - 1e-9)
+  expect(slip[1]).toBeLessThanOrEqual(arcs[1].end - edgeMargin(arcs[1]) + 1e-9)
+  expect(slip[1]).toBeGreaterThan(slip[0])
 })
 
 test('the same viewer, two wildcards and a one-viewer wheel have no close calls', () => {
@@ -83,13 +98,13 @@ test('the same viewer, two wildcards and a one-viewer wheel have no close calls'
   const sameArcs = sliceArcs(same)
   // Slice 1: its start edge is across from the same viewer; its end edge is across from B.
   expect(closeCallZones(same, sameArcs, 1)).toHaveLength(1)
-  expect(isCloseCall(same, sameArcs, 1, sameArcs[1].start + 0.5)).toBe(false)
-  expect(isCloseCall(same, sameArcs, 2, sameArcs[2].start + 0.5)).toBe(true)
+  expect(isCloseCall(same, sameArcs, 1, sameArcs[1].start - 0.5)).toBe(false)
+  expect(isCloseCall(same, sameArcs, 2, sameArcs[2].start - 0.5)).toBe(true)
 
   const wild = [wildcard(), wildcard(), film('A')]
   const wildArcs = sliceArcs(wild)
-  expect(isCloseCall(wild, wildArcs, 1, wildArcs[1].start + 0.5)).toBe(false)
-  expect(isCloseCall(wild, wildArcs, 2, wildArcs[2].start + 0.5)).toBe(true)
+  expect(isCloseCall(wild, wildArcs, 1, wildArcs[1].start - 0.5)).toBe(false)
+  expect(isCloseCall(wild, wildArcs, 2, wildArcs[2].start - 0.5)).toBe(true)
 
   const one = [film('A', 3), film('A', 2), film('A', 1)]
   const oneArcs = sliceArcs(one)
@@ -101,11 +116,11 @@ test('the same viewer, two wildcards and a one-viewer wheel have no close calls'
 test('a wildcard next to a film counts', () => {
   const slices = [film('A'), wildcard(), film('B')]
   const arcs = sliceArcs(slices)
-  expect(isCloseCall(slices, arcs, 1, arcs[1].start + 0.5)).toBe(true)
+  expect(isCloseCall(slices, arcs, 1, arcs[1].start - 0.5)).toBe(true)
   expect(isCloseCall(slices, arcs, 0, arcs[0].end - 3)).toBe(true)
 })
 
-test('the forced rest rotation lands in a zone of the drawn slice, off its margins', () => {
+test('the forced rest rotation lands in a close-call zone of the drawn slice', () => {
   const random = seeded(7)
   for (let n = 0; n < 2000; n++) {
     const count = 2 + Math.floor(random() * 11)
@@ -123,8 +138,6 @@ test('the forced rest rotation lands in a zone of the drawn slice, off its margi
       continue
     }
     const rest = angleUnderPointer(rotation)
-    expect(rest).toBeGreaterThanOrEqual(arcs[index].start - 1e-6)
-    expect(rest).toBeLessThanOrEqual(arcs[index].end + 1e-6)
     expect(isCloseCall(slices, arcs, index, rest + 0)).toBe(true)
     expect(rotation).toBeGreaterThanOrEqual(current + turns * 360 - 1e-9)
     expect(rotation - (current + turns * 360)).toBeLessThan(360)
@@ -140,15 +153,4 @@ test('the forced rest rotation reports no zone where none qualifies', () => {
 
 test('the plain restRotation is untouched by the close-call rule', () => {
   expect(restRotation(0, altArcs, 3, () => 0.5, 5)).toBeCloseTo(1800 + 360 - 52.5, 9)
-})
-
-test('a bend leaves the flapper at least halfway bent against the peg, and no farther rests count', () => {
-  // A still wheel with the start pin `d` degrees before the pointer.
-  const bendAt = (d: number) => Math.abs(targetBend([45], -(45 + d), -(45 + d), 1))
-  const most = bendAt(0)
-  expect(most).toBeGreaterThan(10)
-  expect(bendAt(bendNearest)).toBeGreaterThan(bendAt(bendFarthest - 1e-6))
-  expect(bendAt(bendFarthest - 1e-6)).toBeGreaterThanOrEqual(most / 2 - 1e-6)
-  expect(bendAt(bendFarthest + 0.05)).toBeLessThan(most / 2)
-  expect(bendFarthest).toBeLessThan(1)
 })
