@@ -80,6 +80,47 @@ export interface SpinPath {
   rotationAt: (elapsedMs: number) => number
 }
 
+// A close call stretches the glide's last `leadMs` over `leadMs + extraMs`.
+export interface Stretch {
+  leadMs: number
+  extraMs: number
+}
+
+// The close call's end of the glide: the last 1.4 s take 2.9 s, and the zoom
+// holds 1.3 s after the stop and eases back over 0.7 s before the reveal opens.
+export const closeCallLeadMs = 1400
+export const closeCallExtraMs = 1500
+export const closeCallHoldMs = 2000
+
+export interface CloseCallTiming {
+  phases: Phases
+  // Null for reduced motion, which has no stretch.
+  stretch: Stretch | null
+  // When the cue (zoom, gasp, drumroll) fires, in ms from the press.
+  cueMs: number
+  // How long after the stop the reveal waits (zero with reduced motion or a test's `totalMs`).
+  holdMs: number
+}
+
+// The timing of a close-call spin whose glide is `glideMs`. The stretch starts
+// `closeCallLeadMs` before the ordinary glide's end (at the glide's start for a
+// shorter glide), and the cue fires there. With `totalMs` the whole stretched
+// spin shrinks to fit it, as in `spinPhases`, with no hold. With reduced motion
+// the path is the ordinary reduced one: no stretch or hold, the cue at the start.
+export function closeCallTiming(glideMs: number, reducedMotion: boolean, totalMs?: number): CloseCallTiming {
+  if (reducedMotion) {
+    return { phases: { windUpMs, glideMs }, stretch: null, cueMs: 0, holdMs: 0 }
+  }
+  const leadMs = Math.min(closeCallLeadMs, glideMs)
+  const scale = totalMs === undefined ? 1 : totalMs / (windUpMs + glideMs + closeCallExtraMs)
+  return {
+    phases: { windUpMs: windUpMs * scale, glideMs: glideMs * scale },
+    stretch: { leadMs: leadMs * scale, extraMs: closeCallExtraMs * scale },
+    cueMs: (windUpMs + glideMs - leadMs) * scale,
+    holdMs: totalMs === undefined ? closeCallHoldMs : 0,
+  }
+}
+
 interface PathInput {
   // The rotation and the forward speed (degrees a second) at the press.
   from: number
@@ -87,12 +128,26 @@ interface PathInput {
   // The final rotation.
   to: number
   phases: Phases
+  stretch?: Stretch
 }
 
-export function buildSpinPath({ from, driftSpeed, to, phases }: PathInput): SpinPath {
+// The ordinary glide's time for `ms` into the stretched one: the same until the
+// stretch begins, then `1 - (1 - x)^a` over the stretched span, where `a` is the
+// stretch ratio, so the speed carries on without a jump and reaches zero at the end.
+function glideTime(ms: number, glideMs: number, stretch?: Stretch): number {
+  if (!stretch) return ms
+  const begin = glideMs - stretch.leadMs
+  if (ms <= begin) return ms
+  const span = stretch.leadMs + stretch.extraMs
+  const ratio = span / stretch.leadMs
+  const x = Math.min((ms - begin) / span, 1)
+  return begin + stretch.leadMs * (1 - (1 - x) ** ratio)
+}
+
+export function buildSpinPath({ from, driftSpeed, to, phases, stretch }: PathInput): SpinPath {
   const windUpEnd = from - windUpDegrees
   const glideStart = phases.windUpMs
-  const durationMs = glideStart + phases.glideMs
+  const durationMs = glideStart + phases.glideMs + (stretch?.extraMs ?? 0)
   const windSeconds = phases.windUpMs / 1000
 
   const rotationAt = (elapsedMs: number): number => {
@@ -104,7 +159,7 @@ export function buildSpinPath({ from, driftSpeed, to, phases }: PathInput): Spin
       const h01 = -2 * s ** 3 + 3 * s ** 2
       return h00 * from + h10 * windSeconds * driftSpeed + h01 * windUpEnd
     }
-    const u = (elapsedMs - glideStart) / phases.glideMs
+    const u = glideTime(elapsedMs - glideStart, phases.glideMs, stretch) / phases.glideMs
     return windUpEnd + (to - windUpEnd) * glideProgress(u)
   }
   return { durationMs, rotationAt }

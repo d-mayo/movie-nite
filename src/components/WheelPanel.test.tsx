@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react'
 import { Profiler } from 'react'
 import { expect, test, vi } from 'vitest'
 import App from '../App.tsx'
@@ -10,6 +10,7 @@ import { sliceArcs } from '../wheel/layout.ts'
 import { header, markAway, markHere } from '../test/cells.ts'
 import { defaultWheelSettings, deriveSlices } from '../wheel/edit.ts'
 import type { SoundEngine, SoundSettings } from '../sound/engine.ts'
+import { useWheelMotion } from './useWheelMotion.ts'
 
 function film(id: number, posterPath: string | null = null): Nomination {
   return {
@@ -725,3 +726,30 @@ test('a real spin lands with the reveal 0.65 s away', async () => {
   fireEvent.click(spinButton())
   await waitFor(() => expect(log.landed).toEqual([0.65]), { timeout: 8000 })
 }, 12000)
+
+test('play() fires its cue once, on a frame at or after its time and before done', async () => {
+  const { result } = renderHook(() => useWheelMotion(false, []))
+  const events: string[] = []
+  const path = { durationMs: 300, rotationAt: (ms: number) => ms / 10 }
+  act(() => {
+    result.current.play(path, () => events.push('done'), { atMs: 100, fire: () => events.push('cue') })
+  })
+  await waitFor(() => expect(events).toContain('done'))
+  expect(events).toEqual(['cue', 'done'])
+})
+
+test('play() fires a cue at 0 on the first frame, and with no cue calls nothing extra', async () => {
+  const { result } = renderHook(() => useWheelMotion(false, []))
+  const events: string[] = []
+  const path = { durationMs: 100, rotationAt: (ms: number) => ms / 10 }
+  act(() => {
+    result.current.play(path, () => events.push('done'), { atMs: 0, fire: () => events.push('cue') })
+  })
+  await waitFor(() => expect(events).toContain('done'))
+  expect(events).toEqual(['cue', 'done'])
+  events.length = 0
+  act(() => {
+    result.current.play(path, () => events.push('done'))
+  })
+  await waitFor(() => expect(events).toEqual(['done']))
+})

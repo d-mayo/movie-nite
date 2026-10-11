@@ -73,6 +73,8 @@ export function useWheelMotion(
     done: () => void
     // The spin's fastest speed, in degrees a second.
     peak: number
+    // The close call's cue, fired once on the first frame at or past `atMs`.
+    cue: { atMs: number; fire: () => void } | null
   } | null>(null)
   // This frame's wheel speed as a share of the spin's peak, set while a spin runs.
   const share = useRef<number | null>(null)
@@ -130,6 +132,11 @@ export function useWheelMotion(
       if (run) {
         run.began ??= now
         const elapsed = now - run.began
+        if (run.cue && (elapsed >= run.cue.atMs || elapsed >= run.path.durationMs)) {
+          const { fire } = run.cue
+          run.cue = null
+          fire()
+        }
         if (elapsed >= run.path.durationMs) {
           playing.current = null
           angle.current = run.path.rotationAt(run.path.durationMs)
@@ -170,14 +177,15 @@ export function useWheelMotion(
     // The angle and drift speed (degrees a second) right now.
     current: () => ({ angle: angle.current, speed: speed.current }),
     // Plays `path`, holding the drift at zero until the next idle frame after
-    // `done`; `done` runs once, on the frame the path ends.
-    play(path: SpinPath, done: () => void) {
+    // `done`; `done` runs once, on the frame the path ends. A `cue` fires once,
+    // on the first frame at or after its time, and always before `done`.
+    play(path: SpinPath, done: () => void, cue?: { atMs: number; fire: () => void }) {
       speed.current = 0
       soundRef.current.spinStart()
       // Held until the next render says otherwise, so no drift frame slips in
       // between the path's end and the commit that shows the reveal.
       stoppedRef.current = true
-      playing.current = { path, began: null, done, peak: peakSpeed(path) }
+      playing.current = { path, began: null, done, peak: peakSpeed(path), cue: cue ?? null }
     },
   }
 }
