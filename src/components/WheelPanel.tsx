@@ -9,7 +9,7 @@ import { buildWedges, type Wedge } from '../wheel/wedges.ts'
 import { spinPlan } from '../wheel/edit.ts'
 import { buildReducedSpinPath, buildSpinPath, spinPhases } from '../wheel/motion.ts'
 import { prefersReducedMotion } from '../wheel/reducedMotion.ts'
-import type { SoundEngine } from '../sound/engine.ts'
+import { silentSound, type SoundEngine } from '../sound/engine.ts'
 import NightOver from './NightOver.tsx'
 import Reveal from './Reveal.tsx'
 import Wheel from './Wheel.tsx'
@@ -67,7 +67,7 @@ const nameList = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunctio
 export default function WheelPanel({
   random = cryptoRandom,
   spinMs,
-  sound,
+  sound = silentSound,
   client,
   onAuthError,
   onBusyChange,
@@ -78,7 +78,20 @@ export default function WheelPanel({
   // and the reveal agree even if the store changes meanwhile.
   const [spin, setSpin] = useState<Spin | null>(null)
   const holdTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  useEffect(() => () => clearTimeout(holdTimer.current), [])
+  // Whether the music is playing: from the press until the reveal closes.
+  const musicOn = useRef(false)
+  const soundRef = useRef(sound)
+  useEffect(() => {
+    soundRef.current = sound
+  }, [sound])
+  useEffect(
+    () => () => {
+      clearTimeout(holdTimer.current)
+      // Unmounted with the reveal open (a cleared token): the music still fades.
+      if (musicOn.current) soundRef.current.revealClosed()
+    },
+    [],
+  )
 
   const live = buildWedges(night, roster, settings.wheel)
   const onWheel = viewersOnWheel(night)
@@ -95,6 +108,7 @@ export default function WheelPanel({
       music: settings.wheel.soundMusic,
       effects: settings.wheel.soundEffects,
       volume: settings.wheel.soundVolume,
+      muted: settings.wheel.soundMuted,
     },
   )
   const reason = night.ended
@@ -125,7 +139,10 @@ export default function WheelPanel({
         })
     setSpin({ wedges, drawn, landed: false, revealedAt: null })
     onBusyChange(true)
+    musicOn.current = true
     motion.play(path, () => {
+      // The reveal opens at once with reduced motion or a test-length spin.
+      sound.landed(reduced || spinMs !== undefined ? 0 : revealHoldMs / 1000)
       // With reduced motion there is no flicker, and a test-length spin opens at once.
       if (reduced || spinMs !== undefined) {
         setSpin((s) => s && { ...s, landed: !reduced, revealedAt: new Date() })
@@ -141,6 +158,8 @@ export default function WheelPanel({
 
   function close() {
     clearTimeout(holdTimer.current)
+    if (musicOn.current) sound.revealClosed()
+    musicOn.current = false
     setSpin(null)
     onBusyChange(false)
   }

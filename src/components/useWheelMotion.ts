@@ -50,7 +50,7 @@ export function useWheelMotion(
   stopped: boolean,
   pins: number[],
   sound: SoundEngine = silentSound,
-  soundSettings: SoundSettings = { music: true, effects: true, volume: 70 },
+  soundSettings: SoundSettings = { music: 100, effects: 100, volume: 70, muted: false },
 ) {
   const groupRef = useRef<SVGGElement>(null)
   // The Spin button's reel hub turns with the wheel, from this same loop.
@@ -94,8 +94,8 @@ export function useWheelMotion(
 
   useEffect(() => sound.attach(document), [sound])
 
-  const { music, effects, volume } = soundSettings
-  useEffect(() => sound.apply({ music, effects, volume }), [sound, music, effects, volume])
+  const { music, effects, volume, muted } = soundSettings
+  useEffect(() => sound.apply({ music, effects, volume, muted }), [sound, music, effects, volume, muted])
 
   useEffect(() => {
     reduced.current = prefersReducedMotion()

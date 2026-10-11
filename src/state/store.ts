@@ -25,6 +25,7 @@ import {
   setSoundMusic,
   setSoundEffects,
   setSoundVolume,
+  setSoundMuted,
   restoreWheelSettings,
   setToken,
   setViewersHidden,
@@ -78,15 +79,22 @@ export interface AppActions {
   setDefaultWeight(weight: number): void
   setSpinSeconds(seconds: number): void
   setSpinTurnsPerSecond(turns: number): void
-  setSoundMusic(on: boolean): void
-  setSoundEffects(on: boolean): void
+  setSoundMusic(level: number): void
+  setSoundEffects(level: number): void
   setSoundVolume(volume: number): void
+  setSoundMuted(muted: boolean): void
   restoreWheelSettings(): void
 }
 
 export type AppStore = StoreApi<AppState & AppActions>
 
 // Each stored wheel setting that is missing or invalid gets its factory value.
+// A stored Music or Effects level; the old on/off switches become 100 and 0.
+function soundLevel(stored: unknown, fallback: number): number {
+  if (typeof stored === 'boolean') return stored ? 100 : 0
+  return typeof stored === 'number' && isValidSoundVolume(stored) ? stored : fallback
+}
+
 function mergeWheel(stored: Partial<WheelSettings> | undefined): WheelSettings {
   const d = defaultWheelSettings
   const w = stored ?? {}
@@ -117,12 +125,13 @@ function mergeWheel(stored: Partial<WheelSettings> | undefined): WheelSettings {
       typeof w.spinTurnsPerSecond === 'number' && isValidSpinTurnsPerSecond(w.spinTurnsPerSecond)
         ? w.spinTurnsPerSecond
         : d.spinTurnsPerSecond,
-    soundMusic: typeof w.soundMusic === 'boolean' ? w.soundMusic : d.soundMusic,
-    soundEffects: typeof w.soundEffects === 'boolean' ? w.soundEffects : d.soundEffects,
+    soundMusic: soundLevel(w.soundMusic, d.soundMusic),
+    soundEffects: soundLevel(w.soundEffects, d.soundEffects),
     soundVolume:
       typeof w.soundVolume === 'number' && isValidSoundVolume(w.soundVolume)
         ? w.soundVolume
         : d.soundVolume,
+    soundMuted: typeof w.soundMuted === 'boolean' ? w.soundMuted : d.soundMuted,
   }
 }
 
@@ -214,9 +223,10 @@ export function createAppStore(persistence: Persistence): AppStore {
       setDefaultWeight: (weight) => update((s) => setDefaultWeight(s, weight)),
       setSpinSeconds: (seconds) => update((s) => setSpinSeconds(s, seconds)),
       setSpinTurnsPerSecond: (turns) => update((s) => setSpinTurnsPerSecond(s, turns)),
-      setSoundMusic: (on) => update((s) => setSoundMusic(s, on)),
-      setSoundEffects: (on) => update((s) => setSoundEffects(s, on)),
+      setSoundMusic: (level) => update((s) => setSoundMusic(s, level)),
+      setSoundEffects: (level) => update((s) => setSoundEffects(s, level)),
       setSoundVolume: (volume) => update((s) => setSoundVolume(s, volume)),
+      setSoundMuted: (muted) => update((s) => setSoundMuted(s, muted)),
       restoreWheelSettings: () => update(restoreWheelSettings),
     }
   })

@@ -94,7 +94,6 @@ export default function NightControls({ locked, heldFilmChip, onChangeToken }: P
         className={editing ? 'quiet active' : 'quiet'}
         aria-label="Settings"
         popoverTarget="settings-menu"
-        disabled={locked}
       >
         <span aria-hidden="true">⚙</span>
       </button>
@@ -127,6 +126,7 @@ export default function NightControls({ locked, heldFilmChip, onChangeToken }: P
         </button>
         <button
           type="button"
+          disabled={locked}
           onClick={() => {
             menu.current?.hidePopover()
             onChangeToken()

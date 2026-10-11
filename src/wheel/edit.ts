@@ -10,9 +10,12 @@ export interface WheelSettings {
   defaultWeight: number
   spinSeconds: number
   spinTurnsPerSecond: number
-  soundMusic: boolean
-  soundEffects: boolean
+  // 0 to 100 each; in effect never above the overall volume.
+  soundMusic: number
+  soundEffects: number
   soundVolume: number
+  // Everything silenced, without losing the levels.
+  soundMuted: boolean
 }
 
 // What the host changed for one viewer tonight; a field is present only when set.
@@ -34,9 +37,10 @@ export const defaultWheelSettings: WheelSettings = {
   defaultWeight: 5,
   spinSeconds: 6,
   spinTurnsPerSecond: 0.8,
-  soundMusic: true,
-  soundEffects: true,
+  soundMusic: 100,
+  soundEffects: 100,
   soundVolume: 70,
+  soundMuted: false,
 }
 
 export const minWeight = 0.5

@@ -841,6 +841,49 @@ fieldset.setup {
   min-width: 0;
 }
 
+/* The Sound card: the mute button at the card head's right, and Music and
+   Effects under Volume, their tracks as wide as Volume's filled part, so they
+   can't pass it. A rule down the left marks them as its parts. */
+.mute-button {
+  display: inline-flex;
+  padding: var(--space-1);
+  background: none;
+  border: 0;
+  box-shadow: none;
+  color: inherit;
+}
+
+.mute-button[aria-pressed='true'] {
+  opacity: 0.6;
+}
+
+.sound-subs {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sound-subs::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-1 * var(--space-2));
+  border-left: 2px solid var(--border);
+}
+
+.sound-subs .slider {
+  width: var(--volume);
+  min-width: 6rem;
+}
+
+/* The wheel editor's cards that lock during a spin are fieldsets. */
+fieldset.inset-card {
+  min-width: 0;
+  margin: 0;
+}
+
 .setup > button {
   margin: var(--space-2) var(--space-2) 0 0;
 }

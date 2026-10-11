@@ -138,7 +138,9 @@ test('spinning locks setup, rests in the drawn slice and shows a snapshot', asyn
   expect(screen.getByRole('button', { name: 'Ann is here' })).toBeDisabled()
   expect(screen.getByLabelText('Add a viewer')).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled()
-  expect(screen.getByRole('button', { name: 'Settings' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Settings' })).toBeEnabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+  expect(screen.getByRole('button', { name: 'Change TMDB token' })).toBeDisabled()
   expect(header('Ann')).toBeDisabled()
 
   const before = hrefs()
@@ -561,6 +563,8 @@ function recordingSound() {
   const log = {
     starts: 0,
     ends: 0,
+    landed: [] as number[],
+    closed: 0,
     attached: 0,
     detached: 0,
     shares: [] as number[],
@@ -577,6 +581,8 @@ function recordingSound() {
     spinSpeed: (share) => void log.shares.push(share),
     pinTick: (share) => void log.ticks.push(share),
     spinEnd: () => void log.ends++,
+    landed: (seconds) => void log.landed.push(seconds),
+    revealClosed: () => void log.closed++,
   }
   return { engine, log }
 }
@@ -595,6 +601,9 @@ async function spinSounds() {
   await screen.findByRole('dialog', undefined, { timeout: 5000 })
   expect(log.starts).toBe(1)
   expect(log.ends).toBe(1)
+  // The landing cue fired once, and the music plays on while the reveal is open.
+  expect(log.landed).toHaveLength(1)
+  expect(log.closed).toBe(0)
   expect(log.ticks.length).toBeGreaterThan(0)
   expect(log.shares.length).toBeGreaterThan(5)
   expect(Math.max(...log.shares)).toBeLessThanOrEqual(1)
@@ -608,6 +617,7 @@ async function spinSounds() {
   expect(log.ticks.length).toBe(ticks)
   expect(log.shares.length).toBe(shares)
   expect(log.starts).toBe(1)
+  expect(log.closed).toBe(1)
 }
 
 test('a spin plays the projector, speed shares falling to the stop and pin ticks, and nothing else does', async () => {
@@ -632,14 +642,86 @@ test('the sound settings reach the engine without a spin, and the engine is atta
   const { engine, log } = recordingSound()
   const store = setup(['a', 'b'], { spinMs: 20, sound: engine })
   expect(log.attached).toBe(1)
-  expect(log.applied.at(-1)).toEqual({ music: true, effects: true, volume: 70 })
+  expect(log.applied.at(-1)).toEqual({ music: 100, effects: 100, volume: 70, muted: false })
   act(() => store.getState().setSoundVolume(35))
-  expect(log.applied.at(-1)).toEqual({ music: true, effects: true, volume: 35 })
-  act(() => store.getState().setSoundEffects(false))
-  expect(log.applied.at(-1)).toEqual({ music: true, effects: false, volume: 35 })
-  act(() => store.getState().setSoundMusic(false))
-  expect(log.applied.at(-1)).toEqual({ music: false, effects: false, volume: 35 })
+  expect(log.applied.at(-1)).toEqual({ music: 100, effects: 100, volume: 35, muted: false })
+  act(() => store.getState().setSoundEffects(0))
+  expect(log.applied.at(-1)).toEqual({ music: 100, effects: 0, volume: 35, muted: false })
+  act(() => store.getState().setSoundMusic(0))
+  expect(log.applied.at(-1)).toEqual({ music: 0, effects: 0, volume: 35, muted: false })
   expect(log.starts).toBe(0)
   cleanup()
   expect(log.detached).toBe(log.attached)
 })
+
+// A spin with the reveal open, on a recording engine, then `dismiss`.
+async function dismissed(dismiss: () => void) {
+  const { engine, log } = recordingSound()
+  setup(['a', 'b'], { random: () => 0.5, spinMs: 20, sound: engine })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(log.starts).toBe(1)
+  expect(log.landed).toHaveLength(1)
+  expect(log.closed).toBe(0)
+  dismiss()
+  expect(log.closed).toBe(1)
+  expect(log.starts).toBe(1)
+  cleanup()
+  // Unmounting after the reveal closed does not fade again.
+  expect(log.closed).toBe(1)
+}
+
+test('Watch fades the music', async () => {
+  await dismissed(() => fireEvent.click(screen.getByRole('button', { name: 'Watch' })))
+})
+
+test('Save for Next Week fades the music', async () => {
+  await dismissed(() =>
+    fireEvent.click(screen.getByRole('button', { name: 'Save for Next Week' })),
+  )
+})
+
+test('Close fades the music', async () => {
+  await dismissed(() => fireEvent.click(screen.getByRole('button', { name: 'Close' })))
+})
+
+test('a wildcard landing cues the same way, and Back to the wheel fades the music', async () => {
+  const { engine, log } = recordingSound()
+  const store = createAppStore(
+    createMemoryPersistence({
+      ...defaultState,
+      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
+      night: { ...defaultState.night, presentIds: ['a'], nominations: { a: film(1) } },
+    }),
+  )
+  const slices = deriveSlices(['a'], defaultWheelSettings, {})
+  const total = slices.reduce((sum, s) => sum + s.weight, 0)
+  const at = slices.findIndex((s) => s.kind === 'wildcard')
+  const before = slices.slice(0, at).reduce((sum, s) => sum + s.weight, 0)
+  const random = () => (before + slices[at].weight / 2) / total
+  render(<App store={store} fetchFn={vi.fn()} random={random} spinMs={20} sound={engine} />)
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(log.landed).toHaveLength(1)
+  expect(log.closed).toBe(0)
+  fireEvent.click(screen.getByRole('button', { name: 'Back to the wheel' }))
+  expect(log.closed).toBe(1)
+})
+
+test('unmounting with the reveal open fades the music', async () => {
+  const { engine, log } = recordingSound()
+  setup(['a', 'b'], { random: () => 0.5, spinMs: 20, sound: engine })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(log.closed).toBe(0)
+  cleanup()
+  expect(log.closed).toBe(1)
+})
+
+test('a real spin lands with the reveal 0.65 s away', async () => {
+  const { engine, log } = recordingSound()
+  setupCrowd({ random: () => 0.5, sound: engine }, 1)
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(log.landed).toEqual([0.65]), { timeout: 8000 })
+}, 12000)

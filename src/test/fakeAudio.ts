@@ -6,22 +6,29 @@ export class FakeParam {
   value: number
   // Every value set, by any method, in order.
   sets: number[] = []
+  // The same, with the method that set each.
+  calls: { method: string; value: number }[] = []
   constructor(value = 0) {
     this.value = value
   }
-  private set(value: number) {
+  private set(method: string, value: number) {
     this.value = value
     this.sets.push(value)
+    this.calls.push({ method, value })
   }
   setTargetAtTime(value: number) {
-    this.set(value)
+    this.set('setTargetAtTime', value)
   }
   setValueAtTime(value: number) {
-    this.set(value)
+    this.set('setValueAtTime', value)
   }
   exponentialRampToValueAtTime(value: number) {
-    this.set(value)
+    this.set('exponentialRampToValueAtTime', value)
   }
+  linearRampToValueAtTime(value: number) {
+    this.set('linearRampToValueAtTime', value)
+  }
+  cancelScheduledValues() {}
 }
 
 export class FakeNode {
@@ -80,7 +87,14 @@ export class FakeFilter extends FakeNode {
 }
 
 // The decoded length of each file, in seconds.
-export const fakeDurations: Record<SoundName, number> = { on: 0.66, hum: 8.2, off: 0.77 }
+export const fakeDurations: Record<SoundName, number> = {
+  on: 0.66,
+  hum: 8.2,
+  off: 0.77,
+  loop: 32.22,
+  stinger: 3.03,
+  applause: 6.19,
+}
 
 export class FakeContext {
   state = 'suspended'

@@ -134,9 +134,10 @@ describe('the spin', () => {
 
   test('the sound settings default to music on, effects on and volume 70', () => {
     expect(defaultWheelSettings).toMatchObject({
-      soundMusic: true,
-      soundEffects: true,
+      soundMusic: 100,
+      soundEffects: 100,
       soundVolume: 70,
+      soundMuted: false,
     })
   })
 

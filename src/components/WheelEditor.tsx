@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import { viewersOnWheel } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import {
@@ -77,6 +77,7 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
     setSoundMusic,
     setSoundEffects,
     setSoundVolume,
+    setSoundMuted,
     restoreWheelSettings,
   } = useApp()
   const { wheel } = settings
@@ -210,8 +211,8 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
         onAuxClick={pressEnded}
       >
         <div className="drawer-body">
-          <fieldset disabled={locked} className="setup wheel-editor">
-            <section className="inset-card" aria-labelledby="wildcards-heading">
+          <fieldset className="setup wheel-editor">
+            <fieldset className="inset-card" disabled={locked} aria-labelledby="wildcards-heading">
               <div className="card-head">
                 <h3 id="wildcards-heading">Wildcards</h3>
                 <label className="switch">
@@ -241,8 +242,8 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
                 max={20}
                 onChange={setWildcardWeight}
               />
-            </section>
-            <section className="inset-card" aria-labelledby="spin-heading">
+            </fieldset>
+            <fieldset className="inset-card" disabled={locked} aria-labelledby="spin-heading">
               <div className="card-head">
                 <h3 id="spin-heading">Spin</h3>
               </div>
@@ -264,8 +265,8 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
                 format={(n) => `${n} turns/s`}
                 onChange={setSpinTurnsPerSecond}
               />
-            </section>
-            <section className="inset-card" aria-labelledby="defaults-heading">
+            </fieldset>
+            <fieldset className="inset-card" disabled={locked} aria-labelledby="defaults-heading">
               <div className="card-head">
                 <h3 id="defaults-heading">Viewer Defaults</h3>
               </div>
@@ -285,29 +286,40 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
                 max={20}
                 onChange={setDefaultWeight}
               />
-            </section>
+            </fieldset>
             <section className="inset-card" aria-labelledby="sound-heading">
               <div className="card-head">
                 <h3 id="sound-heading">Sound</h3>
+                <button
+                  type="button"
+                  className="mute-button"
+                  aria-pressed={wheel.soundMuted}
+                  aria-label="Mute"
+                  title={wheel.soundMuted ? 'Unmute' : 'Mute'}
+                  onClick={() => setSoundMuted(!wheel.soundMuted)}
+                >
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                    <path d="M3 9v6h4l5 4V5L7 9z" fill="currentColor" />
+                    {wheel.soundMuted ? (
+                      <path
+                        d="M16 9l5 6M21 9l-5 6"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    ) : (
+                      <path
+                        d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    )}
+                  </svg>
+                </button>
               </div>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  role="switch"
-                  checked={wheel.soundMusic}
-                  onChange={(e) => setSoundMusic(e.target.checked)}
-                />
-                Music
-              </label>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  role="switch"
-                  checked={wheel.soundEffects}
-                  onChange={(e) => setSoundEffects(e.target.checked)}
-                />
-                Effects
-              </label>
               <Slider
                 label="Volume"
                 value={wheel.soundVolume}
@@ -315,13 +327,42 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
                 min={minSoundVolume}
                 max={maxSoundVolume}
                 format={(n) => `${n}%`}
+                disabled={wheel.soundMuted}
                 onChange={setSoundVolume}
               />
+              {/* Music and Effects are levels under the Volume: their tracks end at its thumb. */}
+              <div
+                className="sound-subs"
+                role="group"
+                aria-label="Levels under the volume"
+                style={{ '--volume': `${wheel.soundVolume}%` } as CSSProperties}
+              >
+                <Slider
+                  label="Music"
+                  value={Math.min(wheel.soundMusic, wheel.soundVolume)}
+                  step={5}
+                  min={minSoundVolume}
+                  max={wheel.soundVolume}
+                  format={(n) => `${n}%`}
+                  disabled={wheel.soundMuted}
+                  onChange={setSoundMusic}
+                />
+                <Slider
+                  label="Effects"
+                  value={Math.min(wheel.soundEffects, wheel.soundVolume)}
+                  step={5}
+                  min={minSoundVolume}
+                  max={wheel.soundVolume}
+                  format={(n) => `${n}%`}
+                  disabled={wheel.soundMuted}
+                  onChange={setSoundEffects}
+                />
+              </div>
             </section>
             <button
               type="button"
               className="quiet restore-all"
-              disabled={atFactory}
+              disabled={locked || atFactory}
               onClick={showConfirm}
             >
               Restore All Defaults
