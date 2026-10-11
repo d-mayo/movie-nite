@@ -443,7 +443,7 @@ footer p {
   translate: -50% -50%;
   z-index: 10;
   box-sizing: border-box;
-  width: min(92vw, 540px);
+  width: min(92vw, 600px);
   max-height: 90vh;
   overflow: auto;
   background: var(--film-stock);
@@ -467,7 +467,7 @@ footer p {
   --hole: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='22'%3E%3Crect width='12' height='12' rx='3'/%3E%3C/svg%3E");
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 150px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 185px) minmax(0, 1fr);
   gap: var(--space-4);
   align-items: start;
   padding: var(--space-5) 2.25rem;
@@ -573,6 +573,34 @@ footer p {
   margin-top: var(--space-3);
   font-size: 0.85rem;
   line-height: 1.45;
+}
+
+.reveal-synopsis-cut {
+  position: relative;
+  cursor: help;
+}
+
+/* Drops down from where the description begins; the cap keeps it inside the card. */
+.reveal-synopsis-full {
+  display: none;
+  position: absolute;
+  top: calc(-1 * var(--space-2));
+  left: calc(-1 * var(--space-3));
+  right: calc(-1 * var(--space-3));
+  z-index: 1;
+  max-height: 10rem;
+  overflow-y: auto;
+  padding: var(--space-3);
+  background: var(--film-steel-dark);
+  border: 1px solid var(--film-steel);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.6);
+}
+
+.reveal-synopsis-cut:hover .reveal-synopsis-full,
+.reveal-synopsis-cut:focus .reveal-synopsis-full,
+.reveal-synopsis-cut:focus-within .reveal-synopsis-full {
+  display: block;
 }
 
 .reveal-close {

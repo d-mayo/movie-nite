@@ -6,7 +6,7 @@ import { finishWindow, formatRuntime, synopsisSnippet } from '../wheel/reveal.ts
 import type { Wedge } from '../wheel/wedges.ts'
 import FilmSearch from './FilmSearch.tsx'
 
-const snippetChars = 200
+const snippetChars = 140
 
 // A wildcard's grey would vanish on the black stock, so its dot is the steel light.
 const wildcardDot = 'var(--film-steel-light)'
@@ -47,7 +47,18 @@ function useStageCenter(): number | null {
     }
     measure()
     window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
+    // Hiding the viewers pane moves the stage without resizing the window: watch the stage
+    // and its parent, and re-measure when the pane's slide transition ends.
+    const stage = document.querySelector('.wheel-stage')
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+    if (stage) observer?.observe(stage)
+    if (stage?.parentElement) observer?.observe(stage.parentElement)
+    document.addEventListener('transitionend', measure)
+    return () => {
+      window.removeEventListener('resize', measure)
+      observer?.disconnect()
+      document.removeEventListener('transitionend', measure)
+    }
   }, [])
   return x
 }
@@ -119,6 +130,22 @@ export default function Reveal({
   )
 }
 
+// The snippet keeps the card compact; when it cuts the text, hovering or focusing it
+// pops out the full description.
+function Synopsis({ overview }: { overview: string }) {
+  const snippet = synopsisSnippet(overview, snippetChars)
+  const full = overview.trim()
+  if (snippet === full) return <p className="reveal-synopsis">{snippet}</p>
+  return (
+    <div className="reveal-synopsis reveal-synopsis-cut" tabIndex={0}>
+      <p>{snippet}</p>
+      <p className="reveal-synopsis-full" role="tooltip">
+        {full}
+      </p>
+    </div>
+  )
+}
+
 interface FilmRevealProps {
   nomination: Nomination
   at: Date
@@ -161,9 +188,7 @@ function FilmReveal({ nomination, at, dot, byline, heldFilm, onOutcome, onClose 
               : 'End time unknown (no runtime on TMDB)'}
           </span>
         </p>
-        {nomination.overview && (
-          <p className="reveal-synopsis">{synopsisSnippet(nomination.overview, snippetChars)}</p>
-        )}
+        {nomination.overview && <Synopsis overview={nomination.overview} />}
         <div className="reveal-actions">
           <button type="button" className="primary reveal-watch" onClick={() => onOutcome('watch')}>
             Watch

@@ -49,6 +49,16 @@ function setup(random: number, a: Nomination, b: Nomination, holdover: Nominatio
 }
 
 // With viewers a and b the layout is A B A W B A B W; 0.01 lands on the first slice (A).
+test('a long synopsis is cut, with the full description in a pop-out', async () => {
+  const long = 'A very long synopsis. '.repeat(20).trim()
+  setup(0.01, film(1, { overview: long }), film(2))
+  const dialog = await screen.findByRole('dialog')
+  const full = within(dialog).getByRole('tooltip')
+  expect(full).toHaveTextContent(long)
+  expect(within(dialog).getByText(/^A very long.*…$/)).not.toBe(full)
+})
+
+// With viewers a and b the layout is A B A W B A B W; 0.01 lands on the first slice (A).
 test('a nomination shows everything and shows its details', async () => {
   setup(0.01, film(1), film(2))
   const dialog = await screen.findByRole('dialog')
