@@ -311,7 +311,9 @@ describe('the music', () => {
     const gain = audio.ctx.sourcesOf('loop')[0].out[0] as FakeGain
     expect(audio.ctx.sourcesOf('stinger')).toHaveLength(0)
     expect(audio.ctx.sourcesOf('applause')).toHaveLength(0)
-    expect(gain.gain.calls.at(-1)).toEqual({ method: 'linearRampToValueAtTime', value: bedLevel })
+    expect(gain.gain.calls.filter((c) => c.method === 'linearRampToValueAtTime')).toEqual([
+      { method: 'linearRampToValueAtTime', value: bedLevel },
+    ])
     detach()
   })
 

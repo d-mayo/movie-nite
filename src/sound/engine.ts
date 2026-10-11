@@ -318,6 +318,8 @@ export function createSound(deps: SoundDeps): SoundEngine {
       playWin('stinger', now + hold - lead, stingerHit - lead, stingerLevel)
       playWin('applause', now + hold, 0, applauseLevel)
       if (!loop) return
+      // Without the stinger there is nothing to dip under.
+      if (!buffers.stinger) return ramp(loop.gain, bedLevel, now, 0.5)
       const end = now + hold - lead + (stingerSeconds - (stingerHit - lead))
       ramp(loop.gain, dipLevel, now, 0.15)
       // Back up as the stinger ends, to the bed.
