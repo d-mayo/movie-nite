@@ -31,14 +31,14 @@ function seeded(seed: number) {
 // A still wheel with the pin at wheel angle `pin` lying `past` degrees past the pointer.
 const bendWith = (pin: number, past: number) => Math.abs(targetBend([pin], -(pin - past), -(pin - past), 1))
 
-test('a bend is a rest where the start edge pin holds the flapper between half and 80% bent, on the drawn film', () => {
+test('a bend is a rest where the start edge pin holds the flapper between two thirds and 90% bent, on the drawn film', () => {
   const near = 45 - pinPastPointer(bendLeast)
   const far = 45 - pinPastPointer(bendMost)
   // Past the pointer's line, in the neighbor's angles, with the flapper held bent.
   expect(near).toBeLessThan(45)
   expect(isCloseCall(alternating, altArcs, 3, near - 0.01)).toBe(true)
   expect(isCloseCall(alternating, altArcs, 3, far)).toBe(true)
-  // Less than half bent (the peg barely touching, or only at the pointer's line) is not one.
+  // Less bent than that (the peg barely touching, or only at the pointer's line) is not one.
   expect(isCloseCall(alternating, altArcs, 3, near + 0.01)).toBe(false)
   expect(isCloseCall(alternating, altArcs, 3, 45)).toBe(false)
   expect(isCloseCall(alternating, altArcs, 3, 45 + 0.5)).toBe(false)
@@ -47,7 +47,8 @@ test('a bend is a rest where the start edge pin holds the flapper between half a
   // The bends at the edges of the zone, from the flapper's own figures.
   expect(bendWith(45, pinPastPointer(bendLeast))).toBeCloseTo(bendLeast, 3)
   expect(bendWith(45, pinPastPointer(bendMost))).toBeCloseTo(bendMost, 3)
-  expect(bendLeast).toBe(maxBendDegrees / 2)
+  expect(bendLeast).toBeGreaterThanOrEqual(maxBendDegrees / 2)
+  expect(bendMost).toBeLessThan(maxBendDegrees)
   // Slice 0's start is the pin at 0°, so its bend is just under 360°.
   expect(isCloseCall(alternating, altArcs, 0, 360 - pinPastPointer(bendLeast) - 0.1)).toBe(true)
 })
@@ -76,10 +77,10 @@ test('an edge whose pin was thinned away never counts', () => {
   const arcs = sliceArcs(slices)
   // Slice 5's start edge is under 2° from the pin before it, so only its end edge (the pin at 0°) has a zone.
   expect(closeCallZones(slices, arcs, 5)).toHaveLength(1)
-  expect(isCloseCall(slices, arcs, 5, arcs[5].start - 0.5)).toBe(false)
+  expect(isCloseCall(slices, arcs, 5, arcs[5].start - 1)).toBe(false)
   expect(isCloseCall(slices, arcs, 5, 360 - 3)).toBe(true)
   // Slice 4's start edge keeps its pin.
-  expect(isCloseCall(slices, arcs, 4, arcs[4].start - 0.5)).toBe(true)
+  expect(isCloseCall(slices, arcs, 4, arcs[4].start - 1)).toBe(true)
 })
 
 test('a narrow slice cuts the slip zone to where it can rest, and the bend zone sits just before its start', () => {
@@ -98,13 +99,13 @@ test('the same viewer, two wildcards and a one-viewer wheel have no close calls'
   const sameArcs = sliceArcs(same)
   // Slice 1: its start edge is across from the same viewer; its end edge is across from B.
   expect(closeCallZones(same, sameArcs, 1)).toHaveLength(1)
-  expect(isCloseCall(same, sameArcs, 1, sameArcs[1].start - 0.5)).toBe(false)
-  expect(isCloseCall(same, sameArcs, 2, sameArcs[2].start - 0.5)).toBe(true)
+  expect(isCloseCall(same, sameArcs, 1, sameArcs[1].start - 1)).toBe(false)
+  expect(isCloseCall(same, sameArcs, 2, sameArcs[2].start - 1)).toBe(true)
 
   const wild = [wildcard(), wildcard(), film('A')]
   const wildArcs = sliceArcs(wild)
-  expect(isCloseCall(wild, wildArcs, 1, wildArcs[1].start - 0.5)).toBe(false)
-  expect(isCloseCall(wild, wildArcs, 2, wildArcs[2].start - 0.5)).toBe(true)
+  expect(isCloseCall(wild, wildArcs, 1, wildArcs[1].start - 1)).toBe(false)
+  expect(isCloseCall(wild, wildArcs, 2, wildArcs[2].start - 1)).toBe(true)
 
   const one = [film('A', 3), film('A', 2), film('A', 1)]
   const oneArcs = sliceArcs(one)
@@ -116,7 +117,7 @@ test('the same viewer, two wildcards and a one-viewer wheel have no close calls'
 test('a wildcard next to a film counts', () => {
   const slices = [film('A'), wildcard(), film('B')]
   const arcs = sliceArcs(slices)
-  expect(isCloseCall(slices, arcs, 1, arcs[1].start - 0.5)).toBe(true)
+  expect(isCloseCall(slices, arcs, 1, arcs[1].start - 1)).toBe(true)
   expect(isCloseCall(slices, arcs, 0, arcs[0].end - 3)).toBe(true)
 })
 

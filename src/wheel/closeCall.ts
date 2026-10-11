@@ -13,12 +13,12 @@ function outcome(slice: Slice): string {
 // chance), at three spins a night about one night in four has none.
 export const closeCallChance = 0.3
 // Where a close-call rest falls. A bend: the start edge's pin has caught the flapper and holds
-// it bent between half and 80% of its full bend, past the pointer's line but not yet slipped
+// it bent between two thirds and 90% of its full bend (a half bend looks slight), past the pointer's line but not yet slipped
 // off, so the flapper still points at the film the pin is pushing it onto, the drawn one. A
 // slip: the flapper has slipped off the end edge's pin (the push range plus a small allowance)
 // and the wheel stops within `slipReach` of it.
-export const bendLeast = maxBendDegrees / 2
-export const bendMost = maxBendDegrees * 0.8
+export const bendLeast = (maxBendDegrees * 2) / 3
+export const bendMost = maxBendDegrees * 0.9
 export const slipClearance = pushEnd + 0.2
 export const slipReach = 4
 
