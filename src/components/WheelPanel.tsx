@@ -73,6 +73,8 @@ export const revealHoldMs = 650
 
 // The pointer's height as a share of the wheel's width, which is the zoom's origin (8.5% down the wheel).
 const pointerShare = 0.085
+// After an early landing (a slip), the reveal waits at least this long after the wheel stops creeping.
+const slipSettleMs = 600
 
 interface Props {
   random?: () => number
@@ -187,6 +189,8 @@ export default function WheelPanel({
     setSpin({ wedges, drawn, landed: false, revealedAt: null, closeCall, zoom: null })
     onBusyChange(true)
     musicOn.current = true
+    // The reveal opens at once with reduced motion or a test-length spin.
+    const immediate = reduced || spinMs !== undefined
     // The cue: the zoom and the sounds, where the approach begins (at the start with reduced motion).
     const cues: Cue[] = []
     if (closeCall) {
@@ -205,39 +209,49 @@ export default function WheelPanel({
           }
         },
       })
-      // A slip releases the tension where the flapper slips off the peg, before the stop; a bend, at the stop.
+      // A slip releases the tension where the flapper slips off the peg, before the stop, and the
+      // landing (the flash, the fanfare, and the clock to the reveal) starts right behind it, while the
+      // wheel finishes creeping; a bend releases it at the stop. With reduced motion or a test-length
+      // spin the reveal opens at once, so the landing waits for the stop.
       if (kind === 'slip') {
+        const slipMs = timeAtRotation(path, to - slipDegrees(arcs[drawn], rest), cueMs)
         cues.push({
-          atMs: timeAtRotation(path, to - slipDegrees(arcs[drawn], rest), cueMs),
-          fire: () => sound.closeCallBreak(),
+          atMs: slipMs,
+          fire: () => {
+            sound.closeCallBreak()
+            if (!immediate) land(Math.max(closeCallHoldMs, path.durationMs - slipMs + slipSettleMs))
+          },
         })
       }
+    }
+    // The landing: the stinger's hit and the reveal after `holdMs`; a close call holds its zoom, then
+    // eases it back (the hold's last part) before the reveal opens.
+    function land(holdMs: number) {
+      sound.landed(holdMs / 1000, closeCall)
+      setSpin((s) => s && { ...s, landed: true })
+      if (closeCall) {
+        easeTimer.current = setTimeout(
+          () => setSpin((s) => s && { ...s, zoom: 'out' }),
+          holdMs - closeCallEaseOutMs,
+        )
+      }
+      holdTimer.current = setTimeout(
+        () => setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null }),
+        holdMs,
+      )
     }
     motion.play(
       path,
       () => {
+        if (kind === 'slip' && !immediate) return
         if (kind === 'bend') sound.closeCallBreak()
-        // The reveal opens at once with reduced motion or a test-length spin.
-        const immediate = reduced || spinMs !== undefined
-        const holdMs = closeCall && !immediate ? closeCallHoldMs : revealHoldMs
-        sound.landed(immediate ? 0 : holdMs / 1000, closeCall)
-        // With reduced motion there is no flicker, and a test-length spin opens at once.
         if (immediate) {
+          sound.landed(0, closeCall)
+          // With reduced motion there is no flicker, and a test-length spin opens at once.
           setSpin((s) => s && { ...s, landed: !reduced, revealedAt: new Date(), zoom: null })
           return
         }
-        setSpin((s) => s && { ...s, landed: true })
-        // A close call holds its zoom, then eases it back (the hold's last part) before the reveal opens.
-        if (closeCall) {
-          easeTimer.current = setTimeout(
-            () => setSpin((s) => s && { ...s, zoom: 'out' }),
-            holdMs - closeCallEaseOutMs,
-          )
-        }
-        holdTimer.current = setTimeout(
-          () => setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null }),
-          holdMs,
-        )
+        land(closeCall ? closeCallHoldMs : revealHoldMs)
       },
       cues,
     )

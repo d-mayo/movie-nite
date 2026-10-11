@@ -588,7 +588,10 @@ function recordingSound() {
     spinStart: () => void log.starts++,
     spinSpeed: (share) => void log.shares.push(share),
     pinTick: (share) => void log.ticks.push(share),
-    spinEnd: () => void log.ends++,
+    spinEnd: () => {
+      log.ends++
+      log.events.push('end')
+    },
     closeCall: (seconds) => void log.cues.push(seconds),
     closeCallBreak: () => {
       log.breaks++
@@ -992,7 +995,7 @@ test('a slip releases the tension (drumroll off, cymbal) before the landing; a b
   setupCrowd({ random: closeCallRandom, spinMs: 80, sound: bend.engine }, 6)
   fireEvent.click(spinButton())
   await screen.findByRole('dialog')
-  expect(bend.log.events).toEqual(['break', 'landed'])
+  expect(bend.log.events).toEqual(['end', 'break', 'landed'])
   expect(closeCallKind(slices, arcs, 0, angleUnderPointer(wheelRotation()))).toBe('bend')
   cleanup()
   const slip = recordingSound()
@@ -1003,7 +1006,25 @@ test('a slip releases the tension (drumroll off, cymbal) before the landing; a b
   fireEvent.click(spinButton())
   await screen.findByRole('dialog')
   expect(slip.log.cues).toHaveLength(1)
-  expect(slip.log.events).toEqual(['break', 'landed'])
+  expect(slip.log.events).toEqual(['break', 'end', 'landed'])
   expect(slip.log.breaks).toBe(1)
   expect(closeCallKind(slices, arcs, 17, angleUnderPointer(wheelRotation()))).toBe('slip')
 })
+
+test('a slip starts the flash and the fanfare right after the cymbal, while the wheel is still creeping', async () => {
+  const { engine, log } = recordingSound()
+  // Draw slice 17, rest mid-slice, then the chance roll under the share and the slip zone with its start.
+  const rolls = [17.5 / 36, 0.5, 0.1, 0.9, 0.5]
+  let i = 0
+  setupCrowd({ random: () => rolls[Math.min(i++, rolls.length - 1)], sound: engine }, 5)
+  fireEvent.click(spinButton())
+  await screen.findByTestId('flicker', undefined, { timeout: 20000 })
+  // The landing came behind the cymbal and before the wheel stopped.
+  expect(log.events).toEqual(['break', 'landed'])
+  expect(log.ends).toBe(0)
+  expect(log.landed[0]).toBeGreaterThanOrEqual(2)
+  expect(screen.queryByRole('dialog')).toBeNull()
+  await screen.findByRole('dialog', undefined, { timeout: 8000 })
+  expect(log.events).toEqual(['break', 'landed', 'end'])
+  expect(log.landed).toHaveLength(1)
+}, 40000)
