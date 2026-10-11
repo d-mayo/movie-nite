@@ -59,6 +59,13 @@ export const pushEnd = degrees(
   Math.asin((lever * Math.sin((maxBendDegrees * Math.PI) / 180) - contactClearance) / pinTrackRadius),
 )
 
+// How far before the pointer (degrees) a pin holds the tongue bent half as far as it does with
+// the pin right at the pointer: the biggest bend a stop can leave with the pointer still on the
+// film the pin has not yet crossed into.
+export const halfBendDegrees = degrees(
+  Math.asin((contactClearance - lever * Math.sin(Math.asin(contactClearance / lever) / 2)) / pinTrackRadius),
+)
+
 // The bend (degrees, positive) of a tongue pushed by a pin at `at` degrees from the pointer.
 function pushedBend(at: number): number {
   const x = pinTrackRadius * Math.sin((at * Math.PI) / 180) + contactClearance

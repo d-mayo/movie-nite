@@ -8,7 +8,7 @@ import {
   slipClearance,
   slipReach,
 } from './closeCall.ts'
-import { pushEnd } from './pins.ts'
+import { pushEnd, targetBend } from './pins.ts'
 import { angleUnderPointer, edgeMargin, restRotation } from './draw.ts'
 import { sliceArcs, type Slice } from './layout.ts'
 
@@ -140,4 +140,15 @@ test('the forced rest rotation reports no zone where none qualifies', () => {
 
 test('the plain restRotation is untouched by the close-call rule', () => {
   expect(restRotation(0, altArcs, 3, () => 0.5, 5)).toBeCloseTo(1800 + 360 - 52.5, 9)
+})
+
+test('a bend leaves the flapper at least halfway bent against the peg, and no farther rests count', () => {
+  // A still wheel with the start pin `d` degrees before the pointer.
+  const bendAt = (d: number) => Math.abs(targetBend([45], -(45 + d), -(45 + d), 1))
+  const most = bendAt(0)
+  expect(most).toBeGreaterThan(10)
+  expect(bendAt(bendNearest)).toBeGreaterThan(bendAt(bendFarthest - 1e-6))
+  expect(bendAt(bendFarthest - 1e-6)).toBeGreaterThanOrEqual(most / 2 - 1e-6)
+  expect(bendAt(bendFarthest + 0.05)).toBeLessThan(most / 2)
+  expect(bendFarthest).toBeLessThan(1)
 })

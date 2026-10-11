@@ -2,7 +2,7 @@
 
 import { edgeMargin, rotationTo } from './draw.ts'
 import type { Arc, Slice } from './layout.ts'
-import { pinAngles, pushEnd } from './pins.ts'
+import { halfBendDegrees, pinAngles, pushEnd } from './pins.ts'
 
 // What a slice's outcome is, for telling one across an edge from the same one.
 function outcome(slice: Slice): string {
@@ -13,11 +13,11 @@ function outcome(slice: Slice): string {
 // chance), at three spins a night about one night in four has none.
 export const closeCallChance = 0.3
 // Where a close-call rest falls, in degrees from the slice's pinned edge. Before the start
-// edge's pin, the pin has caught the flapper and bent it (about 10° to 2°) but the wheel stops
+// edge's pin, the pin has caught the flapper and bent it at least halfway (the most a stop on the same film allows, about 10° to 6.5°) but the wheel stops
 // before it slips off, on the same film. Past the end edge's pin, the flapper has slipped off
 // it (the push range plus a small allowance) and the wheel stops within `slipReach` of it.
 export const bendNearest = 0.3
-export const bendFarthest = 1.0
+export const bendFarthest = halfBendDegrees
 export const slipClearance = pushEnd + 0.2
 export const slipReach = 4
 
