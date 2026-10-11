@@ -77,6 +77,7 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
     setSoundMusic,
     setSoundEffects,
     setSoundVolume,
+    setSoundMuted,
     restoreWheelSettings,
   } = useApp()
   const { wheel } = settings
@@ -290,33 +291,48 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
               <div className="card-head">
                 <h3 id="sound-heading">Sound</h3>
               </div>
-              <Slider
-                label="Music"
-                value={wheel.soundMusic}
-                step={5}
-                min={minSoundVolume}
-                max={maxSoundVolume}
-                format={(n) => `${n}%`}
-                onChange={setSoundMusic}
-              />
-              <Slider
-                label="Effects"
-                value={wheel.soundEffects}
-                step={5}
-                min={minSoundVolume}
-                max={maxSoundVolume}
-                format={(n) => `${n}%`}
-                onChange={setSoundEffects}
-              />
-              <Slider
-                label="Volume"
-                value={wheel.soundVolume}
-                step={5}
-                min={minSoundVolume}
-                max={maxSoundVolume}
-                format={(n) => `${n}%`}
-                onChange={setSoundVolume}
-              />
+              <div className="volume-row">
+                <Slider
+                  label="Volume"
+                  value={wheel.soundVolume}
+                  step={5}
+                  min={minSoundVolume}
+                  max={maxSoundVolume}
+                  format={(n) => `${n}%`}
+                  onChange={setSoundVolume}
+                />
+                <button
+                  type="button"
+                  className="quiet mute-button"
+                  aria-pressed={wheel.soundMuted}
+                  aria-label="Mute"
+                  title={wheel.soundMuted ? 'Unmute' : 'Mute'}
+                  onClick={() => setSoundMuted(!wheel.soundMuted)}
+                >
+                  <span aria-hidden="true">{wheel.soundMuted ? '🔇' : '🔊'}</span>
+                </button>
+              </div>
+              {/* Music and Effects are shares of Volume, drawn nested under it. */}
+              <div className="sound-subs" role="group" aria-label="Shares of the volume">
+                <Slider
+                  label="Music"
+                  value={wheel.soundMusic}
+                  step={5}
+                  min={minSoundVolume}
+                  max={maxSoundVolume}
+                  format={(n) => `${n}%`}
+                  onChange={setSoundMusic}
+                />
+                <Slider
+                  label="Effects"
+                  value={wheel.soundEffects}
+                  step={5}
+                  min={minSoundVolume}
+                  max={maxSoundVolume}
+                  format={(n) => `${n}%`}
+                  onChange={setSoundEffects}
+                />
+              </div>
             </section>
             <button
               type="button"

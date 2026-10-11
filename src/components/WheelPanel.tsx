@@ -108,6 +108,7 @@ export default function WheelPanel({
       music: settings.wheel.soundMusic,
       effects: settings.wheel.soundEffects,
       volume: settings.wheel.soundVolume,
+      muted: settings.wheel.soundMuted,
     },
   )
   const reason = night.ended

@@ -15,6 +15,7 @@ import {
   setSpinSeconds,
   setSpinTurnsPerSecond,
   setSoundMusic,
+  setSoundMuted,
   setSoundEffects,
   setSoundVolume,
   restoreWheelSettings,
@@ -237,6 +238,7 @@ describe('global wheel settings', () => {
       soundMusic: 100,
       soundEffects: 100,
       soundVolume: 70,
+      soundMuted: false,
     })
   })
 
@@ -274,6 +276,13 @@ describe('global wheel settings', () => {
     expect(setSoundVolume(defaultState, 70)).toBe(defaultState)
     expect(setSoundVolume(defaultState, 101)).toBe(defaultState)
     expect(setSoundVolume(defaultState, 7.5)).toBe(defaultState)
+  })
+
+  test('the mute setter changes its field and ignores an unchanged value', () => {
+    const muted = setSoundMuted(defaultState, true)
+    expect(muted.settings.wheel.soundMuted).toBe(true)
+    expect(setSoundMuted(muted, true)).toBe(muted)
+    expect(restoreWheelSettings(muted).settings.wheel.soundMuted).toBe(false)
   })
 
   test('restoring the wheel settings resets the sound ones too', () => {

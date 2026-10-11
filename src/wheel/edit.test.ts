@@ -137,6 +137,7 @@ describe('the spin', () => {
       soundMusic: 100,
       soundEffects: 100,
       soundVolume: 70,
+      soundMuted: false,
     })
   })
 

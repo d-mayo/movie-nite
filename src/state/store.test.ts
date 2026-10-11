@@ -133,6 +133,7 @@ test('wheel settings and adjustments survive a reload', () => {
   a.getState().setSoundMusic(0)
   a.getState().setSoundEffects(0)
   a.getState().setSoundVolume(35)
+  a.getState().setSoundMuted(true)
 
   const b = createAppStore(persistence).getState()
   expect(b.night.adjustments).toEqual({ [ann]: { weight: 9 } })
@@ -147,6 +148,7 @@ test('wheel settings and adjustments survive a reload', () => {
     soundMusic: 0,
     soundEffects: 0,
     soundVolume: 35,
+    soundMuted: true,
   })
 })
 
@@ -206,6 +208,7 @@ test('stored sound settings that are missing or invalid load as the factory valu
     soundMusic: 0,
     soundEffects: 100,
   })
+  expect(load({ soundMuted: 'yes' }).soundMuted).toBe(false)
   expect(load({ soundVolume: 150 }).soundVolume).toBe(70)
   expect(load({ soundVolume: 7.5 }).soundVolume).toBe(70)
   expect(load({ soundMusic: 0, soundEffects: 0, soundVolume: 0 })).toMatchObject({

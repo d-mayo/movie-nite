@@ -9,10 +9,12 @@
 export type SoundName = 'on' | 'hum' | 'off' | 'loop' | 'stinger' | 'applause'
 
 export interface SoundSettings {
-  // 0 to 100 each: the music's and the effects' levels, and the overall volume.
+  // 0 to 100 each: the overall volume, and the music's and the effects' shares
+  // of it; muted silences everything and keeps the levels.
   music: number
   effects: number
   volume: number
+  muted: boolean
 }
 
 export interface SoundEngine {
@@ -98,7 +100,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
   let effects: GainNode
   let music: GainNode
   let noise: AudioBuffer
-  let settings: SoundSettings = { music: 100, effects: 100, volume: 70 }
+  let settings: SoundSettings = { music: 100, effects: 100, volume: 70, muted: false }
   let loading = false
   const buffers: Partial<Record<SoundName, AudioBuffer>> = {}
   let hum: { source: AudioBufferSourceNode; gain: GainNode } | null = null
@@ -116,7 +118,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
       if (immediately) gain.gain.value = value
       else gain.gain.setTargetAtTime(value, ctx!.currentTime, 0.01)
     }
-    set(master, volumeGain(settings.volume))
+    set(master, settings.muted ? 0 : volumeGain(settings.volume))
     set(effects, volumeGain(settings.effects))
     set(music, volumeGain(settings.music))
   }

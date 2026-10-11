@@ -476,6 +476,29 @@ test('the Sound card shows and saves music, effects and volume', () => {
   expect(screen.getByLabelText('Music').closest('.slider')!.querySelector('output')).toHaveTextContent('0%')
 })
 
+test('Volume comes first with a mute button, and Music and Effects are nested under it', () => {
+  const store = setup()
+  openEditor()
+  const card = screen.getByRole('heading', { name: 'Sound' }).closest('section')!
+  const sliders = Array.from(card.querySelectorAll('input[type="range"]')).map((i) => i.id)
+  const label = (id: string) => card.querySelector(`label[for="${id}"]`)!.textContent
+  expect(sliders.map(label)).toEqual(['Volume', 'Music', 'Effects'])
+  const subs = screen.getByRole('group', { name: 'Shares of the volume' })
+  expect(within(subs).getByLabelText('Music')).toBeInTheDocument()
+  expect(within(subs).getByLabelText('Effects')).toBeInTheDocument()
+  expect(within(subs).queryByLabelText('Volume')).toBeNull()
+  const mute = screen.getByRole('button', { name: 'Mute' })
+  expect(mute).toHaveAttribute('aria-pressed', 'false')
+  fireEvent.click(mute)
+  expect(store.getState().settings.wheel.soundMuted).toBe(true)
+  expect(mute).toHaveAttribute('aria-pressed', 'true')
+  // The levels are kept, and the sliders stay usable while muted.
+  expect(store.getState().settings.wheel.soundVolume).toBe(70)
+  expect(screen.getByLabelText('Music')).toBeEnabled()
+  fireEvent.click(mute)
+  expect(store.getState().settings.wheel.soundMuted).toBe(false)
+})
+
 test('Restore All Defaults is enabled by a sound setting alone, and resets it', () => {
   const store = setup()
   openEditor()

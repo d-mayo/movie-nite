@@ -248,6 +248,11 @@ export function setSoundEffects(state: AppState, level: number): AppState {
   return withWheel(state, { soundEffects: level })
 }
 
+export function setSoundMuted(state: AppState, muted: boolean): AppState {
+  if (state.settings.wheel.soundMuted === muted) return state
+  return withWheel(state, { soundMuted: muted })
+}
+
 export function setSoundVolume(state: AppState, volume: number): AppState {
   if (!isValidSoundVolume(volume) || volume === state.settings.wheel.soundVolume) return state
   return withWheel(state, { soundVolume: volume })

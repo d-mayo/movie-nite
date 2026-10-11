@@ -841,6 +841,32 @@ fieldset.setup {
   min-width: 0;
 }
 
+/* The Sound card: Volume with its mute button, and Music and Effects nested
+   under it as shares of it. */
+.volume-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.volume-row .slider {
+  flex: 1;
+  min-width: 0;
+}
+
+.mute-button[aria-pressed='true'] {
+  background: var(--border);
+}
+
+.sound-subs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-left: var(--space-2);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border);
+}
+
 /* The wheel editor's cards that lock during a spin are fieldsets. */
 fieldset.inset-card {
   min-width: 0;

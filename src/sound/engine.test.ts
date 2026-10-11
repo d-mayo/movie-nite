@@ -79,7 +79,7 @@ describe('unlocking on a gesture', () => {
     for (const sound of [silentSound, createSound({ createContext: () => null, load: () => Promise.reject() })]) {
       const detach = sound.attach(document)
       document.dispatchEvent(new Event('pointerup'))
-      sound.apply({ music: 100, effects: 100, volume: 50 })
+      sound.apply({ music: 100, effects: 100, volume: 50, muted: false })
       sound.spinStart()
       sound.spinSpeed(0.5, 1)
       sound.pinTick(0.5)
@@ -102,11 +102,11 @@ describe('unlocking on a gesture', () => {
 
 describe('the settings', () => {
   test('master gain is the square of the volume; the buses follow their switches', async () => {
-    const { ctx, sound } = await ready((s) => s.apply({ music: 100, effects: 0, volume: 70 }))
+    const { ctx, sound } = await ready((s) => s.apply({ music: 100, effects: 0, volume: 70, muted: false }))
     expect(ctx.master.gain.value).toBeCloseTo(0.49)
     expect(ctx.effects.gain.value).toBe(0)
     expect(ctx.music.gain.value).toBe(1)
-    sound.apply({ music: 0, effects: 100, volume: 0 })
+    sound.apply({ music: 0, effects: 100, volume: 0, muted: false })
     expect(ctx.master.gain.value).toBe(0)
     expect(ctx.effects.gain.value).toBe(1)
     expect(ctx.music.gain.value).toBe(0)
@@ -356,12 +356,21 @@ describe('the music', () => {
 
   test('Music and Effects are levels, each scaling its own bus', async () => {
     const { ctx, sound } = await ready()
-    sound.apply({ music: 0, effects: 100, volume: 70 })
+    sound.apply({ music: 0, effects: 100, volume: 70, muted: false })
     expect(ctx.music.gain.value).toBe(0)
     expect(ctx.effects.gain.value).toBe(1)
-    sound.apply({ music: 50, effects: 0, volume: 70 })
+    sound.apply({ music: 50, effects: 0, volume: 70, muted: false })
     expect(ctx.music.gain.value).toBeCloseTo(0.25)
     expect(ctx.effects.gain.value).toBe(0)
+  })
+
+  test('muted silences the master and keeps the levels', async () => {
+    const { ctx, sound } = await ready()
+    sound.apply({ music: 50, effects: 80, volume: 70, muted: true })
+    expect(ctx.master.gain.value).toBe(0)
+    expect(ctx.music.gain.value).toBeCloseTo(0.25)
+    sound.apply({ music: 50, effects: 80, volume: 70, muted: false })
+    expect(ctx.master.gain.value).toBeCloseTo(0.49)
   })
 
   test('the applause rides the effects bus, the stinger the music bus', async () => {
