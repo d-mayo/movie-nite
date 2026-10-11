@@ -1,6 +1,8 @@
 .banner {
   position: relative;
   z-index: 5;
+  /* Opaque, so a close call's zoom goes behind it. */
+  background: var(--page);
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -263,7 +265,9 @@ footer p {
   position: relative;
   z-index: 1;
   transform-origin: 50% 8.5%;
-  transition: scale 4s cubic-bezier(0.3, 0, 0.5, 1);
+  transition:
+    scale 4s cubic-bezier(0.3, 0, 0.5, 1),
+    translate 4s cubic-bezier(0.3, 0, 0.5, 1);
 }
 
 html:has(.wheel-stage[data-zoom]) {
@@ -273,10 +277,12 @@ html:has(.wheel-stage[data-zoom]) {
 
 .wheel-stage[data-zoom='in'] .wheel-zoom {
   scale: 2.1;
+  /* The zoom pushes the top of the wheel up behind the banner; this keeps the flapper in view. */
+  translate: 0 5%;
 }
 
 .wheel-stage[data-zoom='out'] .wheel-zoom {
-  transition-duration: 1s;
+  transition-duration: 1s, 1s;
   transition-timing-function: ease-in-out;
 }
 

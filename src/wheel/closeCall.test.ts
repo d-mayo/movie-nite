@@ -1,6 +1,14 @@
 import { expect, test } from 'vitest'
-import { closeCallZones, forcedRestRotation, isCloseCall } from './closeCall.ts'
-import { pushEnd, pushStart } from './pins.ts'
+import {
+  bendFarthest,
+  bendNearest,
+  closeCallZones,
+  forcedRestRotation,
+  isCloseCall,
+  slipClearance,
+  slipReach,
+} from './closeCall.ts'
+import { pushEnd } from './pins.ts'
 import { angleUnderPointer, edgeMargin, restRotation } from './draw.ts'
 import { sliceArcs, type Slice } from './layout.ts'
 
@@ -20,32 +28,32 @@ function seeded(seed: number) {
   }
 }
 
-test('a rest where the flapper touches a pin is a close call, at either edge', () => {
-  const margin = edgeMargin(altArcs[3])
-  // Just short of the start pin the pin meets the tongue's near side; just past the end pin it still holds it bent.
-  expect(isCloseCall(alternating, altArcs, 3, 45 + margin + 0.05)).toBe(true)
-  expect(isCloseCall(alternating, altArcs, 3, 45 - pushStart - 0.01)).toBe(true)
-  expect(isCloseCall(alternating, altArcs, 3, 60 - margin - 0.05)).toBe(true)
-  expect(isCloseCall(alternating, altArcs, 3, 60 - pushEnd + 0.01)).toBe(true)
+test('a rest just short of a pinned start edge (the flapper bent, same film) is a close call', () => {
+  expect(isCloseCall(alternating, altArcs, 3, 45 + bendNearest)).toBe(true)
+  expect(isCloseCall(alternating, altArcs, 3, 45 + bendFarthest - 0.01)).toBe(true)
+  expect(isCloseCall(alternating, altArcs, 3, 45 + bendFarthest)).toBe(false)
+  expect(isCloseCall(alternating, altArcs, 3, 45 + bendNearest - 0.01)).toBe(false)
   // Slice 0's start is the pin at 0°, shared with the last slice.
-  expect(isCloseCall(alternating, altArcs, 0, 1.3)).toBe(true)
-  expect(isCloseCall(alternating, altArcs, 23, 360 - 1.3)).toBe(true)
+  expect(isCloseCall(alternating, altArcs, 0, 0.5)).toBe(true)
 })
 
-test('a rest that comes close but leaves the flapper clear of the pin is not a close call', () => {
-  expect(isCloseCall(alternating, altArcs, 3, 45 - pushStart + 0.01)).toBe(false)
-  expect(isCloseCall(alternating, altArcs, 3, 60 - pushEnd - 0.01)).toBe(false)
+test('a rest just past a pinned end edge, once the flapper has slipped off it, is a close call', () => {
+  // Past the push range with a little to spare, and within the reach.
+  expect(slipClearance).toBeGreaterThan(pushEnd)
+  expect(isCloseCall(alternating, altArcs, 3, 60 - slipClearance - 0.01)).toBe(true)
+  expect(isCloseCall(alternating, altArcs, 3, 60 - slipReach + 0.01)).toBe(true)
+  // Still inside the push range, the pin holds the flapper bent on the wrong film: not one.
+  expect(isCloseCall(alternating, altArcs, 3, 60 - 1.5)).toBe(false)
+  expect(isCloseCall(alternating, altArcs, 3, 60 - slipReach - 0.01)).toBe(false)
+  expect(isCloseCall(alternating, altArcs, 23, 360 - 3)).toBe(true)
+})
+
+test('the middle of a slice is not a close call, and an ordinary rest can be a slip', () => {
   expect(isCloseCall(alternating, altArcs, 3, 52.5)).toBe(false)
   expect(closeCallZones(alternating, altArcs, 3)).toHaveLength(2)
-})
-
-test('the zones stay out of the edge margins, and a margin past the push range leaves none', () => {
-  for (const [from, to] of closeCallZones(alternating, altArcs, 3)) {
-    expect(from).toBeGreaterThanOrEqual(45 + 1.2 - 1e-9)
-    expect(to).toBeLessThanOrEqual(60 - 1.2 + 1e-9)
-  }
-  // A margin past the push range (as a later change may bring) leaves no zone to land in.
-  expect(edgeMargin(altArcs[3])).toBeLessThan(pushEnd)
+  // The ordinary rest range (1.2° in) includes the slip zone but not the bend zone.
+  const natural = restRotation(0, altArcs, 3, () => 0.8, 3)
+  expect(isCloseCall(alternating, altArcs, 3, angleUnderPointer(natural))).toBe(true)
 })
 
 test('an edge whose pin was thinned away never counts', () => {
@@ -53,10 +61,21 @@ test('an edge whose pin was thinned away never counts', () => {
   const arcs = sliceArcs(slices)
   // Slice 5's start edge is under 2° from the pin before it, so only its end edge (the pin at 0°) has a zone.
   expect(closeCallZones(slices, arcs, 5)).toHaveLength(1)
-  expect(isCloseCall(slices, arcs, 5, arcs[5].start + 1.3)).toBe(false)
-  expect(isCloseCall(slices, arcs, 5, 360 - 1.3)).toBe(true)
+  expect(isCloseCall(slices, arcs, 5, arcs[5].start + 0.5)).toBe(false)
+  expect(isCloseCall(slices, arcs, 5, 360 - 3)).toBe(true)
   // Slice 4's start edge keeps its pin.
-  expect(closeCallZones(slices, arcs, 4).some(([from]) => from === arcs[4].start + edgeMargin(arcs[4]))).toBe(true)
+  expect(isCloseCall(slices, arcs, 4, arcs[4].start + 0.3 * 1)).toBe(true)
+})
+
+test('a narrow slice cuts the zones to where it can rest', () => {
+  const slices = [film('A', 10), film('B', 0.3), film('C', 20)]
+  const arcs = sliceArcs(slices)
+  expect(arcs[1].end - arcs[1].start).toBeLessThan(slipReach)
+  for (const [from, to] of closeCallZones(slices, arcs, 1)) {
+    expect(from).toBeGreaterThanOrEqual(arcs[1].start - 1e-9)
+    expect(to).toBeLessThanOrEqual(arcs[1].end - edgeMargin(arcs[1]) + 1e-9)
+    expect(to).toBeGreaterThan(from)
+  }
 })
 
 test('the same viewer, two wildcards and a one-viewer wheel have no close calls', () => {
@@ -64,13 +83,13 @@ test('the same viewer, two wildcards and a one-viewer wheel have no close calls'
   const sameArcs = sliceArcs(same)
   // Slice 1: its start edge is across from the same viewer; its end edge is across from B.
   expect(closeCallZones(same, sameArcs, 1)).toHaveLength(1)
-  expect(isCloseCall(same, sameArcs, 1, sameArcs[1].start + 1.3)).toBe(false)
-  expect(isCloseCall(same, sameArcs, 2, sameArcs[2].start + 1.3)).toBe(true)
+  expect(isCloseCall(same, sameArcs, 1, sameArcs[1].start + 0.5)).toBe(false)
+  expect(isCloseCall(same, sameArcs, 2, sameArcs[2].start + 0.5)).toBe(true)
 
   const wild = [wildcard(), wildcard(), film('A')]
   const wildArcs = sliceArcs(wild)
-  expect(isCloseCall(wild, wildArcs, 1, wildArcs[1].start + 1.3)).toBe(false)
-  expect(isCloseCall(wild, wildArcs, 2, wildArcs[2].start + 1.3)).toBe(true)
+  expect(isCloseCall(wild, wildArcs, 1, wildArcs[1].start + 0.5)).toBe(false)
+  expect(isCloseCall(wild, wildArcs, 2, wildArcs[2].start + 0.5)).toBe(true)
 
   const one = [film('A', 3), film('A', 2), film('A', 1)]
   const oneArcs = sliceArcs(one)
@@ -82,8 +101,8 @@ test('the same viewer, two wildcards and a one-viewer wheel have no close calls'
 test('a wildcard next to a film counts', () => {
   const slices = [film('A'), wildcard(), film('B')]
   const arcs = sliceArcs(slices)
-  expect(isCloseCall(slices, arcs, 1, arcs[1].start + 1.3)).toBe(true)
-  expect(isCloseCall(slices, arcs, 0, arcs[0].end - 1.3)).toBe(true)
+  expect(isCloseCall(slices, arcs, 1, arcs[1].start + 0.5)).toBe(true)
+  expect(isCloseCall(slices, arcs, 0, arcs[0].end - 3)).toBe(true)
 })
 
 test('the forced rest rotation lands in a zone of the drawn slice, off its margins', () => {
@@ -99,14 +118,13 @@ test('the forced rest rotation lands in a zone of the drawn slice, off its margi
     const turns = 1 + Math.floor(random() * 5)
     const rotation = forcedRestRotation(current, slices, arcs, index, random, turns)
     const zones = closeCallZones(slices, arcs, index)
-    const margin = edgeMargin(arcs[index])
     if (rotation === null) {
       expect(zones).toEqual([])
       continue
     }
     const rest = angleUnderPointer(rotation)
-    expect(rest).toBeGreaterThanOrEqual(arcs[index].start + margin - 1e-6)
-    expect(rest).toBeLessThanOrEqual(arcs[index].end - margin + 1e-6)
+    expect(rest).toBeGreaterThanOrEqual(arcs[index].start - 1e-6)
+    expect(rest).toBeLessThanOrEqual(arcs[index].end + 1e-6)
     expect(isCloseCall(slices, arcs, index, rest + 0)).toBe(true)
     expect(rotation).toBeGreaterThanOrEqual(current + turns * 360 - 1e-9)
     expect(rotation - (current + turns * 360)).toBeLessThan(360)

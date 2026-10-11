@@ -6,6 +6,7 @@ import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import { angleUnderPointer, drawSlice } from '../wheel/draw.ts'
+import { isCloseCall } from '../wheel/closeCall.ts'
 import { sliceArcs } from '../wheel/layout.ts'
 import { header, markAway, markHere } from '../test/cells.ts'
 import { defaultWheelSettings, deriveSlices } from '../wheel/edit.ts'
@@ -919,7 +920,7 @@ test('checked, a mid-slice random still lands on the drawn slice but is a close 
     const rest = angleUnderPointer(wheelRotation())
     expect(rest).toBeGreaterThanOrEqual(arcs[drawn].start)
     expect(rest).toBeLessThan(arcs[drawn].end)
-    expect(Math.min(rest - arcs[drawn].start, arcs[drawn].end - rest)).toBeLessThan(2.3)
+    expect(isCloseCall(slices, arcs, drawn, rest)).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     fireEvent.click(screen.getByLabelText('Force close calls'))
     fireEvent.click(spinButton())
@@ -929,4 +930,31 @@ test('checked, a mid-slice random still lands on the drawn slice but is a close 
   } finally {
     restore()
   }
+})
+
+test('a share of ordinary spins are steered into a close call, keeping the winner; the rest are not', async () => {
+  const sequence = (...values: number[]) => {
+    let i = 0
+    return () => values[Math.min(i++, values.length - 1)]
+  }
+  const { engine, log } = recordingSound()
+  // The draw and the rest point are mid-slice; then the chance roll comes up under the share, and the zone and the point in it follow.
+  setupCrowd({ random: sequence(0.5, 0.5, 0.1, 0.5, 0.5), spinMs: 40, sound: engine })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(log.cues).toHaveLength(1)
+  expect(log.landedClose).toEqual([true])
+  const slices = deriveSlices(['a', 'b', 'c'], { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 }, {})
+  const arcs = sliceArcs(slices)
+  const drawn = drawSlice(slices, () => 0.5)
+  const rest = angleUnderPointer(wheelRotation())
+  expect(rest).toBeGreaterThanOrEqual(arcs[drawn].start)
+  expect(rest).toBeLessThan(arcs[drawn].end)
+  cleanup()
+  const quiet = recordingSound()
+  setupCrowd({ random: sequence(0.5, 0.5, 0.9, 0.5, 0.5), spinMs: 40, sound: quiet.engine })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(quiet.log.cues).toEqual([])
+  expect(quiet.log.landedClose).toEqual([false])
 })

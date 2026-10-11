@@ -4,7 +4,7 @@ import { viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts
 import type { TmdbClient } from '../tmdb/client.ts'
 import { useApp } from '../state/store.ts'
 import { angleUnderPointer, cryptoRandom, drawSlice, restRotation } from '../wheel/draw.ts'
-import { forcedRestRotation, isCloseCall } from '../wheel/closeCall.ts'
+import { closeCallChance, forcedRestRotation, isCloseCall } from '../wheel/closeCall.ts'
 import { pinAngles } from '../wheel/pins.ts'
 import { buildWedges, type Wedge } from '../wheel/wedges.ts'
 import { spinPlan } from '../wheel/edit.ts'
@@ -151,11 +151,13 @@ export default function WheelPanel({
     const plan = spinPlan(settings.wheel, reduced)
     const { angle: from, speed } = motion.current()
     const arcs = wedges.map((w) => w.arc)
-    // The debug flag's checkbox puts the rest point in a close-call zone of the drawn slice, when it has one.
-    const forced = forceCloseCalls
-      ? forcedRestRotation(from, slices, arcs, drawn, random, plan.turns)
-      : null
-    const to = forced ?? restRotation(from, arcs, drawn, random, plan.turns)
+    const natural = restRotation(from, arcs, drawn, random, plan.turns)
+    // A share of spins (all of them with the debug checkbox) rest in a close-call zone of the
+    // drawn slice, when it has one: the winner is the same, only where in the slice it stops.
+    const steer =
+      forceCloseCalls || (!isCloseCall(slices, arcs, drawn, angleUnderPointer(natural)) && random() < closeCallChance)
+    const forced = steer ? forcedRestRotation(from, slices, arcs, drawn, random, plan.turns) : null
+    const to = forced ?? natural
     const closeCall = isCloseCall(slices, arcs, drawn, angleUnderPointer(to))
     const ordinary = reduced
       ? buildReducedSpinPath(from, to, spinMs ?? plan.durationMs)

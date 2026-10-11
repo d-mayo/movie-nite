@@ -125,12 +125,15 @@ export function buildReducedSpinPath(
 
 // A close call's approach: from where the wheel has this far left to go, the ordinary
 // glide hands over to a longer one. It brakes smoothly for `closeCallEaseSeconds`
-// to a creep, then the creep slows linearly to the rest over `closeCallCreepSeconds`,
+// to a creep, then the creep slows to the rest over `closeCallCreepSeconds`,
 // so the wheel keeps visibly inching up to the pin until it stops. The speed carries
 // on from the ordinary glide's without a jump, and the path ends on the rest point.
 export const closeCallApproachDegrees = 24
 export const closeCallEaseSeconds = 0.6
 export const closeCallCreepSeconds = 7
+// The creep's speed falls as (1 - y)^0.6, so the distance left falls as (1 - y)^1.6: it keeps
+// moving at the end, so a pin a few degrees from the rest is crossed within a couple of seconds of the stop.
+const creepExponent = 0.6
 // How long after the stop the zoom holds, and then eases back, before the reveal opens.
 export const closeCallHoldMs = 2000
 export const closeCallEaseOutMs = 1000
@@ -172,7 +175,7 @@ export function buildCloseCallPath(base: SpinPath, to: number, scale = 1): Close
     degrees *= 1.5
   }
   const left = remaining(handoff)
-  const creepSpeed = Math.max((2 * left - ease * speed) / (ease + creep), 0)
+  const creepSpeed = Math.max((left - (ease * speed) / 2) / (ease / 2 + creep / (creepExponent + 1)), 0)
   const easeDistance = (seconds: number) => {
     const x = seconds / ease
     return creepSpeed * seconds + (speed - creepSpeed) * ease * (x - x ** 3 + x ** 4 / 2)
@@ -184,7 +187,7 @@ export function buildCloseCallPath(base: SpinPath, to: number, scale = 1): Close
     const seconds = (ms - handoff) / 1000
     if (seconds < ease) return to - left + easeDistance(seconds)
     const y = (seconds - ease) / creep
-    return to - left + easeDistance(ease) + creepSpeed * creep * (y - (y * y) / 2)
+    return to - left + easeDistance(ease) + ((creepSpeed * creep) / (creepExponent + 1)) * (1 - (1 - y) ** (creepExponent + 1))
   }
   return { path: { durationMs, rotationAt }, cueMs: handoff }
 }
