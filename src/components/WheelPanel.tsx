@@ -4,7 +4,7 @@ import { viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts
 import type { TmdbClient } from '../tmdb/client.ts'
 import { useApp } from '../state/store.ts'
 import { angleUnderPointer, cryptoRandom, drawSlice, restRotation } from '../wheel/draw.ts'
-import { isCloseCall } from '../wheel/closeCall.ts'
+import { forcedRestRotation, isCloseCall } from '../wheel/closeCall.ts'
 import { pinAngles } from '../wheel/pins.ts'
 import { buildWedges, type Wedge } from '../wheel/wedges.ts'
 import { spinPlan } from '../wheel/edit.ts'
@@ -84,6 +84,9 @@ export default function WheelPanel({
   // Fixed when Spin is pressed and dropped on Close, so the wheel, the draw
   // and the reveal agree even if the store changes meanwhile.
   const [spin, setSpin] = useState<Spin | null>(null)
+  // The debug query flag, read once, and its unsaved checkbox.
+  const [debug] = useState(() => new URLSearchParams(window.location.search).has('debug'))
+  const [forceCloseCalls, setForceCloseCalls] = useState(false)
   const holdTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const easeTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   // Whether the music is playing: from the press until the reveal closes.
@@ -137,7 +140,11 @@ export default function WheelPanel({
     const plan = spinPlan(settings.wheel, reduced)
     const { angle: from, speed } = motion.current()
     const arcs = wedges.map((w) => w.arc)
-    const to = restRotation(from, arcs, drawn, random, plan.turns)
+    // The debug flag's checkbox puts the rest point in a close-call zone of the drawn slice, when it has one.
+    const forced = forceCloseCalls
+      ? forcedRestRotation(from, slices, arcs, drawn, random, plan.turns)
+      : null
+    const to = forced ?? restRotation(from, arcs, drawn, random, plan.turns)
     const closeCall = isCloseCall(slices, arcs, drawn, angleUnderPointer(to))
     // A close call stretches the end of the glide (not with reduced motion, which keeps its 1 s path).
     const timing = closeCall ? closeCallTiming(plan.durationMs, reduced, spinMs) : null
@@ -225,6 +232,17 @@ export default function WheelPanel({
         <div className="zoom-vignette" aria-hidden="true" />
         {spin?.landed && <div className="flicker" data-testid="flicker" aria-hidden="true" />}
       </div>
+      {debug && (
+        <label className="debug-force">
+          <input
+            type="checkbox"
+            checked={forceCloseCalls}
+            disabled={spin !== null}
+            onChange={(e) => setForceCloseCalls(e.target.checked)}
+          />{' '}
+          Force close calls
+        </label>
+      )}
       {reason && !reasonSlot && <p>{reason}</p>}
       {reason && reasonSlot && createPortal(<p>{reason}</p>, reasonSlot)}
       {night.ended && <NightOver />}

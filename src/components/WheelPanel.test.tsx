@@ -5,7 +5,7 @@ import App from '../App.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
-import { angleUnderPointer } from '../wheel/draw.ts'
+import { angleUnderPointer, drawSlice } from '../wheel/draw.ts'
 import { sliceArcs } from '../wheel/layout.ts'
 import { header, markAway, markHere } from '../test/cells.ts'
 import { defaultWheelSettings, deriveSlices } from '../wheel/edit.ts'
@@ -873,3 +873,60 @@ test('reduced motion: a close call keeps its sounds, has no stretch or zoom, and
     vi.unstubAllGlobals()
   }
 }, 8000)
+
+function withQuery(query: string) {
+  window.history.pushState({}, '', `/${query}`)
+  return () => window.history.pushState({}, '', '/')
+}
+
+test('without the debug flag there is no Force close calls checkbox', () => {
+  setupCrowd({ random: () => 0.5, spinMs: 20 })
+  expect(screen.queryByLabelText('Force close calls')).toBeNull()
+})
+
+test('with the debug flag the checkbox shows, starts unchecked and locks during a spin and its reveal', async () => {
+  const restore = withQuery('?debug')
+  try {
+    setupCrowd({ random: () => 0.5, spinMs: 20 })
+    const box = screen.getByLabelText('Force close calls')
+    expect(box).not.toBeChecked()
+    expect(box).toBeEnabled()
+    fireEvent.click(spinButton())
+    expect(box).toBeDisabled()
+    await screen.findByRole('dialog')
+    expect(box).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(box).toBeEnabled()
+  } finally {
+    restore()
+  }
+})
+
+test('checked, a mid-slice random still lands on the drawn slice but is a close call; unchecked it is ordinary', async () => {
+  const restore = withQuery('?debug')
+  try {
+    const { engine, log } = recordingSound()
+    setupCrowd({ random: () => 0.5, spinMs: 30, sound: engine })
+    const slices = deriveSlices(['a', 'b', 'c'], { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 }, {})
+    const arcs = sliceArcs(slices)
+    // The same slice that drawSlice picks for 0.5, whichever way the rest point is chosen.
+    const drawn = drawSlice(slices, () => 0.5)
+    fireEvent.click(screen.getByLabelText('Force close calls'))
+    fireEvent.click(spinButton())
+    await screen.findByRole('dialog')
+    expect(log.cues).toHaveLength(1)
+    expect(log.landedClose).toEqual([true])
+    const rest = angleUnderPointer(wheelRotation())
+    expect(rest).toBeGreaterThanOrEqual(arcs[drawn].start)
+    expect(rest).toBeLessThan(arcs[drawn].end)
+    expect(Math.min(rest - arcs[drawn].start, arcs[drawn].end - rest)).toBeLessThan(2.3)
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByLabelText('Force close calls'))
+    fireEvent.click(spinButton())
+    await screen.findByRole('dialog')
+    expect(log.cues).toHaveLength(1)
+    expect(log.landedClose).toEqual([true, false])
+  } finally {
+    restore()
+  }
+})
