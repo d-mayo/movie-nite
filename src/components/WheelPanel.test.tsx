@@ -760,3 +760,116 @@ test('play() fires a cue at 0 on the first frame, and with no cue calls nothing 
   })
   await waitFor(() => expect(events).toEqual(['done']))
 })
+
+const stage = () => document.querySelector<HTMLElement>('.wheel-stage')!
+// 0.01 draws the first slice and rests just past its pinned edge, across from another viewer's film.
+const closeCallRandom = () => 0.01
+
+test('a close-call spin cues once before the landing, zooms from the cue and clears the zoom as the reveal opens', async () => {
+  const { engine, log } = recordingSound()
+  let commits = 0
+  const store = createAppStore(
+    createMemoryPersistence({
+      ...defaultState,
+      settings: {
+        tmdbToken: 'tok',
+        viewersHidden: false,
+        wheel: { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 },
+      },
+      roster: [
+        { id: 'a', name: 'Ann', color: '#e6194b' },
+        { id: 'b', name: 'Bo', color: '#f58231' },
+      ],
+      night: {
+        ...defaultState.night,
+        presentIds: ['a', 'b'],
+        nominations: { a: film(1), b: film(2) },
+      },
+    }),
+  )
+  render(
+    <Profiler id="app" onRender={() => void commits++}>
+      <App store={store} fetchFn={vi.fn()} random={closeCallRandom} spinMs={400} sound={engine} />
+    </Profiler>,
+  )
+  await sleep(50)
+  const before = commits
+  expect(stage().dataset.zoom).toBeUndefined()
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(log.cues).toHaveLength(1))
+  expect(log.landed).toHaveLength(0)
+  await waitFor(() => expect(stage().dataset.zoom).toBe('in'))
+  await screen.findByRole('dialog')
+  expect(log.cues).toHaveLength(1)
+  expect(log.landedClose).toEqual([true])
+  expect(log.landed).toEqual([0])
+  expect(stage().dataset.zoom).toBeUndefined()
+  expect(screen.getByText('Close call')).toBeInTheDocument()
+  expect(commits - before).toBeLessThan(10)
+})
+
+test('a spin that rests mid-slice makes no cue, no zoom and an ordinary landing', async () => {
+  const { engine, log } = recordingSound()
+  setupCrowd({ random: () => 0.5, spinMs: 200, sound: engine })
+  fireEvent.click(spinButton())
+  await sleep(100)
+  expect(stage().dataset.zoom).toBeUndefined()
+  await screen.findByRole('dialog')
+  expect(log.cues).toEqual([])
+  expect(log.landedClose).toEqual([false])
+  expect(stage().dataset.zoom).toBeUndefined()
+  expect(screen.queryByText('Close call')).toBeNull()
+})
+
+test('the drawn wedge is the one drawSlice picks, close call or not', async () => {
+  setupCrowd({ random: closeCallRandom, spinMs: 30 })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  const slices = deriveSlices(['a', 'b', 'c'], { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 }, {})
+  const arcs = sliceArcs(slices)
+  expect(angleUnderPointer(wheelRotation())).toBeGreaterThanOrEqual(arcs[0].start)
+  expect(angleUnderPointer(wheelRotation())).toBeLessThan(arcs[0].end)
+})
+
+test('without spinMs a close call holds its zoom after the landing and opens the reveal about 2 s later', async () => {
+  const { engine, log } = recordingSound()
+  setupCrowd({ random: closeCallRandom, sound: engine }, 2)
+  fireEvent.click(spinButton())
+  await screen.findByTestId('flicker', undefined, { timeout: 7000 })
+  const landedAt = Date.now()
+  expect(log.cues).toHaveLength(1)
+  expect(log.landed).toEqual([2])
+  expect(log.landedClose).toEqual([true])
+  expect(stage().dataset.zoom).toBe('in')
+  await sleep(1500)
+  expect(stage().dataset.zoom).toBe('out')
+  expect(screen.queryByRole('dialog')).toBeNull()
+  await screen.findByRole('dialog', undefined, { timeout: 2000 })
+  expect(Date.now() - landedAt).toBeGreaterThanOrEqual(1900)
+  expect(stage().dataset.zoom).toBeUndefined()
+}, 15000)
+
+test('reduced motion: a close call keeps its sounds, has no stretch or zoom, and lands in about a second', async () => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('prefers-reduced-motion'),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+  try {
+    const { engine, log } = recordingSound()
+    setupCrowd({ random: closeCallRandom, sound: engine }, 4)
+    const pressedAt = Date.now()
+    fireEvent.click(spinButton())
+    await waitFor(() => expect(log.cues).toHaveLength(1))
+    expect(stage().dataset.zoom).toBeUndefined()
+    await screen.findByRole('dialog', undefined, { timeout: 2500 })
+    expect(Date.now() - pressedAt).toBeLessThan(1800)
+    expect(log.landed).toEqual([0])
+    expect(log.landedClose).toEqual([true])
+    expect(stage().dataset.zoom).toBeUndefined()
+    expect(screen.getByText('Close call')).toBeInTheDocument()
+  } finally {
+    vi.unstubAllGlobals()
+  }
+}, 8000)

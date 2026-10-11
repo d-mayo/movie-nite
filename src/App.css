@@ -252,6 +252,44 @@ footer p {
   max-width: min(1600px, 88vh);
 }
 
+/* A close call's zoom: the wheel and the hub scale about the pointer, clipped to the
+   stage so the rest of the page stays put, under a vignette. */
+.wheel-zoom {
+  position: relative;
+  transform-origin: 50% 8.5%;
+  transition: scale 0.9s ease-in-out;
+}
+
+.wheel-stage[data-zoom] {
+  overflow: clip;
+}
+
+.wheel-stage[data-zoom='in'] .wheel-zoom {
+  scale: 2.1;
+}
+
+.wheel-stage[data-zoom='out'] .wheel-zoom {
+  transition-duration: 0.7s;
+}
+
+.zoom-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 8.5%, transparent 12%, rgb(0 0 0 / 0.85) 62%);
+  opacity: 0;
+  transition: opacity 0.9s ease-in-out;
+}
+
+.wheel-stage[data-zoom='in'] .zoom-vignette {
+  opacity: 1;
+}
+
+.wheel-stage[data-zoom='out'] .zoom-vignette {
+  transition-duration: 0.7s;
+}
+
 .wheel {
   display: block;
   width: 100%;
@@ -534,6 +572,14 @@ footer p {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+.reveal-tag {
+  margin-left: var(--space-1);
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--film-cream);
+  border-radius: var(--radius-sm);
+  color: var(--film-cream);
 }
 
 .reveal-dot {

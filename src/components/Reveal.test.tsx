@@ -187,3 +187,59 @@ test('with reduced motion the frame appears in place', async () => {
     vi.unstubAllGlobals()
   }
 })
+
+const sequence = (...values: number[]) => {
+  let i = 0
+  return () => values[Math.min(i++, values.length - 1)]
+}
+
+function setupSpin(random: () => number, fetchFn: typeof fetch = vi.fn()) {
+  const store = createAppStore(
+    createMemoryPersistence({
+      ...defaultState,
+      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      roster: [
+        { id: 'a', name: 'Ann', color: '#e6194b' },
+        { id: 'b', name: 'Bo', color: '#f58231' },
+      ],
+      night: { ...defaultState.night, presentIds: ['a', 'b'], nominations: { a: film(1), b: film(2) } },
+    }),
+  )
+  render(<App store={store} fetchFn={fetchFn} random={random} spinMs={20} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Spin' }))
+}
+
+test('a close call tags the reveal of a film, and an ordinary spin does not', async () => {
+  setupSpin(() => 0.01)
+  expect(within(await screen.findByRole('dialog')).getByText('Close call')).toBeInTheDocument()
+})
+
+test('an ordinary film reveal has no Close call tag', async () => {
+  setupSpin(() => 0.5)
+  const dialog = await screen.findByRole('dialog')
+  expect(within(dialog).getByText('Now showing')).toBeInTheDocument()
+  expect(within(dialog).queryByText('Close call')).toBeNull()
+})
+
+test('a close call tags a wildcard before and after its pick, and an ordinary wildcard has none', async () => {
+  const pickFetch = vi.fn(async () =>
+    Response.json({
+      results: [{ id: 9, title: 'Pick Me', release_date: '2001-01-01', poster_path: null, overview: '' }],
+    }),
+  ) as unknown as typeof fetch
+  // The draw takes the wildcard slice, then the rest point lands just past its pinned start edge.
+  setupSpin(sequence(0.45, 0.01), pickFetch)
+  const dialog = await screen.findByRole('dialog')
+  expect(within(dialog).getByText('Close call')).toBeInTheDocument()
+  fireEvent.change(within(dialog).getByLabelText('Search for a wildcard film'), { target: { value: 'pick' } })
+  fireEvent.click(await screen.findByRole('button', { name: /^Pick Pick Me/ }))
+  await within(dialog).findByText('Wildcard pick')
+  expect(within(dialog).getByText('Close call')).toBeInTheDocument()
+})
+
+test('an ordinary wildcard reveal has no Close call tag', async () => {
+  setupSpin(() => 0.45)
+  const dialog = await screen.findByRole('dialog')
+  expect(within(dialog).getByText('Wildcard!')).toBeInTheDocument()
+  expect(within(dialog).queryByText('Close call')).toBeNull()
+})
