@@ -210,7 +210,8 @@ function setupSpin(random: () => number, fetchFn: typeof fetch = vi.fn()) {
 }
 
 test('a close call tags the reveal of a film, and an ordinary spin does not', async () => {
-  setupSpin(() => 0.01)
+  // 0.01 draws the first slice; 0.001 rests it 1.24° past its start pin, where the flapper touches.
+  setupSpin(sequence(0.01, 0.001))
   expect(within(await screen.findByRole('dialog')).getByText('Close call')).toBeInTheDocument()
 })
 
@@ -227,8 +228,8 @@ test('a close call tags a wildcard before and after its pick, and an ordinary wi
       results: [{ id: 9, title: 'Pick Me', release_date: '2001-01-01', poster_path: null, overview: '' }],
     }),
   ) as unknown as typeof fetch
-  // The draw takes the wildcard slice, then the rest point lands just past its pinned start edge.
-  setupSpin(sequence(0.45, 0.01), pickFetch)
+  // The draw takes the wildcard slice, then the rest point lands where the flapper touches its start pin.
+  setupSpin(sequence(0.45, 0.001), pickFetch)
   const dialog = await screen.findByRole('dialog')
   expect(within(dialog).getByText('Close call')).toBeInTheDocument()
   fireEvent.change(within(dialog).getByLabelText('Search for a wildcard film'), { target: { value: 'pick' } })

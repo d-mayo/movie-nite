@@ -100,8 +100,13 @@ const drumrollStartLevel = 0.3
 const drumrollEndLevel = 1
 const cymbalLevel = 0.9
 // How fast the loop drops at the cue, and the drumroll stops at the stop.
-const loopDropSeconds = 0.4
+const loopDropSeconds = 0.8
 const drumrollStopSeconds = 0.05
+// The drumroll's loop points in its file (0.1 s of margin each side for the encoder's padding),
+// and how long it takes to fade in, as the music fades out.
+export const drumrollLoopStart = 0.1
+export const drumrollLoopEnd = 1.7
+const drumrollFadeInSeconds = 0.8
 // Where the stinger's main hit falls in its file, and its length.
 export const stingerHit = 1.65
 export const stingerSeconds = 3.03
@@ -380,16 +385,21 @@ export function createSound(deps: SoundDeps): SoundEngine {
       play('gasp', gaspLevel)
       const buffer = buffers.drumroll
       if (!buffer) return
+      // The roll loops for the whole approach and fades in as the music fades out, then
+      // builds by a ramp to the stop.
       const source = ctx.createBufferSource()
       source.buffer = buffer
+      source.loop = true
+      source.loopStart = drumrollLoopStart
+      source.loopEnd = Math.min(drumrollLoopEnd, buffer.duration)
       const gain = ctx.createGain()
-      gain.gain.value = drumrollStartLevel
+      gain.gain.value = 0
       source.connect(gain)
       gain.connect(effects)
-      // The roll is shorter than the approach: it starts late enough to end at the stop.
-      const begin = now + Math.max(secondsToStop - buffer.duration, 0)
-      source.start(begin)
-      ramp(gain, drumrollEndLevel, begin, Math.min(secondsToStop, buffer.duration))
+      source.start(now, 0)
+      const fadeIn = Math.min(drumrollFadeInSeconds, secondsToStop)
+      ramp(gain, drumrollStartLevel, now, fadeIn)
+      gain.gain.linearRampToValueAtTime(drumrollEndLevel, now + Math.max(secondsToStop, fadeIn + 0.1))
       roll = { source, gain }
     },
     landed(revealInSeconds, closeCall = false) {

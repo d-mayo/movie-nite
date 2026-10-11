@@ -1,40 +1,50 @@
-// The close call: a rest point near a pinned slice edge with a different
+// The close call: a rest that leaves the flapper touching a pin with a different
 // outcome across it, as pure rules with no React, DOM or timers.
 
 import { edgeMargin, rotationTo } from './draw.ts'
 import type { Arc, Slice } from './layout.ts'
-import { pinAngles } from './pins.ts'
-
-// A rest is a close call within the slice's edge margin plus this share of its width of an edge.
-export const closeCallShare = 0.1
+import { pinAngles, pushEnd, pushStart } from './pins.ts'
 
 // What a slice's outcome is, for telling one across an edge from the same one.
 function outcome(slice: Slice): string {
   return slice.kind === 'wildcard' ? 'wildcard' : `viewer:${slice.viewerId}`
 }
 
-// The close-call zone of the slice at `index`, as [from, to) wheel angles, at its start
-// edge if that edge carries a pin and has a different outcome across it. The wheel
-// turns so the pointer sweeps down through the angles: it comes up to the start edge
-// and can stop just short of it (a near miss), while a rest just past the end edge
-// has already crossed that pin.
+// The close-call zones of the slice at `index`, as [from, to) wheel angles: where a rest
+// leaves the flapper touching a pin at one of its edges (inside the pin's push range, as
+// `pins.ts` has it) with a different outcome across that edge. The pointer sweeps down
+// through the angles: just short of the start edge's pin it touches the tongue's near
+// side, and just past the end edge's pin the pin still holds the tongue bent. The zones
+// start outside the edge margin, where a rest can fall. An edge whose pin was thinned
+// away carries nothing.
 export function closeCallZones(slices: Slice[], arcs: Arc[], index: number): Array<[number, number]> {
+  const pins = pinAngles(arcs)
   const arc = arcs[index]
-  const width = arc.end - arc.start
-  const reach = edgeMargin(arc) + closeCallShare * width
-  const before = (index - 1 + slices.length) % slices.length
-  if (!pinAngles(arcs).includes(arc.start) || outcome(slices[before]) === outcome(slices[index])) return []
-  return reach > 0 ? [[arc.start, arc.start + reach]] : []
+  const margin = edgeMargin(arc)
+  const count = slices.length
+  const differs = (other: number) => outcome(slices[other]) !== outcome(slices[index])
+  const zones: Array<[number, number]> = []
+  if (pins.includes(arc.start) && differs((index - 1 + count) % count)) {
+    zones.push([arc.start + margin, arc.start - pushStart])
+  }
+  const nextStart = index === count - 1 ? 0 : arcs[index + 1].start
+  if (pins.includes(nextStart) && differs((index + 1) % count)) {
+    zones.push([arc.end - pushEnd, arc.end - margin])
+  }
+  // Narrow slices: a push range wider than the slice is cut to where a rest can fall.
+  return zones
+    .map(([from, to]): [number, number] => [Math.max(from, arc.start + margin), Math.min(to, arc.end - margin)])
+    .filter(([from, to]) => to > from)
 }
 
-// Whether the wheel angle `rest` in the slice at `index` is a close call.
+// Whether the wheel angle `rest` in the slice at `index` leaves the flapper touching a pin.
 export function isCloseCall(slices: Slice[], arcs: Arc[], index: number, rest: number): boolean {
   return closeCallZones(slices, arcs, index).some(([from, to]) => rest >= from && rest < to)
 }
 
-// A rest rotation like `restRotation`'s, but with the pointer in a close-call zone
-// (outside the edge margins), or null when the slice has no such zone. The edge
-// is picked at random when both qualify.
+// A rest rotation like `restRotation`'s, but with the flapper touching a pin (inside a
+// close-call zone), or null when the slice has no such zone. The edge is picked at
+// random when both qualify.
 export function forcedRestRotation(
   currentRotation: number,
   slices: Slice[],
@@ -43,10 +53,7 @@ export function forcedRestRotation(
   random: () => number,
   turns: number,
 ): number | null {
-  const margin = edgeMargin(arcs[index])
   const zones = closeCallZones(slices, arcs, index)
-    .map(([from, to]): [number, number] => [from + margin, to])
-    .filter(([from, to]) => to > from)
   if (zones.length === 0) return null
   const [from, to] = zones[Math.min(zones.length - 1, Math.floor(random() * zones.length))]
   return rotationTo(currentRotation, from + random() * (to - from), turns)

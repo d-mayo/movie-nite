@@ -5,6 +5,7 @@ import {
   cheerLevel,
   createSound,
   dipLevel,
+  drumrollLoopStart,
   humLoopEnd,
   humLoopStart,
   loopEnd,
@@ -399,6 +400,12 @@ describe('the close call', () => {
       expect(source.reaches(ctx.effects)).toBe(true)
       expect(source.reaches(ctx.music)).toBe(false)
     }
+    // The drumroll starts at the cue and loops through the whole approach, fading in from silence.
+    expect(roll.started?.when).toBe(3)
+    expect(roll.loop).toBe(true)
+    expect(roll.loopStart).toBe(drumrollLoopStart)
+    expect(roll.loopEnd).toBeLessThan(roll.buffer!.duration)
+    expect((roll.out[0] as FakeGain).gain.calls[0]).toEqual({ method: 'setValueAtTime', value: 0 })
     // The drumroll builds by a ramp.
     const rollGain = roll.out[0] as FakeGain
     expect(rollGain.gain.calls.at(-1)!.method).toBe('linearRampToValueAtTime')

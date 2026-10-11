@@ -791,6 +791,9 @@ html:has(.wheel-stage[data-zoom]) {
 }
 
 .setup-column {
+  /* Above a close call's zoom and its vignette (z-index 1 and 2): the zoom never covers the pane. */
+  position: relative;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: stretch;
