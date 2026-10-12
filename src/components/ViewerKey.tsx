@@ -11,8 +11,8 @@ export default function ViewerKey() {
     <ul className="viewer-key" aria-label="Tonight's viewers">
       {present.map((v) => (
         <li key={v.id}>
-          <span className="viewer-key-dot" style={{ background: v.color }} aria-hidden="true" />
           {v.name}
+          <span className="viewer-key-dot" style={{ background: v.color }} aria-hidden="true" />
         </li>
       ))}
     </ul>

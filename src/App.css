@@ -1614,7 +1614,8 @@ dialog.wheel-drawer:focus {
   position: fixed;
   top: 6rem;
   right: var(--space-3, 1rem);
-  z-index: 1;
+  /* above a close call's vignette (2) and the viewer pane (3), under the banner (5) */
+  z-index: 4;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1622,7 +1623,8 @@ dialog.wheel-drawer:focus {
   flex-direction: column;
   gap: 0.25rem;
   align-items: flex-end;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
+  font-weight: 700;
   opacity: 0.6;
   pointer-events: none;
 }
@@ -1634,7 +1636,8 @@ dialog.wheel-drawer:focus {
 }
 
 .viewer-key-dot {
-  width: 0.65rem;
-  height: 0.65rem;
+  flex: none;
+  width: 0.9rem;
+  height: 0.9rem;
   border-radius: 50%;
 }
