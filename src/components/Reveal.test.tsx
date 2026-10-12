@@ -210,7 +210,7 @@ function setupSpin(random: () => number, fetchFn: typeof fetch = vi.fn()) {
 }
 
 test('a close call tags the reveal of a film, and an ordinary spin does not', async () => {
-  // 0.01 draws the first slice; 0.001 rests it 1.24° past its start pin, where the flapper touches.
+  // 0.01 draws the first slice; 0.001 is under the close-call chance, so the panel steers the rest into a close call.
   setupSpin(sequence(0.01, 0.001))
   expect(within(await screen.findByRole('dialog')).getByText('Close call')).toBeInTheDocument()
 })

@@ -5,7 +5,7 @@ import App from '../App.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
-import { angleUnderPointer, drawSlice } from '../wheel/draw.ts'
+import { angleUnderPointer, drawSlice, edgeMargins } from '../wheel/draw.ts'
 import { closeCallKind, isCloseCall } from '../wheel/closeCall.ts'
 import { sliceArcs } from '../wheel/layout.ts'
 import { header, markAway, markHere } from '../test/cells.ts'
@@ -1069,7 +1069,7 @@ test('a roll at or above a third rests where the ordinary rest puts it', async (
   await screen.findByRole('dialog')
   const rest = angleUnderPointer(wheelRotation())
   expect(isCatch(crowd, crowdArcs, crowdDrawn, rest)).toBe(false)
-  expect(rest).toBeCloseTo((crowdArcs[crowdDrawn].start + crowdArcs[crowdDrawn].end) / 2, 6)
+  expect(rest).toBeCloseTo((crowdArcs[crowdDrawn].start + edgeMargins(crowdArcs[crowdDrawn]).start + crowdArcs[crowdDrawn].end - edgeMargins(crowdArcs[crowdDrawn]).end) / 2, 6)
   expect(tickCount(log.ticks)).toBe(0)
 })
 
@@ -1114,7 +1114,7 @@ test('reduced motion steers nothing into a catch, and nothing rocks or ticks for
     await screen.findByRole('dialog', undefined, { timeout: 3000 })
     const rest = angleUnderPointer(wheelRotation())
     expect(isCatch(crowd, crowdArcs, crowdDrawn, rest)).toBe(false)
-    expect(rest).toBeCloseTo((crowdArcs[crowdDrawn].start + crowdArcs[crowdDrawn].end) / 2, 6)
+    expect(rest).toBeCloseTo((crowdArcs[crowdDrawn].start + edgeMargins(crowdArcs[crowdDrawn]).start + crowdArcs[crowdDrawn].end - edgeMargins(crowdArcs[crowdDrawn]).end) / 2, 6)
     expect(tickCount(log.ticks)).toBe(0)
   } finally {
     vi.unstubAllGlobals()

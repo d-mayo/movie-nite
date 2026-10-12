@@ -166,7 +166,7 @@ test('pins sit on the turning strip and the flapper hangs outside it, its tip in
     expect(pin.getAttribute('class')).toBe('film-pin')
     const r = Math.hypot(Number(pin.getAttribute('cx')), Number(pin.getAttribute('cy')))
     expect(r).toBeCloseTo(middle, 1)
-    // Half-width under 1.2° of arc, so a rest at the edge margin never looks like a tie.
+    // Half-width under 1.2° of arc, so a pin never looks like a tie.
     expect((Number(pin.getAttribute('r')) / middle) * (180 / Math.PI)).toBeLessThan(1.2)
   }
   const first = pins[0]
