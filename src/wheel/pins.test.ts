@@ -5,7 +5,11 @@ import {
   isSettled,
   maxBendDegrees,
   minPinGapDegrees,
+  contactSide,
   nextDirection,
+  pinPastPointer,
+  pushEnd,
+  pushStart,
   pinAngles,
   pinExits,
   targetBend,
@@ -164,5 +168,68 @@ describe('flapperStep', () => {
   test('settled means straight and still', () => {
     expect(isSettled({ angle: 0, velocity: 0 })).toBe(true)
     expect(isSettled({ angle: -3, velocity: 0 })).toBe(false)
+  })
+})
+
+describe('a pin holding the tongue while the wheel backs off it', () => {
+  // The loop's frame: the side, exits, the target bend and the flapper, for a pin at 0.
+  function run(angles: number[]) {
+    let state: Flapper = { angle: 0, velocity: 0 }
+    let side: 1 | -1 = 1
+    let direction: 1 | -1 = 1
+    let exits = 0
+    const frames: Array<{ at: number; angle: number; bend: number }> = []
+    for (let i = 1; i < angles.length; i++) {
+      const from = angles[i - 1]
+      const to = angles[i]
+      direction = nextDirection(direction, to - from)
+      side = contactSide([0], from, side, direction)
+      exits += pinExits([0], from, to, side)
+      const bend = targetBend([0], from, to, side, direction)
+      state = flapperStep(state, bend, 0.016)
+      frames.push({ at: to, angle: state.angle, bend })
+    }
+    return { frames, exits }
+  }
+  // Forward to a peak of 20° bend, then back by a half-cosine to 2.5° short of the pin.
+  const peak = pinPastPointer(20)
+  const forward = Array.from({ length: 80 }, (_, i) => -4 + ((peak + 4) * i) / 79)
+  const rock = Array.from({ length: 31 }, (_, i) => peak - (peak + 2.5) * ((1 - Math.cos((Math.PI * i) / 30)) / 2))
+
+  test('the tongue stays bent the forward way, at least as bent as the pin asks, until the pin is out of range', () => {
+    const { frames } = run([...forward, ...rock])
+    const back = frames.slice(forward.length - 1)
+    for (const { at, angle, bend } of back) {
+      if (at > pushStart) {
+        expect(angle).toBeLessThan(0)
+        expect(Math.abs(angle)).toBeGreaterThanOrEqual(Math.abs(bend) - 1e-9)
+        expect(bend).toBeLessThan(0)
+      }
+    }
+    expect(Math.abs(frames[forward.length - 2].angle)).toBeCloseTo(20, 1)
+  })
+
+  test('once the pin is out of range the flapper springs straight and settles, and no exit was counted', () => {
+    const rest = Array.from({ length: 80 }, () => -2.5)
+    const { frames, exits } = run([...forward, ...rock, ...rest])
+    expect(exits).toBe(0)
+    expect(Math.abs(frames[frames.length - 1].angle)).toBeLessThan(0.5)
+  })
+
+  test('a forward pass over a pin still counts one exit', () => {
+    expect(run(Array.from({ length: 200 }, (_, i) => -4 + i * 0.05)).exits).toBe(1)
+  })
+
+  test('a free tongue follows the direction: a pin coming from the far side bends it the other way and counts its exit', () => {
+    const { frames, exits } = run(Array.from({ length: 200 }, (_, i) => 6 - i * 0.05))
+    expect(exits).toBe(1)
+    expect(frames.some((f) => f.angle > 5)).toBe(true)
+  })
+
+  test('the side follows the direction when no pin holds the tongue, and stays while one does', () => {
+    expect(contactSide([0], 5, 1, -1)).toBe(-1)
+    expect(contactSide([0], 0.5, 1, -1)).toBe(1)
+    expect(contactSide([0], pushEnd + 0.1, 1, -1)).toBe(-1)
+    expect(contactSide([0], 0.5, -1, -1)).toBe(-1)
   })
 })

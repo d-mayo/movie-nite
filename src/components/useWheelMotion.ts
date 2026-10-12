@@ -8,6 +8,7 @@ import {
 import {
   flapperStep,
   isSettled,
+  contactSide,
   nextDirection,
   pinExits,
   pivotY,
@@ -68,6 +69,8 @@ export function useWheelMotion(
   // and the angle the last frame saw.
   const flapper = useRef<Flapper>({ angle: 0, velocity: 0 })
   const direction = useRef<Direction>(1)
+  // The side the pins push the tongue from: the direction, unless a pin holds it from the other side.
+  const side = useRef<Direction>(1)
   const lastAngle = useRef(0)
   const speed = useRef(0)
   const reduced = useRef(false)
@@ -117,12 +120,13 @@ export function useWheelMotion(
       const from = lastAngle.current
       direction.current = nextDirection(direction.current, angle.current - from)
       lastAngle.current = angle.current
+      side.current = contactSide(pinsRef.current, from, side.current, direction.current)
       if (share.current !== null) {
-        for (let i = pinExits(pinsRef.current, from, angle.current, direction.current); i > 0; i--) {
+        for (let i = pinExits(pinsRef.current, from, angle.current, side.current); i > 0; i--) {
           soundRef.current.pinTick(share.current)
         }
       }
-      const bend = targetBend(pinsRef.current, from, angle.current, direction.current)
+      const bend = targetBend(pinsRef.current, from, angle.current, side.current, direction.current)
       const before = flapper.current.angle
       const next = flapperStep(flapper.current, bend, dt)
       flapper.current = bend === 0 && isSettled(next) ? { angle: 0, velocity: 0 } : next

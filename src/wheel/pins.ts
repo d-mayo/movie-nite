@@ -48,6 +48,19 @@ export function nextDirection(direction: Direction, change: number): Direction {
   return change > 0 ? 1 : change < 0 ? -1 : direction
 }
 
+// The side a pin pushes the tongue from over a frame starting at wheel rotation `at`: a pin
+// that holds the tongue (in the push range, seen from the side `held`) keeps pushing from that
+// side even when the wheel turns round, until it backs out of reach (a little past the touch, so
+// it does not count as pushing from the far side as it goes); with none holding it, the side follows the direction of motion.
+export function contactSide(pins: number[], at: number, held: Direction, direction: Direction): Direction {
+  if (held === direction) return direction
+  const holding = pins.some((pin) => {
+    const angle = held * ((((pin + at) % 360) + 540) % 360 - 180)
+    return angle >= -pushEnd && angle <= pushEnd
+  })
+  return holding ? held : direction
+}
+
 const degrees = (rad: number) => (rad * 180) / Math.PI
 
 // Where a pin pushes the tongue, as the pin's angle from the pointer (clockwise
@@ -77,7 +90,11 @@ function pushedBend(at: number): number {
 // where it touches until the tongue slips off; the most any pin pushed it during
 // the frame counts, so a fast wheel that crosses a pin in one frame still bends
 // it fully. A still wheel (`from` equal to `to`) is held by a pin in the push range.
-export function targetBend(pins: number[], from: number, to: number, direction: Direction): number {
+// `side` is the side the pin pushes from (the direction of motion, unless a pin holds the tongue
+// from the other side: see `contactSide`); a wheel `motion`ing the other way backs off a pin
+// that holds the tongue, and the tongue is kept at least as bent as that pin's angle asks.
+export function targetBend(pins: number[], from: number, to: number, side: Direction, motion: Direction = side): number {
+  const direction = side
   let bend = 0
   for (const pin of pins) {
     const start = direction * ((((pin + from) % 360) + 540) % 360 - 180)
@@ -88,8 +105,9 @@ export function targetBend(pins: number[], from: number, to: number, direction: 
       const low = Math.min(a0, a1)
       const high = Math.max(a0, a1)
       if (high < pushStart || low > pushEnd) continue
-      // `a1` is where the pin ends up; a pin moving the other way gets nothing from this side.
-      if (a1 < a0) continue
+      // `a1` is where the pin ends up; a pin moving the other way gets nothing from this side,
+      // unless it is the one that holds the tongue and is backing off it.
+      if (a1 < a0 && motion === side) continue
       bend = Math.max(bend, pushedBend(Math.min(Math.max(a1, pushStart), pushEnd)))
     }
   }
@@ -99,8 +117,10 @@ export function targetBend(pins: number[], from: number, to: number, direction: 
 // How many pins slipped off the tongue's tip over one frame, as the wheel turns
 // from `from` to `to`: each crossing of the end of the push range, in the
 // direction of motion, counts once, so a fast frame that crosses several pins
-// counts them all. A pin moving the other way, or stopping short, counts none.
-export function pinExits(pins: number[], from: number, to: number, direction: Direction): number {
+// counts them all. A pin moving the other way (backing off the side it pushed from), or
+// stopping short, counts none.
+export function pinExits(pins: number[], from: number, to: number, side: Direction): number {
+  const direction = side
   const moved = direction * (to - from)
   if (moved <= 0) return 0
   let exits = 0
@@ -112,7 +132,8 @@ export function pinExits(pins: number[], from: number, to: number, direction: Di
 }
 
 // One frame of the flapper: a pin that bends it more than it is bent now holds
-// it there; otherwise it springs toward straight as a damped spring.
+// it there; otherwise it springs toward straight as a damped spring, but never through a
+// pin still touching it (a pin backing off lets it follow, no further than the pin allows).
 export function flapperStep(state: Flapper, bend: number, seconds: number): Flapper {
   if (bend !== 0 && (bend < 0 ? bend <= state.angle : bend >= state.angle)) {
     return { angle: bend, velocity: 0 }
@@ -124,6 +145,7 @@ export function flapperStep(state: Flapper, bend: number, seconds: number): Flap
     velocity += (-springStiffness * angle - springDamping * velocity) * dt
     angle += velocity * dt
   }
+  if (bend !== 0 && (bend < 0 ? angle > bend : angle < bend)) return { angle: bend, velocity: 0 }
   return { angle, velocity }
 }
 
