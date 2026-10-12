@@ -198,7 +198,7 @@ export default function WheelPanel({
       closeCall && !reduced
         ? buildCloseCallPath(ordinary, to, spinMs === undefined ? 1 : spinMs / (windUpMs + plan.durationMs))
         : null
-    // A catch runs on into the start edge's pin and rocks back off it; the peak bend is drawn from 16° to 26°.
+    // A catch runs on into the start edge's pin and rocks back off it; the peak bend is drawn from 16Â° to 26Â°.
     const scale = spinMs === undefined ? 1 : spinMs / (windUpMs + plan.durationMs)
     const caughtPath = caught
       ? buildCatchPath(

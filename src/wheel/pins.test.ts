@@ -191,7 +191,7 @@ describe('a pin holding the tongue while the wheel backs off it', () => {
     }
     return { frames, exits }
   }
-  // Forward to a peak of 20° bend, then back by a half-cosine to 2.5° short of the pin.
+  // Forward to a peak of 20Â° bend, then back by a half-cosine to 2.5Â° short of the pin.
   const peak = pinPastPointer(20)
   const forward = Array.from({ length: 80 }, (_, i) => -4 + ((peak + 4) * i) / 79)
   const rock = Array.from({ length: 31 }, (_, i) => peak - (peak + 2.5) * ((1 - Math.cos((Math.PI * i) / 30)) / 2))
