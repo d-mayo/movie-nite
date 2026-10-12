@@ -133,7 +133,17 @@ function Slate({ wedge, clipId }: { wedge: Wedge; clipId: string }) {
   )
 }
 
-function WedgeShape({ wedge, id, uid }: { wedge: Wedge; id: string; uid: string }) {
+function WedgeShape({
+  wedge,
+  id,
+  uid,
+  showLabels,
+}: {
+  wedge: Wedge
+  id: string
+  uid: string
+  showLabels: boolean
+}) {
   const { arc, slice, nomination } = wedge
   const mid = (arc.start + arc.end) / 2
   const width = arc.end - arc.start
@@ -141,7 +151,7 @@ function WedgeShape({ wedge, id, uid }: { wedge: Wedge; id: string; uid: string 
   const imageWidth = Math.max(10, 2 * radius * Math.sin(half))
   const isWildcard = slice.kind === 'wildcard'
   const gradient = gradientId(uid, wedge.color)
-  const label = isWildcard ? null : layoutLabel(wedge.viewerName ?? '', nomination?.title ?? null, width)
+  const label = isWildcard || !showLabels ? null : layoutLabel(wedge.viewerName ?? '', nomination?.title ?? null, width)
   const word = isWildcard ? layoutWildcard(width) : null
 
   return (
@@ -232,13 +242,15 @@ function WedgeShape({ wedge, id, uid }: { wedge: Wedge; id: string; uid: string 
 
 interface Props {
   wedges: Wedge[]
+  // False leaves the viewers' names and titles off; a wildcard's word stays.
+  showLabels?: boolean
   // The rotating group; its transform is written by the wheel's motion loop.
   groupRef: Ref<SVGGElement>
   // The flapper's group, turned about the pivot by the same loop.
   flapperRef?: Ref<SVGGElement>
 }
 
-export default function Wheel({ wedges, groupRef, flapperRef }: Props) {
+export default function Wheel({ wedges, showLabels = true, groupRef, flapperRef }: Props) {
   const uid = useId().replace(/:/g, '')
   if (wedges.length === 0) {
     return (
@@ -253,7 +265,7 @@ export default function Wheel({ wedges, groupRef, flapperRef }: Props) {
       <Defs uid={uid} colors={colors} />
       <g ref={groupRef}>
         {wedges.map((wedge, i) => (
-          <WedgeShape key={i} wedge={wedge} id={String(i)} uid={uid} />
+          <WedgeShape key={i} wedge={wedge} id={String(i)} uid={uid} showLabels={showLabels} />
         ))}
         <Reel wedges={wedges} />
       </g>

@@ -16,6 +16,8 @@ export interface WheelSettings {
   soundVolume: number
   // Everything silenced, without losing the levels.
   soundMuted: boolean
+  // Whether the viewers' names and titles show on the wheel.
+  showLabels: boolean
 }
 
 // What the host changed for one viewer tonight; a field is present only when set.
@@ -41,6 +43,7 @@ export const defaultWheelSettings: WheelSettings = {
   soundEffects: 100,
   soundVolume: 70,
   soundMuted: false,
+  showLabels: true,
 }
 
 export const minWeight = 0.5
