@@ -613,3 +613,25 @@ describe('the gear menu', () => {
     expect(isShown()).toBe(true)
   })
 })
+
+test('with labels off and the viewer pane hidden, a dimmed key lists the viewers and their colors', () => {
+  const store = setup()
+  const key = () => screen.queryByRole('list', { name: "Tonight's viewers" })
+  expect(key()).toBeNull()
+  act(() => {
+    store.getState().setShowLabels(false)
+  })
+  expect(key()).toBeNull()
+  act(() => {
+    store.getState().setViewersHidden(true)
+  })
+  const items = within(key()!).getAllByRole('listitem')
+  expect(items).toHaveLength(store.getState().night.presentIds.length)
+  const first = store.getState().roster.find((v) => v.id === store.getState().night.presentIds[0])!
+  expect(items[0]).toHaveTextContent(first.name)
+  expect((items[0].querySelector('.viewer-key-dot') as HTMLElement).style.background).not.toBe('')
+  act(() => {
+    store.getState().setShowLabels(true)
+  })
+  expect(key()).toBeNull()
+})

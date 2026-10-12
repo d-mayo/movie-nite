@@ -62,7 +62,7 @@
 .settings-menu {
   position: fixed;
   inset: auto;
-  top: 4.5rem;
+  top: 6rem;
   right: 1rem;
   margin: 0;
   padding: 0.5rem;
@@ -1608,4 +1608,33 @@ dialog.wheel-drawer:focus {
 
 .debug-force + .debug-force {
   margin-left: var(--space-4);
+}
+
+.viewer-key {
+  position: fixed;
+  top: 6rem;
+  right: var(--space-3, 1rem);
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-end;
+  font-size: 0.85rem;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.viewer-key li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.viewer-key-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
 }
