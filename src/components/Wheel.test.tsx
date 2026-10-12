@@ -71,15 +71,15 @@ test('the wheel follows viewers and nominations live', () => {
   expect(wedges()).toHaveLength(0)
 })
 
-test('a viewer name of 20 characters is shortened on the wheel, a short one is not', () => {
+test('a long viewer name shrinks to its room and is set in capitals, a short one is not', () => {
   setup()
-  for (const name of ['abcdefghijklmnopqrst', 'Ann']) {
-    fireEvent.change(screen.getByLabelText('Add a viewer'), { target: { value: name } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
-  }
-  expect(screen.getAllByText('abcdefghijklm…')).not.toHaveLength(0)
-  expect(screen.queryByText('abcdefghijklmnopqrst', { selector: 'text' })).toBeNull()
-  expect(screen.getAllByText('Ann', { selector: 'text' })).not.toHaveLength(0)
+  addViewers(['wwwwwwwwwwwwwwwwwwww', 'Ann', 'Bo', 'Cy', 'Di'])
+  const texts = Array.from(document.querySelectorAll('svg.wheel text.wheel-label'))
+  const long = texts.find((t) => t.textContent === 'W'.repeat(20))!
+  expect(Number(long.getAttribute('font-size'))).toBeLessThan(9)
+  const ann = texts.find((t) => t.textContent === 'ANN')!
+  expect(Number(ann.getAttribute('font-size'))).toBe(9)
+  expect(texts.some((t) => t.textContent === 'Ann')).toBe(false)
 })
 
 function addViewers(names: string[]) {
@@ -89,21 +89,29 @@ function addViewers(names: string[]) {
   }
 }
 
-test('every label is white on a 42% black scrim, on a light color and a dark one', () => {
+test('every label sits on a solid film-stock tag, white name and cream title, in a light and a dark color', () => {
   const store = setup()
   addViewers(['Ann', 'Bo'])
   const [ann, bo] = store.getState().roster
   act(() => store.getState().setViewerColor(ann.id, '#ffe119'))
   act(() => store.getState().setViewerColor(bo.id, presetColors[7]))
   act(() => store.getState().nominate(ann.id, film(1, null)))
-  const scrims = screen.getAllByTestId('scrim')
-  expect(scrims.length).toBeGreaterThan(0)
-  for (const rect of scrims) {
-    expect(rect.getAttribute('fill')).toBe('#000000')
-    expect(rect.getAttribute('opacity')).toBe('0.42')
-    for (const t of Array.from(rect.parentElement!.querySelectorAll('text')))
-      expect(t.getAttribute('fill')).toBe('#ffffff')
+  expect(screen.queryAllByTestId('scrim')).toHaveLength(0)
+  const tags = screen.getAllByTestId('label-tag')
+  expect(tags.length).toBeGreaterThan(0)
+  for (const rect of tags) {
+    expect(rect.getAttribute('class')).toContain('film-fill-stock')
+    expect(rect.hasAttribute('opacity')).toBe(false)
+    expect(rect.hasAttribute('fill-opacity')).toBe(false)
+    const [name, title] = Array.from(rect.parentElement!.querySelectorAll('text'))
+    expect(name.getAttribute('fill')).toBe('#ffffff')
+    expect(name.textContent).toBe(name.textContent!.toUpperCase())
+    expect(name.getAttribute('class')).toContain('wheel-label')
+    if (title) expect(title.getAttribute('class')).toContain('wheel-label-title')
   }
+  const titled = screen.getAllByText('FILM 1', { selector: 'text' })
+  expect(titled).toHaveLength(3)
+  expect(document.querySelector('svg.wheel > g')!.querySelector('[data-testid="reel"]')).not.toBeNull()
 })
 
 test('the wheel has the grown viewBox, with the reel turning with the wedges and a fixed gloss', () => {

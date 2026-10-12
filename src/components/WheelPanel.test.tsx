@@ -397,6 +397,9 @@ test('React commits nothing while the wheel drifts, and a spin costs a fixed few
   )
   const { rerender } = render(view(20))
   await sleep(50)
+  // The labels, titles and wildcard art are on the wheel being watched.
+  expect(document.querySelectorAll('svg.wheel .wheel-label-title').length).toBeGreaterThan(0)
+  expect(document.querySelectorAll('svg.wheel .wheel-label-word').length).toBeGreaterThan(0)
   const idleStart = commits
   const before = wheelRotation()
   const flapperBefore = flapperTransform()
@@ -419,6 +422,26 @@ test('React commits nothing while the wheel drifts, and a spin costs a fixed few
   const long = await spinCommits(400)
   expect(long).toBe(short)
   expect(short).toBeLessThan(8)
+})
+
+test('the wheel measures nothing in the DOM while it drifts, spins and reveals', async () => {
+  const measured = vi.fn()
+  const proto = SVGElement.prototype as unknown as Record<string, unknown>
+  proto.getBBox = measured
+  proto.getComputedTextLength = measured
+  const canvas = HTMLCanvasElement.prototype as unknown as Record<string, unknown>
+  canvas.getContext = () => ({ measureText: measured })
+  try {
+    setup(['a', 'b'], { random: () => 0.5, spinMs: 20 })
+    await sleep(100)
+    fireEvent.click(spinButton())
+    await screen.findByRole('dialog', undefined, { timeout: 2000 })
+    expect(measured).not.toHaveBeenCalled()
+  } finally {
+    delete proto.getBBox
+    delete proto.getComputedTextLength
+    delete canvas.getContext
+  }
 })
 
 test('a wheel that mounts again shows the current angle at once', async () => {

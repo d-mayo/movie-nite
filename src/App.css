@@ -316,6 +316,20 @@ html:has(.wheel-stage[data-zoom]) {
 }
 
 /* The reel's fixed film colors (see the film tokens in index.css). */
+.wheel .film-fill-stock {
+  fill: var(--film-stock);
+}
+
+.wheel .wheel-label {
+  font-family: 'Bebas Neue', Impact, sans-serif;
+  font-kerning: none;
+}
+
+.wheel .wheel-label-title,
+.wheel .wheel-label-word {
+  fill: var(--film-cream);
+}
+
 .wheel .film-stock {
   stroke: var(--film-stock);
 }

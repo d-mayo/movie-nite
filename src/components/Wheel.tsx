@@ -1,6 +1,7 @@
 import { useId, type Ref } from 'react'
 import { posterUrl } from '../tmdb/client.ts'
 import { mixColor } from '../wheel/colors.ts'
+import { layoutLabel, layoutWildcard } from '../wheel/labels.ts'
 import { pivotY } from '../wheel/pins.ts'
 import type { Wedge } from '../wheel/wedges.ts'
 import Reel from './Reel.tsx'
@@ -10,8 +11,6 @@ const tongue = 'M -3.4 -118 L 3.4 -118 L 0.7 -103.3 Q 0 -102.3 -0.7 -103.3 Z'
 
 const radius = 100
 const posterInner = 30
-const titleMinDegrees = 24
-const titleMaxChars = 14
 const wildcardStops = ['#0d0d0c', '#2a2a27', '#4a4a44']
 
 function point(angle: number, r: number): string {
@@ -22,15 +21,6 @@ function point(angle: number, r: number): string {
 function wedgePath({ arc }: Wedge): string {
   const large = arc.end - arc.start > 180 ? 1 : 0
   return `M 0 0 L ${point(arc.start, radius)} A ${radius} ${radius} 0 ${large} 1 ${point(arc.end, radius)} Z`
-}
-
-function clip(text: string): string {
-  return text.length > titleMaxChars ? `${text.slice(0, titleMaxChars - 1)}…` : text
-}
-
-// A rough text width in SVG units, enough to size the scrim under a label.
-function labelWidth(text: string | null): number {
-  return (text ?? '').length * 4.7
 }
 
 // The gradients are shared: one per distinct viewer color, and one for wildcards.
@@ -88,12 +78,8 @@ function WedgeShape({ wedge, id, uid }: { wedge: Wedge; id: string; uid: string 
   const imageWidth = Math.max(10, 2 * radius * Math.sin(half))
   const isWildcard = slice.kind === 'wildcard'
   const gradient = gradientId(uid, isWildcard ? null : wedge.color)
-  const label = isWildcard ? 'WILDCARD' : clip(wedge.viewerName ?? '')
-  const showTitle = nomination !== null && width >= titleMinDegrees
-  const scrim = Math.max(
-    labelWidth(label),
-    showTitle ? (labelWidth(clip(nomination.title)) * 5) / 7.5 : 0,
-  )
+  const label = isWildcard ? null : layoutLabel(wedge.viewerName ?? '', nomination?.title ?? null, width)
+  const word = isWildcard ? layoutWildcard(width) : null
 
   return (
     <g data-testid="wedge" data-kind={slice.kind}>
@@ -123,26 +109,47 @@ function WedgeShape({ wedge, id, uid }: { wedge: Wedge; id: string; uid: string 
           </g>
         </g>
       )}
-      <g transform={`rotate(${mid - 90})`} className="wedge-text">
-        <rect
-          data-testid="scrim"
-          x={radius - 6 - scrim}
-          y={showTitle ? -6.5 : -4.5}
-          width={scrim + 4}
-          height={showTitle ? 16 : 9}
-          rx="3"
-          fill="#000000"
-          opacity="0.42"
-        />
-        <text x={radius - 4} y={showTitle ? -2 : 0} textAnchor="end" dominantBaseline="central" fontSize="7.5" fontWeight="bold" fill="#ffffff">
-          {label}
-        </text>
-        {showTitle && (
-          <text x={radius - 4} y={6} textAnchor="end" dominantBaseline="central" fontSize="5" fill="#ffffff">
-            {clip(nomination.title)}
+      {label && (
+        <g transform={`rotate(${mid - 90})`} className="wedge-text">
+          <rect
+            data-testid="label-tag"
+            className="film-fill-stock"
+            x={label.tag.x}
+            y={label.tag.y}
+            width={label.tag.width}
+            height={label.tag.height}
+            rx="0.8"
+          />
+          <text
+            className="wheel-label"
+            x={label.name.x}
+            y={label.name.y}
+            textAnchor="end"
+            fontSize={label.name.size}
+            fill="#ffffff"
+          >
+            {label.name.text}
           </text>
-        )}
-      </g>
+          {label.title && (
+            <text
+              className="wheel-label wheel-label-title"
+              x={label.title.x}
+              y={label.title.y}
+              textAnchor="end"
+              fontSize={label.title.size}
+            >
+              {label.title.text}
+            </text>
+          )}
+        </g>
+      )}
+      {word && (
+        <g transform={`rotate(${mid - 90})`} className="wedge-text">
+          <text className="wheel-label wheel-label-word" x={word.x} y={word.y} textAnchor="end" fontSize={word.size}>
+            {word.text}
+          </text>
+        </g>
+      )}
     </g>
   )
 }
