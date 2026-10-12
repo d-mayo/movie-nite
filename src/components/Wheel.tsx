@@ -1,7 +1,7 @@
 import { useId, type Ref } from 'react'
 import { posterUrl } from '../tmdb/client.ts'
 import { mixColor } from '../wheel/colors.ts'
-import { layoutLabel, layoutWildcard } from '../wheel/labels.ts'
+import { layoutLabel, layoutWatermark, layoutWildcard, markHeight, markWidth, sticksInner } from '../wheel/labels.ts'
 import { pivotY } from '../wheel/pins.ts'
 import type { Wedge } from '../wheel/wedges.ts'
 import Reel from './Reel.tsx'
@@ -11,7 +11,6 @@ const tongue = 'M -3.4 -118 L 3.4 -118 L 0.7 -103.3 Q 0 -102.3 -0.7 -103.3 Z'
 
 const radius = 100
 const posterInner = 30
-const wildcardStops = ['#0d0d0c', '#2a2a27', '#4a4a44']
 
 function point(angle: number, r: number): string {
   const rad = (angle * Math.PI) / 180
@@ -23,19 +22,14 @@ function wedgePath({ arc }: Wedge): string {
   return `M 0 0 L ${point(arc.start, radius)} A ${radius} ${radius} 0 ${large} 1 ${point(arc.end, radius)} Z`
 }
 
-// The gradients are shared: one per distinct viewer color, and one for wildcards.
-function gradientId(uid: string, color: string | null): string {
-  return `${uid}-${color === null ? 'wild' : color.slice(1)}`
+// The gradients are shared: one per distinct viewer color.
+function gradientId(uid: string, color: string): string {
+  return `${uid}-${color.slice(1)}`
 }
 
 function Defs({ uid, colors }: { uid: string; colors: string[] }) {
   return (
     <defs>
-      <radialGradient id={gradientId(uid, null)} gradientUnits="userSpaceOnUse" cx="0" cy="0" r={radius}>
-        <stop offset="0" stopColor={wildcardStops[0]} />
-        <stop offset="0.6" stopColor={wildcardStops[1]} />
-        <stop offset="1" stopColor={wildcardStops[2]} />
-      </radialGradient>
       {colors.map((color) => (
         <radialGradient key={color} id={gradientId(uid, color)} gradientUnits="userSpaceOnUse" cx="0" cy="0" r={radius}>
           <stop offset="0" stopColor={mixColor(color, '#000000', 0.6)} />
@@ -70,6 +64,75 @@ function Defs({ uid, colors }: { uid: string; colors: string[] }) {
   )
 }
 
+const stickBars = [
+  { top: -radius, bottom: -radius + 7, slant: 7 },
+  { top: -sticksInner - 7, bottom: -sticksInner, slant: -7 },
+]
+const barPitch = 8
+const barWidth = 4
+
+// One stick's bars: slanted parallelograms on a grid anchored at the middle radius.
+function barsPath(band: (typeof stickBars)[number], reach: number): string {
+  const n = Math.ceil(reach / barPitch) + 2
+  const parts: string[] = []
+  for (let k = -n; k <= n; k++) {
+    const x = k * barPitch - barWidth / 2 - band.slant / 2
+    parts.push(
+      `M ${x} ${band.top} h ${barWidth} l ${band.slant} ${band.bottom - band.top} h ${-barWidth} Z`,
+    )
+  }
+  return parts.join(' ')
+}
+
+// The M of the Movie Nite logo, a copy of the dark icon's inner group (src/assets/logo/logo-icon-dark.svg)
+// that a test keeps identical; its colors come from the film palette by class.
+function Mark() {
+  return (
+    <>
+      <g className="film-mark-leg" strokeWidth="22" strokeLinejoin="round">
+        <rect x="35" y="33" width="85" height="350" />
+        <path d="M363 33H450V383H365V170L274.3 318H225L219 290Z" />
+      </g>
+      <path className="film-mark-strip" d="M23.5 21.5H145.5L369.0 394.0H247.0Z" />
+      <g className="film-fill-stock">
+        <rect x="93.5" y="55.8" width="58" height="58" rx="13.9" transform="rotate(-31.0 122.5 84.8)" />
+        <rect x="167.3" y="178.8" width="58" height="58" rx="13.9" transform="rotate(-31.0 196.3 207.8)" />
+        <rect x="241.0" y="301.7" width="58" height="58" rx="13.9" transform="rotate(-31.0 270.0 330.7)" />
+      </g>
+    </>
+  )
+}
+
+// A wildcard's clapperboard slate, drawn in the slice's own turned frame so every wildcard
+// looks the same whatever its angle: two striped sticks at the rim and the logo's M between
+// them and the hub. The body is drawn by the caller.
+function Slate({ wedge, clipId }: { wedge: Wedge; clipId: string }) {
+  const { arc } = wedge
+  const mid = (arc.start + arc.end) / 2
+  const width = arc.end - arc.start
+  const reach = width >= 180 ? radius : radius * Math.sin((width / 2) * (Math.PI / 180))
+  const mark = layoutWatermark(width)
+  return (
+    <g clipPath={`url(#${clipId})`}>
+      <g transform={`rotate(${mid})`}>
+        <g data-testid="sticks">
+          {stickBars.map((band, i) => (
+            <path key={i} data-testid="stick" className="film-fill-cream" d={barsPath(band, reach)} />
+          ))}
+        </g>
+        {mark && (
+          <g
+            data-testid="watermark"
+            transform={`translate(0 ${-mark.radius}) scale(${mark.scale.toFixed(5)}) translate(${-(23.5 + markWidth / 2)} ${-(21.5 + markHeight / 2)})`}
+          >
+            <Mark />
+          </g>
+        )}
+      </g>
+    </g>
+  )
+}
+
 function WedgeShape({ wedge, id, uid }: { wedge: Wedge; id: string; uid: string }) {
   const { arc, slice, nomination } = wedge
   const mid = (arc.start + arc.end) / 2
@@ -77,7 +140,7 @@ function WedgeShape({ wedge, id, uid }: { wedge: Wedge; id: string; uid: string 
   const half = (width / 2) * (Math.PI / 180)
   const imageWidth = Math.max(10, 2 * radius * Math.sin(half))
   const isWildcard = slice.kind === 'wildcard'
-  const gradient = gradientId(uid, isWildcard ? null : wedge.color)
+  const gradient = gradientId(uid, wedge.color)
   const label = isWildcard ? null : layoutLabel(wedge.viewerName ?? '', nomination?.title ?? null, width)
   const word = isWildcard ? layoutWildcard(width) : null
 
@@ -86,7 +149,20 @@ function WedgeShape({ wedge, id, uid }: { wedge: Wedge; id: string; uid: string 
       <clipPath id={`${uid}-clip-${id}`}>
         <path d={wedgePath(wedge)} />
       </clipPath>
-      <path d={wedgePath(wedge)} fill={`url(#${gradient})`} stroke="#000000" strokeOpacity="0.4" strokeWidth="0.5" />
+      {isWildcard ? (
+        <>
+          <path
+            d={wedgePath(wedge)}
+            className="film-fill-stock"
+            stroke="#000000"
+            strokeOpacity="0.4"
+            strokeWidth="0.5"
+          />
+          <Slate wedge={wedge} clipId={`${uid}-clip-${id}`} />
+        </>
+      ) : (
+        <path d={wedgePath(wedge)} fill={`url(#${gradient})`} stroke="#000000" strokeOpacity="0.4" strokeWidth="0.5" />
+      )}
       {nomination?.posterPath && (
         <g clipPath={`url(#${uid}-clip-${id})`}>
           <g transform={`rotate(${mid})`}>
@@ -145,7 +221,7 @@ function WedgeShape({ wedge, id, uid }: { wedge: Wedge; id: string; uid: string 
       )}
       {word && (
         <g transform={`rotate(${mid - 90})`} className="wedge-text">
-          <text className="wheel-label wheel-label-word" x={word.x} y={word.y} textAnchor="end" fontSize={word.size}>
+          <text data-testid="wildcard-word" className="wheel-label wheel-label-word" x={word.x} y={word.y} textAnchor="end" fontSize={word.size}>
             {word.text}
           </text>
         </g>

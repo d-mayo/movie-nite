@@ -320,6 +320,19 @@ html:has(.wheel-stage[data-zoom]) {
   fill: var(--film-stock);
 }
 
+.wheel .film-fill-cream {
+  fill: var(--film-cream);
+}
+
+.wheel .film-mark-leg {
+  fill: var(--film-steel);
+  stroke: var(--film-steel);
+}
+
+.wheel .film-mark-strip {
+  fill: var(--film-steel-dark);
+}
+
 .wheel .wheel-label {
   font-family: 'Bebas Neue', Impact, sans-serif;
   font-kerning: none;

@@ -6,7 +6,7 @@ import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import { presetColors } from '../wheel/colors.ts'
 import { markAway, markHere, removeViewer } from '../test/cells.ts'
-import { defaultWheelSettings } from '../wheel/edit.ts'
+import { defaultWheelSettings, maxWeight, minWeight } from '../wheel/edit.ts'
 
 function film(id: number, posterPath: string | null): Nomination {
   return {
@@ -149,14 +149,13 @@ test('wedges fill from shared gradients that run dark at the hub to the viewer c
   expect(stops[2].getAttribute('stop-color')).toBe(ann.color)
   expect(stops[0].getAttribute('stop-color')).not.toBe(ann.color)
   expect(annWedge.querySelector(':scope > path')!.getAttribute('stroke')).toBe('#000000')
-  // Ann's three slices share one gradient; the radial ones are two viewers, the wildcard and the gloss.
-  const annIds = new Set(wedges().filter((w) => fillId(w) === fillId(annWedge)))
+  // Ann's three slices share one gradient; the radial ones are two viewers and the gloss.
+  const annIds = new Set(
+    wedges().filter((w) => w.getAttribute('data-kind') === 'nomination' && fillId(w) === fillId(annWedge)),
+  )
   expect(annIds.size).toBe(3)
   expect(others.length).toBeGreaterThan(0)
-  expect(document.querySelectorAll('svg.wheel radialGradient')).toHaveLength(4)
-  const wild = wedges().find((w) => w.getAttribute('data-kind') === 'wildcard')!
-  expect(document.getElementById(fillId(wild))).not.toBeNull()
-  expect(fillId(wild)).not.toBe(fillId(annWedge))
+  expect(document.querySelectorAll('svg.wheel radialGradient')).toHaveLength(3)
   expect(annWedge.querySelectorAll('[data-testid="poster-fade"]')).toHaveLength(1)
 })
 
@@ -192,4 +191,46 @@ test('pins sit on the turning strip and the flapper hangs outside it, its tip in
   const pinInner = middle - Number(first.getAttribute('r')) - 0.3
   expect(-tip).toBeLessThan(pinInner)
   expect(-tip).toBeGreaterThan(100)
+})
+
+const wildcards = () => wedges().filter((w) => w.getAttribute('data-kind') === 'wildcard')
+
+test('a wildcard is a clapperboard slate: stock body, two sticks, the M, and the word in cream', () => {
+  setup()
+  addViewers(['Ann', 'Bo'])
+  const wild = wildcards()
+  expect(wild.length).toBeGreaterThan(0)
+  for (const w of wild) {
+    const body = w.querySelector(':scope > path')!
+    expect(body.getAttribute('class')).toBe('film-fill-stock')
+    expect(body.hasAttribute('fill')).toBe(false)
+    expect(within(w).getAllByTestId('stick')).toHaveLength(2)
+    for (const stick of within(w).getAllByTestId('stick')) {
+      expect(stick.getAttribute('class')).toBe('film-fill-cream')
+    }
+    expect(within(w).getAllByTestId('watermark')).toHaveLength(1)
+    const word = within(w).getByTestId('wildcard-word')
+    expect(word.textContent).toBe('WILDCARD')
+    expect(word.getAttribute('class')).toContain('wheel-label-word')
+    expect(word.parentElement!.querySelector('rect')).toBeNull()
+  }
+  // The sticks lie in each slice's own turned frame, drawn the same way on every wildcard.
+  const sticks = wild.map((w) => within(w).getAllByTestId('stick')[0].getAttribute('d'))
+  expect(new Set(sticks).size).toBe(1)
+  const turns = wild.map((w) => within(w).getByTestId('sticks').parentElement!.getAttribute('transform'))
+  expect(new Set(turns).size).toBe(wild.length)
+})
+
+test('a very narrow wildcard has no watermark and shows a ? instead of the word', () => {
+  const store = setup()
+  addViewers(['Ann', 'Bo'])
+  act(() => {
+    store.getState().setWildcardsPerViewer(false)
+    store.getState().setWildcardCount(1)
+    store.getState().setWildcardWeight(minWeight)
+    store.getState().setDefaultWeight(maxWeight)
+  })
+  const [wild] = wildcards()
+  expect(within(wild).queryByTestId('watermark')).toBeNull()
+  expect(within(wild).getByTestId('wildcard-word').textContent).toBe('?')
 })

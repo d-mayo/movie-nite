@@ -1,6 +1,11 @@
+import { render } from '@testing-library/react'
+import { createElement } from 'react'
 import { describe, expect, test } from 'vitest'
+import Wheel from '../components/Wheel.tsx'
+import type { Wedge } from '../wheel/wedges.ts'
 import indexHtml from '../../index.html?raw'
 import favicon from '../../public/favicon.svg?raw'
+import iconDark from './logo/logo-icon-dark.svg?raw'
 import iconLight from './logo/logo-icon-light.svg?raw'
 import readme from '../../README.md?raw'
 
@@ -92,5 +97,26 @@ describe('the README logo block', () => {
     expect(after).toContain(
       "Pick tonight's film for the FFF movie-night group: viewers nominate films from TMDB, and a weighted, editable wheel picks what to watch.",
     )
+  })
+})
+
+describe("the wheel's wildcard watermark", () => {
+  test("copies the dark icon's M shapes exactly", () => {
+    const dark = new DOMParser().parseFromString(iconDark, 'image/svg+xml')
+    const mark = dark.querySelector('g[transform^="translate(5.2"]')!
+    const geometry = ['d', 'x', 'y', 'width', 'height', 'rx', 'transform']
+    const attrs = (el: Element) => geometry.map((a) => `${a}=${el.getAttribute(a)}`).join(' ')
+    const shapes = (root: Element) =>
+      Array.from(root.querySelectorAll('rect, path')).map((el) => attrs(el))
+    const wedge: Wedge = {
+      arc: { start: 0, end: 90 },
+      slice: { kind: 'wildcard', weight: 1 },
+      color: '#5a5a54',
+      viewerName: null,
+      nomination: null,
+    } as unknown as Wedge
+    const { container } = render(createElement(Wheel, { wedges: [wedge], groupRef: null }))
+    const copy = container.querySelector('[data-testid="watermark"]')!
+    expect(shapes(copy)).toEqual(shapes(mark))
   })
 })
