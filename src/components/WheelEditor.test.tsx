@@ -630,6 +630,13 @@ test('with labels off and the viewer pane hidden, a dimmed key lists the viewers
   const first = store.getState().roster.find((v) => v.id === store.getState().night.presentIds[0])!
   expect(items[0]).toHaveTextContent(first.name)
   expect((items[0].querySelector('.viewer-key-dot') as HTMLElement).style.background).not.toBe('')
+  // A viewer's film shows under their name, and a winner drops off the key.
+  const [firstId, secondId] = store.getState().night.presentIds
+  act(() => store.getState().nominate(firstId, film(1)))
+  expect(items[0]).toHaveTextContent('Film 1')
+  act(() => store.getState().nominate(secondId, film(2)))
+  act(() => store.getState().recordOutcome(film(1), 'watch', true))
+  expect(within(key()!).getAllByRole('listitem')).toHaveLength(items.length - 1)
   act(() => {
     store.getState().setShowLabels(true)
   })

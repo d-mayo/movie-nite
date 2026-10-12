@@ -1611,6 +1611,8 @@ dialog.wheel-drawer:focus {
 }
 
 .viewer-key {
+  /* Below 900px the viewer pane cannot be hidden, so there is no key. */
+  display: none;
   position: fixed;
   top: 6rem;
   right: var(--space-3, 1rem);
@@ -1619,11 +1621,10 @@ dialog.wheel-drawer:focus {
   margin: 0;
   padding: 0;
   list-style: none;
-  display: flex;
   flex-direction: column;
   gap: 0.25rem;
   align-items: flex-end;
-  font-size: 0.95rem;
+  font-size: 1.2rem;
   font-weight: 700;
   opacity: 0.6;
   pointer-events: none;
@@ -1635,9 +1636,27 @@ dialog.wheel-drawer:focus {
   gap: 0.4rem;
 }
 
+.viewer-key-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+}
+
+.viewer-key-title {
+  font-size: 0.8em;
+  font-weight: 400;
+}
+
 .viewer-key-dot {
   flex: none;
-  width: 0.9rem;
-  height: 0.9rem;
+  width: 1.3rem;
+  height: 1.3rem;
   border-radius: 50%;
+}
+
+@media (min-width: 900px) {
+  .viewer-key {
+    display: flex;
+  }
 }
