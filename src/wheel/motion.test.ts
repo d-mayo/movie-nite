@@ -1,10 +1,13 @@
-import { expect, test } from 'vitest'
+import { describe, expect, test } from 'vitest'
+import { maxBendDegrees, pinPastPointer, pushEnd, pushStart } from './pins.ts'
 import { angleUnderPointer, edgeMargin, restRotation } from './draw.ts'
 import type { Arc } from './layout.ts'
 import {
   buildReducedSpinPath,
   buildSpinPath,
   buildCloseCallPath,
+  buildCatchPath,
+  catchRockSeconds,
   closeCallApproachDegrees,
   closeCallCreepSeconds,
   closeCallEaseSeconds,
@@ -221,4 +224,76 @@ test('timeAtRotation finds when a close-call path has turned to a point near its
   expect(path.rotationAt(slip)).toBeCloseTo(to - 1, 3)
   expect(path.durationMs - slip).toBeLessThan(3500)
   expect(timeAtRotation(path, to - 0.2, cueMs)).toBeGreaterThan(slip)
+})
+
+// A catch on a pin at wheel angle 0: its angle from the pointer is the rotation, wrapped.
+describe('the caught path', () => {
+  const caught = (from: number, drift: number, glideSeconds: number, bend: number, gap: number, scale = 1) => {
+    const to = 360 * Math.ceil((from + 2000) / 360) - gap
+    const phases = spinPhases(glideSeconds * 1000, scale === 1 ? undefined : (500 + glideSeconds * 1000) * scale)
+    const made = buildCatchPath(
+      { from, driftSpeed: drift, to, phases, restGap: gap, peakPast: pinPastPointer(bend), touchAt: pushStart },
+      scale,
+    )
+    const ordinary = buildSpinPath({ from, driftSpeed: drift, to, phases })
+    return { to, made, ordinary, pinAt: (rotation: number) => rotation - (to + gap) }
+  }
+  const inputs: Array<[number, number, number, number, number, number?]> = [
+    [0, 0, 2, 16, 1.98],
+    [123.4, 4, 3, 21, 2.5],
+    [-50, 4, 7, 26, 2.98],
+    [800, 0, 3, 18, 2.2, 0.02],
+  ]
+
+  test('it runs forward to a peak bend short of the slip, then rocks back onto the rest with no speed left', () => {
+    for (const input of inputs) {
+      const [, , , bend, gap, scale = 1] = input
+      const { to, made, pinAt } = caught(...input)
+      const { path, peakMs, contactMs } = made
+      const step = scale === 1 ? 2 : 0.1
+      let peakPin = -Infinity
+      let prev = path.rotationAt(path.durationMs * 0)
+      for (let t = step; t <= path.durationMs; t += step) {
+        const now = path.rotationAt(t)
+        if (t > 500 * scale + step && t <= peakMs) expect(now).toBeGreaterThanOrEqual(prev - 1e-9)
+        if (t > peakMs + step) expect(now).toBeLessThanOrEqual(prev + 1e-9)
+        peakPin = Math.max(peakPin, pinAt(now))
+        prev = now
+      }
+      expect(peakPin).toBeCloseTo(pinPastPointer(bend), 2)
+      expect(peakPin).toBeLessThan(pushEnd)
+      expect(maxBendDegrees).toBeGreaterThan(bend)
+      expect(path.rotationAt(path.durationMs)).toBe(to)
+      expect(Math.abs(path.rotationAt(path.durationMs - 2 * scale) - to)).toBeLessThan(0.01)
+      expect(path.rotationAt(peakMs)).toBeCloseTo(to + gap + pinPastPointer(bend), 6)
+      // The tick time is where the pin first touches the tongue, before the peak.
+      expect(contactMs).toBeLessThan(peakMs)
+      expect(pinAt(path.rotationAt(contactMs))).toBeCloseTo(pushStart, 2)
+      // Once the pin is back past the touch it never re-enters the push range.
+      let out = false
+      for (let t = peakMs; t <= path.durationMs; t += step) {
+        const at = pinAt(path.rotationAt(t))
+        if (at < pushStart) out = true
+        if (out) expect(at).toBeLessThan(pushStart + 1e-6)
+      }
+    }
+  })
+
+  test('the rock takes the rock time and the spin lasts at most 0.6 s more than the ordinary one', () => {
+    for (const input of inputs) {
+      const scale = input[5] ?? 1
+      const { made, ordinary } = caught(...input)
+      expect((made.path.durationMs - made.peakMs) / 1000).toBeCloseTo(catchRockSeconds * scale, 6)
+      expect(made.path.durationMs).toBeLessThanOrEqual(ordinary.durationMs + 600 * scale + 1e-6)
+    }
+  })
+
+  test('the speed at the hand-overs is continuous', () => {
+    const { made } = caught(0, 0, 3, 20, 2.5)
+    for (const edge of [made.peakMs - 100, made.peakMs]) {
+      const before = (made.path.rotationAt(edge - 0.01) - made.path.rotationAt(edge - 0.02)) * 100
+      const after = (made.path.rotationAt(edge + 0.02) - made.path.rotationAt(edge + 0.01)) * 100
+      expect(Math.abs(before - after)).toBeLessThan(0.5)
+    }
+  })
 })
