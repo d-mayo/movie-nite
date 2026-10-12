@@ -11,6 +11,8 @@ import { sliceArcs } from '../wheel/layout.ts'
 import { header, markAway, markHere } from '../test/cells.ts'
 import { defaultWheelSettings, deriveSlices } from '../wheel/edit.ts'
 import type { SoundEngine, SoundSettings } from '../sound/engine.ts'
+import { catchZone, isCatch } from '../wheel/catch.ts'
+import { catchTickShare } from './WheelPanel.tsx'
 import { useWheelMotion } from './useWheelMotion.ts'
 
 function film(id: number, posterPath: string | null = null): Nomination {
@@ -1034,3 +1036,131 @@ test('a slip starts the flash and the fanfare right after the cymbal, while the 
   expect(log.events).toEqual(['break', 'landed', 'end'])
   expect(log.landed).toHaveLength(1)
 }, 40000)
+
+// A catch: the drawn slice (0.5 draws slice 18 of 36), a mid-slice natural rest, then the chance roll,
+// the point in the catch zone and the peak bend.
+const crowd = deriveSlices(['a', 'b', 'c'], { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 }, {})
+const crowdArcs = sliceArcs(crowd)
+const crowdDrawn = drawSlice(crowd, () => 0.5)
+const sequenceOf = (...values: number[]) => {
+  let i = 0
+  return () => values[Math.min(i++, values.length - 1)]
+}
+const tickCount = (ticks: number[]) => ticks.filter((share) => share === catchTickShare).length
+
+test("a roll under a third steers an ordinary spin into the drawn slice's catch zone, at a 2 s Length too", async () => {
+  const { engine, log } = recordingSound()
+  setupCrowd({ random: sequenceOf(0.5, 0.5, 0.1, 0.5, 0.5), spinMs: 40, sound: engine }, 2)
+  expect(catchZone(crowd, crowdArcs, crowdDrawn)).not.toBeNull()
+  fireEvent.click(spinButton())
+  const dialog = await screen.findByRole('dialog')
+  const rest = angleUnderPointer(wheelRotation())
+  expect(rest).toBeGreaterThanOrEqual(crowdArcs[crowdDrawn].start)
+  expect(rest).toBeLessThan(crowdArcs[crowdDrawn].end)
+  expect(isCatch(crowd, crowdArcs, crowdDrawn, rest)).toBe(true)
+  expect(log.cues).toEqual([])
+  expect(within(dialog).getByText(/Nominated by/)).toBeInTheDocument()
+})
+
+test('a roll at or above a third rests where the ordinary rest puts it', async () => {
+  const { engine, log } = recordingSound()
+  setupCrowd({ random: sequenceOf(0.5, 0.5, 0.9, 0.5, 0.5), spinMs: 40, sound: engine }, 2)
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  const rest = angleUnderPointer(wheelRotation())
+  expect(isCatch(crowd, crowdArcs, crowdDrawn, rest)).toBe(false)
+  expect(rest).toBeCloseTo((crowdArcs[crowdDrawn].start + crowdArcs[crowdDrawn].end) / 2, 6)
+  expect(tickCount(log.ticks)).toBe(0)
+})
+
+test('a close call is never a catch', async () => {
+  const { engine, log } = recordingSound()
+  setupCrowd({ random: closeCallRandom, spinMs: 40, sound: engine }, 6)
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(log.cues).toHaveLength(1)
+  expect(isCatch(crowd, crowdArcs, 0, angleUnderPointer(wheelRotation()))).toBe(false)
+  expect(tickCount(log.ticks)).toBe(0)
+})
+
+test('a caught spin ticks once as the pin meets the tongue, before the stop; the landing follows the rock', async () => {
+  const { engine, log } = recordingSound()
+  setupCrowd({ random: sequenceOf(0.5, 0.5, 0.1, 0.5, 0.5), spinMs: 200, sound: engine }, 2)
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(tickCount(log.ticks)).toBe(1)
+  expect(log.ends).toBe(1)
+  expect(log.landed).toEqual([0])
+})
+
+test('reduced motion steers nothing into a catch, and nothing rocks or ticks for one', async () => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('prefers-reduced-motion'),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+  try {
+    const { engine, log } = recordingSound()
+    setupCrowd({ random: sequenceOf(0.5, 0.5, 0.1, 0.5, 0.5), sound: engine }, 2)
+    fireEvent.click(spinButton())
+    let last = wheelRotation()
+    for (let i = 0; i < 60 && !screen.queryByRole('dialog'); i++) {
+      await sleep(25)
+      const now = wheelRotation()
+      expect(now).toBeGreaterThanOrEqual(last - 1e-9)
+      last = now
+    }
+    await screen.findByRole('dialog', undefined, { timeout: 3000 })
+    const rest = angleUnderPointer(wheelRotation())
+    expect(isCatch(crowd, crowdArcs, crowdDrawn, rest)).toBe(false)
+    expect(rest).toBeCloseTo((crowdArcs[crowdDrawn].start + crowdArcs[crowdDrawn].end) / 2, 6)
+    expect(tickCount(log.ticks)).toBe(0)
+  } finally {
+    vi.unstubAllGlobals()
+  }
+}, 8000)
+
+test('without the debug flag there is no Force catches checkbox', () => {
+  setupCrowd({ random: () => 0.5, spinMs: 20 })
+  expect(screen.queryByLabelText('Force catches')).toBeNull()
+})
+
+test('with the debug flag Force catches shows, starts unchecked, locks during a spin and its reveal, and steers a mid-slice random into a catch', async () => {
+  const restore = withQuery('?debug')
+  try {
+    const { engine, log } = recordingSound()
+    setupCrowd({ random: () => 0.5, spinMs: 40, sound: engine }, 2)
+    const box = screen.getByLabelText('Force catches')
+    expect(box).not.toBeChecked()
+    expect(box).toBeEnabled()
+    fireEvent.click(box)
+    fireEvent.click(spinButton())
+    expect(box).toBeDisabled()
+    await screen.findByRole('dialog')
+    expect(box).toBeDisabled()
+    expect(isCatch(crowd, crowdArcs, crowdDrawn, angleUnderPointer(wheelRotation()))).toBe(true)
+    expect(tickCount(log.ticks)).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(box).toBeEnabled()
+  } finally {
+    restore()
+  }
+})
+
+test('with both boxes checked, a slice with a close-call zone gets a close call', async () => {
+  const restore = withQuery('?debug')
+  try {
+    const { engine, log } = recordingSound()
+    setupCrowd({ random: () => 0.5, spinMs: 40, sound: engine }, 6)
+    fireEvent.click(screen.getByLabelText('Force close calls'))
+    fireEvent.click(screen.getByLabelText('Force catches'))
+    fireEvent.click(spinButton())
+    await screen.findByRole('dialog')
+    expect(log.cues).toHaveLength(1)
+    expect(isCatch(crowd, crowdArcs, crowdDrawn, angleUnderPointer(wheelRotation()))).toBe(false)
+    expect(tickCount(log.ticks)).toBe(0)
+  } finally {
+    restore()
+  }
+})
