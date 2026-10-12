@@ -1,7 +1,7 @@
 // The catch: a rest just short of a slice's start-edge pin, where the pin has caught the
 // wheel and the flapper's spring has rocked it back off, as pure rules with no React, DOM or timers.
 
-import { edgeMargin, rotationTo } from './draw.ts'
+import { edgeMargins, rotationTo } from './draw.ts'
 import type { Arc, Slice } from './layout.ts'
 import { closeCallZones, slipClearance } from './closeCall.ts'
 import { pinAngles } from './pins.ts'
@@ -20,7 +20,7 @@ export function catchZone(slices: Slice[], arcs: Arc[], index: number): [number,
   if (!pinAngles(arcs).includes(arc.start)) return null
   const from = arc.start + slipClearance
   const to = from + catchWidth
-  if (to > arc.end - edgeMargin(arc)) return null
+  if (to > arc.end - edgeMargins(arc).end) return null
   if (closeCallZones(slices, arcs, index).some(([zoneFrom, zoneTo]) => from < zoneTo && zoneFrom < to)) return null
   return [from, to]
 }

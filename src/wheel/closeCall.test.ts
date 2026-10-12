@@ -9,7 +9,7 @@ import {
   slipReach,
 } from './closeCall.ts'
 import { maxBendDegrees, pinPastPointer, pushEnd, targetBend } from './pins.ts'
-import { angleUnderPointer, edgeMargin, restRotation } from './draw.ts'
+import { angleUnderPointer, edgeMargins, endClearance, restRotation } from './draw.ts'
 import { sliceArcs, type Slice } from './layout.ts'
 
 const film = (viewerId: string, weight = 1): Slice => ({ kind: 'nomination', viewerId, weight })
@@ -65,10 +65,11 @@ test('a rest just past a pinned end edge, once the flapper has slipped off it, i
 })
 
 test('the middle of a slice is not a close call, and an ordinary rest can be a slip', () => {
+  expect(slipClearance).toBe(endClearance)
   expect(isCloseCall(alternating, altArcs, 3, 52.5)).toBe(false)
   expect(closeCallZones(alternating, altArcs, 3)).toHaveLength(2)
-  // The ordinary rest range (1.2° in) includes the slip zone but not the bend zone.
-  const natural = restRotation(0, altArcs, 3, () => 0.8, 3)
+  // The ordinary rest range (the push range plus 0.2° in) includes the slip zone but not the bend zone.
+  const natural = restRotation(0, altArcs, 3, () => 0.9, 3)
   expect(isCloseCall(alternating, altArcs, 3, angleUnderPointer(natural))).toBe(true)
 })
 
@@ -89,8 +90,8 @@ test('a narrow slice cuts the slip zone to where it can rest, and the bend zone 
   expect(arcs[1].end - arcs[1].start).toBeLessThan(slipReach)
   const [bend, slip] = closeCallZones(slices, arcs, 1)
   expect(bend[1]).toBeLessThanOrEqual(arcs[1].start)
-  expect(slip[0]).toBeGreaterThanOrEqual(arcs[1].start + edgeMargin(arcs[1]) - 1e-9)
-  expect(slip[1]).toBeLessThanOrEqual(arcs[1].end - edgeMargin(arcs[1]) + 1e-9)
+  expect(slip[0]).toBeGreaterThanOrEqual(arcs[1].start + edgeMargins(arcs[1]).start - 1e-9)
+  expect(slip[1]).toBeLessThanOrEqual(arcs[1].end - edgeMargins(arcs[1]).end + 1e-9)
   expect(slip[1]).toBeGreaterThan(slip[0])
 })
 
@@ -153,5 +154,5 @@ test('the forced rest rotation reports no zone where none qualifies', () => {
 })
 
 test('the plain restRotation is untouched by the close-call rule', () => {
-  expect(restRotation(0, altArcs, 3, () => 0.5, 5)).toBeCloseTo(1800 + 360 - 52.5, 9)
+  expect(restRotation(0, altArcs, 3, () => 0.5, 5)).toBeCloseTo(1800 + 360 - (45 + (edgeMargins(altArcs[3]).start + 15 - edgeMargins(altArcs[3]).end) / 2), 9)
 })

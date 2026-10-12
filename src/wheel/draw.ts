@@ -1,8 +1,14 @@
 import type { Arc, Slice } from './layout.ts'
+import { pushEnd, pushStart } from './pins.ts'
 
 // The pointer is fixed at the top; arcs run clockwise from the top of the
 // wheel and the wheel rotates clockwise by `rotation` degrees.
-const maxMarginDegrees = 1.2
+
+// The room kept beyond the flapper's push range, so a pin just outside it never touches the tongue.
+export const pushAllowance = 0.2
+// How far a rest keeps from a slice's start edge (the pin coming up to the pointer) and from its end edge (the pin just past it).
+export const startClearance = -pushStart + pushAllowance
+export const endClearance = pushEnd + pushAllowance
 
 export function cryptoRandom(): number {
   const buffer = new Uint32Array(1)
@@ -27,10 +33,13 @@ export function angleUnderPointer(rotation: number): number {
   return (((-rotation % 360) + 360) % 360)
 }
 
-// The clearance kept at each edge of a slice: 1.2°, or a quarter of a narrow
-// slice's width.
-export function edgeMargin(arc: Arc): number {
-  return Math.min(maxMarginDegrees, (arc.end - arc.start) / 4)
+// The clearance kept at each edge of a slice: the flapper's push range plus the allowance, so no
+// pin touches the tongue at an ordinary stop, or a quarter of the width at each edge for a slice
+// too narrow for both clearances.
+export function edgeMargins(arc: Arc): { start: number; end: number } {
+  const width = arc.end - arc.start
+  if (width <= startClearance + endClearance) return { start: width / 4, end: width / 4 }
+  return { start: startClearance, end: endClearance }
 }
 
 // A final rotation at least `turns` full turns past `currentRotation`, with
@@ -43,8 +52,8 @@ export function restRotation(
   turns: number,
 ): number {
   const { start, end } = arcs[index]
-  const margin = edgeMargin(arcs[index])
-  const target = start + margin + random() * (end - start - 2 * margin)
+  const margins = edgeMargins(arcs[index])
+  const target = start + margins.start + random() * (end - start - margins.start - margins.end)
   return rotationTo(currentRotation, target, turns)
 }
 

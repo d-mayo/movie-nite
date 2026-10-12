@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest'
 import { catchWidth, catchZone, forcedCatchRotation, isCatch } from './catch.ts'
 import { slipClearance } from './closeCall.ts'
-import { angleUnderPointer, edgeMargin } from './draw.ts'
+import { angleUnderPointer, edgeMargins, endClearance } from './draw.ts'
 import { sliceArcs, type Slice } from './layout.ts'
 import { pushEnd } from './pins.ts'
 
@@ -55,14 +55,23 @@ test('a slice too narrow to hold the zone clear of its end margin has none', () 
     { start: 3.5, end: 360 },
   ]
   expect(catchZone(slices, arcs, 0)).toBeNull()
-  expect(3.5 - edgeMargin(arcs[0])).toBeLessThan(slipClearance + catchWidth)
+  expect(3.5 - edgeMargins(arcs[0]).end).toBeLessThan(slipClearance + catchWidth)
+})
+
+test('a slice just wide enough to hold the zone clear of its end margin has one', () => {
+  const slices = [film('A', 1), film('A', 1)]
+  const width = slipClearance + catchWidth + endClearance
+  const fits = [{ start: 0, end: width + 0.01 }, { start: width + 0.01, end: 360 }]
+  const misses = [{ start: 0, end: width - 0.01 }, { start: width - 0.01, end: 360 }]
+  expect(catchZone(slices, fits, 0)).toEqual([slipClearance, slipClearance + catchWidth])
+  expect(catchZone(slices, misses, 0)).toBeNull()
 })
 
 test('a zone overlapping the slip close-call zone is dropped, the same slice without that close call keeps it', () => {
   // The slip zone is the last 4° of the slice (less the clearance), the catch zone starts 1.98° in.
   const arcs = [
-    { start: 0, end: 4.5 },
-    { start: 4.5, end: 360 },
+    { start: 0, end: 6 },
+    { start: 6, end: 360 },
   ]
   expect(catchZone([film('A'), film('B')], arcs, 0)).toBeNull()
   expect(catchZone([film('A'), film('A')], arcs, 0)).not.toBeNull()

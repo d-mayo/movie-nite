@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { maxBendDegrees, pinPastPointer, pushEnd, pushStart } from './pins.ts'
-import { angleUnderPointer, edgeMargin, restRotation } from './draw.ts'
+import { angleUnderPointer, edgeMargins, restRotation } from './draw.ts'
 import type { Arc } from './layout.ts'
 import {
   buildReducedSpinPath,
@@ -92,7 +92,7 @@ test('T2: the wheel never passes the rest point, and stays in the slice once in'
         to,
         phases: spinPhases(20_000),
       })
-      expect(rest).toBeGreaterThanOrEqual(slice.start + edgeMargin(slice) - 1e-6)
+      expect(rest).toBeGreaterThanOrEqual(slice.start + edgeMargins(slice).start - 1e-6)
 
       let lastEnter = 0
       let inside = false
