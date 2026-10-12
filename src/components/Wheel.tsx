@@ -64,7 +64,7 @@ function Defs({ uid, colors }: { uid: string; colors: string[] }) {
   )
 }
 
-const stick = { top: -radius, bottom: -sticksInner, slant: -7 }
+const stick = { outer: radius, inner: sticksInner, slant: -7 }
 
 // The M of the Movie Nite logo, a copy of the dark icon's inner group (src/assets/logo/logo-icon-dark.svg)
 // that a test keeps identical; its colors come from the film palette by class.
@@ -92,13 +92,12 @@ function Slate({ wedge, clipId }: { wedge: Wedge; clipId: string }) {
   const { arc } = wedge
   const mid = (arc.start + arc.end) / 2
   const width = arc.end - arc.start
-  const reach = width >= 180 ? radius : radius * Math.sin((width / 2) * (Math.PI / 180))
   const mark = layoutWatermark(width)
   return (
     <g clipPath={`url(#${clipId})`}>
       <g transform={`rotate(${mid})`}>
         <g data-testid="sticks">
-          <path data-testid="stick" className="film-fill-cream" d={barsPath(stick, reach)} />
+          <path data-testid="stick" className="film-fill-cream" d={barsPath(stick, width / 2)} />
         </g>
         {mark && (
           <g

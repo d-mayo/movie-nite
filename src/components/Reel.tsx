@@ -17,21 +17,33 @@ const frameInset = 0.25
 const barPitch = 8
 const barWidth = 4
 
-// A clapper stick's bars: slanted parallelograms on a grid anchored at the middle radius,
-// spanning `reach` either side of it.
+// A clapper stick's bars, following the ring: slanted quads between two radii on a grid of
+// equal arc length at the band's middle radius, anchored at the straight-up line, out to
+// `halfDeg` either side of it. The inner edge is shifted `slant` units along the arc.
 export function barsPath(
-  band: { top: number; bottom: number; slant: number },
-  reach: number,
+  band: { outer: number; inner: number; slant: number },
+  halfDeg: number,
 ): string {
-  const n = Math.ceil(reach / barPitch) + 2
+  const mid = (band.outer + band.inner) / 2
+  const toRad = (units: number) => units / mid
+  const n = Math.ceil(((Math.min(halfDeg, 180) * Math.PI) / 180) * mid / barPitch) + 2
+  const at = (angle: number, r: number) => polar(angle, r)
   const parts: string[] = []
   for (let k = -n; k <= n; k++) {
-    const x = k * barPitch - barWidth / 2 - band.slant / 2
+    const x = k * barPitch
+    const o0 = toRad(x - barWidth / 2 - band.slant / 2)
+    const o1 = toRad(x + barWidth / 2 - band.slant / 2)
+    const i0 = toRad(x - barWidth / 2 + band.slant / 2)
+    const i1 = toRad(x + barWidth / 2 + band.slant / 2)
     parts.push(
-      `M ${x} ${band.top} h ${barWidth} l ${band.slant} ${band.bottom - band.top} h ${-barWidth} Z`,
+      `M ${at(o0, band.outer)} L ${at(o1, band.outer)} L ${at(i1, band.inner)} L ${at(i0, band.inner)} Z`,
     )
   }
   return parts.join(' ')
+}
+
+function polar(angleRad: number, r: number): string {
+  return `${(r * Math.sin(angleRad)).toFixed(3)} ${(-r * Math.cos(angleRad)).toFixed(3)}`
 }
 
 function rotated(x: number, y: number, angle: number): string {
@@ -86,7 +98,6 @@ function Reel({ wedges }: { wedges: Wedge[] }) {
         const wild = wedge.slice.kind === 'wildcard'
         const d = framePath(wedge.arc.start, wedge.arc.end)
         const width = wedge.arc.end - wedge.arc.start
-        const reach = width >= 180 ? frameOuter : frameOuter * Math.sin((width / 2) * (Math.PI / 180))
         return (
           <g key={i}>
             <path
@@ -106,7 +117,7 @@ function Reel({ wedges }: { wedges: Wedge[] }) {
                   <path
                     data-testid="frame-stick"
                     className="film-fill-cream"
-                    d={barsPath({ top: -frameOuter, bottom: -frameInner, slant: 7 }, reach)}
+                    d={barsPath({ outer: frameOuter, inner: frameInner, slant: 7 }, width / 2)}
                   />
                 </g>
               </g>

@@ -19,7 +19,7 @@ export const hubRadius = 28
 export const labelOuter = 96
 // The clapper's inner stick fills the rim from here out to the wedge's edge at 100; its outer stick is the reel's frame.
 export const sticksInner = 93
-const wordOuter = sticksInner - 3.5
+const wordOuter = sticksInner - 6
 const edgeMargin = 0.7
 const padding = 1.2
 const lineGap = 1
@@ -169,7 +169,7 @@ export function layoutWildcard(widthDeg: number): TextPlace {
 // The M's painted box in the logo's inner units is 437.5 wide and 372.5 tall.
 export const markWidth = 437.5
 export const markHeight = 372.5
-const markMaxHeight = 42
+const markMaxHeight = 32
 const markMinHeight = 14
 // The share of the M's width the slice's chord must show.
 const markVisible = 0.6
