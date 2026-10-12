@@ -155,7 +155,7 @@ describe('layoutWatermark', () => {
   it('sits between the sticks and the hub, and is left out on a narrow slice', () => {
     const big = layoutWatermark(90)!
     expect(big.radius).toBeCloseTo((sticksInner + hubRadius) / 2)
-    const small = layoutWatermark(30)!
+    const small = layoutWatermark(20)!
     expect(small.scale).toBeLessThan(big.scale)
     expect(layoutWatermark(8)).toBeNull()
   })

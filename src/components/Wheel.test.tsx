@@ -6,7 +6,9 @@ import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import { presetColors } from '../wheel/colors.ts'
 import { markAway, markHere, removeViewer } from '../test/cells.ts'
-import { defaultWheelSettings, maxWeight, minWeight } from '../wheel/edit.ts'
+import { defaultWheelSettings } from '../wheel/edit.ts'
+import type { Wedge } from '../wheel/wedges.ts'
+import Wheel from './Wheel.tsx'
 
 function film(id: number, posterPath: string | null): Nomination {
   return {
@@ -127,7 +129,7 @@ test('the wheel has the grown viewBox, with the reel turning with the wedges and
   const fills = frames.map((f) => f.getAttribute('fill'))
   expect(fills.filter((f) => f === ann.color)).toHaveLength(3)
   expect(fills.filter((f) => f === bo.color)).toHaveLength(3)
-  expect(fills.filter((f) => f === '#5a5a54')).toHaveLength(frames.length - 6)
+  expect(fills.filter((f) => f === null)).toHaveLength(frames.length - 6)
   const holes = within(reel as HTMLElement).getByTestId('sprocket-holes')
   expect(holes.getAttribute('d')!.match(/M /g)).toHaveLength(288)
   expect(within(reel as HTMLElement).getByTestId('reel-ring').getAttribute('r')).toBe('100')
@@ -195,7 +197,7 @@ test('pins sit on the turning strip and the flapper hangs outside it, its tip in
 
 const wildcards = () => wedges().filter((w) => w.getAttribute('data-kind') === 'wildcard')
 
-test('a wildcard is a clapperboard slate: stock body, two sticks, the M, and the word in cream', () => {
+test('a wildcard is a clapperboard slate: stock body, the inner stick (the outer one is on the reel frame), the M, and the word in cream', () => {
   setup()
   addViewers(['Ann', 'Bo'])
   const wild = wildcards()
@@ -204,7 +206,7 @@ test('a wildcard is a clapperboard slate: stock body, two sticks, the M, and the
     const body = w.querySelector(':scope > path')!
     expect(body.getAttribute('class')).toBe('film-fill-stock')
     expect(body.hasAttribute('fill')).toBe(false)
-    expect(within(w).getAllByTestId('stick')).toHaveLength(2)
+    expect(within(w).getAllByTestId('stick')).toHaveLength(1)
     for (const stick of within(w).getAllByTestId('stick')) {
       expect(stick.getAttribute('class')).toBe('film-fill-cream')
     }
@@ -214,6 +216,10 @@ test('a wildcard is a clapperboard slate: stock body, two sticks, the M, and the
     expect(word.getAttribute('class')).toContain('wheel-label-word')
     expect(word.parentElement!.querySelector('rect')).toBeNull()
   }
+  // The outer stick is the reel's frame, striped in cream.
+  const frameSticks = screen.getAllByTestId('frame-stick')
+  expect(frameSticks).toHaveLength(wild.length)
+  for (const f of frameSticks) expect(f.getAttribute('class')).toBe('film-fill-cream')
   // The sticks lie in each slice's own turned frame, drawn the same way on every wildcard.
   const sticks = wild.map((w) => within(w).getAllByTestId('stick')[0].getAttribute('d'))
   expect(new Set(sticks).size).toBe(1)
@@ -222,15 +228,14 @@ test('a wildcard is a clapperboard slate: stock body, two sticks, the M, and the
 })
 
 test('a very narrow wildcard has no watermark and shows a ? instead of the word', () => {
-  const store = setup()
-  addViewers(['Ann', 'Bo'])
-  act(() => {
-    store.getState().setWildcardsPerViewer(false)
-    store.getState().setWildcardCount(1)
-    store.getState().setWildcardWeight(minWeight)
-    store.getState().setDefaultWeight(maxWeight)
-  })
-  const [wild] = wildcards()
-  expect(within(wild).queryByTestId('watermark')).toBeNull()
-  expect(within(wild).getByTestId('wildcard-word').textContent).toBe('?')
+  const wedge = {
+    arc: { start: 0, end: 1.5 },
+    slice: { kind: 'wildcard', weight: 1 },
+    color: '#000000',
+    viewerName: null,
+    nomination: null,
+  } as unknown as Wedge
+  render(<Wheel wedges={[wedge]} groupRef={null} />)
+  expect(screen.queryByTestId('watermark')).toBeNull()
+  expect(screen.getByTestId('wildcard-word').textContent).toBe('?')
 })

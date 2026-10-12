@@ -4,7 +4,7 @@ import { mixColor } from '../wheel/colors.ts'
 import { layoutLabel, layoutWatermark, layoutWildcard, markHeight, markWidth, sticksInner } from '../wheel/labels.ts'
 import { pivotY } from '../wheel/pins.ts'
 import type { Wedge } from '../wheel/wedges.ts'
-import Reel from './Reel.tsx'
+import Reel, { barsPath } from './Reel.tsx'
 
 // The flapper's tongue hangs from the pivot screw at `pivotY`; its tip reaches inside the pins.
 const tongue = 'M -3.4 -118 L 3.4 -118 L 0.7 -103.3 Q 0 -102.3 -0.7 -103.3 Z'
@@ -64,25 +64,7 @@ function Defs({ uid, colors }: { uid: string; colors: string[] }) {
   )
 }
 
-const stickBars = [
-  { top: -radius, bottom: -radius + 7, slant: 7 },
-  { top: -sticksInner - 7, bottom: -sticksInner, slant: -7 },
-]
-const barPitch = 8
-const barWidth = 4
-
-// One stick's bars: slanted parallelograms on a grid anchored at the middle radius.
-function barsPath(band: (typeof stickBars)[number], reach: number): string {
-  const n = Math.ceil(reach / barPitch) + 2
-  const parts: string[] = []
-  for (let k = -n; k <= n; k++) {
-    const x = k * barPitch - barWidth / 2 - band.slant / 2
-    parts.push(
-      `M ${x} ${band.top} h ${barWidth} l ${band.slant} ${band.bottom - band.top} h ${-barWidth} Z`,
-    )
-  }
-  return parts.join(' ')
-}
+const stick = { top: -radius, bottom: -sticksInner, slant: -7 }
 
 // The M of the Movie Nite logo, a copy of the dark icon's inner group (src/assets/logo/logo-icon-dark.svg)
 // that a test keeps identical; its colors come from the film palette by class.
@@ -116,9 +98,7 @@ function Slate({ wedge, clipId }: { wedge: Wedge; clipId: string }) {
     <g clipPath={`url(#${clipId})`}>
       <g transform={`rotate(${mid})`}>
         <g data-testid="sticks">
-          {stickBars.map((band, i) => (
-            <path key={i} data-testid="stick" className="film-fill-cream" d={barsPath(band, reach)} />
-          ))}
+          <path data-testid="stick" className="film-fill-cream" d={barsPath(stick, reach)} />
         </g>
         {mark && (
           <g

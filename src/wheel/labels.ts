@@ -17,9 +17,9 @@ const fallbackAdvance = 557
 export const capHeight = 0.7
 export const hubRadius = 28
 export const labelOuter = 96
-// The clapper's sticks fill the rim from here out to the wedge's edge at 100.
-export const sticksInner = 85
-const wordOuter = sticksInner - 1.5
+// The clapper's inner stick fills the rim from here out to the wedge's edge at 100; its outer stick is the reel's frame.
+export const sticksInner = 93
+const wordOuter = sticksInner - 3.5
 const edgeMargin = 0.7
 const padding = 1.2
 const lineGap = 1
@@ -162,35 +162,24 @@ export function layoutWildcard(widthDeg: number): TextPlace {
   return wordAt('?', lo)
 }
 
-// Where the wildcard's M watermark goes: centered between the sticks and the hub, at the largest
-// size that fits the slice, or null when it would be too small to recognize.
+// Where the wildcard's M watermark goes: centered between the sticks and the hub, as large as
+// the radial room and a cap allow, and at most as wide as the slice's chord there allows
+// (a little of it may be cut off by the slice's edges), or null when the slice is so narrow
+// that it would be too small to recognize.
 // The M's painted box in the logo's inner units is 437.5 wide and 372.5 tall.
 export const markWidth = 437.5
 export const markHeight = 372.5
-const markMaxHeight = 36
+const markMaxHeight = 42
 const markMinHeight = 14
+// The share of the M's width the slice's chord must show.
+const markVisible = 0.6
 
 export function layoutWatermark(widthDeg: number): { radius: number; scale: number } | null {
   if (!(widthDeg > 0)) return null
   const half = halfAngleOf(widthDeg)
-  const fits = (scale: number): boolean => {
-    const h = markHeight * scale
-    const w = markWidth * scale
-    const inner = watermarkCenter - h / 2
-    if (inner < hubRadius || watermarkCenter + h / 2 > sticksInner) return false
-    if (half >= Math.PI / 2) return true
-    return inner * Math.sin(half) - (w / 2) * Math.cos(half) >= edgeMargin
-  }
-  let lo = 0
-  let hi = markMaxHeight / markHeight
-  if (fits(hi)) lo = hi
-  else {
-    for (let i = 0; i < 30; i++) {
-      const mid = (lo + hi) / 2
-      if (fits(mid)) lo = mid
-      else hi = mid
-    }
-  }
-  if (markHeight * lo < markMinHeight) return null
-  return { radius: watermarkCenter, scale: lo }
+  const chord = half >= Math.PI / 2 ? Infinity : 2 * watermarkCenter * Math.sin(half)
+  const radial = (sticksInner - hubRadius) / markHeight
+  const scale = Math.min(markMaxHeight / markHeight, radial, chord / (markVisible * markWidth))
+  if (markHeight * scale < markMinHeight) return null
+  return { radius: watermarkCenter, scale }
 }
