@@ -192,6 +192,88 @@ export function buildCloseCallPath(base: SpinPath, to: number, scale = 1): Close
   return { path: { durationMs, rotationAt }, cueMs: handoff }
 }
 
+// A catch: the wheel runs on into the slice's start-edge pin, which bends the flapper to a peak, and the
+// flapper's spring rocks the wheel back off the pin onto a rest just short of it. The ordinary
+// glide is aimed `catchCoastDegrees` past the peak, and a short braking from where it has
+// the speed to stop within `catchBrakeSeconds` takes it to the peak with no speed left, and a half-cosine
+// rock of `catchRockSeconds` brings it back onto the rest with none either, so the speed has no jump anywhere.
+export const catchCoastDegrees = 4
+export const catchBrakeSeconds = 0.1
+export const catchRockSeconds = 0.5
+
+export interface CatchPath {
+  path: SpinPath
+  // When the pin first touches the tongue, in ms from the press (before the peak).
+  contactMs: number
+  // When the wheel is at the peak, in ms from the press.
+  peakMs: number
+}
+
+interface CatchInput extends Omit<PathInput, 'to'> {
+  // The rest rotation.
+  to: number
+  // How far (degrees) the pin is from the pointer's line at the rest, short of the pointer (positive), and at the peak, past it.
+  restGap: number
+  peakPast: number
+  // The pin's angle from the pointer at which it first touches the tongue (negative).
+  touchAt: number
+}
+
+// The caught path from `from` (see `PathInput`) to the rest `to`; `scale` shortens the braking and the rock (a test's short spin).
+export function buildCatchPath({ restGap, peakPast, touchAt, to, ...input }: CatchInput, scale = 1): CatchPath {
+  const peak = to + restGap + peakPast
+  const touch = to + restGap + touchAt
+  const base = buildSpinPath({ ...input, to: peak + catchCoastDegrees })
+  const brake = catchBrakeSeconds * scale
+  const rock = catchRockSeconds * scale
+  const glideStart = input.phases.windUpMs
+  const speedAt = (ms: number) => {
+    const lo = Math.max(ms - 5, 0)
+    const hi = Math.min(ms + 5, base.durationMs)
+    return ((base.rotationAt(hi) - base.rotationAt(lo)) / (hi - lo)) * 1000
+  }
+  // Where the glide reaches the peak, then the hand-over before it: the braking at constant
+  // deceleration covers half the speed times its time, so the distance left to the peak equals that.
+  let lo = Math.min(glideStart, base.durationMs)
+  let hi = base.durationMs
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2
+    if (base.rotationAt(mid) < peak) lo = mid
+    else hi = mid
+  }
+  let handoffLo = Math.min(glideStart, base.durationMs)
+  let handoffHi = hi
+  for (let i = 0; i < 40; i++) {
+    const mid = (handoffLo + handoffHi) / 2
+    if (peak - base.rotationAt(mid) > (speedAt(mid) * brake) / 2) handoffLo = mid
+    else handoffHi = mid
+  }
+  const handoff = handoffHi
+  const handoffAt = base.rotationAt(handoff)
+  const handoffSpeed = speedAt(handoff)
+  const peakMs = handoff + brake * 1000
+  const durationMs = peakMs + rock * 1000
+  const rotationAt = (ms: number) => {
+    if (ms <= handoff) return base.rotationAt(ms)
+    if (ms >= durationMs) return to
+    if (ms < peakMs) {
+      const seconds = (ms - handoff) / 1000
+      return handoffAt + handoffSpeed * (seconds - (seconds * seconds) / (2 * brake))
+    }
+    const s = (ms - peakMs) / 1000 / rock
+    return peak - (peak - to) * ((1 - Math.cos(Math.PI * s)) / 2)
+  }
+  // The first time the glide has turned to the touch (forward only up to the peak).
+  let touchLo = Math.min(glideStart, base.durationMs)
+  let touchHi = peakMs
+  for (let i = 0; i < 40; i++) {
+    const mid = (touchLo + touchHi) / 2
+    if (rotationAt(mid) < touch) touchLo = mid
+    else touchHi = mid
+  }
+  return { path: { durationMs, rotationAt }, contactMs: touchHi, peakMs }
+}
+
 // The first time (ms into `path`, from `fromMs` on) at which the path has turned to `rotation`,
 // for a path that only moves forward from `fromMs`.
 export function timeAtRotation(path: SpinPath, rotation: number, fromMs = 0): number {

@@ -12,10 +12,12 @@ import {
   isCloseCall,
   slipDegrees,
 } from '../wheel/closeCall.ts'
-import { pinAngles } from '../wheel/pins.ts'
+import { catchChance, forcedCatchRotation, isCatch } from '../wheel/catch.ts'
+import { pinAngles, pinPastPointer, pushStart } from '../wheel/pins.ts'
 import { buildWedges, type Wedge } from '../wheel/wedges.ts'
 import { spinPlan } from '../wheel/edit.ts'
 import {
+  buildCatchPath,
   buildCloseCallPath,
   buildReducedSpinPath,
   buildSpinPath,
@@ -73,6 +75,8 @@ export const revealHoldMs = 650
 
 // The pointer's height as a share of the wheel's width, which is the zoom's origin (8.5% down the wheel).
 const pointerShare = 0.085
+// How hard the catch's tick sounds, as a share of the spin's top speed: the wheel is slow there.
+export const catchTickShare = 0.2
 // After an early landing (a slip), the reveal waits at least this long after the wheel stops creeping.
 const slipSettleMs = 600
 
@@ -106,6 +110,7 @@ export default function WheelPanel({
   // The debug query flag, read once, and its unsaved checkbox.
   const [debug] = useState(() => new URLSearchParams(window.location.search).has('debug'))
   const [forceCloseCalls, setForceCloseCalls] = useState(false)
+  const [forceCatches, setForceCatches] = useState(false)
   const holdTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const vignetteRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
@@ -171,10 +176,19 @@ export default function WheelPanel({
       closeCallsOn &&
       (forceCloseCalls || (!isCloseCall(slices, arcs, drawn, angleUnderPointer(natural)) && random() < closeCallChance))
     const forced = steer ? forcedRestRotation(from, slices, arcs, drawn, random, plan.turns) : null
-    const to = forced ?? natural
-    const rest = angleUnderPointer(to)
-    const kind = closeCallsOn ? closeCallKind(slices, arcs, drawn, rest) : null
+    const afterClose = forced ?? natural
+    const kind = closeCallsOn ? closeCallKind(slices, arcs, drawn, angleUnderPointer(afterClose)) : null
     const closeCall = kind !== null
+    // A spin that is not a close call is steered into a catch zone of the drawn slice (a third of
+    // them, or every one with the debug checkbox), unless it already rests in one. Not with reduced
+    // motion, which has no rock.
+    const catchSteer =
+      !closeCall &&
+      !reduced &&
+      (forceCatches || (!isCatch(slices, arcs, drawn, angleUnderPointer(afterClose)) && random() < catchChance))
+    const to = (catchSteer && forcedCatchRotation(from, slices, arcs, drawn, random, plan.turns)) || afterClose
+    const rest = angleUnderPointer(to)
+    const caught = !closeCall && !reduced && isCatch(slices, arcs, drawn, rest)
     const ordinary = reduced
       ? buildReducedSpinPath(from, to, spinMs ?? plan.durationMs)
       : buildSpinPath({ from, driftSpeed: speed, to, phases: spinPhases(plan.durationMs, spinMs) })
@@ -184,7 +198,23 @@ export default function WheelPanel({
       closeCall && !reduced
         ? buildCloseCallPath(ordinary, to, spinMs === undefined ? 1 : spinMs / (windUpMs + plan.durationMs))
         : null
-    const path = close?.path ?? ordinary
+    // A catch runs on into the start edge's pin and rocks back off it; the peak bend is drawn from 16° to 26°.
+    const scale = spinMs === undefined ? 1 : spinMs / (windUpMs + plan.durationMs)
+    const caughtPath = caught
+      ? buildCatchPath(
+          {
+            from,
+            driftSpeed: speed,
+            to,
+            phases: spinPhases(plan.durationMs, spinMs),
+            restGap: rest - arcs[drawn].start,
+            peakPast: pinPastPointer(16 + random() * 10),
+            touchAt: pushStart,
+          },
+          scale,
+        )
+      : null
+    const path = caughtPath?.path ?? close?.path ?? ordinary
     const cueMs = close?.cueMs ?? 0
     setSpin({ wedges, drawn, landed: false, revealedAt: null, closeCall, zoom: null })
     onBusyChange(true)
@@ -224,6 +254,8 @@ export default function WheelPanel({
         })
       }
     }
+    // A catch's one tick, as the pin first meets the tongue; no pin slips off in a catch, so it has no other.
+    if (caughtPath) cues.push({ atMs: caughtPath.contactMs, fire: () => sound.pinTick(catchTickShare) })
     // The landing: the stinger's hit and the reveal after `holdMs`; a close call holds its zoom, then
     // eases it back (the hold's last part) before the reveal opens.
     function land(holdMs: number) {
@@ -302,6 +334,17 @@ export default function WheelPanel({
           />{' '}
           Force close calls
           {!closeCallsAvailable && ` (needs a spin Length of ${closeCallMinSpinSeconds} s or more)`}
+        </label>
+      )}
+      {debug && (
+        <label className="debug-force">
+          <input
+            type="checkbox"
+            checked={forceCatches}
+            disabled={spin !== null}
+            onChange={(e) => setForceCatches(e.target.checked)}
+          />{' '}
+          Force catches
         </label>
       )}
       {reason && !reasonSlot && <p>{reason}</p>}
