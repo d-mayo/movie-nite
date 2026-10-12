@@ -1,6 +1,6 @@
 // The close call: a rest near a pinned slice edge with a different outcome across it, as pure rules with no React, DOM or timers.
 
-import { edgeMargin, rotationTo } from './draw.ts'
+import { edgeMargins, endClearance, rotationTo } from './draw.ts'
 import type { Arc, Slice } from './layout.ts'
 import { maxBendDegrees, pinAngles, pinPastPointer, pushEnd } from './pins.ts'
 
@@ -19,7 +19,7 @@ export const closeCallChance = 0.3
 // and the wheel stops within `slipReach` of it.
 export const bendLeast = (maxBendDegrees * 2) / 3
 export const bendMost = maxBendDegrees * 0.9
-export const slipClearance = pushEnd + 0.2
+export const slipClearance = endClearance
 export const slipReach = 4
 
 // A bend: the start edge's pin catches the flapper and the wheel stops short of it. A slip:
@@ -39,7 +39,7 @@ interface Zone {
 function zonesOf(slices: Slice[], arcs: Arc[], index: number): Zone[] {
   const pins = pinAngles(arcs)
   const arc = arcs[index]
-  const margin = edgeMargin(arc)
+  const margins = edgeMargins(arc)
   const count = slices.length
   const differs = (other: number) => outcome(slices[other]) !== outcome(slices[index])
   const zones: Zone[] = []
@@ -50,8 +50,8 @@ function zonesOf(slices: Slice[], arcs: Arc[], index: number): Zone[] {
   const nextStart = index === count - 1 ? 0 : arcs[index + 1].start
   if (pins.includes(nextStart) && differs((index + 1) % count)) {
     zones.push({
-      from: Math.max(arc.end - slipReach, arc.start + margin),
-      to: Math.min(arc.end - slipClearance, arc.end - margin),
+      from: Math.max(arc.end - slipReach, arc.start + margins.start),
+      to: Math.min(arc.end - slipClearance, arc.end - margins.end),
       kind: 'slip',
     })
   }
