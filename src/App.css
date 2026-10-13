@@ -1621,9 +1621,11 @@ dialog.wheel-drawer:focus {
   margin: 0;
   padding: 0;
   list-style: none;
-  flex-direction: column;
-  gap: 0.25rem;
-  align-items: flex-end;
+  /* Rows fill a column from the top, then spill into the next column to the left, clear of the Show viewers tab. */
+  grid-auto-flow: column;
+  direction: rtl;
+  gap: 0.25rem 1.25rem;
+  justify-items: end;
   font-size: 1.2rem;
   font-weight: 700;
   opacity: 0.6;
@@ -1631,6 +1633,7 @@ dialog.wheel-drawer:focus {
 }
 
 .viewer-key li {
+  direction: ltr;
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -1657,6 +1660,6 @@ dialog.wheel-drawer:focus {
 
 @media (min-width: 900px) {
   .viewer-key {
-    display: flex;
+    display: grid;
   }
 }
