@@ -51,7 +51,8 @@ function Defs({ uid, colors }: { uid: string; colors: string[] }) {
             y2={-posterInner}
           >
             <stop offset="0" stopColor={mixColor(color, '#000000', 0.22)} stopOpacity="0" />
-            <stop offset="1" stopColor={mixColor(color, '#000000', 0.3)} stopOpacity="0.75" />
+            <stop offset="0.6" stopColor={mixColor(color, '#000000', 0.28)} stopOpacity="0.4" />
+            <stop offset="1" stopColor={mixColor(color, '#000000', 0.3)} stopOpacity="1" />
           </linearGradient>
         )
       })}
