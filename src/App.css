@@ -1615,17 +1615,15 @@ dialog.wheel-drawer:focus {
   display: none;
   position: fixed;
   top: 6rem;
-  right: var(--space-3, 1rem);
+  left: var(--space-3, 1rem);
   /* above a close call's vignette (2) and the viewer pane (3), under the banner (5) */
   z-index: 4;
   margin: 0;
   padding: 0;
   list-style: none;
-  /* Rows fill a column from the top, then spill into the next column to the left, clear of the Show viewers tab. */
-  grid-auto-flow: column;
-  direction: rtl;
-  gap: 0.25rem 1.25rem;
-  justify-items: end;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
   font-size: 1.2rem;
   font-weight: 700;
   opacity: 0.6;
@@ -1633,7 +1631,6 @@ dialog.wheel-drawer:focus {
 }
 
 .viewer-key li {
-  direction: ltr;
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -1642,7 +1639,7 @@ dialog.wheel-drawer:focus {
 .viewer-key-text {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   line-height: 1.15;
 }
 
@@ -1660,6 +1657,6 @@ dialog.wheel-drawer:focus {
 
 @media (min-width: 900px) {
   .viewer-key {
-    display: grid;
+    display: flex;
   }
 }
