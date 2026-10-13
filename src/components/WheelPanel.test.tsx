@@ -430,6 +430,7 @@ test('the wheel measures nothing in the DOM while it drifts, spins and reveals',
   proto.getBBox = measured
   proto.getComputedTextLength = measured
   const canvas = HTMLCanvasElement.prototype as unknown as Record<string, unknown>
+  const getContext = canvas.getContext
   canvas.getContext = () => ({ measureText: measured })
   try {
     setup(['a', 'b'], { random: () => 0.5, spinMs: 20 })
@@ -440,7 +441,7 @@ test('the wheel measures nothing in the DOM while it drifts, spins and reveals',
   } finally {
     delete proto.getBBox
     delete proto.getComputedTextLength
-    delete canvas.getContext
+    canvas.getContext = getContext
   }
 })
 
