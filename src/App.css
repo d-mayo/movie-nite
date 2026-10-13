@@ -316,6 +316,33 @@ html:has(.wheel-stage[data-zoom]) {
 }
 
 /* The reel's fixed film colors (see the film tokens in index.css). */
+.wheel .film-fill-stock {
+  fill: var(--film-stock);
+}
+
+.wheel .film-fill-cream {
+  fill: var(--film-cream);
+}
+
+.wheel .film-mark-leg {
+  fill: var(--film-steel);
+  stroke: var(--film-steel);
+}
+
+.wheel .film-mark-strip {
+  fill: var(--film-steel-dark);
+}
+
+.wheel .wheel-label {
+  font-family: 'Bebas Neue', Impact, sans-serif;
+  font-kerning: none;
+}
+
+.wheel .wheel-label-title,
+.wheel .wheel-label-word {
+  fill: var(--film-cream);
+}
+
 .wheel .film-stock {
   stroke: var(--film-stock);
 }
@@ -1581,4 +1608,55 @@ dialog.wheel-drawer:focus {
 
 .debug-force + .debug-force {
   margin-left: var(--space-4);
+}
+
+.viewer-key {
+  /* Below 900px the viewer pane cannot be hidden, so there is no key. */
+  display: none;
+  position: fixed;
+  top: 6rem;
+  left: var(--space-3, 1rem);
+  /* above a close call's vignette (2) and the viewer pane (3), under the banner (5) */
+  z-index: 4;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.viewer-key li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.viewer-key-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+
+.viewer-key-title {
+  font-size: 0.8em;
+  font-weight: 400;
+}
+
+.viewer-key-dot {
+  flex: none;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+}
+
+@media (min-width: 900px) {
+  .viewer-key {
+    display: flex;
+  }
 }

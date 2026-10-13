@@ -26,6 +26,7 @@ import {
   setSoundEffects,
   setSoundVolume,
   setSoundMuted,
+  setShowLabels,
   restoreWheelSettings,
   setToken,
   setViewersHidden,
@@ -83,6 +84,7 @@ export interface AppActions {
   setSoundEffects(level: number): void
   setSoundVolume(volume: number): void
   setSoundMuted(muted: boolean): void
+  setShowLabels(show: boolean): void
   restoreWheelSettings(): void
 }
 
@@ -132,6 +134,7 @@ function mergeWheel(stored: Partial<WheelSettings> | undefined): WheelSettings {
         ? w.soundVolume
         : d.soundVolume,
     soundMuted: typeof w.soundMuted === 'boolean' ? w.soundMuted : d.soundMuted,
+    showLabels: typeof w.showLabels === 'boolean' ? w.showLabels : d.showLabels,
   }
 }
 
@@ -227,6 +230,7 @@ export function createAppStore(persistence: Persistence): AppStore {
       setSoundEffects: (level) => update((s) => setSoundEffects(s, level)),
       setSoundVolume: (volume) => update((s) => setSoundVolume(s, volume)),
       setSoundMuted: (muted) => update((s) => setSoundMuted(s, muted)),
+      setShowLabels: (show) => update((s) => setShowLabels(s, show)),
       restoreWheelSettings: () => update(restoreWheelSettings),
     }
   })

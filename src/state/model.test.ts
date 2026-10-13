@@ -16,6 +16,7 @@ import {
   setSpinTurnsPerSecond,
   setSoundMusic,
   setSoundMuted,
+  setShowLabels,
   setSoundEffects,
   setSoundVolume,
   restoreWheelSettings,
@@ -239,6 +240,7 @@ describe('global wheel settings', () => {
       soundEffects: 100,
       soundVolume: 70,
       soundMuted: false,
+      showLabels: true,
     })
   })
 
@@ -283,6 +285,15 @@ describe('global wheel settings', () => {
     expect(muted.settings.wheel.soundMuted).toBe(true)
     expect(setSoundMuted(muted, true)).toBe(muted)
     expect(restoreWheelSettings(muted).settings.wheel.soundMuted).toBe(false)
+  })
+
+  test('the Show labels setter changes its field, ignores an unchanged value and is restored', () => {
+    expect(defaultState.settings.wheel.showLabels).toBe(true)
+    const hidden = setShowLabels(defaultState, false)
+    expect(hidden.settings.wheel.showLabels).toBe(false)
+    expect(setShowLabels(hidden, false)).toBe(hidden)
+    expect(setShowLabels(hidden, true).settings.wheel.showLabels).toBe(true)
+    expect(restoreWheelSettings(hidden).settings.wheel.showLabels).toBe(true)
   })
 
   test('restoring the wheel settings resets the sound ones too', () => {

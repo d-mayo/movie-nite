@@ -78,6 +78,7 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
     setSoundEffects,
     setSoundVolume,
     setSoundMuted,
+    setShowLabels,
     restoreWheelSettings,
   } = useApp()
   const { wheel } = settings
@@ -269,6 +270,15 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
             <fieldset className="inset-card" disabled={locked} aria-labelledby="defaults-heading">
               <div className="card-head">
                 <h3 id="defaults-heading">Viewer Defaults</h3>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={wheel.showLabels}
+                    onChange={(e) => setShowLabels(e.target.checked)}
+                  />
+                  Show labels
+                </label>
               </div>
               <Stepper
                 label="Slices per viewer"

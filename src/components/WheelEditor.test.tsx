@@ -528,6 +528,25 @@ test('Restore All Defaults is enabled by a sound setting alone, and resets it', 
   expect(restore).toBeDisabled()
 })
 
+test('the Show labels switch hides every viewer label but keeps the wedges and the wildcard word', () => {
+  const store = setup()
+  openEditor()
+  const card = screen.getByRole('heading', { name: 'Viewer Defaults' }).closest('fieldset')!
+  const toggle = within(card as HTMLElement).getByRole('switch', { name: 'Show labels' })
+  expect(toggle).toBeChecked()
+  const wedgeCount = screen.getAllByTestId('wedge').length
+  expect(screen.getAllByTestId('label-tag').length).toBeGreaterThan(0)
+  fireEvent.click(toggle)
+  expect(store.getState().settings.wheel.showLabels).toBe(false)
+  expect(screen.queryAllByTestId('label-tag')).toHaveLength(0)
+  expect(document.querySelectorAll('svg.wheel text.wheel-label:not(.wheel-label-word)')).toHaveLength(0)
+  expect(screen.getAllByTestId('wedge')).toHaveLength(wedgeCount)
+  expect(screen.getAllByTestId('wildcard-word').length).toBeGreaterThan(0)
+  expect(screen.getAllByTestId('watermark').length).toBeGreaterThan(0)
+  fireEvent.click(toggle)
+  expect(screen.getAllByTestId('label-tag').length).toBeGreaterThan(0)
+})
+
 test('a locked drawer disables every control but the Sound card, tick clicks included', () => {
   const store = setup()
   cleanup()
@@ -540,6 +559,7 @@ test('a locked drawer disables every control but the Sound card, tick clicks inc
   const before = store.getState().settings.wheel
   expect(screen.getByRole('switch', { name: 'One per viewer' })).toBeDisabled()
   expect(screen.getByLabelText('Wildcard weight')).toBeDisabled()
+  expect(screen.getByRole('switch', { name: 'Show labels' })).toBeDisabled()
   expect(screen.getByLabelText('Weight per viewer')).toBeDisabled()
   expect(screen.getByLabelText('Length')).toBeDisabled()
   expect(screen.getByLabelText('Intensity')).toBeDisabled()
@@ -592,4 +612,33 @@ describe('the gear menu', () => {
     act(() => vi.advanceTimersByTime(1000))
     expect(isShown()).toBe(true)
   })
+})
+
+test('with labels off and the viewer pane hidden, a dimmed key lists the viewers and their colors', () => {
+  const store = setup()
+  const key = () => screen.queryByRole('list', { name: "Tonight's viewers" })
+  expect(key()).toBeNull()
+  act(() => {
+    store.getState().setShowLabels(false)
+  })
+  expect(key()).toBeNull()
+  act(() => {
+    store.getState().setViewersHidden(true)
+  })
+  const items = within(key()!).getAllByRole('listitem')
+  expect(items).toHaveLength(store.getState().night.presentIds.length)
+  const first = store.getState().roster.find((v) => v.id === store.getState().night.presentIds[0])!
+  expect(items[0]).toHaveTextContent(first.name)
+  expect((items[0].querySelector('.viewer-key-dot') as HTMLElement).style.background).not.toBe('')
+  // A viewer's film shows under their name, and a winner drops off the key.
+  const [firstId, secondId] = store.getState().night.presentIds
+  act(() => store.getState().nominate(firstId, film(1)))
+  expect(items[0]).toHaveTextContent('Film 1')
+  act(() => store.getState().nominate(secondId, film(2)))
+  act(() => store.getState().recordOutcome(film(1), 'watch', true))
+  expect(within(key()!).getAllByRole('listitem')).toHaveLength(items.length - 1)
+  act(() => {
+    store.getState().setShowLabels(true)
+  })
+  expect(key()).toBeNull()
 })

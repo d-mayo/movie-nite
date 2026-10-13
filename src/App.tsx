@@ -6,6 +6,7 @@ import './App.css'
 import { HeldFilmCard, HeldFilmChip, type FocusRequest } from './components/HeldFilm.tsx'
 import NightControls from './components/NightControls.tsx'
 import NightSetup from './components/NightSetup.tsx'
+import ViewerKey from './components/ViewerKey.tsx'
 import WheelPanel from './components/WheelPanel.tsx'
 import TokenPrompt from './components/TokenPrompt.tsx'
 import type { SoundEngine } from './sound/engine.ts'
@@ -151,6 +152,7 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
             />
           </div>
         </div>
+        <ViewerKey />
         {hidden && (
           <button
             type="button"
