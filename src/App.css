@@ -185,6 +185,24 @@ footer p {
     margin: 0;
   }
 
+  /* While the Night over summary shows and the held-film card is open, the slot
+     clears the card by its published height (--held-film-height, unset when the
+     card is not open; the fallback cancels the gap). The pane shown: room is
+     reserved below the summary. The pane hidden: the bottom card is lifted. */
+  .night:not(.viewers-hidden) .wheel-reason-slot:has(.night-over) {
+    padding-bottom: calc(var(--space-3) + var(--held-film-height, calc(-1 * var(--space-3))));
+  }
+
+  .night.viewers-hidden .wheel-reason-slot:has(.night-over) {
+    --slot-bottom: calc(
+      var(--space-4) + var(--space-3) + var(--held-film-height, calc(-1 * var(--space-3)))
+    );
+    bottom: var(--slot-bottom);
+    max-height: calc(100dvh - var(--slot-bottom) - 5rem);
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+
   .night.viewers-hidden .wheel-stage {
     margin-inline: auto;
   }
@@ -789,6 +807,24 @@ html:has(.wheel-stage[data-zoom]) {
 .night-over {
   width: 100%;
   text-align: center;
+}
+
+/* In the message slot the summary reads like the waiting message beside it. */
+.wheel-reason-slot .night-over {
+  text-align: left;
+}
+
+.wheel-reason-slot .night-over h2 {
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+}
+
+.wheel-reason-slot .night-over p {
+  margin: 0 0 var(--space-2);
+}
+
+.wheel-reason-slot .night-over ul {
+  margin: 0 0 var(--space-2);
 }
 
 .night-over ul {

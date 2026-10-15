@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { expect, test, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import App from '../App.tsx'
 import { defaultState, type AppState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
@@ -148,4 +148,57 @@ test('a second Save for Next Week warns before replacing the first, and Keep it 
   fireEvent.click(within(dialog).getByRole('button', { name: 'Save for Next Week' }))
   fireEvent.click(within(dialog).getByRole('button', { name: 'Replace it' }))
   expect(store.getState().holdover?.title).toBe('Other')
+})
+
+describe('the published height', () => {
+  const property = '--held-film-height'
+  const published = () => document.documentElement.style.getPropertyValue(property)
+
+  function stubObserver(height: number) {
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(height)
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    )
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    document.documentElement.style.removeProperty(property)
+  })
+
+  test('equals the open card\'s height and is cleared by Dismiss', () => {
+    stubObserver(150)
+    setup({ spun: true })
+    expect(published()).toBe('150px')
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(published()).toBe('')
+  })
+
+  test('is cleared by Acknowledge/Watch', () => {
+    stubObserver(150)
+    setup()
+    expect(published()).toBe('150px')
+    fireEvent.click(screen.getByRole('button', { name: 'Acknowledge/Watch' }))
+    expect(published()).toBe('')
+  })
+
+  test('is cleared on unmount', () => {
+    stubObserver(150)
+    setup()
+    expect(published()).toBe('150px')
+    cleanup()
+    expect(published()).toBe('')
+  })
+
+  test('without a ResizeObserver the card renders and nothing is published', () => {
+    vi.stubGlobal('ResizeObserver', undefined)
+    setup()
+    expect(card('From last session:')).toBeInTheDocument()
+    expect(published()).toBe('')
+  })
 })
