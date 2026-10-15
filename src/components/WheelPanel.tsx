@@ -151,7 +151,7 @@ export default function WheelPanel({
   )
   const closeCallsAvailable = settings.wheel.spinSeconds >= closeCallMinSpinSeconds
   const reason = night.ended
-    ? 'The night is over.'
+    ? null
     : onWheel.length === 0
       ? 'Viewers are needed to spin.'
       : missing.length > 0
@@ -349,7 +349,8 @@ export default function WheelPanel({
       )}
       {reason && !reasonSlot && <p>{reason}</p>}
       {reason && reasonSlot && createPortal(<p>{reason}</p>, reasonSlot)}
-      {night.ended && <NightOver />}
+      {night.ended && !reasonSlot && <NightOver />}
+      {night.ended && reasonSlot && createPortal(<NightOver />, reasonSlot)}
       {spin?.revealedAt && (
         <Reveal
           wedge={spin.wedges[spin.drawn]}
