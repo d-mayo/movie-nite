@@ -8,6 +8,8 @@ import { filmLabel } from './NightOver.tsx'
 // and consumed once, so a card or chip that appears any other way takes none.
 export type FocusRequest = 'chip' | 'dismiss' | null
 
+export const heldFilmHeightProperty = '--held-film-height'
+
 interface Props {
   focusRequest: FocusRequest
   onRequestFocus: (request: FocusRequest) => void
@@ -20,6 +22,7 @@ interface Props {
 export function HeldFilmCard({ focusRequest, onRequestFocus }: Props) {
   const { holdover, night, clearHoldover, setHoldoverDismissed } = useApp()
   const dismiss = useRef<HTMLButtonElement>(null)
+  const card = useRef<HTMLElement>(null)
   const carried = !night.spun
   const shown = holdover !== null && (carried || !night.holdoverDismissed)
   useEffect(() => {
@@ -28,9 +31,23 @@ export function HeldFilmCard({ focusRequest, onRequestFocus }: Props) {
       onRequestFocus(null)
     }
   }, [shown, carried, focusRequest, onRequestFocus])
+  // The open card's height goes to the root, for the Night over slot to clear it.
+  useEffect(() => {
+    const root = document.documentElement
+    const el = card.current
+    if (!shown || !el || typeof ResizeObserver === 'undefined') return
+    const publish = () => root.style.setProperty(heldFilmHeightProperty, `${el.offsetHeight}px`)
+    publish()
+    const observer = new ResizeObserver(publish)
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty(heldFilmHeightProperty)
+    }
+  }, [shown, holdover])
   if (!holdover || !shown) return null
   return (
-    <aside className="card held-film" aria-labelledby="held-film-heading">
+    <aside ref={card} className="card held-film" aria-labelledby="held-film-heading">
       <h2 id="held-film-heading">{carried ? 'From last session:' : 'Watch next session:'}</h2>
       <div className="held-film-body">
         <Poster path={holdover.posterPath} title={holdover.title} />

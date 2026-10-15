@@ -137,3 +137,20 @@ test('the waiting message goes in the slot after the wheel, outside the wheel pa
   expect(message.closest('.wheel-reason-slot')).not.toBeNull()
   expect(message.closest('.wheel-panel')).toBeNull()
 })
+
+test.each([false, true])(
+  'the Night over summary goes in the slot, outside the wheel panel (pane hidden: %s)',
+  (hidden) => {
+    setup(hidden, { night: { ended: true } })
+    const summary = screen.getByRole('region', { name: 'Night over' })
+    expect(summary.closest('.wheel-reason-slot')).not.toBeNull()
+    expect(summary.closest('.wheel-panel')).toBeNull()
+    expect(screen.queryByText('The night is over.')).toBeNull()
+  },
+)
+
+test('an ended night with nothing watched says so in the slot', () => {
+  setup(false, { night: { ended: true, watched: [] } })
+  const summary = screen.getByRole('region', { name: 'Night over' })
+  expect(within(summary).getByText('No films were watched tonight.')).toBeInTheDocument()
+})

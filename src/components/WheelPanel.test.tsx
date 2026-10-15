@@ -260,7 +260,8 @@ test('a done viewer does not block Spin, and an ended night disables it', () => 
   expect(spinButton()).toBeEnabled()
   act(() => store.getState().endNight())
   expect(spinButton()).toBeDisabled()
-  expect(screen.getByText('The night is over.')).toBeInTheDocument()
+  expect(screen.getByRole('region', { name: 'Night over' })).toBeInTheDocument()
+  expect(screen.queryByText('The night is over.')).toBeNull()
 })
 
 test('the spin draws by the edited weights', async () => {
