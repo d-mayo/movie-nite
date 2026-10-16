@@ -178,13 +178,30 @@ test('an open cell shows its film control, color, sliders and menu; an away cell
   expect(screen.queryByRole('button', { name: 'More for Bo' })).toBeNull()
 })
 
-test('a won viewer opens to only the color and the menu', () => {
+test('a won viewer has a cell that never opens', () => {
   setupWith({ nominations: { a: film }, wonFilms: [1] })
   openCell('Ann')
-  expect(screen.getByRole('button', { name: "Ann's color" })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'More for Ann' })).toBeInTheDocument()
-  expect(screen.queryByRole('group', { name: 'Slices for Ann' })).toBeNull()
-  expect(screen.queryByLabelText('Search a film for Ann')).toBeNull()
+  expect(header('Ann')).not.toHaveAttribute('aria-expanded')
+  expect(header('Ann')).not.toHaveAttribute('aria-controls')
+  expect(screen.queryByRole('button', { name: "Ann's color" })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'More for Ann' })).toBeNull()
+  openCell('Bo')
+  expect(screen.getByRole('button', { name: "Bo's color" })).toBeInTheDocument()
+})
+
+test("a won viewer's eye toggle marks them away and here, and the cell still never opens", () => {
+  const { store } = setupWith({ nominations: { a: film }, wonFilms: [1] })
+  markAway('Ann')
+  expect(store.getState().night.presentIds).toEqual(['b'])
+  openCell('Ann')
+  expect(header('Ann')).not.toHaveAttribute('aria-expanded')
+  markHere('Ann')
+  expect(store.getState().night.presentIds).toContain('a')
+  expect(within(cellOf('Ann')).getByText('Film (2000)')).toBeInTheDocument()
+  expect(within(cellOf('Ann')).getByText('Won tonight')).toBeInTheDocument()
+  openCell('Ann')
+  expect(header('Ann')).not.toHaveAttribute('aria-expanded')
+  expect(screen.queryByRole('button', { name: "Ann's color" })).toBeNull()
 })
 
 test('slider moves are saved as adjustments at once', () => {
@@ -235,6 +252,7 @@ test('a viewer who won shows their film with no search or change control', () =>
   expect(screen.getByText('Film (2000)')).toBeInTheDocument()
   expect(screen.getByText('Won tonight')).toBeInTheDocument()
   openCell('Ann')
+  expect(header('Ann')).not.toHaveAttribute('aria-expanded')
   expect(screen.queryByLabelText('Search a film for Ann')).toBeNull()
   expect(screen.queryByRole('button', { name: 'Remove Film from Ann' })).toBeNull()
   openCell('Bo')
