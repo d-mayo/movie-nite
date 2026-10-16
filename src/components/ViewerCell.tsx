@@ -144,8 +144,8 @@ export default function ViewerCell({
 }: Props) {
   const { setPresent, removeViewer, setViewerWeight, setViewerSlices, resetViewerSettings } =
     useApp()
-  // A viewer who is away has nothing to open: no body, no menu.
-  const expandable = status !== 'away'
+  // Only a viewer on the wheel has anything to change: an away or won viewer has no body, no menu.
+  const expandable = status === 'wheel'
   const open = openRequested && expandable
   const [confirming, setConfirming] = useState(false)
   const menu = useRef<HTMLDivElement>(null)
@@ -302,14 +302,12 @@ export default function ViewerCell({
           }}
         >
           <div className="cell-main">
-            {status === 'wheel' && (
-              <NominationSearch
-                viewerId={viewer.id}
-                viewerName={viewer.name}
-                client={client}
-                onAuthError={onAuthError}
-              />
-            )}
+            <NominationSearch
+              viewerId={viewer.id}
+              viewerName={viewer.name}
+              client={client}
+              onAuthError={onAuthError}
+            />
             <div className="cell-actions">
               <ColorPicker viewer={viewer} roster={roster} onToggle={track('color')} />
               <button
@@ -328,18 +326,16 @@ export default function ViewerCell({
                 className="card cell-menu"
                 onToggle={track('menu')}
               >
-                {status === 'wheel' && (
-                  <button
-                    type="button"
-                    disabled={!adjusted}
-                    onClick={() => {
-                      menu.current?.hidePopover()
-                      resetViewerSettings(viewer.id)
-                    }}
-                  >
-                    Reset slices and weight
-                  </button>
-                )}
+                <button
+                  type="button"
+                  disabled={!adjusted}
+                  onClick={() => {
+                    menu.current?.hidePopover()
+                    resetViewerSettings(viewer.id)
+                  }}
+                >
+                  Reset slices and weight
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -352,25 +348,23 @@ export default function ViewerCell({
               </div>
             </div>
           </div>
-          {status === 'wheel' && (
-            <div className="inset-card">
-              <Stepper
-                label={`Slices for ${viewer.name}`}
-                value={setting.slices}
-                min={1}
-                max={12}
-                onChange={(n) => setViewerSlices(viewer.id, n)}
-              />
-              <Slider
-                label={`Weight for ${viewer.name}`}
-                value={setting.weight}
-                step={0.5}
-                min={0.5}
-                max={20}
-                onChange={(n) => setViewerWeight(viewer.id, n)}
-              />
-            </div>
-          )}
+          <div className="inset-card">
+            <Stepper
+              label={`Slices for ${viewer.name}`}
+              value={setting.slices}
+              min={1}
+              max={12}
+              onChange={(n) => setViewerSlices(viewer.id, n)}
+            />
+            <Slider
+              label={`Weight for ${viewer.name}`}
+              value={setting.weight}
+              step={0.5}
+              min={0.5}
+              max={20}
+              onChange={(n) => setViewerWeight(viewer.id, n)}
+            />
+          </div>
         </div>
       )}
       {confirming && (
