@@ -187,9 +187,11 @@ export function useWheelMotion(
     // Plays `path`, holding the drift at zero until the next idle frame after
     // `done`; `done` runs once, on the frame the path ends. The `cues` each fire once,
     // on the first frame at or after its time, and always before `done`.
-    play(path: SpinPath, done: () => void, cues: Cue[] = []) {
+    // After a leader countdown the projector is already running, so only the music starts.
+    play(path: SpinPath, done: () => void, cues: Cue[] = [], afterCountdown = false) {
       speed.current = 0
-      soundRef.current.spinStart()
+      if (afterCountdown) soundRef.current.musicStart()
+      else soundRef.current.spinStart()
       // Held until the next render says otherwise, so no drift frame slips in
       // between the path's end and the commit that shows the reveal.
       stoppedRef.current = true

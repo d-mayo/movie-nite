@@ -1198,3 +1198,160 @@ test('with both boxes checked, a slice with a close-call zone gets a close call'
     restore()
   }
 })
+
+// The leader countdown.
+const dial = () => screen.queryByTestId('countdown')
+
+test('without the debug flag there is no Force countdowns checkbox', () => {
+  setupCrowd({ random: () => 0.5, spinMs: 20 })
+  expect(screen.queryByLabelText('Force countdowns')).toBeNull()
+})
+
+test('with the debug flag Force countdowns shows beside the others, starts unchecked and locks during a spin and its reveal', async () => {
+  const restore = withQuery('?debug')
+  try {
+    setupCrowd({ random: () => 0.5, spinMs: 20 }, 6)
+    const boxes = screen.getAllByRole('checkbox').map((b) => b.parentElement!.textContent!.trim())
+    expect(boxes.slice(-3).map((t) => t.replace(/ \(.*/, ''))).toEqual(['Force close calls', 'Force catches', 'Force countdowns'])
+    const box = screen.getByLabelText('Force countdowns')
+    expect(box).not.toBeChecked()
+    expect(box).toBeEnabled()
+    fireEvent.click(spinButton())
+    expect(box).toBeDisabled()
+    await screen.findByRole('dialog')
+    expect(box).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(box).toBeEnabled()
+  } finally {
+    restore()
+  }
+})
+
+test('a forced countdown runs 3, 2, 1 over the drifting wheel, switches the projector on once, then starts the music and spins', async () => {
+  const restore = withQuery('?debug')
+  try {
+    const { engine, log } = recordingSound()
+    setupCrowd({ random: () => 0.5, spinMs: 20, sound: engine })
+    fireEvent.click(screen.getByLabelText('Force countdowns'))
+    await sleep(300)
+    fireEvent.click(spinButton())
+    expect(spinButton()).toBeDisabled()
+    expect(log.starts).toBe(1)
+    expect(log.countdownStarts).toBe(1)
+    expect(log.musicStarts).toBe(0)
+    expect(log.beeps).toBe(1)
+    expect(dial()).toHaveTextContent('3')
+    // The dial layers over the Spin hub, in the zoom wrapper, and the rotating group stays the wheel's own.
+    expect(spinButton().compareDocumentPosition(dial()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(dial()!.parentElement).toBe(spinButton().parentElement)
+    expect(document.querySelector('svg.wheel > g')!.contains(dial())).toBe(false)
+    // The wheel keeps drifting under it, with no pin ticks.
+    const before = wheelRotation()
+    await sleep(200)
+    expect(wheelRotation()).not.toBe(before)
+    expect(log.ticks).toEqual([])
+    await waitFor(() => expect(dial()).toHaveTextContent('2'), { timeout: 1000 })
+    expect(log.beeps).toBe(2)
+    await waitFor(() => expect(dial()).toHaveTextContent('1'), { timeout: 1000 })
+    expect(log.beeps).toBe(3)
+    expect(log.musicStarts).toBe(0)
+    await screen.findByRole('dialog', undefined, { timeout: 3000 })
+    expect(dial()).toBeNull()
+    expect(log.beeps).toBe(3)
+    expect(log.musicStarts).toBe(1)
+    expect(log.starts).toBe(1)
+    expect(log.ends).toBe(1)
+    expect(log.landed).toHaveLength(1)
+  } finally {
+    restore()
+  }
+}, 9000)
+
+test('a countdown spin that is a close call still cues, zooms and lands', async () => {
+  const restore = withQuery('?debug')
+  try {
+    const { engine, log } = recordingSound()
+    setupCrowd({ random: () => 0.5, spinMs: 40, sound: engine }, 6)
+    fireEvent.click(screen.getByLabelText('Force close calls'))
+    fireEvent.click(screen.getByLabelText('Force countdowns'))
+    fireEvent.click(spinButton())
+    expect(dial()).not.toBeNull()
+    await screen.findByRole('dialog', undefined, { timeout: 4000 })
+    expect(log.musicStarts).toBe(1)
+    expect(log.cues).toHaveLength(1)
+    expect(log.landedClose).toEqual([true])
+    expect(screen.getByText('Close call')).toBeInTheDocument()
+  } finally {
+    restore()
+  }
+}, 9000)
+
+test('leaving mid-countdown starts no spin and plays no later beep', async () => {
+  const restore = withQuery('?debug')
+  try {
+    const { engine, log } = recordingSound()
+    setupCrowd({ random: () => 0.5, spinMs: 20, sound: engine })
+    fireEvent.click(screen.getByLabelText('Force countdowns'))
+    fireEvent.click(spinButton())
+    expect(dial()).not.toBeNull()
+    cleanup()
+    await sleep(1800)
+    expect(log.beeps).toBe(1)
+    expect(log.musicStarts).toBe(0)
+    expect(log.ends).toBe(0)
+    expect(log.landed).toEqual([])
+  } finally {
+    restore()
+  }
+})
+
+test('with reduced motion there is no countdown even when forced', async () => {
+  const restore = withQuery('?debug')
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('prefers-reduced-motion'),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+  try {
+    const { engine, log } = recordingSound()
+    setupCrowd({ random: () => 0.99, sound: engine })
+    fireEvent.click(screen.getByLabelText('Force countdowns'))
+    fireEvent.click(spinButton())
+    expect(dial()).toBeNull()
+    await screen.findByRole('dialog', undefined, { timeout: 4000 })
+    expect(log.beeps).toBe(0)
+    expect(log.countdownStarts).toBe(0)
+    expect(log.musicStarts).toBe(0)
+  } finally {
+    restore()
+    vi.unstubAllGlobals()
+  }
+}, 9000)
+
+test('a test-length spin rolls no countdown, however high the roll', () => {
+  setupCrowd({ random: () => 0.9167, spinMs: 20 })
+  fireEvent.click(spinButton())
+  expect(dial()).toBeNull()
+})
+
+test('a roll in the top tenth shows the dial and changes nothing else about the spin', async () => {
+  // Count the draws of a spin that rolls no countdown, then repeat it with its last draw (the roll) high.
+  let calls = 0
+  setupCrowd({ random: () => (calls++, 0.5) })
+  fireEvent.click(spinButton())
+  expect(dial()).toBeNull()
+  await screen.findByRole('dialog', undefined, { timeout: 8000 })
+  const plainRest = angleUnderPointer(wheelRotation())
+  const plainTitle = within(screen.getByRole('dialog')).getByRole('heading', { level: 2 }).textContent
+  cleanup()
+
+  let i = 0
+  setupCrowd({ random: () => (++i === calls ? 0.95 : 0.5) })
+  fireEvent.click(spinButton())
+  expect(dial()).not.toBeNull()
+  expect(i).toBe(calls)
+  await screen.findByRole('dialog', undefined, { timeout: 12000 })
+  expect(angleUnderPointer(wheelRotation())).toBeCloseTo(plainRest, 6)
+  expect(within(screen.getByRole('dialog')).getByRole('heading', { level: 2 }).textContent).toBe(plainTitle)
+}, 30000)
