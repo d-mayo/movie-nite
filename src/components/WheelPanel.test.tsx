@@ -591,6 +591,10 @@ test('reduced motion: the flapper still catches pins in the 1 s spin and settles
 function recordingSound() {
   const log = {
     starts: 0,
+    // The presses that waited for a leader countdown (counted in starts too), the beeps, and the music starts after one.
+    countdownStarts: 0,
+    beeps: 0,
+    musicStarts: 0,
     ends: 0,
     landed: [] as number[],
     // The close-call flag each landing was told, and the seconds each cue was told.
@@ -612,7 +616,12 @@ function recordingSound() {
       return () => log.detached++
     },
     apply: (settings) => void log.applied.push(settings),
-    spinStart: () => void log.starts++,
+    spinStart: (countdown = false) => {
+      log.starts++
+      if (countdown) log.countdownStarts++
+    },
+    musicStart: () => void log.musicStarts++,
+    beep: () => void log.beeps++,
     spinSpeed: (share) => void log.shares.push(share),
     pinTick: (share) => void log.ticks.push(share),
     spinEnd: () => {

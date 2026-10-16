@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { fakeAudio, type FakeGain } from '../test/fakeAudio.ts'
 import {
+  beepHz,
   bedLevel,
   cheerLevel,
   createSound,
@@ -83,6 +84,9 @@ describe('unlocking on a gesture', () => {
       document.dispatchEvent(new Event('pointerup'))
       sound.apply({ music: 100, effects: 100, volume: 50, muted: false })
       sound.spinStart()
+      sound.spinStart(true)
+      sound.musicStart()
+      sound.beep()
       sound.spinSpeed(0.5, 1)
       sound.pinTick(0.5)
       sound.spinEnd()
@@ -182,6 +186,42 @@ describe('the projector', () => {
     sound.spinSpeed(0.5, 1)
     sound.spinEnd()
     expect(ctx.sources).toHaveLength(1) // the switch-off
+  })
+})
+
+describe('the leader countdown', () => {
+  test('a countdown press plays the switch-on and the hum but no music; the count ending starts the loop alone', async () => {
+    const { ctx, sound } = await ready()
+    sound.spinStart(true)
+    expect(ctx.sourcesOf('on')).toHaveLength(1)
+    expect(ctx.sourcesOf('hum')).toHaveLength(1)
+    expect(ctx.sourcesOf('loop')).toHaveLength(0)
+    sound.musicStart()
+    expect(ctx.sourcesOf('on')).toHaveLength(1)
+    expect(ctx.sourcesOf('hum')).toHaveLength(1)
+    const [loop] = ctx.sourcesOf('loop')
+    expect(loop.loop).toBe(true)
+    expect(loop.started?.offset).toBe(0)
+  })
+
+  test('an ordinary press still plays the switch-on, the loop and the hum', async () => {
+    const { ctx, sound } = await ready()
+    sound.spinStart()
+    expect(ctx.sourcesOf('on')).toHaveLength(1)
+    expect(ctx.sourcesOf('loop')).toHaveLength(1)
+    expect(ctx.sourcesOf('hum')).toHaveLength(1)
+  })
+
+  test('a beep is a short tone near 1 kHz on the effects bus', async () => {
+    const { ctx, sound } = await ready()
+    sound.beep()
+    expect(ctx.oscillators).toHaveLength(1)
+    const [tone] = ctx.oscillators
+    expect(tone.frequency.value).toBe(beepHz)
+    expect(beepHz).toBeGreaterThan(900)
+    expect(beepHz).toBeLessThan(1100)
+    expect(tone.reaches(ctx.effects)).toBe(true)
+    expect(tone.stoppedAt).toBeLessThan(0.5)
   })
 })
 
