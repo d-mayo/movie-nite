@@ -53,7 +53,7 @@ afterEach(() => {
   else delete (window as { matchMedia?: unknown }).matchMedia
 })
 
-function mount(locked = false) {
+function mount(locked = false, night: Partial<typeof defaultState.night> = {}) {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
@@ -67,6 +67,7 @@ function mount(locked = false) {
         ...defaultState.night,
         presentIds: ['a', 'b', 'd'],
         nominations: { b: film },
+        ...night,
       },
     }),
   )
@@ -153,6 +154,33 @@ test('without hover a click or tap toggles the cell, and so do Enter and Space',
   enter('Ann')
   wait(500)
   expect(isOpen('Ann')).toBe(false)
+})
+
+test('a won viewer never opens by hover, click, tap or key; a wheel viewer still does', () => {
+  const won = { nominations: { a: { ...film, tmdbId: 2 }, b: film }, wonFilms: [2] }
+  canHover(true)
+  mount(false, won)
+  enter('Ann')
+  wait(500)
+  expect(isOpen('Ann')).toBe(false)
+  mouseClick('Ann')
+  keyClick('Ann')
+  expect(isOpen('Ann')).toBe(false)
+  expect(header('Ann')).not.toHaveAttribute('aria-expanded')
+  leave('Ann')
+  enter('Bo')
+  wait(500)
+  expect(isOpen('Bo')).toBe(true)
+})
+
+test('without hover a tap on a won viewer opens nothing', () => {
+  canHover(false)
+  mount(false, { nominations: { a: { ...film, tmdbId: 2 }, b: film }, wonFilms: [2] })
+  mouseClick('Ann')
+  keyClick('Ann')
+  expect(header('Ann')).not.toHaveAttribute('aria-expanded')
+  mouseClick('Bo')
+  expect(isOpen('Bo')).toBe(true)
 })
 
 test('opening one cell closes another', () => {
