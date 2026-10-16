@@ -491,6 +491,76 @@ html:has(.wheel-stage[data-zoom]) {
   color: #77786e;
 }
 
+/* The leader countdown's dial: over the wheel's face and the Spin hub, inside the reel strip
+   (the strip's inner edge is 100 of the wheel svg's 248 units across). */
+.countdown {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: 80.6%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.countdown-dial {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.countdown-stock {
+  fill: var(--film-stock);
+}
+
+.countdown-ring {
+  fill: none;
+  stroke: var(--film-cream);
+  stroke-width: 1.4;
+}
+
+.countdown-cross {
+  fill: none;
+  stroke: var(--film-cream);
+  stroke-width: 1;
+}
+
+.countdown-number {
+  fill: var(--film-cream);
+  font-family: 'Bebas Neue', Impact, sans-serif;
+  font-size: 96px;
+  /* Bebas Neue sits high in its line box; nudge the digit down to the dial's center. */
+  transform: translateY(4px);
+}
+
+/* The hand: a steel line from the center to the top, and the sector it has swept trailing behind. */
+.countdown-hand {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 70%, color-mix(in srgb, var(--film-steel) 55%, transparent) 100%);
+  animation: countdown-sweep 0.52s linear forwards;
+}
+
+.countdown-hand::after {
+  content: '';
+  position: absolute;
+  left: calc(50% - 1.5px);
+  top: 0;
+  width: 3px;
+  height: 50%;
+  background: var(--film-steel-light);
+}
+
+@keyframes countdown-sweep {
+  to {
+    rotate: 360deg;
+  }
+}
+
 /* The projector's light flickering out over the whole screen when the wheel lands. */
 .flicker {
   position: fixed;

@@ -31,8 +31,13 @@ export interface SoundEngine {
   // Listens for the first gestures on `target`; the returned function stops.
   attach(target: EventTarget): () => void
   apply(settings: SoundSettings): void
-  // Spin pressed: the projector switches on and its motor starts.
-  spinStart(): void
+  // Spin pressed: the projector switches on and its motor starts, and the music loop starts, unless
+  // `countdown` says a leader countdown comes first, when the music waits for musicStart.
+  spinStart(countdown?: boolean): void
+  // The leader countdown ended: the music loop starts, as at an ordinary press.
+  musicStart(): void
+  // One leader beep, at the start of each number of the countdown.
+  beep(): void
   // The wheel's speed as a share (0 to 1) of the spin's peak, and the seconds
   // until it stops: the hum follows both.
   spinSpeed(share: number, secondsLeft: number): void
@@ -66,6 +71,8 @@ export const silentSound: SoundEngine = {
   attach: () => () => {},
   apply: () => {},
   spinStart: () => {},
+  musicStart: () => {},
+  beep: () => {},
   spinSpeed: () => {},
   pinTick: () => {},
   spinEnd: () => {},
@@ -119,6 +126,10 @@ export const musicFadeSeconds = 2
 const fadeFloor = 0.001
 // No tick sounds sooner than this after another (on the audio clock).
 export const minTickGap = 0.03
+// The leader beep: its pitch, length and level.
+export const beepHz = 1000
+const beepSeconds = 0.12
+const beepLevel = 0.3
 
 const gestures = ['pointerdown', 'pointerup', 'keydown', 'touchend']
 
@@ -316,13 +327,13 @@ export function createSound(deps: SoundDeps): SoundEngine {
       settings = next
       setGains(false)
     },
-    spinStart() {
+    spinStart(countdown = false) {
       if (!ctx) return
       stopHum()
       stopRoll()
       stopMusic()
       play('on')
-      startLoop()
+      if (!countdown) startLoop()
       const buffer = buffers.hum
       if (!buffer) return
       const source = ctx.createBufferSource()
@@ -338,6 +349,24 @@ export function createSound(deps: SoundDeps): SoundEngine {
       gain.connect(effects)
       source.start(0, humLoopStart)
       hum = { source, gain }
+    },
+    musicStart() {
+      startLoop()
+    },
+    beep() {
+      if (!ctx) return
+      const at = ctx.currentTime
+      const out = ctx.createGain()
+      out.gain.setValueAtTime(beepLevel, at)
+      out.gain.setValueAtTime(beepLevel, at + beepSeconds - 0.02)
+      out.gain.linearRampToValueAtTime(0, at + beepSeconds)
+      out.connect(effects)
+      const tone = ctx.createOscillator()
+      tone.type = 'sine'
+      tone.frequency.setValueAtTime(beepHz, at)
+      tone.connect(out)
+      tone.start(at)
+      tone.stop(at + beepSeconds)
     },
     spinSpeed(share, secondsLeft) {
       if (!ctx || !hum) return

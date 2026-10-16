@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import { useApp } from '../state/store.ts'
-import { angleUnderPointer, cryptoRandom, drawSlice, restRotation } from '../wheel/draw.ts'
+import { angleUnderPointer, cryptoRandom, drawSlice, restRotation, rotationTo } from '../wheel/draw.ts'
 import {
   closeCallChance,
   closeCallKind,
@@ -12,6 +12,7 @@ import {
   isCloseCall,
   slipDegrees,
 } from '../wheel/closeCall.ts'
+import { countdownNumbers, countdownStepMs, rollsCountdown } from '../wheel/countdown.ts'
 import { catchChance, forcedCatchRotation, isCatch } from '../wheel/catch.ts'
 import { pinAngles, pinPastPointer, pushStart } from '../wheel/pins.ts'
 import { buildWedges, type Wedge } from '../wheel/wedges.ts'
@@ -29,6 +30,7 @@ import {
 } from '../wheel/motion.ts'
 import { prefersReducedMotion } from '../wheel/reducedMotion.ts'
 import { silentSound, type SoundEngine } from '../sound/engine.ts'
+import Countdown from './Countdown.tsx'
 import NightOver from './NightOver.tsx'
 import Reveal from './Reveal.tsx'
 import Wheel from './Wheel.tsx'
@@ -68,6 +70,8 @@ interface Spin {
   closeCall: boolean
   // The close call's zoom on the pointer: in from the cue through the hold, out while it eases back.
   zoom: 'in' | 'out' | null
+  // The leader countdown's number while its dial shows, else null.
+  countdown: number | null
 }
 
 // How long the projector flicker plays on the open wheel before the reveal opens.
@@ -111,6 +115,8 @@ export default function WheelPanel({
   const [debug] = useState(() => new URLSearchParams(window.location.search).has('debug'))
   const [forceCloseCalls, setForceCloseCalls] = useState(false)
   const [forceCatches, setForceCatches] = useState(false)
+  const [forceCountdowns, setForceCountdowns] = useState(false)
+  const countdownTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const holdTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const vignetteRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
@@ -125,6 +131,7 @@ export default function WheelPanel({
     () => () => {
       clearTimeout(holdTimer.current)
       clearTimeout(easeTimer.current)
+      clearTimeout(countdownTimer.current)
       // Unmounted with the reveal open (a cleared token): the music still fades.
       if (musicOn.current) soundRef.current.revealClosed()
     },
@@ -139,7 +146,8 @@ export default function WheelPanel({
   const canSpin = !night.ended && onWheel.length > 0 && missing.length === 0
   const wedges = spin?.wedges ?? live
   const motion = useWheelMotion(
-    spin !== null || night.ended,
+    // The drift runs on under a countdown's dial and eases to a stop only once the spin is under way.
+    (spin !== null && spin.countdown === null) || night.ended,
     pinAngles(wedges.map((w) => w.arc)),
     sound,
     {
@@ -189,104 +197,137 @@ export default function WheelPanel({
     const to = (catchSteer && forcedCatchRotation(from, slices, arcs, drawn, random, plan.turns)) || afterClose
     const rest = angleUnderPointer(to)
     const caught = !closeCall && !reduced && isCatch(slices, arcs, drawn, rest)
-    const ordinary = reduced
-      ? buildReducedSpinPath(from, to, spinMs ?? plan.durationMs)
-      : buildSpinPath({ from, driftSpeed: speed, to, phases: spinPhases(plan.durationMs, spinMs) })
-    // A close call hands the glide's approach over to a longer, creeping one (not with reduced
-    // motion, which keeps its 1 s path); a test-length spin shortens it in proportion.
-    const close =
-      closeCall && !reduced
-        ? buildCloseCallPath(ordinary, to, spinMs === undefined ? 1 : spinMs / (windUpMs + plan.durationMs))
-        : null
     // A catch runs on into the start edge's pin and rocks back off it; the peak bend is drawn from 16° to 26°.
-    const scale = spinMs === undefined ? 1 : spinMs / (windUpMs + plan.durationMs)
-    const caughtPath = caught
-      ? buildCatchPath(
-          {
-            from,
-            driftSpeed: speed,
-            to,
-            phases: spinPhases(plan.durationMs, spinMs),
-            restGap: rest - arcs[drawn].start,
-            peakPast: pinPastPointer(16 + random() * 10),
-            touchAt: pushStart,
-          },
-          scale,
-        )
-      : null
-    const path = caughtPath?.path ?? close?.path ?? ordinary
-    const cueMs = close?.cueMs ?? 0
-    setSpin({ wedges, drawn, landed: false, revealedAt: null, closeCall, zoom: null })
-    onBusyChange(true)
-    musicOn.current = true
-    // The reveal opens at once with reduced motion or a test-length spin.
-    const immediate = reduced || spinMs !== undefined
-    // The cue: the zoom and the sounds, where the approach begins (at the start with reduced motion).
-    const cues: Cue[] = []
-    if (closeCall) {
-      cues.push({
-        atMs: cueMs,
-        fire: () => {
-          sound.closeCall((path.durationMs - cueMs) / 1000)
-          if (!reduced) {
-            // The zoom is about the pointer: the vignette closes in round that spot of the screen.
-            const rect = stageRef.current?.getBoundingClientRect()
-            if (rect) {
-              vignetteRef.current?.style.setProperty('--pointer-x', `${rect.left + rect.width / 2}px`)
-              vignetteRef.current?.style.setProperty('--pointer-y', `${rect.top + rect.width * pointerShare}px`)
-            }
-            setSpin((s) => s && { ...s, zoom: 'in' })
-          }
-        },
-      })
-      // A slip releases the tension where the flapper slips off the peg, before the stop, and the
-      // landing (the flash, the fanfare, and the clock to the reveal) starts right behind it, while the
-      // wheel finishes creeping; a bend releases it at the stop. With reduced motion or a test-length
-      // spin the reveal opens at once, so the landing waits for the stop.
-      if (kind === 'slip') {
-        const slipMs = timeAtRotation(path, to - slipDegrees(arcs[drawn], rest), cueMs)
+    const peakBend = caught ? 16 + random() * 10 : 0
+    // The countdown is rolled last, so every other draw takes the value it would without one. A test-length
+    // spin rolls none (only the debug checkbox forces one), and reduced motion has none.
+    const countdown = !reduced && (forceCountdowns || (spinMs === undefined && rollsCountdown(random())))
+    // The path is built from where the wheel is when the spin launches: at the press, or when the
+    // countdown ends; the rest point is the one drawn here.
+    function launch(from: number, speed: number, to: number, afterCountdown: boolean) {
+      const ordinary = reduced
+        ? buildReducedSpinPath(from, to, spinMs ?? plan.durationMs)
+        : buildSpinPath({ from, driftSpeed: speed, to, phases: spinPhases(plan.durationMs, spinMs) })
+      // A close call hands the glide's approach over to a longer, creeping one (not with reduced
+      // motion, which keeps its 1 s path); a test-length spin shortens it in proportion.
+      const close =
+        closeCall && !reduced
+          ? buildCloseCallPath(ordinary, to, spinMs === undefined ? 1 : spinMs / (windUpMs + plan.durationMs))
+          : null
+      // A catch runs on into the start edge's pin and rocks back off it; the peak bend is drawn from 16° to 26°.
+      const scale = spinMs === undefined ? 1 : spinMs / (windUpMs + plan.durationMs)
+      const caughtPath = caught
+        ? buildCatchPath(
+            {
+              from,
+              driftSpeed: speed,
+              to,
+              phases: spinPhases(plan.durationMs, spinMs),
+              restGap: rest - arcs[drawn].start,
+              peakPast: pinPastPointer(peakBend),
+              touchAt: pushStart,
+            },
+            scale,
+          )
+        : null
+      const path = caughtPath?.path ?? close?.path ?? ordinary
+      const cueMs = close?.cueMs ?? 0
+      musicOn.current = true
+      // The reveal opens at once with reduced motion or a test-length spin.
+      const immediate = reduced || spinMs !== undefined
+      // The cue: the zoom and the sounds, where the approach begins (at the start with reduced motion).
+      const cues: Cue[] = []
+      if (closeCall) {
         cues.push({
-          atMs: slipMs,
+          atMs: cueMs,
           fire: () => {
-            sound.closeCallBreak()
-            if (!immediate) land(Math.max(closeCallHoldMs, path.durationMs - slipMs + slipSettleMs))
+            sound.closeCall((path.durationMs - cueMs) / 1000)
+            if (!reduced) {
+              // The zoom is about the pointer: the vignette closes in round that spot of the screen.
+              const rect = stageRef.current?.getBoundingClientRect()
+              if (rect) {
+                vignetteRef.current?.style.setProperty('--pointer-x', `${rect.left + rect.width / 2}px`)
+                vignetteRef.current?.style.setProperty('--pointer-y', `${rect.top + rect.width * pointerShare}px`)
+              }
+              setSpin((s) => s && { ...s, zoom: 'in' })
+            }
           },
         })
+        // A slip releases the tension where the flapper slips off the peg, before the stop, and the
+        // landing (the flash, the fanfare, and the clock to the reveal) starts right behind it, while the
+        // wheel finishes creeping; a bend releases it at the stop. With reduced motion or a test-length
+        // spin the reveal opens at once, so the landing waits for the stop.
+        if (kind === 'slip') {
+          const slipMs = timeAtRotation(path, to - slipDegrees(arcs[drawn], rest), cueMs)
+          cues.push({
+            atMs: slipMs,
+            fire: () => {
+              sound.closeCallBreak()
+              if (!immediate) land(Math.max(closeCallHoldMs, path.durationMs - slipMs + slipSettleMs))
+            },
+          })
+        }
       }
-    }
-    // A catch's one tick, as the pin first meets the tongue; no pin slips off in a catch, so it has no other.
-    if (caughtPath) cues.push({ atMs: caughtPath.contactMs, fire: () => sound.pinTick(catchTickShare) })
-    // The landing: the stinger's hit and the reveal after `holdMs`; a close call holds its zoom, then
-    // eases it back (the hold's last part) before the reveal opens.
-    function land(holdMs: number) {
-      sound.landed(holdMs / 1000, closeCall)
-      setSpin((s) => s && { ...s, landed: true })
-      if (closeCall) {
-        easeTimer.current = setTimeout(
-          () => setSpin((s) => s && { ...s, zoom: 'out' }),
-          holdMs - closeCallEaseOutMs,
+      // A catch's one tick, as the pin first meets the tongue; no pin slips off in a catch, so it has no other.
+      if (caughtPath) cues.push({ atMs: caughtPath.contactMs, fire: () => sound.pinTick(catchTickShare) })
+      // The landing: the stinger's hit and the reveal after `holdMs`; a close call holds its zoom, then
+      // eases it back (the hold's last part) before the reveal opens.
+      function land(holdMs: number) {
+        sound.landed(holdMs / 1000, closeCall)
+        setSpin((s) => s && { ...s, landed: true })
+        if (closeCall) {
+          easeTimer.current = setTimeout(
+            () => setSpin((s) => s && { ...s, zoom: 'out' }),
+            holdMs - closeCallEaseOutMs,
+          )
+        }
+        holdTimer.current = setTimeout(
+          () => setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null }),
+          holdMs,
         )
       }
-      holdTimer.current = setTimeout(
-        () => setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null }),
-        holdMs,
+      motion.play(
+        path,
+        () => {
+          if (kind === 'slip' && !immediate) return
+          if (kind === 'bend') sound.closeCallBreak()
+          if (immediate) {
+            sound.landed(0, closeCall)
+            // With reduced motion there is no flicker, and a test-length spin opens at once.
+            setSpin((s) => s && { ...s, landed: !reduced, revealedAt: new Date(), zoom: null })
+            return
+          }
+          land(closeCall ? closeCallHoldMs : revealHoldMs)
+        },
+        cues,
+        afterCountdown,
       )
     }
-    motion.play(
-      path,
-      () => {
-        if (kind === 'slip' && !immediate) return
-        if (kind === 'bend') sound.closeCallBreak()
-        if (immediate) {
-          sound.landed(0, closeCall)
-          // With reduced motion there is no flicker, and a test-length spin opens at once.
-          setSpin((s) => s && { ...s, landed: !reduced, revealedAt: new Date(), zoom: null })
-          return
-        }
-        land(closeCall ? closeCallHoldMs : revealHoldMs)
-      },
-      cues,
-    )
+
+    setSpin({ wedges, drawn, landed: false, revealedAt: null, closeCall, zoom: null, countdown: countdown ? countdownNumbers[0] : null })
+    onBusyChange(true)
+    if (!countdown) {
+      launch(from, speed, to, false)
+      return
+    }
+    // The projector switches on at the press, but the music waits for the launch; the wheel keeps drifting.
+    sound.spinStart(true)
+    sound.beep()
+    let step = 0
+    const tick = () => {
+      step++
+      if (step < countdownNumbers.length) {
+        const number = countdownNumbers[step]
+        setSpin((s) => s && { ...s, countdown: number })
+        sound.beep()
+        countdownTimer.current = setTimeout(tick, countdownStepMs)
+        return
+      }
+      setSpin((s) => s && { ...s, countdown: null })
+      const now = motion.current()
+      launch(now.angle, now.speed, rotationTo(now.angle, rest, plan.turns), true)
+    }
+    countdownTimer.current = setTimeout(tick, countdownStepMs)
   }
 
   function close() {
@@ -320,6 +361,7 @@ export default function WheelPanel({
               <span className="hub-label">Spin</span>
             </button>
           )}
+          {spin?.countdown != null && <Countdown number={spin.countdown} />}
         </div>
         <div className="zoom-vignette" ref={vignetteRef} aria-hidden="true" />
         {spin?.landed && <div className="flicker" data-testid="flicker" aria-hidden="true" />}
@@ -345,6 +387,17 @@ export default function WheelPanel({
             onChange={(e) => setForceCatches(e.target.checked)}
           />{' '}
           Force catches
+        </label>
+      )}
+      {debug && (
+        <label className="debug-force">
+          <input
+            type="checkbox"
+            checked={forceCountdowns}
+            disabled={spin !== null}
+            onChange={(e) => setForceCountdowns(e.target.checked)}
+          />{' '}
+          Force countdowns
         </label>
       )}
       {reason && !reasonSlot && <p>{reason}</p>}
