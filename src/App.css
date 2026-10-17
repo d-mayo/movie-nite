@@ -178,19 +178,16 @@ footer p {
     contain: size;
   }
 
-  /* The summary scrolls inside the slot rather than squeeze the pane away. */
-  .night:not(.viewers-hidden) .wheel-reason-slot {
-    max-height: 40dvh;
-    overflow-y: auto;
-  }
-
   .wheel-reason-slot {
     grid-column: 2;
     grid-row: 2;
     margin-top: var(--space-3);
   }
 
-  .night.viewers-hidden .wheel-reason-slot {
+  /* With the pane hidden, the message hovers at the bottom of the screen; the
+     Night over summary always does, whether the pane is shown or not. */
+  .night.viewers-hidden .wheel-reason-slot,
+  .night .wheel-reason-slot:has(.night-over) {
     position: fixed;
     bottom: var(--space-4);
     left: 50%;
@@ -208,15 +205,10 @@ footer p {
     margin: 0;
   }
 
-  /* While the Night over summary shows and the held-film card is open, the slot
-     clears the card by its published height (--held-film-height, unset when the
-     card is not open; the fallback cancels the gap). The pane shown: room is
-     reserved below the summary. The pane hidden: the bottom card is lifted. */
-  .night:not(.viewers-hidden) .wheel-reason-slot:has(.night-over) {
-    padding-bottom: calc(var(--space-3) + var(--held-film-height, calc(-1 * var(--space-3))));
-  }
-
-  .night.viewers-hidden .wheel-reason-slot:has(.night-over) {
+  /* The popup clears the held-film card by its published height
+     (--held-film-height, unset when the card is not open; the fallback cancels
+     the gap) and scrolls inside itself when it runs out of room. */
+  .night .wheel-reason-slot:has(.night-over) {
     --slot-bottom: calc(
       var(--space-4) + var(--space-3) + var(--held-film-height, calc(-1 * var(--space-3)))
     );
@@ -268,7 +260,9 @@ footer p {
   }
 
   .show-viewers {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     position: fixed;
     top: 50%;
     right: 0;
@@ -1271,7 +1265,7 @@ dialog.wheel-drawer:focus {
   /* A bit lighter than the pane: the page's tone in light, a lifted grey in dark. */
   background-color: var(--page);
   /* The viewer's color washes in from the left edge. */
-  background-image: linear-gradient(90deg, color-mix(in srgb, var(--viewer-color) 90%, transparent), color-mix(in srgb, var(--viewer-color) 14%, transparent) 20%, transparent 38%);
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--viewer-color) 60%, transparent), color-mix(in srgb, var(--viewer-color) 20%, transparent) 28%, transparent 55%);
   border: 1px solid var(--card-border);
   border-radius: 8px;
 }
@@ -1352,6 +1346,7 @@ dialog.wheel-drawer:focus {
 
 .cell-name {
   overflow-wrap: anywhere;
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--card) 80%, transparent);
 }
 
 .cell-adjusted {
@@ -1378,8 +1373,9 @@ dialog.wheel-drawer:focus {
   grid-column: 2;
   min-width: 0;
   overflow: hidden;
-  color: color-mix(in srgb, var(--text) 75%, var(--card));
+  color: color-mix(in srgb, var(--text) 92%, var(--card));
   font-size: 0.85em;
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--card) 80%, transparent);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1971,5 +1967,5 @@ dialog.wheel-drawer:focus {
 }
 
 .setup li.cell.dimmed {
-  background-image: linear-gradient(90deg, color-mix(in srgb, var(--viewer-color) 30%, transparent), color-mix(in srgb, var(--viewer-color) 6%, transparent) 20%, transparent 38%);
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--viewer-color) 32%, transparent), color-mix(in srgb, var(--viewer-color) 10%, transparent) 28%, transparent 55%);
 }

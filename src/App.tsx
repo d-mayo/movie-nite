@@ -164,7 +164,9 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
               setViewersHidden(false)
             }}
           >
-            <span aria-hidden="true">‹</span>
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 3L5 8l5 5" />
+            </svg>
           </button>
         )}
       </main>
