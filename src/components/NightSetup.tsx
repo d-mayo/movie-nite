@@ -281,18 +281,26 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
           <p className="headcount">Headcount: {night.presentIds.length}</p>
         </div>
         <AddViewer locked={locked} />
-        <button
-          type="button"
-          className="quiet pane-icon"
-          aria-label="Reset all slices and weights"
-          disabled={!anyAdjusted || locked}
-          onClick={() => setResetting(true)}
-        >
-          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 8a5 5 0 1 0 1.6-3.7" />
-            <path d="M3 2.5v3h3" />
-          </svg>
-        </button>
+        <span className="tip-wrap">
+          <button
+            type="button"
+            className="quiet pane-icon"
+            aria-label="Reset all slices and weights"
+            disabled={!anyAdjusted || locked}
+            aria-describedby={!anyAdjusted && !locked ? 'reset-tip' : undefined}
+            onClick={() => setResetting(true)}
+          >
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 8a5 5 0 1 0 1.6-3.7" />
+              <path d="M3 2.5v3h3" />
+            </svg>
+          </button>
+          {!anyAdjusted && !locked && (
+            <span id="reset-tip" role="tooltip" className="tip">
+              Viewer defaults already set
+            </span>
+          )}
+        </span>
         <button
           type="button"
           ref={hideRef}

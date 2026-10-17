@@ -1903,6 +1903,12 @@ dialog.wheel-drawer:focus {
   opacity: 0.4;
 }
 
+.tip-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.tip-wrap .tip,
 .add-viewer .tip {
   position: absolute;
   top: calc(100% + 4px);
@@ -1920,6 +1926,7 @@ dialog.wheel-drawer:focus {
   pointer-events: none;
 }
 
+.tip-wrap:hover .tip,
 .add-viewer:hover .tip,
 .add-viewer:focus-visible .tip {
   visibility: visible;
