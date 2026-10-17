@@ -75,7 +75,8 @@ test('hiding and showing work during a spin and its reveal, and change no night 
   const store = setup()
   fireEvent.click(screen.getByRole('button', { name: 'Spin' }))
   expect(hideButton()).toBeEnabled()
-  expect(screen.getByRole('button', { name: 'More for all viewers' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Reset all slices and weights' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Add a viewer' })).toBeDisabled()
   const { roster, night: n, holdover } = store.getState()
   fireEvent.click(hideButton())
   expect(store.getState().settings.viewersHidden).toBe(true)
@@ -88,7 +89,7 @@ test('hiding and showing work during a spin and its reveal, and change no night 
   expect(after.holdover).toBe(holdover)
 })
 
-test('the Hide viewers button sits outside the fieldset and the menu stays locked in a spin', () => {
+test('the Hide viewers button sits outside the fieldset and the reset icon stays locked in a spin', () => {
   setup()
   expect(hideButton().closest('fieldset')).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: 'Spin' }))

@@ -117,11 +117,52 @@ function AddViewer({ locked }: { locked: boolean }) {
   )
 }
 
+// Mounted only while shown, like the Remove dialog: Cancel and confirming
+// unmount it directly, and Escape does so through the native `close` event.
+function ResetAllDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClosed: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const dialog = ref.current
+    if (!dialog) return
+    if (!dialog.open) dialog.showModal()
+    dialog.addEventListener('close', onClosed)
+    return () => dialog.removeEventListener('close', onClosed)
+  }, [onClosed])
+  function dismiss() {
+    ref.current?.close()
+    onClosed()
+  }
+  return (
+    <dialog ref={ref} className="card confirm" aria-labelledby="reset-all-heading">
+      <h2 id="reset-all-heading">Reset every viewer's slices and weight?</h2>
+      <p>Everyone goes back to the defaults in Wheel settings.</p>
+      <div className="confirm-actions">
+        <button
+          type="button"
+          className="danger"
+          onClick={() => {
+            onConfirm()
+            dismiss()
+          }}
+        >
+          Reset
+        </button>
+        <button type="button" className="quiet" onClick={dismiss}>
+          Cancel
+        </button>
+      </div>
+    </dialog>
+  )
+}
+
 // The viewer pane: one cell per roster viewer, on the wheel first, then those
 // who have won tonight, then those who are away. At most one cell is open.
 export default function NightSetup({ client, onAuthError, locked = false, onHide, hideRef }: Props) {
   const { roster, night, settings, resetAllViewerSettings } = useApp()
-  const menu = useRef<HTMLDivElement>(null)
+  const [resetting, setResetting] = useState(false)
+  const closeReset = useCallback(() => setResetting(false), [])
+  // No confirmation stays pending through a spin.
+  if (locked && resetting) setResetting(false)
   const [openId, setOpenId] = useState<string | null>(null)
   // Nothing opens during a spin or its reveal, and the open cell closes.
   if (locked && openId !== null) setOpenId(null)
@@ -242,12 +283,14 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
         <button
           type="button"
           className="quiet"
-          aria-label="More for all viewers"
-          disabled={locked}
-          popoverTarget="pane-menu"
-          onClick={(e) => placeUnder(e, menu.current)}
+          aria-label="Reset all slices and weights"
+          disabled={!anyAdjusted || locked}
+          onClick={() => setResetting(true)}
         >
-          <span aria-hidden="true">⋯</span>
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 8a5 5 0 1 0 1.6-3.7" />
+            <path d="M3 2.5v3h3" />
+          </svg>
         </button>
         <button
           type="button"
@@ -258,18 +301,6 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
         >
           <span aria-hidden="true">›</span>
         </button>
-        <div id="pane-menu" popover="auto" ref={menu} className="card cell-menu">
-          <button
-            type="button"
-            disabled={!anyAdjusted || locked}
-            onClick={() => {
-              menu.current?.hidePopover()
-              resetAllViewerSettings()
-            }}
-          >
-            Reset all slices and weights
-          </button>
-        </div>
       </div>
       <fieldset disabled={locked} className="setup">
         <p>Headcount: {night.presentIds.length}</p>
@@ -298,6 +329,7 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
           ))}
         </ul>
       </fieldset>
+      {resetting && <ResetAllDialog onConfirm={resetAllViewerSettings} onClosed={closeReset} />}
     </section>
   )
 }

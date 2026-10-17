@@ -392,16 +392,49 @@ test('the X over a poster removes the film and the search takes its place', () =
   expect(within(cellOf('Ann')).getByText('No film yet')).toBeInTheDocument()
 })
 
-test('the pane menu resets every viewer to the defaults, and is off when all already are', () => {
+const resetAll = () => screen.getByRole('button', { name: 'Reset all slices and weights' })
+
+test('the reset icon is off with no adjustment, and asks before resetting every viewer', () => {
   const { store } = setupWith({ presentIds: ['a', 'b'] })
-  fireEvent.click(screen.getByRole('button', { name: 'More for all viewers' }))
-  expect(screen.getByRole('button', { name: 'Reset all slices and weights' })).toBeDisabled()
+  expect(screen.queryByRole('button', { name: 'More for all viewers' })).toBeNull()
+  expect(resetAll()).toBeDisabled()
 
   act(() => store.getState().setViewerSlices('a', 7))
   act(() => store.getState().setViewerWeight('b', 12))
-  expect(screen.getByRole('button', { name: 'Reset all slices and weights' })).toBeEnabled()
-  fireEvent.click(screen.getByRole('button', { name: 'Reset all slices and weights' }))
+  expect(resetAll()).toBeEnabled()
+  fireEvent.click(resetAll())
+  const dialog = screen.getByRole('dialog')
+  expect(dialog).toHaveTextContent("Reset every viewer's slices and weight?")
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(Object.keys(store.getState().night.adjustments)).toHaveLength(2)
+
+  fireEvent.click(resetAll())
+  fireEvent.click(screen.getByRole('dialog').querySelector('.confirm-actions button.danger')!)
+  expect(screen.queryByRole('dialog')).toBeNull()
   expect(store.getState().night.adjustments).toEqual({})
+})
+
+test('Escape on the reset confirmation changes nothing', () => {
+  const { store } = setupWith({ presentIds: ['a', 'b'] })
+  act(() => store.getState().setViewerSlices('a', 7))
+  fireEvent.click(resetAll())
+  act(() => {
+    screen.getByRole('dialog').dispatchEvent(new Event('close'))
+  })
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(Object.keys(store.getState().night.adjustments)).toHaveLength(1)
+})
+
+test('the reset icon is disabled during a spin, and a pending confirmation does not come back', () => {
+  const { store, rerender } = setupWith({ presentIds: ['a', 'b'] })
+  act(() => store.getState().setViewerSlices('a', 7))
+  fireEvent.click(resetAll())
+  rerender(true)
+  expect(resetAll()).toBeDisabled()
+  expect(screen.queryByRole('dialog')).toBeNull()
+  rerender(false)
+  expect(screen.queryByRole('dialog')).toBeNull()
 })
 
 test('an unadjusted viewer has no asterisk; adjusting shows it, and Reset removes it', () => {
@@ -433,13 +466,13 @@ test('setting slices from 3 to 4 and back to 3 keeps the asterisk', () => {
 
 test('an away viewer keeps the asterisk, and Reset all is enabled for it alone and clears it', () => {
   const { store } = setupWith({ presentIds: ['a', 'b'] })
-  fireEvent.click(screen.getByRole('button', { name: 'More for all viewers' }))
-  expect(screen.getByRole('button', { name: 'Reset all slices and weights' })).toBeDisabled()
+  expect(resetAll()).toBeDisabled()
   act(() => store.getState().setViewerSlices('b', 5))
   markAway('Bo')
   expect(within(cellOf('Bo')).getByTitle('Adjusted tonight')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Reset all slices and weights' })).toBeEnabled()
-  fireEvent.click(screen.getByRole('button', { name: 'Reset all slices and weights' }))
+  expect(resetAll()).toBeEnabled()
+  fireEvent.click(resetAll())
+  fireEvent.click(screen.getByRole('dialog').querySelector('.confirm-actions button.danger')!)
   expect(within(cellOf('Bo')).queryByTitle('Adjusted tonight')).toBeNull()
   expect(store.getState().night.adjustments).toEqual({})
 })
