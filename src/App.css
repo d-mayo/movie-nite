@@ -1261,9 +1261,16 @@ dialog.wheel-drawer:focus {
   display: block;
   margin-bottom: var(--space-2);
   padding: 0;
-  background: color-mix(in srgb, var(--text) 5%, var(--card));
+  /* A bit lighter than the pane: the page's tone in light, a lifted grey in dark. */
+  background: var(--page);
   border: 1px solid var(--card-border);
   border-radius: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .setup li.cell {
+    background: color-mix(in srgb, var(--text) 5%, var(--card));
+  }
 }
 
 .setup li.cell.open {
@@ -1389,7 +1396,7 @@ dialog.wheel-drawer:focus {
   display: flex;
   gap: var(--space-3);
   margin-left: auto;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--text) 55%, var(--muted));
   font-family: 'Bebas Neue', Impact, sans-serif;
 }
 
@@ -1410,6 +1417,7 @@ dialog.wheel-drawer:focus {
 }
 
 .cell-figure small {
+  color: var(--muted);
   font-size: 0.65rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
