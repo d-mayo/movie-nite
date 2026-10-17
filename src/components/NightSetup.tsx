@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent, type RefObject } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent, type RefObject } from 'react'
 import { maxNameLength, maxViewers } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
@@ -158,6 +158,10 @@ function ResetAllDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClos
 export default function NightSetup({ client, onAuthError, locked = false, onHide, hideRef }: Props) {
   const { roster, night, settings, resetAllViewerSettings } = useApp()
   const [resetting, setResetting] = useState(false)
+  const list = useRef<HTMLUListElement>(null)
+  // The list keeps room for its scrollbar only while it scrolls, so the cells
+  // are evenly spaced the rest of the time.
+  const [scrolls, setScrolls] = useState(false)
   const closeReset = useCallback(() => setResetting(false), [])
   // No confirmation stays pending through a spin.
   if (locked && resetting) setResetting(false)
@@ -259,6 +263,17 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
     return statusOf(viewerId) === 'wheel'
   }
 
+  useLayoutEffect(() => {
+    const el = list.current
+    if (!el) return
+    const measure = () => setScrolls(el.scrollHeight > el.clientHeight)
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  })
+
   const anyAdjusted = Object.keys(night.adjustments).length > 0
   // Array.prototype.sort is stable, so each group keeps roster order.
   const cells = roster
@@ -314,7 +329,7 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
         </button>
       </div>
       <fieldset disabled={locked} className="setup">
-        <ul className="viewer-cells">
+        <ul ref={list} className={scrolls ? 'viewer-cells scrolls' : 'viewer-cells'}>
           {cells.map(({ viewer, status }) => (
             <ViewerCell
               key={viewer.id}

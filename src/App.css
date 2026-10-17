@@ -1683,10 +1683,12 @@ dialog.wheel-drawer:focus {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
-    /* Room for the scrollbar beside the cells, never over them. */
-    scrollbar-gutter: stable;
-    padding-right: var(--space-2);
     margin-bottom: 0;
+  }
+
+  /* Room for the scrollbar beside the cells, never over them, only while it shows. */
+  .setup .viewer-cells.scrolls {
+    padding-right: var(--space-3);
   }
 
   .setup .viewer-cells > li.cell:last-child {
@@ -1968,4 +1970,36 @@ dialog.wheel-drawer:focus {
 
 .setup li.cell.dimmed {
   background-image: linear-gradient(90deg, color-mix(in srgb, var(--viewer-color) 32%, transparent), color-mix(in srgb, var(--viewer-color) 10%, transparent) 28%, transparent 55%);
+}
+
+/* Who the spin waits on. Under the wheel on narrow screens; on wide ones a
+   tooltip below the Spin hub, shown while the pointer is over the button. */
+.spin-waiting {
+  margin: var(--space-3) 0 0;
+}
+
+@media (min-width: 900px) {
+  .spin-waiting {
+    position: absolute;
+    top: calc(50% + 12%);
+    left: 50%;
+    z-index: 4;
+    width: max-content;
+    max-width: 80%;
+    margin: 0;
+    padding: var(--space-1) var(--space-3);
+    translate: -50% 0;
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-card);
+    font-size: 0.9rem;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .wheel-stage:has(.spin-button:hover) .spin-waiting {
+    visibility: visible;
+  }
 }
