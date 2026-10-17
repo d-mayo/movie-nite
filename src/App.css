@@ -1269,14 +1269,16 @@ dialog.wheel-drawer:focus {
   margin-bottom: var(--space-2);
   padding: 0;
   /* A bit lighter than the pane: the page's tone in light, a lifted grey in dark. */
-  background: var(--page);
+  background-color: var(--page);
+  /* The viewer's color washes in from the left edge. */
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--viewer-color) 32%, transparent), transparent 55%);
   border: 1px solid var(--card-border);
-  border-radius: 2px;
+  border-radius: 8px;
 }
 
 @media (prefers-color-scheme: dark) {
   .setup li.cell {
-    background: color-mix(in srgb, var(--text) 5%, var(--card));
+    background-color: color-mix(in srgb, var(--text) 5%, var(--card));
   }
 }
 
@@ -1301,16 +1303,7 @@ dialog.wheel-drawer:focus {
   display: flex;
   align-items: stretch;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-2) var(--space-1) 0;
-}
-
-.cell-dot {
-  flex: none;
-  align-self: center;
-  width: 10px;
-  height: 10px;
-  margin-left: var(--space-2);
-  border-radius: 50%;
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
 }
 
 .setup .cell-eye {
@@ -1443,7 +1436,6 @@ dialog.wheel-drawer:focus {
 }
 
 /* Won and away cells are dimmed; the eye toggle stays at full strength. */
-.cell.dimmed .cell-dot,
 .cell.dimmed .cell-header {
   opacity: 0.55;
 }
@@ -1488,7 +1480,7 @@ dialog.wheel-drawer:focus {
 
 /* The open cell is shaded so it is clear whose panel is open. */
 .setup li.cell.open:has(> .cell-body[data-floating]) {
-  background: color-mix(in srgb, var(--text) 14%, var(--card));
+  background-color: color-mix(in srgb, var(--text) 14%, var(--card));
 }
 
 .setup .cell-body > .cell-main {
@@ -1961,4 +1953,8 @@ dialog.wheel-drawer:focus {
   margin: 0;
   color: var(--danger);
   font-size: 0.9rem;
+}
+
+.setup li.cell.dimmed {
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--viewer-color) 15%, transparent), transparent 55%);
 }
