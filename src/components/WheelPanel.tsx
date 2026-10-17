@@ -162,9 +162,12 @@ export default function WheelPanel({
     ? null
     : onWheel.length === 0
       ? 'Viewers are needed to spin.'
-      : missing.length > 0
-        ? `Waiting for ${nameList.format(missing)} to nominate.`
-        : null
+      : null
+  // Who the spin waits on: a tooltip over the Spin button on wide screens, a line under the wheel on narrow ones.
+  const waiting =
+    !night.ended && onWheel.length > 0 && missing.length > 0
+      ? `Waiting for ${nameList.format(missing)} to nominate.`
+      : null
 
   function start() {
     startSpin()
@@ -356,6 +359,7 @@ export default function WheelPanel({
               className="spin-button"
               onClick={start}
               disabled={!canSpin || spin !== null}
+              aria-describedby={waiting ? 'spin-waiting' : undefined}
             >
               <Hub hubRef={motion.hubRef} />
               <span className="hub-label">Spin</span>
@@ -365,6 +369,11 @@ export default function WheelPanel({
         </div>
         <div className="zoom-vignette" ref={vignetteRef} aria-hidden="true" />
         {spin?.landed && <div className="flicker" data-testid="flicker" aria-hidden="true" />}
+        {waiting && (
+          <p id="spin-waiting" className="spin-waiting">
+            {waiting}
+          </p>
+        )}
       </div>
       {debug && (
         <label className="debug-force">

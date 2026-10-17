@@ -24,6 +24,8 @@ import Stepper from './Stepper.tsx'
 
 // Matches the 900 px breakpoint in App.css where the pane sits beside the wheel.
 const wideScreenPx = 900
+// The gap between a floating panel and the pane card.
+const panelGapPx = 8
 
 export type CellStatus = 'wheel' | 'won' | 'away'
 
@@ -201,17 +203,18 @@ export default function ViewerCell({
         el.style.cssText = ''
         return
       }
-      // Flush against the cell's left edge, so the two read as one shape.
+      // A separate card wholly left of the pane card, with a gap, top-aligned
+      // with the cell. A bridge over the gap and the pane's padding keeps the
+      // pointer inside the cell on its way across.
       const cellRect = cellEl.getBoundingClientRect()
-      const edge = Math.round(cellRect.left)
-      // One pixel under the cell, so no hairline of the page shows between them.
-      const width = Math.min(22 * 16, edge - 16) + 1
+      const paneLeft = Math.round(pane.getBoundingClientRect().left)
+      const width = Math.min(22 * 16, paneLeft - panelGapPx - 16)
       el.dataset.floating = 'true'
       el.style.position = 'fixed'
       el.style.width = `${width}px`
       el.style.minHeight = `${cellRect.height}px`
-      el.style.setProperty('--cell-height', `${cellRect.height}px`)
-      el.style.left = `${edge + 1 - width}px`
+      el.style.setProperty('--bridge', `${Math.max(0, cellRect.left - (paneLeft - panelGapPx))}px`)
+      el.style.left = `${paneLeft - panelGapPx - width}px`
       el.style.right = 'auto'
       el.style.bottom = 'auto'
       const room = window.innerHeight - el.offsetHeight - 8
@@ -240,7 +243,6 @@ export default function ViewerCell({
       }}
     >
       <div className="cell-head">
-        <span className="cell-edge" aria-hidden="true" style={{ background: viewer.color }} />
         <button
           type="button"
           className="quiet cell-eye"
@@ -260,35 +262,41 @@ export default function ViewerCell({
           aria-controls={expandable ? bodyId : undefined}
           onClick={onHeaderClick}
         >
-          <span className="cell-title">
-            <strong className="cell-name">{viewer.name}</strong>
-            {adjusted && (
-              <>
-                <span className="cell-adjusted" title="Adjusted tonight" aria-hidden="true">
-                  *
-                </span>
-                <span className="visually-hidden">Adjusted tonight</span>
-              </>
-            )}
-          </span>
           <span className="cell-film">
             {film ? (
-              <>
-                <Poster path={film.posterPath} title={film.title} />
-                <span>{filmLabel(film)}</span>
-              </>
+              <Poster path={film.posterPath} title={film.title} />
             ) : (
-              status === 'wheel' && <span>No film yet</span>
+              <span className="poster-placeholder" aria-hidden="true" />
             )}
+            <span className="cell-title">
+              <strong className="cell-name">{viewer.name}</strong>
+              {adjusted && (
+                <>
+                  <span className="cell-adjusted" title="Adjusted tonight" aria-hidden="true">
+                    *
+                  </span>
+                  <span className="visually-hidden">Adjusted tonight</span>
+                </>
+              )}
+            </span>
+            <span className="cell-filmtitle">
+              {film ? filmLabel(film) : status === 'wheel' && 'No film yet'}
+            </span>
           </span>
           {won ? (
             <span className="cell-tag">Won tonight</span>
+          ) : status === 'away' ? (
+            <span className="cell-tag">Away</span>
           ) : (
-            status === 'wheel' && (
-              <span className="cell-summary">
-                {setting.slices} {setting.slices === 1 ? 'slice' : 'slices'} · weight {setting.weight}
+            <span className="cell-summary">
+              <span className="cell-figure">
+                <b>{setting.slices}</b> <small>{setting.slices === 1 ? 'slice' : 'slices'}</small>
               </span>
-            )
+              <span className="visually-hidden"> · </span>
+              <span className="cell-figure cell-figure-weight">
+                <small>weight</small> <b>{setting.weight}</b>
+              </span>
+            </span>
           )}
         </button>
       </div>

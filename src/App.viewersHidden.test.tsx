@@ -75,7 +75,8 @@ test('hiding and showing work during a spin and its reveal, and change no night 
   const store = setup()
   fireEvent.click(screen.getByRole('button', { name: 'Spin' }))
   expect(hideButton()).toBeEnabled()
-  expect(screen.getByRole('button', { name: 'More for all viewers' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Reset all slices and weights' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Add a viewer' })).toBeDisabled()
   const { roster, night: n, holdover } = store.getState()
   fireEvent.click(hideButton())
   expect(store.getState().settings.viewersHidden).toBe(true)
@@ -88,7 +89,7 @@ test('hiding and showing work during a spin and its reveal, and change no night 
   expect(after.holdover).toBe(holdover)
 })
 
-test('the Hide viewers button sits outside the fieldset and the menu stays locked in a spin', () => {
+test('the Hide viewers button sits outside the fieldset and the reset icon stays locked in a spin', () => {
   setup()
   expect(hideButton().closest('fieldset')).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: 'Spin' }))
@@ -131,11 +132,11 @@ test('Wheel settings, End night, New night and the held-film card work while hid
   showButton()
 })
 
-test('the waiting message goes in the slot after the wheel, outside the wheel panel', () => {
+test('the waiting message sits in the wheel stage and describes the Spin button', () => {
   setup(false, { night: { nominations: { a: film(1) } } })
   const message = screen.getByText('Waiting for Bo to nominate.')
-  expect(message.closest('.wheel-reason-slot')).not.toBeNull()
-  expect(message.closest('.wheel-panel')).toBeNull()
+  expect(message.closest('.wheel-stage')).not.toBeNull()
+  expect(screen.getByRole('button', { name: 'Spin' })).toHaveAccessibleDescription('Waiting for Bo to nominate.')
 })
 
 test.each([false, true])(

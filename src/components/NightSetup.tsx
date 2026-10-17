@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent, type RefObject } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent, type RefObject } from 'react'
 import { maxNameLength, maxViewers } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import { effectiveSetting } from '../wheel/edit.ts'
 import { canHover, closeDelayMs } from './canHover.ts'
-import { placeUnder } from './placePopover.ts'
 import ViewerCell, { type CellStatus } from './ViewerCell.tsx'
 
 interface Props {
@@ -22,12 +21,150 @@ const openDelayMs = 80
 
 const rank: Record<CellStatus, number> = { wheel: 0, won: 1, away: 2 }
 
+// The + in the pane's header and the name popup it opens. A full roster keeps
+// the button focusable (aria-disabled) so its tooltip reaches the keyboard, and
+// opens nothing; a spin disables it outright.
+function AddViewer({ locked }: { locked: boolean }) {
+  const { roster, addViewer } = useApp()
+  const popup = useRef<HTMLDivElement>(null)
+  const field = useRef<HTMLInputElement>(null)
+  const [name, setName] = useState('')
+  const [error, setError] = useState('')
+  const full = roster.length >= maxViewers
+
+  useEffect(() => {
+    const el = popup.current
+    if (!el) return
+    function onToggle(e: Event) {
+      if ((e as Event & { newState?: string }).newState !== 'open') return
+      setName('')
+      setError('')
+      field.current?.focus()
+    }
+    el.addEventListener('toggle', onToggle)
+    return () => el.removeEventListener('toggle', onToggle)
+  }, [])
+  useEffect(() => {
+    if (locked) popup.current?.hidePopover()
+  }, [locked])
+
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    const trimmed = name.trim()
+    if (trimmed === '') {
+      setError('Enter a name.')
+      return
+    }
+    const taken = roster.find((v) => v.name.toLowerCase() === trimmed.toLowerCase())
+    if (taken) {
+      setError(`${taken.name} is already on the roster.`)
+      return
+    }
+    addViewer(trimmed)
+    popup.current?.hidePopover()
+  }
+
+  function onKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Escape') popup.current?.hidePopover()
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className="quiet pane-icon add-viewer"
+        aria-label="Add a viewer"
+        disabled={locked}
+        aria-disabled={full ? 'true' : undefined}
+        aria-describedby={full ? 'roster-full-tip' : undefined}
+        popoverTarget={full || locked ? undefined : 'add-viewer-popup'}
+      >
+        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+          <path d="M8 3v10M3 8h10" />
+        </svg>
+        {full && (
+          <span id="roster-full-tip" role="tooltip" className="tip">
+            The roster is full
+          </span>
+        )}
+      </button>
+      <div id="add-viewer-popup" popover="auto" ref={popup} className="card add-popup" onKeyDown={onKeyDown}>
+        <form onSubmit={submit} noValidate>
+          <label>
+            Name
+            <input
+              ref={field}
+              maxLength={maxNameLength}
+              value={name}
+              aria-describedby={error ? 'add-viewer-error' : undefined}
+              aria-invalid={error ? true : undefined}
+              onChange={(e) => {
+                setName(e.target.value)
+                setError('')
+              }}
+            />
+          </label>
+          {error && (
+            <p id="add-viewer-error" role="alert" className="field-error">
+              {error}
+            </p>
+          )}
+        </form>
+      </div>
+    </>
+  )
+}
+
+// Mounted only while shown, like the Remove dialog: Cancel and confirming
+// unmount it directly, and Escape does so through the native `close` event.
+function ResetAllDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClosed: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const dialog = ref.current
+    if (!dialog) return
+    if (!dialog.open) dialog.showModal()
+    dialog.addEventListener('close', onClosed)
+    return () => dialog.removeEventListener('close', onClosed)
+  }, [onClosed])
+  function dismiss() {
+    ref.current?.close()
+    onClosed()
+  }
+  return (
+    <dialog ref={ref} className="card confirm" aria-labelledby="reset-all-heading">
+      <h2 id="reset-all-heading">Reset every viewer's slices and weight?</h2>
+      <p>Everyone goes back to the defaults in Wheel settings.</p>
+      <div className="confirm-actions">
+        <button
+          type="button"
+          className="danger"
+          onClick={() => {
+            onConfirm()
+            dismiss()
+          }}
+        >
+          Reset
+        </button>
+        <button type="button" className="quiet" onClick={dismiss}>
+          Cancel
+        </button>
+      </div>
+    </dialog>
+  )
+}
+
 // The viewer pane: one cell per roster viewer, on the wheel first, then those
 // who have won tonight, then those who are away. At most one cell is open.
 export default function NightSetup({ client, onAuthError, locked = false, onHide, hideRef }: Props) {
-  const { roster, night, settings, addViewer, resetAllViewerSettings } = useApp()
-  const menu = useRef<HTMLDivElement>(null)
-  const [name, setName] = useState('')
+  const { roster, night, settings, resetAllViewerSettings } = useApp()
+  const [resetting, setResetting] = useState(false)
+  const list = useRef<HTMLUListElement>(null)
+  // The list keeps room for its scrollbar only while it scrolls, so the cells
+  // are evenly spaced the rest of the time.
+  const [scrolls, setScrolls] = useState(false)
+  const closeReset = useCallback(() => setResetting(false), [])
+  // No confirmation stays pending through a spin.
+  if (locked && resetting) setResetting(false)
   const [openId, setOpenId] = useState<string | null>(null)
   // Nothing opens during a spin or its reveal, and the open cell closes.
   if (locked && openId !== null) setOpenId(null)
@@ -126,6 +263,17 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
     return statusOf(viewerId) === 'wheel'
   }
 
+  useLayoutEffect(() => {
+    const el = list.current
+    if (!el) return
+    const measure = () => setScrolls(el.scrollHeight > el.clientHeight)
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  })
+
   const anyAdjusted = Object.keys(night.adjustments).length > 0
   // Array.prototype.sort is stable, so each group keeps roster order.
   const cells = roster
@@ -140,51 +288,48 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
     onHide()
   }
 
-  function add(e: FormEvent) {
-    e.preventDefault()
-    addViewer(name)
-    setName('')
-  }
-
   return (
     <section className="card">
       <div className="pane-head">
-        <h2>Tonight's viewers</h2>
-        <button
-          type="button"
-          className="quiet"
-          aria-label="More for all viewers"
-          disabled={locked}
-          popoverTarget="pane-menu"
-          onClick={(e) => placeUnder(e, menu.current)}
-        >
-          <span aria-hidden="true">⋯</span>
-        </button>
+        <div className="pane-title">
+          <h2>Tonight's viewers</h2>
+          <p className="headcount">Headcount: {night.presentIds.length}</p>
+        </div>
+        <AddViewer locked={locked} />
+        <span className="tip-wrap">
+          <button
+            type="button"
+            className="quiet pane-icon"
+            aria-label="Reset all slices and weights"
+            disabled={!anyAdjusted || locked}
+            aria-describedby={!anyAdjusted && !locked ? 'reset-tip' : undefined}
+            onClick={() => setResetting(true)}
+          >
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 8a5 5 0 1 0 1.6-3.7" />
+              <path d="M3 2.5v3h3" />
+            </svg>
+          </button>
+          {!anyAdjusted && !locked && (
+            <span id="reset-tip" role="tooltip" className="tip">
+              Viewer defaults already set
+            </span>
+          )}
+        </span>
         <button
           type="button"
           ref={hideRef}
-          className="quiet hide-viewers"
+          className="quiet pane-icon hide-viewers"
           aria-label="Hide viewers"
           onClick={hide}
         >
-          <span aria-hidden="true">›</span>
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 3l5 5-5 5" />
+          </svg>
         </button>
-        <div id="pane-menu" popover="auto" ref={menu} className="card cell-menu">
-          <button
-            type="button"
-            disabled={!anyAdjusted || locked}
-            onClick={() => {
-              menu.current?.hidePopover()
-              resetAllViewerSettings()
-            }}
-          >
-            Reset all slices and weights
-          </button>
-        </div>
       </div>
       <fieldset disabled={locked} className="setup">
-        <p>Headcount: {night.presentIds.length}</p>
-        <ul className="viewer-cells">
+        <ul ref={list} className={scrolls ? 'viewer-cells scrolls' : 'viewer-cells'}>
           {cells.map(({ viewer, status }) => (
             <ViewerCell
               key={viewer.id}
@@ -208,19 +353,8 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
             />
           ))}
         </ul>
-        <form onSubmit={add}>
-          <label>
-            Add a viewer
-            <input maxLength={maxNameLength} value={name} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <button type="submit" className="primary" disabled={roster.length >= maxViewers}>
-            Add
-          </button>
-          {roster.length >= maxViewers && (
-            <p>The roster is full (12 viewers). Remove a viewer to add another.</p>
-          )}
-        </form>
       </fieldset>
+      {resetting && <ResetAllDialog onConfirm={resetAllViewerSettings} onClosed={closeReset} />}
     </section>
   )
 }

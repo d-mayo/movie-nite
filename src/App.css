@@ -122,6 +122,9 @@ footer p {
 }
 
 .night {
+  /* The banner (81px with its border) and the main's vertical padding (2rem each),
+     which the full-height pane subtracts from the window. */
+  --chrome-height: calc(81px + 4rem);
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -132,7 +135,10 @@ footer p {
   .night {
     display: grid;
     grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
+    /* The pane's row takes what the status slot leaves, and the grid is at least
+       as tall as the window under the banner, so the pane reaches the bottom. */
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-height: calc(100dvh - var(--chrome-height));
     align-items: start;
     gap: 0 2rem;
     overflow-x: clip;
@@ -156,9 +162,20 @@ footer p {
     grid-row: 1 / span 2;
   }
 
+  /* The wheel is no taller than the window under the banner, so with the pane at
+     full height the page has no scrollbar of its own. */
+  .night .wheel-stage {
+    max-width: min(1600px, max(20rem, calc(100dvh - var(--chrome-height))));
+  }
+
   .night > .setup-column {
     grid-column: 2;
     grid-row: 1;
+    align-self: stretch;
+    min-height: 0;
+    /* The pane adds nothing to its row's height: it fills what the wheel and the
+       window leave, and its list scrolls. */
+    contain: size;
   }
 
   .wheel-reason-slot {
@@ -167,7 +184,10 @@ footer p {
     margin-top: var(--space-3);
   }
 
-  .night.viewers-hidden .wheel-reason-slot {
+  /* With the pane hidden, the message hovers at the bottom of the screen; the
+     Night over summary always does, whether the pane is shown or not. */
+  .night.viewers-hidden .wheel-reason-slot,
+  .night .wheel-reason-slot:has(.night-over) {
     position: fixed;
     bottom: var(--space-4);
     left: 50%;
@@ -185,15 +205,10 @@ footer p {
     margin: 0;
   }
 
-  /* While the Night over summary shows and the held-film card is open, the slot
-     clears the card by its published height (--held-film-height, unset when the
-     card is not open; the fallback cancels the gap). The pane shown: room is
-     reserved below the summary. The pane hidden: the bottom card is lifted. */
-  .night:not(.viewers-hidden) .wheel-reason-slot:has(.night-over) {
-    padding-bottom: calc(var(--space-3) + var(--held-film-height, calc(-1 * var(--space-3))));
-  }
-
-  .night.viewers-hidden .wheel-reason-slot:has(.night-over) {
+  /* The popup clears the held-film card by its published height
+     (--held-film-height, unset when the card is not open; the fallback cancels
+     the gap) and scrolls inside itself when it runs out of room. */
+  .night .wheel-reason-slot:has(.night-over) {
     --slot-bottom: calc(
       var(--space-4) + var(--space-3) + var(--held-film-height, calc(-1 * var(--space-3)))
     );
@@ -245,7 +260,9 @@ footer p {
   }
 
   .show-viewers {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     position: fixed;
     top: 50%;
     right: 0;
@@ -950,14 +967,54 @@ html:has(.wheel-stage[data-zoom]) {
 
 .pane-head {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  align-items: flex-start;
+  gap: var(--space-1);
   margin: 0 0 var(--space-3);
+}
+
+.pane-title {
+  margin-right: auto;
 }
 
 .pane-head h2 {
   margin: 0;
-  margin-right: auto;
+  font: 400 1.9rem/1 'Bebas Neue', Impact, sans-serif;
+  letter-spacing: 0.04em;
+}
+
+.pane-head .headcount {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* The header's three icon buttons: one size, one color, centered. */
+.pane-head .pane-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  color: var(--text);
+}
+
+/* The contact sheet: a rail of sprocket holes in the app's greys down the pane's left edge. */
+.setup-column > .card {
+  position: relative;
+  padding-left: calc(var(--space-4) + 14px);
+}
+
+.setup-column > .card::before {
+  content: '';
+  position: absolute;
+  top: var(--space-3);
+  bottom: var(--space-3);
+  left: 7px;
+  width: 8px;
+  background: radial-gradient(circle at 50% 50%, var(--card-border) 0 2.5px, transparent 3px) 0 0 / 8px 16px repeat-y;
+  pointer-events: none;
 }
 
 .setup > h2,
@@ -1205,8 +1262,18 @@ dialog.wheel-drawer:focus {
   display: block;
   margin-bottom: var(--space-2);
   padding: 0;
+  /* A bit lighter than the pane: the page's tone in light, a lifted grey in dark. */
+  background-color: var(--page);
+  /* The viewer's color washes in from the left edge. */
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--viewer-color) 60%, transparent), color-mix(in srgb, var(--viewer-color) 20%, transparent) 28%, transparent 55%);
   border: 1px solid var(--card-border);
-  border-radius: var(--radius-md);
+  border-radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .setup li.cell {
+    background-color: color-mix(in srgb, var(--text) 5%, var(--card));
+  }
 }
 
 .setup li.cell.open {
@@ -1230,13 +1297,7 @@ dialog.wheel-drawer:focus {
   display: flex;
   align-items: stretch;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-2) var(--space-1) 0;
-}
-
-.cell-edge {
-  flex: none;
-  width: 6px;
-  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
 }
 
 .setup .cell-eye {
@@ -1257,9 +1318,8 @@ dialog.wheel-drawer:focus {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1) var(--space-3);
+  gap: var(--space-2);
   margin: 0;
   padding: var(--space-1) var(--space-2);
   border-color: transparent;
@@ -1286,17 +1346,38 @@ dialog.wheel-drawer:focus {
 
 .cell-name {
   overflow-wrap: anywhere;
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--card) 80%, transparent);
 }
 
 .cell-adjusted {
   cursor: help;
 }
 
+/* The poster thumbnail at the left, the name over the film's title beside it. */
 .cell-film {
-  display: inline-flex;
+  flex: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-content: center;
   align-items: center;
-  gap: var(--space-2);
+  column-gap: var(--space-2);
   min-width: 0;
+}
+
+.cell-film > :first-child {
+  grid-row: 1 / span 2;
+}
+
+.cell-filmtitle {
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--text) 92%, var(--card));
+  font-size: 0.85em;
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--card) 80%, transparent);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .setup .cell-film img {
@@ -1305,18 +1386,55 @@ dialog.wheel-drawer:focus {
 }
 
 .setup .cell-film .poster-placeholder {
+  box-sizing: border-box;
   width: 23px;
   height: 35px;
+  background: var(--card);
+  border: 1px solid var(--border);
 }
 
-.cell-summary,
-.cell-tag {
+/* Slices and weight: two small figures with a caption under each, in the reel's
+   type and the muted grey, so they draw less attention than the name. */
+.cell-summary {
+  display: flex;
+  gap: var(--space-3);
+  margin-left: auto;
   color: var(--muted);
-  font-size: 0.85em;
+  font-family: 'Bebas Neue', Impact, sans-serif;
+}
+
+.cell-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+
+.cell-figure-weight {
+  flex-direction: column-reverse;
+}
+
+.cell-figure b {
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+
+.cell-figure small {
+  color: color-mix(in srgb, var(--muted) 80%, var(--card));
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cell-tag {
+  margin-left: auto;
+  color: var(--muted);
+  font: 400 1rem/1 'Bebas Neue', Impact, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 /* Won and away cells are dimmed; the eye toggle stays at full strength. */
-.cell.dimmed .cell-edge,
 .cell.dimmed .cell-header {
   opacity: 0.55;
 }
@@ -1341,39 +1459,27 @@ dialog.wheel-drawer:focus {
   border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
-/* On wide screens the body is a panel attached to the open cell's left edge:
-   the cell squares off its left side and the panel takes the same border. */
+/* On wide screens the body is a separate card to the left of the pane, with a
+   small gap. A bridge over the gap (--bridge, set in ViewerCell) keeps the
+   pointer inside the cell as it crosses. */
 .setup li.cell > .cell-body[data-floating] {
-  border-left: 6px solid var(--viewer-color);
-  border-radius: var(--radius-md) 0 var(--radius-md) var(--radius-md);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
   animation-name: cell-slide;
 }
 
-/* Its right border runs below the cell it comes out of; beside the cell the
-   border is covered, so the two join up. */
-.setup li.cell > .cell-body[data-floating]::after {
+.setup li.cell > .cell-body[data-floating]::before {
   content: '';
   position: absolute;
   top: 0;
-  right: -1px;
-  width: 1px;
-  height: calc(var(--cell-height) - 2px);
-  background: var(--card);
+  bottom: 0;
+  left: 100%;
+  width: var(--bridge, 0);
 }
 
+/* The open cell is shaded so it is clear whose panel is open. */
 .setup li.cell.open:has(> .cell-body[data-floating]) {
-  border-left: 0;
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  background: var(--card);
-}
-
-/* The panel carries the viewer's color bar on its far left instead. */
-.setup li.cell.open:has(> .cell-body[data-floating]) .cell-edge {
-  display: none;
-}
-
-.setup li.cell.open:has(> .cell-body[data-floating]) .cell-head {
-  padding-left: var(--space-2);
+  background-color: color-mix(in srgb, var(--text) 14%, var(--card));
 }
 
 .setup .cell-body > .cell-main {
@@ -1556,13 +1662,14 @@ dialog.wheel-drawer:focus {
   }
 }
 
-/* Wide screens: the cell list scrolls on its own within about the wheel's
-   height, with Add a viewer below it. */
+/* Wide screens: the pane fills its column down to the window's bottom, with the
+   header fixed and the cell list scrolling on its own when it cannot fit. */
 @media (min-width: 900px) {
   .setup-column > .card {
     display: flex;
     flex-direction: column;
-    max-height: min(860px, 88vh);
+    flex: 0 1 auto;
+    min-height: 0;
   }
 
   .setup-column > .card > fieldset.setup {
@@ -1576,6 +1683,16 @@ dialog.wheel-drawer:focus {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
+    margin-bottom: 0;
+  }
+
+  /* Room for the scrollbar beside the cells, never over them, only while it shows. */
+  .setup .viewer-cells.scrolls {
+    padding-right: var(--space-3);
+  }
+
+  .setup .viewer-cells > li.cell:last-child {
+    margin-bottom: 0;
   }
 }
 
@@ -1764,5 +1881,125 @@ dialog.wheel-drawer:focus {
 @media (min-width: 900px) {
   .viewer-key {
     display: flex;
+  }
+}
+
+/* The + in the pane's header: a crossed-out look and a tooltip once the roster
+   is full (aria-disabled, so it keeps focus and the tooltip reaches the keyboard). */
+.add-viewer {
+  position: relative;
+}
+
+.pane-head .add-viewer[aria-disabled='true'],
+.pane-head .add-viewer:disabled {
+  cursor: not-allowed;
+}
+
+/* Only the plus dims, not the tooltip inside the button. */
+.pane-head .add-viewer[aria-disabled='true'] > svg,
+.pane-head .add-viewer:disabled > svg {
+  opacity: 0.4;
+}
+
+.tip-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.tip-wrap .tip,
+.add-viewer .tip {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 4;
+  width: max-content;
+  padding: var(--space-1) var(--space-2);
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+  font-size: 0.85rem;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.tip-wrap:hover .tip,
+.add-viewer:hover .tip,
+.add-viewer:focus-visible .tip {
+  visibility: visible;
+}
+
+.add-popup {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  width: min(22rem, calc(100vw - 2rem));
+  height: fit-content;
+  margin: auto;
+  padding: var(--space-4);
+}
+
+.add-popup:not(:popover-open) {
+  display: none;
+}
+
+.add-popup::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+.add-popup:popover-open form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.add-popup label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.field-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+.setup li.cell.dimmed {
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--viewer-color) 32%, transparent), color-mix(in srgb, var(--viewer-color) 10%, transparent) 28%, transparent 55%);
+}
+
+/* Who the spin waits on. Under the wheel on narrow screens; on wide ones a
+   tooltip below the Spin hub, shown while the pointer is over the button. */
+.spin-waiting {
+  margin: var(--space-3) 0 0;
+}
+
+@media (min-width: 900px) {
+  .spin-waiting {
+    position: absolute;
+    top: calc(50% + 12%);
+    left: 50%;
+    z-index: 4;
+    width: max-content;
+    max-width: 80%;
+    margin: 0;
+    padding: var(--space-1) var(--space-3);
+    translate: -50% 0;
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-card);
+    font-size: 0.9rem;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .wheel-stage:has(.spin-button:hover) .spin-waiting {
+    visibility: visible;
   }
 }

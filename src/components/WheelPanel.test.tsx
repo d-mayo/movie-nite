@@ -140,8 +140,7 @@ test('spinning locks setup, rests in the drawn slice and shows a snapshot', asyn
 
   expect(spinButton()).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Ann is here' })).toBeDisabled()
-  expect(screen.getByLabelText('Add a viewer')).toBeDisabled()
-  expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Add a viewer' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Settings' })).toBeEnabled()
   fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
   expect(screen.getByRole('button', { name: 'Change TMDB token' })).toBeDisabled()

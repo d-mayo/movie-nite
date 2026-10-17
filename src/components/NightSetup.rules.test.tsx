@@ -320,7 +320,7 @@ test('a lock closes the open cell and nothing opens until it ends', () => {
   expect(isOpen('Ann')).toBe(false)
   expect(screen.getByRole('button', { name: 'Ann is here' })).toBeDisabled()
   expect(header('Ann')).toBeDisabled()
-  expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Add a viewer' })).toBeDisabled()
   enter('Bo')
   wait(1000)
   expect(isOpen('Bo')).toBe(false)
@@ -340,4 +340,57 @@ test('the eye toggle closes its own open cell', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Ann is here' }), { detail: 1 })
   expect(isOpen('Ann')).toBe(false)
   expect(screen.getByRole('button', { name: 'Ann is away' })).toBeInTheDocument()
+})
+
+function stubRects() {
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    const box = (left: number, top: number, width: number, height: number) =>
+      ({ left, top, width, height, right: left + width, bottom: top + height, x: left, y: top, toJSON() {} }) as DOMRect
+    if (this.matches('section.card')) return box(900, 0, 360, 700)
+    if (this.matches('li.cell')) return box(920, 120, 320, 50)
+    return box(0, 0, 0, 0)
+  })
+}
+
+test('on a wide screen the open panel is a card wholly left of the pane with a gap, level with its cell', () => {
+  canHover(true)
+  vi.stubGlobal('innerWidth', 1280)
+  vi.stubGlobal('innerHeight', 800)
+  stubRects()
+  mount()
+  mouseClick('Ann')
+  const body = document.getElementById('cell-body-a')!
+  const left = parseFloat(body.style.left)
+  const width = parseFloat(body.style.width)
+  expect(body).toHaveAttribute('data-floating', 'true')
+  expect(left + width).toBeLessThanOrEqual(900 - 8)
+  expect(parseFloat(body.style.top)).toBe(120)
+  // The bridge spans the gap and the pane's padding up to the cell.
+  expect(body.style.getPropertyValue('--bridge')).toBe('28px')
+  vi.unstubAllGlobals()
+})
+
+test('below 900 px the open panel has no floating placement', () => {
+  canHover(true)
+  vi.stubGlobal('innerWidth', 600)
+  mount()
+  mouseClick('Ann')
+  const body = document.getElementById('cell-body-a')!
+  expect(body).not.toHaveAttribute('data-floating')
+  expect(body.getAttribute('style') ?? '').toBe('')
+  vi.unstubAllGlobals()
+})
+
+test('moving from the open cell to its panel keeps it open and opens no other cell', () => {
+  canHover(true)
+  mount()
+  mouseClick('Ann')
+  const body = document.getElementById('cell-body-a')!
+  leave('Ann')
+  wait(100)
+  fireEvent.pointerEnter(body)
+  wait(500)
+  expect(isOpen('Ann')).toBe(true)
+  expect(isOpen('Bo')).toBe(false)
+  expect(isOpen('Di')).toBe(false)
 })

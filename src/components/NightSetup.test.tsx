@@ -4,7 +4,7 @@ import { expect, test, vi } from 'vitest'
 import { defaultState, type AppState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { AppStoreContext, createAppStore } from '../state/store.ts'
-import { header, markAway, markHere, openCell, removeViewer } from '../test/cells.ts'
+import { addViewer as add, header, markAway, markHere, openCell, removeViewer } from '../test/cells.ts'
 import { createTmdbClient } from '../tmdb/client.ts'
 import NightSetup from './NightSetup.tsx'
 import { defaultWheelSettings } from '../wheel/edit.ts'
@@ -57,13 +57,6 @@ function setupWith(
     },
     locked,
   )
-}
-
-function add(name: string) {
-  fireEvent.change(screen.getByLabelText('Add a viewer'), {
-    target: { value: name },
-  })
-  fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 }
 
 const names = () => Array.from(document.querySelectorAll('.cell-name')).map((n) => n.textContent)
@@ -124,11 +117,11 @@ test('a closed cell summarises the film and the slices and weight, or says what 
   )
   const ann = within(cellOf('Ann'))
   expect(ann.getByText('Film (2000)')).toBeInTheDocument()
-  expect(ann.getByText('3 slices · weight 5')).toBeInTheDocument()
+  expect(cellOf('Ann').querySelector('.cell-summary')).toHaveTextContent('3 slices · weight 5')
   expect(within(cellOf('Bo')).getByText('No film yet')).toBeInTheDocument()
 
   act(() => store.getState().setViewerSlices('a', 4))
-  expect(within(cellOf('Ann')).getByText('4 slices · weight 5')).toBeInTheDocument()
+  expect(cellOf('Ann').querySelector('.cell-summary')).toHaveTextContent('4 slices · weight 5')
 
   const cy = within(cellOf('Cy'))
   expect(cy.getByText('Won tonight')).toBeInTheDocument()
@@ -138,6 +131,23 @@ test('a closed cell summarises the film and the slices and weight, or says what 
 
   const di = within(cellOf('Di'))
   expect(di.queryByText(/slices/)).toBeNull()
+  expect(di.getByText('Away')).toBeInTheDocument()
+  expect(cy.queryByText('Away')).toBeNull()
+  expect(within(cellOf('Ann')).queryByText('Away')).toBeNull()
+})
+
+test('a cell on the wheel shows slices and weight as two captioned figures, with no frame number', () => {
+  const { store } = setupWith({ presentIds: ['a', 'b'] })
+  const figures = () =>
+    Array.from(cellOf('Ann').querySelectorAll('.cell-figure')).map((f) => [
+      f.querySelector('b')!.textContent,
+      f.querySelector('small')!.textContent,
+    ])
+  expect(figures()).toEqual([['3', 'slices'], ['5', 'weight']])
+  act(() => store.getState().setViewerSlices('a', 1))
+  expect(figures()[0]).toEqual(['1', 'slice'])
+  expect(cellOf('Ann').querySelector('.cell-summary')).toHaveTextContent('1 slice · weight 5')
+  expect(cellOf('Ann').textContent).toMatch(/^Ann/)
 })
 
 test('the eye toggle marks a viewer away or here without opening or closing their cell', () => {
@@ -213,7 +223,7 @@ test('slider moves are saved as adjustments at once', () => {
   fireEvent.change(screen.getByLabelText('Weight for Ann'), { target: { value: '7.5' } })
   expect(store.getState().night.adjustments.a.weight).toBe(7.5)
   expect(screen.getByRole('group', { name: 'Slices for Ann' }).querySelector('output')).toHaveTextContent('4')
-  expect(within(cellOf('Ann')).getByText('4 slices · weight 7.5')).toBeInTheDocument()
+  expect(cellOf('Ann').querySelector('.cell-summary')).toHaveTextContent('4 slices · weight 7.5')
 })
 
 test('Remove from roster asks first; Cancel and Escape keep the viewer, confirming removes them', () => {
@@ -275,19 +285,69 @@ test('a saved Watch next session film is not shown in the viewer pane', () => {
   expect(screen.queryByRole('button', { name: 'Clear Watch next session film' })).toBeNull()
 })
 
-test('the Add a viewer field accepts at most 20 characters', () => {
-  setup()
-  expect(screen.getByLabelText('Add a viewer')).toHaveAttribute('maxlength', '20')
+test('the pane has no Add form until the + is pressed, then a popup adds a trimmed name on Enter', () => {
+  const { store } = setup()
+  expect(screen.queryByRole('button', { name: 'Add' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Add a viewer' }))
+  const field = screen.getByLabelText('Name')
+  expect(field).toHaveFocus()
+  expect(field).toHaveAttribute('maxlength', '20')
+  fireEvent.change(field, { target: { value: ' Ann ' } })
+  fireEvent.submit(field.closest('form')!)
+  expect(store.getState().roster.map((v) => v.name)).toEqual(['Ann'])
+  expect(store.getState().night.presentIds).toHaveLength(1)
+  expect(screen.getByText('Headcount: 1')).toBeInTheDocument()
+  expect(document.getElementById('add-viewer-popup')!.style.display).toBe('')
+  fireEvent.click(screen.getByRole('button', { name: 'Add a viewer' }))
+  expect(screen.getByLabelText('Name')).toHaveValue('')
 })
 
-test('the Add control is disabled with a note once the roster is full, and frees on removal', () => {
+test('a blank or duplicate name keeps the popup open with an error, and Escape cancels', () => {
+  const { store } = setup()
+  add('Ann')
+  fireEvent.click(screen.getByRole('button', { name: 'Add a viewer' }))
+  const field = screen.getByLabelText('Name')
+  fireEvent.submit(field.closest('form')!)
+  expect(screen.getByRole('alert')).toHaveTextContent('Enter a name.')
+  expect(field).toHaveAccessibleDescription('Enter a name.')
+  fireEvent.change(field, { target: { value: 'ann' } })
+  expect(screen.queryByRole('alert')).toBeNull()
+  fireEvent.submit(field.closest('form')!)
+  expect(screen.getByRole('alert')).toHaveTextContent('Ann is already on the roster.')
+  expect(field).toHaveValue('ann')
+  expect(document.getElementById('add-viewer-popup')!.dataset.popoverOpen).toBe('true')
+  expect(store.getState().roster).toHaveLength(1)
+  fireEvent.keyDown(field, { key: 'Escape' })
+  expect(document.getElementById('add-viewer-popup')!.dataset.popoverOpen).toBeUndefined()
+  expect(store.getState().roster).toHaveLength(1)
+  fireEvent.click(screen.getByRole('button', { name: 'Add a viewer' }))
+  expect(screen.getByLabelText('Name')).toHaveValue('')
+  expect(screen.queryByRole('alert')).toBeNull()
+})
+
+test('the + is crossed out and described once the roster is full, opens nothing, and frees on removal', () => {
   setup()
   for (let i = 0; i < 12; i++) add(`V${i}`)
-  expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled()
-  expect(screen.getByText(/roster is full/)).toBeInTheDocument()
+  const plus = screen.getByRole('button', { name: 'Add a viewer' })
+  expect(plus).toHaveAttribute('aria-disabled', 'true')
+  expect(plus).toBeEnabled()
+  expect(plus).toHaveAccessibleDescription('The roster is full')
+  fireEvent.click(plus)
+  expect(document.getElementById('add-viewer-popup')!.dataset.popoverOpen).toBeUndefined()
   removeViewer('V3')
-  expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled()
-  expect(screen.queryByText(/roster is full/)).toBeNull()
+  const freed = screen.getByRole('button', { name: 'Add a viewer' })
+  expect(freed).not.toHaveAttribute('aria-disabled')
+  fireEvent.click(freed)
+  expect(document.getElementById('add-viewer-popup')!.dataset.popoverOpen).toBe('true')
+})
+
+test('during a spin the + is disabled, and with a full roster it is still crossed out', () => {
+  const { rerender } = setup()
+  for (let i = 0; i < 12; i++) add(`V${i}`)
+  rerender(true)
+  const plus = screen.getByRole('button', { name: 'Add a viewer' })
+  expect(plus).toBeDisabled()
+  expect(plus).toHaveAttribute('aria-disabled', 'true')
 })
 
 test('a swatch opens the presets, marks the own color, disables taken ones and sets a free one', () => {
@@ -349,16 +409,49 @@ test('the X over a poster removes the film and the search takes its place', () =
   expect(within(cellOf('Ann')).getByText('No film yet')).toBeInTheDocument()
 })
 
-test('the pane menu resets every viewer to the defaults, and is off when all already are', () => {
+const resetAll = () => screen.getByRole('button', { name: 'Reset all slices and weights' })
+
+test('the reset icon is off with no adjustment, and asks before resetting every viewer', () => {
   const { store } = setupWith({ presentIds: ['a', 'b'] })
-  fireEvent.click(screen.getByRole('button', { name: 'More for all viewers' }))
-  expect(screen.getByRole('button', { name: 'Reset all slices and weights' })).toBeDisabled()
+  expect(screen.queryByRole('button', { name: 'More for all viewers' })).toBeNull()
+  expect(resetAll()).toBeDisabled()
 
   act(() => store.getState().setViewerSlices('a', 7))
   act(() => store.getState().setViewerWeight('b', 12))
-  expect(screen.getByRole('button', { name: 'Reset all slices and weights' })).toBeEnabled()
-  fireEvent.click(screen.getByRole('button', { name: 'Reset all slices and weights' }))
+  expect(resetAll()).toBeEnabled()
+  fireEvent.click(resetAll())
+  const dialog = screen.getByRole('dialog')
+  expect(dialog).toHaveTextContent("Reset every viewer's slices and weight?")
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(Object.keys(store.getState().night.adjustments)).toHaveLength(2)
+
+  fireEvent.click(resetAll())
+  fireEvent.click(screen.getByRole('dialog').querySelector('.confirm-actions button.danger')!)
+  expect(screen.queryByRole('dialog')).toBeNull()
   expect(store.getState().night.adjustments).toEqual({})
+})
+
+test('Escape on the reset confirmation changes nothing', () => {
+  const { store } = setupWith({ presentIds: ['a', 'b'] })
+  act(() => store.getState().setViewerSlices('a', 7))
+  fireEvent.click(resetAll())
+  act(() => {
+    screen.getByRole('dialog').dispatchEvent(new Event('close'))
+  })
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(Object.keys(store.getState().night.adjustments)).toHaveLength(1)
+})
+
+test('the reset icon is disabled during a spin, and a pending confirmation does not come back', () => {
+  const { store, rerender } = setupWith({ presentIds: ['a', 'b'] })
+  act(() => store.getState().setViewerSlices('a', 7))
+  fireEvent.click(resetAll())
+  rerender(true)
+  expect(resetAll()).toBeDisabled()
+  expect(screen.queryByRole('dialog')).toBeNull()
+  rerender(false)
+  expect(screen.queryByRole('dialog')).toBeNull()
 })
 
 test('an unadjusted viewer has no asterisk; adjusting shows it, and Reset removes it', () => {
@@ -390,13 +483,13 @@ test('setting slices from 3 to 4 and back to 3 keeps the asterisk', () => {
 
 test('an away viewer keeps the asterisk, and Reset all is enabled for it alone and clears it', () => {
   const { store } = setupWith({ presentIds: ['a', 'b'] })
-  fireEvent.click(screen.getByRole('button', { name: 'More for all viewers' }))
-  expect(screen.getByRole('button', { name: 'Reset all slices and weights' })).toBeDisabled()
+  expect(resetAll()).toBeDisabled()
   act(() => store.getState().setViewerSlices('b', 5))
   markAway('Bo')
   expect(within(cellOf('Bo')).getByTitle('Adjusted tonight')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Reset all slices and weights' })).toBeEnabled()
-  fireEvent.click(screen.getByRole('button', { name: 'Reset all slices and weights' }))
+  expect(resetAll()).toBeEnabled()
+  fireEvent.click(resetAll())
+  fireEvent.click(screen.getByRole('dialog').querySelector('.confirm-actions button.danger')!)
   expect(within(cellOf('Bo')).queryByTitle('Adjusted tonight')).toBeNull()
   expect(store.getState().night.adjustments).toEqual({})
 })
@@ -411,8 +504,8 @@ test('removing an adjusted viewer and adding one with the same name shows no ast
 
 test('the summary shows the effective slices and weight', () => {
   const { store } = setupWith({ presentIds: ['a'] }, null, people.slice(0, 1))
-  expect(within(cellOf('Ann')).getByText('3 slices · weight 5')).toBeInTheDocument()
+  expect(cellOf('Ann').querySelector('.cell-summary')).toHaveTextContent('3 slices · weight 5')
   act(() => store.getState().setDefaultSlices(2))
   act(() => store.getState().setDefaultWeight(7))
-  expect(within(cellOf('Ann')).getByText('2 slices · weight 7')).toBeInTheDocument()
+  expect(cellOf('Ann').querySelector('.cell-summary')).toHaveTextContent('2 slices · weight 7')
 })
