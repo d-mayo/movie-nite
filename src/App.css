@@ -1271,7 +1271,7 @@ dialog.wheel-drawer:focus {
   /* A bit lighter than the pane: the page's tone in light, a lifted grey in dark. */
   background-color: var(--page);
   /* The viewer's color washes in from the left edge. */
-  background-image: linear-gradient(90deg, color-mix(in srgb, var(--viewer-color) 55%, transparent), color-mix(in srgb, var(--viewer-color) 12%, transparent) 20%, transparent 38%);
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--viewer-color) 90%, transparent), color-mix(in srgb, var(--viewer-color) 14%, transparent) 20%, transparent 38%);
   border: 1px solid var(--card-border);
   border-radius: 8px;
 }
