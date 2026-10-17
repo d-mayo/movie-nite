@@ -1341,39 +1341,27 @@ dialog.wheel-drawer:focus {
   border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
-/* On wide screens the body is a panel attached to the open cell's left edge:
-   the cell squares off its left side and the panel takes the same border. */
+/* On wide screens the body is a separate card to the left of the pane, with a
+   small gap. A bridge over the gap (--bridge, set in ViewerCell) keeps the
+   pointer inside the cell as it crosses. */
 .setup li.cell > .cell-body[data-floating] {
-  border-left: 6px solid var(--viewer-color);
-  border-radius: var(--radius-md) 0 var(--radius-md) var(--radius-md);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
   animation-name: cell-slide;
 }
 
-/* Its right border runs below the cell it comes out of; beside the cell the
-   border is covered, so the two join up. */
-.setup li.cell > .cell-body[data-floating]::after {
+.setup li.cell > .cell-body[data-floating]::before {
   content: '';
   position: absolute;
   top: 0;
-  right: -1px;
-  width: 1px;
-  height: calc(var(--cell-height) - 2px);
-  background: var(--card);
+  bottom: 0;
+  left: 100%;
+  width: var(--bridge, 0);
 }
 
+/* The open cell is shaded so it is clear whose panel is open. */
 .setup li.cell.open:has(> .cell-body[data-floating]) {
-  border-left: 0;
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  background: var(--card);
-}
-
-/* The panel carries the viewer's color bar on its far left instead. */
-.setup li.cell.open:has(> .cell-body[data-floating]) .cell-edge {
-  display: none;
-}
-
-.setup li.cell.open:has(> .cell-body[data-floating]) .cell-head {
-  padding-left: var(--space-2);
+  background: color-mix(in srgb, var(--text) 8%, var(--card));
 }
 
 .setup .cell-body > .cell-main {
