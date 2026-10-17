@@ -122,6 +122,9 @@ footer p {
 }
 
 .night {
+  /* The banner (81px with its border) and the main's vertical padding (2rem each),
+     which the full-height pane subtracts from the window. */
+  --chrome-height: calc(81px + 4rem);
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -132,7 +135,10 @@ footer p {
   .night {
     display: grid;
     grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
+    /* The pane's row takes what the status slot leaves, and the grid is at least
+       as tall as the window under the banner, so the pane reaches the bottom. */
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-height: calc(100dvh - var(--chrome-height));
     align-items: start;
     gap: 0 2rem;
     overflow-x: clip;
@@ -159,6 +165,17 @@ footer p {
   .night > .setup-column {
     grid-column: 2;
     grid-row: 1;
+    align-self: stretch;
+    min-height: 0;
+    /* The pane adds nothing to its row's height: it fills what the wheel and the
+       window leave, and its list scrolls. */
+    contain: size;
+  }
+
+  /* The summary scrolls inside the slot rather than squeeze the pane away. */
+  .night:not(.viewers-hidden) .wheel-reason-slot {
+    max-height: 40dvh;
+    overflow-y: auto;
   }
 
   .wheel-reason-slot {
@@ -1544,13 +1561,14 @@ dialog.wheel-drawer:focus {
   }
 }
 
-/* Wide screens: the cell list scrolls on its own within about the wheel's
-   height, with Add a viewer below it. */
+/* Wide screens: the pane fills its column down to the window's bottom, with the
+   header fixed and the cell list scrolling on its own when it cannot fit. */
 @media (min-width: 900px) {
   .setup-column > .card {
     display: flex;
     flex-direction: column;
-    max-height: min(860px, 88vh);
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   .setup-column > .card > fieldset.setup {
