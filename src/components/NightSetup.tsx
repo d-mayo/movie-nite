@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent, type RefObject } from 'react'
 import { maxNameLength, maxViewers } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
@@ -22,12 +22,106 @@ const openDelayMs = 80
 
 const rank: Record<CellStatus, number> = { wheel: 0, won: 1, away: 2 }
 
+// The + in the pane's header and the name popup it opens. A full roster keeps
+// the button focusable (aria-disabled) so its tooltip reaches the keyboard, and
+// opens nothing; a spin disables it outright.
+function AddViewer({ locked }: { locked: boolean }) {
+  const { roster, addViewer } = useApp()
+  const popup = useRef<HTMLDivElement>(null)
+  const field = useRef<HTMLInputElement>(null)
+  const [name, setName] = useState('')
+  const [error, setError] = useState('')
+  const full = roster.length >= maxViewers
+
+  useEffect(() => {
+    const el = popup.current
+    if (!el) return
+    function onToggle(e: Event) {
+      if ((e as Event & { newState?: string }).newState !== 'open') return
+      setName('')
+      setError('')
+      field.current?.focus()
+    }
+    el.addEventListener('toggle', onToggle)
+    return () => el.removeEventListener('toggle', onToggle)
+  }, [])
+  useEffect(() => {
+    if (locked) popup.current?.hidePopover()
+  }, [locked])
+
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    const trimmed = name.trim()
+    if (trimmed === '') {
+      setError('Enter a name.')
+      return
+    }
+    const taken = roster.find((v) => v.name.toLowerCase() === trimmed.toLowerCase())
+    if (taken) {
+      setError(`${taken.name} is already on the roster.`)
+      return
+    }
+    addViewer(trimmed)
+    popup.current?.hidePopover()
+  }
+
+  function onKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Escape') popup.current?.hidePopover()
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className="quiet add-viewer"
+        aria-label="Add a viewer"
+        disabled={locked}
+        aria-disabled={full ? 'true' : undefined}
+        aria-describedby={full ? 'roster-full-tip' : undefined}
+        popoverTarget={full || locked ? undefined : 'add-viewer-popup'}
+        onClick={(e) => {
+          if (!full && !locked) placeUnder(e, popup.current)
+        }}
+      >
+        <span aria-hidden="true">+</span>
+        {full && (
+          <span id="roster-full-tip" role="tooltip" className="tip">
+            The roster is full
+          </span>
+        )}
+      </button>
+      <div id="add-viewer-popup" popover="auto" ref={popup} className="card cell-menu add-popup" onKeyDown={onKeyDown}>
+        <form onSubmit={submit} noValidate>
+          <label>
+            Name
+            <input
+              ref={field}
+              maxLength={maxNameLength}
+              value={name}
+              aria-describedby={error ? 'add-viewer-error' : undefined}
+              aria-invalid={error ? true : undefined}
+              onChange={(e) => {
+                setName(e.target.value)
+                setError('')
+              }}
+            />
+          </label>
+          {error && (
+            <p id="add-viewer-error" role="alert" className="field-error">
+              {error}
+            </p>
+          )}
+        </form>
+      </div>
+    </>
+  )
+}
+
 // The viewer pane: one cell per roster viewer, on the wheel first, then those
 // who have won tonight, then those who are away. At most one cell is open.
 export default function NightSetup({ client, onAuthError, locked = false, onHide, hideRef }: Props) {
-  const { roster, night, settings, addViewer, resetAllViewerSettings } = useApp()
+  const { roster, night, settings, resetAllViewerSettings } = useApp()
   const menu = useRef<HTMLDivElement>(null)
-  const [name, setName] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   // Nothing opens during a spin or its reveal, and the open cell closes.
   if (locked && openId !== null) setOpenId(null)
@@ -140,16 +234,11 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
     onHide()
   }
 
-  function add(e: FormEvent) {
-    e.preventDefault()
-    addViewer(name)
-    setName('')
-  }
-
   return (
     <section className="card">
       <div className="pane-head">
         <h2>Tonight's viewers</h2>
+        <AddViewer locked={locked} />
         <button
           type="button"
           className="quiet"
@@ -208,18 +297,6 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
             />
           ))}
         </ul>
-        <form onSubmit={add}>
-          <label>
-            Add a viewer
-            <input maxLength={maxNameLength} value={name} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <button type="submit" className="primary" disabled={roster.length >= maxViewers}>
-            Add
-          </button>
-          {roster.length >= maxViewers && (
-            <p>The roster is full (12 viewers). Remove a viewer to add another.</p>
-          )}
-        </form>
       </fieldset>
     </section>
   )

@@ -25,3 +25,12 @@ export function removeViewer(name: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Remove from roster' }))
   fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
 }
+
+// Adds a viewer through the header's + popup: opens it, types the name and
+// presses Enter.
+export function addViewer(name: string) {
+  fireEvent.click(screen.getByRole('button', { name: 'Add a viewer' }))
+  const field = screen.getByLabelText('Name')
+  fireEvent.change(field, { target: { value: name } })
+  fireEvent.submit(field.closest('form')!)
+}

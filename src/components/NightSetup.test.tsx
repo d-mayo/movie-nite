@@ -4,7 +4,7 @@ import { expect, test, vi } from 'vitest'
 import { defaultState, type AppState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { AppStoreContext, createAppStore } from '../state/store.ts'
-import { header, markAway, markHere, openCell, removeViewer } from '../test/cells.ts'
+import { addViewer as add, header, markAway, markHere, openCell, removeViewer } from '../test/cells.ts'
 import { createTmdbClient } from '../tmdb/client.ts'
 import NightSetup from './NightSetup.tsx'
 import { defaultWheelSettings } from '../wheel/edit.ts'
@@ -57,13 +57,6 @@ function setupWith(
     },
     locked,
   )
-}
-
-function add(name: string) {
-  fireEvent.change(screen.getByLabelText('Add a viewer'), {
-    target: { value: name },
-  })
-  fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 }
 
 const names = () => Array.from(document.querySelectorAll('.cell-name')).map((n) => n.textContent)
@@ -275,19 +268,69 @@ test('a saved Watch next session film is not shown in the viewer pane', () => {
   expect(screen.queryByRole('button', { name: 'Clear Watch next session film' })).toBeNull()
 })
 
-test('the Add a viewer field accepts at most 20 characters', () => {
-  setup()
-  expect(screen.getByLabelText('Add a viewer')).toHaveAttribute('maxlength', '20')
+test('the pane has no Add form until the + is pressed, then a popup adds a trimmed name on Enter', () => {
+  const { store } = setup()
+  expect(screen.queryByRole('button', { name: 'Add' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Add a viewer' }))
+  const field = screen.getByLabelText('Name')
+  expect(field).toHaveFocus()
+  expect(field).toHaveAttribute('maxlength', '20')
+  fireEvent.change(field, { target: { value: ' Ann ' } })
+  fireEvent.submit(field.closest('form')!)
+  expect(store.getState().roster.map((v) => v.name)).toEqual(['Ann'])
+  expect(store.getState().night.presentIds).toHaveLength(1)
+  expect(screen.getByText('Headcount: 1')).toBeInTheDocument()
+  expect(document.getElementById('add-viewer-popup')!.style.display).toBe('')
+  fireEvent.click(screen.getByRole('button', { name: 'Add a viewer' }))
+  expect(screen.getByLabelText('Name')).toHaveValue('')
 })
 
-test('the Add control is disabled with a note once the roster is full, and frees on removal', () => {
+test('a blank or duplicate name keeps the popup open with an error, and Escape cancels', () => {
+  const { store } = setup()
+  add('Ann')
+  fireEvent.click(screen.getByRole('button', { name: 'Add a viewer' }))
+  const field = screen.getByLabelText('Name')
+  fireEvent.submit(field.closest('form')!)
+  expect(screen.getByRole('alert')).toHaveTextContent('Enter a name.')
+  expect(field).toHaveAccessibleDescription('Enter a name.')
+  fireEvent.change(field, { target: { value: 'ann' } })
+  expect(screen.queryByRole('alert')).toBeNull()
+  fireEvent.submit(field.closest('form')!)
+  expect(screen.getByRole('alert')).toHaveTextContent('Ann is already on the roster.')
+  expect(field).toHaveValue('ann')
+  expect(document.getElementById('add-viewer-popup')!.dataset.popoverOpen).toBe('true')
+  expect(store.getState().roster).toHaveLength(1)
+  fireEvent.keyDown(field, { key: 'Escape' })
+  expect(document.getElementById('add-viewer-popup')!.dataset.popoverOpen).toBeUndefined()
+  expect(store.getState().roster).toHaveLength(1)
+  fireEvent.click(screen.getByRole('button', { name: 'Add a viewer' }))
+  expect(screen.getByLabelText('Name')).toHaveValue('')
+  expect(screen.queryByRole('alert')).toBeNull()
+})
+
+test('the + is crossed out and described once the roster is full, opens nothing, and frees on removal', () => {
   setup()
   for (let i = 0; i < 12; i++) add(`V${i}`)
-  expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled()
-  expect(screen.getByText(/roster is full/)).toBeInTheDocument()
+  const plus = screen.getByRole('button', { name: 'Add a viewer' })
+  expect(plus).toHaveAttribute('aria-disabled', 'true')
+  expect(plus).toBeEnabled()
+  expect(plus).toHaveAccessibleDescription('The roster is full')
+  fireEvent.click(plus)
+  expect(document.getElementById('add-viewer-popup')!.dataset.popoverOpen).toBeUndefined()
   removeViewer('V3')
-  expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled()
-  expect(screen.queryByText(/roster is full/)).toBeNull()
+  const freed = screen.getByRole('button', { name: 'Add a viewer' })
+  expect(freed).not.toHaveAttribute('aria-disabled')
+  fireEvent.click(freed)
+  expect(document.getElementById('add-viewer-popup')!.dataset.popoverOpen).toBe('true')
+})
+
+test('during a spin the + is disabled, and with a full roster it is still crossed out', () => {
+  const { rerender } = setup()
+  for (let i = 0; i < 12; i++) add(`V${i}`)
+  rerender(true)
+  const plus = screen.getByRole('button', { name: 'Add a viewer' })
+  expect(plus).toBeDisabled()
+  expect(plus).toHaveAttribute('aria-disabled', 'true')
 })
 
 test('a swatch opens the presets, marks the own color, disables taken ones and sets a free one', () => {

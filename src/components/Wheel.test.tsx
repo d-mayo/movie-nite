@@ -1,11 +1,11 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
 import App from '../App.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import { presetColors } from '../wheel/colors.ts'
-import { markAway, markHere, removeViewer } from '../test/cells.ts'
+import { addViewer, markAway, markHere, removeViewer } from '../test/cells.ts'
 import { defaultWheelSettings } from '../wheel/edit.ts'
 import type { Wedge } from '../wheel/wedges.ts'
 import Wheel from './Wheel.tsx'
@@ -42,8 +42,7 @@ test('with no ticked viewers an empty state shows beside setup', () => {
 
 test('the wheel follows viewers and nominations live', () => {
   const store = setup()
-  fireEvent.change(screen.getByLabelText('Add a viewer'), { target: { value: 'Ann' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+  addViewer('Ann')
   expect(wedges()).toHaveLength(4)
   expect(screen.getAllByText('Ann')).not.toHaveLength(0)
   expect(screen.getAllByText('WILDCARD')).toHaveLength(1)
@@ -86,8 +85,7 @@ test('a long viewer name shrinks to its room and is set in capitals, a short one
 
 function addViewers(names: string[]) {
   for (const name of names) {
-    fireEvent.change(screen.getByLabelText('Add a viewer'), { target: { value: name } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    addViewer(name)
   }
 }
 

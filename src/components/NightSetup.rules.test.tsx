@@ -320,7 +320,7 @@ test('a lock closes the open cell and nothing opens until it ends', () => {
   expect(isOpen('Ann')).toBe(false)
   expect(screen.getByRole('button', { name: 'Ann is here' })).toBeDisabled()
   expect(header('Ann')).toBeDisabled()
-  expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Add a viewer' })).toBeDisabled()
   enter('Bo')
   wait(1000)
   expect(isOpen('Bo')).toBe(false)

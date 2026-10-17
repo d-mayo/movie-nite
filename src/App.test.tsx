@@ -293,13 +293,13 @@ test('the token prompt is a card with Save primary and Cancel quiet', () => {
   expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass('quiet')
 })
 
-test('the viewer list is a card with Add primary and Remove danger', () => {
+test('the viewer list is a card with a quiet + and Remove danger', () => {
   nightWithViewer()
   openCell('Ann')
   fireEvent.click(screen.getByRole('button', { name: 'More for Ann' }))
   fireEvent.click(screen.getByRole('button', { name: 'Remove from roster' }))
   expect(screen.getByText("Tonight's viewers").closest('section')).toHaveClass('card')
-  expect(screen.getByRole('button', { name: 'Add' })).toHaveClass('primary')
+  expect(screen.getByRole('button', { name: 'Add a viewer' })).toHaveClass('quiet')
   expect(screen.getByRole('button', { name: 'Remove' })).toHaveClass('danger')
 })
 
