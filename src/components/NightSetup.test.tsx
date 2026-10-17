@@ -117,11 +117,11 @@ test('a closed cell summarises the film and the slices and weight, or says what 
   )
   const ann = within(cellOf('Ann'))
   expect(ann.getByText('Film (2000)')).toBeInTheDocument()
-  expect(ann.getByText('3 slices · weight 5')).toBeInTheDocument()
+  expect(cellOf('Ann').querySelector('.cell-summary')).toHaveTextContent('3 slices · weight 5')
   expect(within(cellOf('Bo')).getByText('No film yet')).toBeInTheDocument()
 
   act(() => store.getState().setViewerSlices('a', 4))
-  expect(within(cellOf('Ann')).getByText('4 slices · weight 5')).toBeInTheDocument()
+  expect(cellOf('Ann').querySelector('.cell-summary')).toHaveTextContent('4 slices · weight 5')
 
   const cy = within(cellOf('Cy'))
   expect(cy.getByText('Won tonight')).toBeInTheDocument()
@@ -131,6 +131,23 @@ test('a closed cell summarises the film and the slices and weight, or says what 
 
   const di = within(cellOf('Di'))
   expect(di.queryByText(/slices/)).toBeNull()
+  expect(di.getByText('Away')).toBeInTheDocument()
+  expect(cy.queryByText('Away')).toBeNull()
+  expect(within(cellOf('Ann')).queryByText('Away')).toBeNull()
+})
+
+test('a cell on the wheel shows slices and weight as two captioned figures, with no frame number', () => {
+  const { store } = setupWith({ presentIds: ['a', 'b'] })
+  const figures = () =>
+    Array.from(cellOf('Ann').querySelectorAll('.cell-figure')).map((f) => [
+      f.querySelector('b')!.textContent,
+      f.querySelector('small')!.textContent,
+    ])
+  expect(figures()).toEqual([['3', 'slices'], ['5', 'weight']])
+  act(() => store.getState().setViewerSlices('a', 1))
+  expect(figures()[0]).toEqual(['1', 'slice'])
+  expect(cellOf('Ann').querySelector('.cell-summary')).toHaveTextContent('1 slice · weight 5')
+  expect(cellOf('Ann').textContent).toMatch(/^Ann/)
 })
 
 test('the eye toggle marks a viewer away or here without opening or closing their cell', () => {
@@ -206,7 +223,7 @@ test('slider moves are saved as adjustments at once', () => {
   fireEvent.change(screen.getByLabelText('Weight for Ann'), { target: { value: '7.5' } })
   expect(store.getState().night.adjustments.a.weight).toBe(7.5)
   expect(screen.getByRole('group', { name: 'Slices for Ann' }).querySelector('output')).toHaveTextContent('4')
-  expect(within(cellOf('Ann')).getByText('4 slices · weight 7.5')).toBeInTheDocument()
+  expect(cellOf('Ann').querySelector('.cell-summary')).toHaveTextContent('4 slices · weight 7.5')
 })
 
 test('Remove from roster asks first; Cancel and Escape keep the viewer, confirming removes them', () => {
@@ -487,8 +504,8 @@ test('removing an adjusted viewer and adding one with the same name shows no ast
 
 test('the summary shows the effective slices and weight', () => {
   const { store } = setupWith({ presentIds: ['a'] }, null, people.slice(0, 1))
-  expect(within(cellOf('Ann')).getByText('3 slices · weight 5')).toBeInTheDocument()
+  expect(cellOf('Ann').querySelector('.cell-summary')).toHaveTextContent('3 slices · weight 5')
   act(() => store.getState().setDefaultSlices(2))
   act(() => store.getState().setDefaultWeight(7))
-  expect(within(cellOf('Ann')).getByText('2 slices · weight 7')).toBeInTheDocument()
+  expect(cellOf('Ann').querySelector('.cell-summary')).toHaveTextContent('2 slices · weight 7')
 })

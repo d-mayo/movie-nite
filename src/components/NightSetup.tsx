@@ -279,6 +279,7 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
     <section className="card">
       <div className="pane-head">
         <h2>Tonight's viewers</h2>
+        <p className="headcount">Headcount: {night.presentIds.length}</p>
         <AddViewer locked={locked} />
         <button
           type="button"
@@ -303,7 +304,6 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
         </button>
       </div>
       <fieldset disabled={locked} className="setup">
-        <p>Headcount: {night.presentIds.length}</p>
         <ul className="viewer-cells">
           {cells.map(({ viewer, status }) => (
             <ViewerCell

@@ -968,13 +968,41 @@ html:has(.wheel-stage[data-zoom]) {
 .pane-head {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   margin: 0 0 var(--space-3);
 }
 
 .pane-head h2 {
   margin: 0;
-  margin-right: auto;
+  font: 400 1.5rem/1 'Bebas Neue', Impact, sans-serif;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.pane-head .headcount {
+  margin: 0 auto 0 0;
+  padding-top: 0.15rem;
+  white-space: nowrap;
+  color: var(--muted);
+  font: 400 1.1rem/1 'Bebas Neue', Impact, sans-serif;
+  letter-spacing: 0.06em;
+}
+
+/* The contact sheet: a rail of sprocket holes in the app's greys down the pane's left edge. */
+.setup-column > .card {
+  position: relative;
+  padding-left: calc(var(--space-4) + 14px);
+}
+
+.setup-column > .card::before {
+  content: '';
+  position: absolute;
+  top: var(--space-3);
+  bottom: var(--space-3);
+  left: 7px;
+  width: 8px;
+  background: radial-gradient(circle at 50% 50%, var(--card-border) 0 2.5px, transparent 3px) 0 0 / 8px 16px repeat-y;
+  pointer-events: none;
 }
 
 .setup > h2,
@@ -1222,8 +1250,9 @@ dialog.wheel-drawer:focus {
   display: block;
   margin-bottom: var(--space-2);
   padding: 0;
+  background: color-mix(in srgb, var(--text) 5%, var(--card));
   border: 1px solid var(--card-border);
-  border-radius: var(--radius-md);
+  border-radius: 2px;
 }
 
 .setup li.cell.open {
@@ -1253,7 +1282,6 @@ dialog.wheel-drawer:focus {
 .cell-edge {
   flex: none;
   width: 6px;
-  border-radius: var(--radius-md) 0 0 var(--radius-md);
 }
 
 .setup .cell-eye {
@@ -1274,9 +1302,8 @@ dialog.wheel-drawer:focus {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1) var(--space-3);
+  gap: var(--space-2);
   margin: 0;
   padding: var(--space-1) var(--space-2);
   border-color: transparent;
@@ -1309,11 +1336,30 @@ dialog.wheel-drawer:focus {
   cursor: help;
 }
 
+/* The poster thumbnail at the left, the name over the film's title beside it. */
 .cell-film {
-  display: inline-flex;
+  flex: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-content: center;
   align-items: center;
-  gap: var(--space-2);
+  column-gap: var(--space-2);
   min-width: 0;
+}
+
+.cell-film > :first-child {
+  grid-row: 1 / span 2;
+}
+
+.cell-filmtitle {
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.85em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .setup .cell-film img {
@@ -1326,10 +1372,44 @@ dialog.wheel-drawer:focus {
   height: 35px;
 }
 
-.cell-summary,
-.cell-tag {
+/* Slices and weight: two small figures with a caption under each, in the reel's
+   type and the muted grey, so they draw less attention than the name. */
+.cell-summary {
+  display: flex;
+  gap: var(--space-3);
+  margin-left: auto;
   color: var(--muted);
-  font-size: 0.85em;
+  font-family: 'Bebas Neue', Impact, sans-serif;
+}
+
+.cell-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+
+.cell-figure-weight {
+  flex-direction: column-reverse;
+}
+
+.cell-figure b {
+  font-size: 1.3rem;
+  font-weight: 400;
+}
+
+.cell-figure small {
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cell-tag {
+  margin-left: auto;
+  color: var(--muted);
+  font: 400 1rem/1 'Bebas Neue', Impact, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 /* Won and away cells are dimmed; the eye toggle stays at full strength. */
@@ -1378,7 +1458,7 @@ dialog.wheel-drawer:focus {
 
 /* The open cell is shaded so it is clear whose panel is open. */
 .setup li.cell.open:has(> .cell-body[data-floating]) {
-  background: color-mix(in srgb, var(--text) 8%, var(--card));
+  background: color-mix(in srgb, var(--text) 14%, var(--card));
 }
 
 .setup .cell-body > .cell-main {

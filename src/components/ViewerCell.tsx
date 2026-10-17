@@ -263,35 +263,41 @@ export default function ViewerCell({
           aria-controls={expandable ? bodyId : undefined}
           onClick={onHeaderClick}
         >
-          <span className="cell-title">
-            <strong className="cell-name">{viewer.name}</strong>
-            {adjusted && (
-              <>
-                <span className="cell-adjusted" title="Adjusted tonight" aria-hidden="true">
-                  *
-                </span>
-                <span className="visually-hidden">Adjusted tonight</span>
-              </>
-            )}
-          </span>
           <span className="cell-film">
             {film ? (
-              <>
-                <Poster path={film.posterPath} title={film.title} />
-                <span>{filmLabel(film)}</span>
-              </>
+              <Poster path={film.posterPath} title={film.title} />
             ) : (
-              status === 'wheel' && <span>No film yet</span>
+              <span className="poster-placeholder" aria-hidden="true" />
             )}
+            <span className="cell-title">
+              <strong className="cell-name">{viewer.name}</strong>
+              {adjusted && (
+                <>
+                  <span className="cell-adjusted" title="Adjusted tonight" aria-hidden="true">
+                    *
+                  </span>
+                  <span className="visually-hidden">Adjusted tonight</span>
+                </>
+              )}
+            </span>
+            <span className="cell-filmtitle">
+              {film ? filmLabel(film) : status === 'wheel' && 'No film yet'}
+            </span>
           </span>
           {won ? (
             <span className="cell-tag">Won tonight</span>
+          ) : status === 'away' ? (
+            <span className="cell-tag">Away</span>
           ) : (
-            status === 'wheel' && (
-              <span className="cell-summary">
-                {setting.slices} {setting.slices === 1 ? 'slice' : 'slices'} · weight {setting.weight}
+            <span className="cell-summary">
+              <span className="cell-figure">
+                <b>{setting.slices}</b> <small>{setting.slices === 1 ? 'slice' : 'slices'}</small>
               </span>
-            )
+              <span className="visually-hidden"> · </span>
+              <span className="cell-figure cell-figure-weight">
+                <small>weight</small> <b>{setting.weight}</b>
+              </span>
+            </span>
           )}
         </button>
       </div>
