@@ -1894,8 +1894,13 @@ dialog.wheel-drawer:focus {
 
 .pane-head .add-viewer[aria-disabled='true'],
 .pane-head .add-viewer:disabled {
-  opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Only the plus dims, not the tooltip inside the button. */
+.pane-head .add-viewer[aria-disabled='true'] > svg,
+.pane-head .add-viewer:disabled > svg {
+  opacity: 0.4;
 }
 
 .add-viewer .tip {
