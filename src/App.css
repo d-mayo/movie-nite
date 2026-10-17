@@ -1407,7 +1407,7 @@ dialog.wheel-drawer:focus {
   display: flex;
   gap: var(--space-3);
   margin-left: auto;
-  color: color-mix(in srgb, var(--text) 55%, var(--muted));
+  color: var(--muted);
   font-family: 'Bebas Neue', Impact, sans-serif;
 }
 
@@ -1423,13 +1423,13 @@ dialog.wheel-drawer:focus {
 }
 
 .cell-figure b {
-  font-size: 1.3rem;
+  font-size: 1.1rem;
   font-weight: 400;
 }
 
 .cell-figure small {
-  color: var(--muted);
-  font-size: 0.65rem;
+  color: color-mix(in srgb, var(--muted) 80%, var(--card));
+  font-size: 0.58rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -1695,6 +1695,11 @@ dialog.wheel-drawer:focus {
     /* Room for the scrollbar beside the cells, never over them. */
     scrollbar-gutter: stable;
     padding-right: var(--space-2);
+    margin-bottom: 0;
+  }
+
+  .setup .viewer-cells > li.cell:last-child {
+    margin-bottom: 0;
   }
 }
 
