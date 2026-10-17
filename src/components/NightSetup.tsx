@@ -4,7 +4,6 @@ import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import { effectiveSetting } from '../wheel/edit.ts'
 import { canHover, closeDelayMs } from './canHover.ts'
-import { placeUnder } from './placePopover.ts'
 import ViewerCell, { type CellStatus } from './ViewerCell.tsx'
 
 interface Props {
@@ -73,24 +72,23 @@ function AddViewer({ locked }: { locked: boolean }) {
     <>
       <button
         type="button"
-        className="quiet add-viewer"
+        className="quiet pane-icon add-viewer"
         aria-label="Add a viewer"
         disabled={locked}
         aria-disabled={full ? 'true' : undefined}
         aria-describedby={full ? 'roster-full-tip' : undefined}
         popoverTarget={full || locked ? undefined : 'add-viewer-popup'}
-        onClick={(e) => {
-          if (!full && !locked) placeUnder(e, popup.current)
-        }}
       >
-        <span aria-hidden="true">+</span>
+        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+          <path d="M8 3v10M3 8h10" />
+        </svg>
         {full && (
           <span id="roster-full-tip" role="tooltip" className="tip">
             The roster is full
           </span>
         )}
       </button>
-      <div id="add-viewer-popup" popover="auto" ref={popup} className="card cell-menu add-popup" onKeyDown={onKeyDown}>
+      <div id="add-viewer-popup" popover="auto" ref={popup} className="card add-popup" onKeyDown={onKeyDown}>
         <form onSubmit={submit} noValidate>
           <label>
             Name
@@ -278,12 +276,14 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
   return (
     <section className="card">
       <div className="pane-head">
-        <h2>Tonight's viewers</h2>
-        <p className="headcount">Headcount: {night.presentIds.length}</p>
+        <div className="pane-title">
+          <h2>Tonight's viewers</h2>
+          <p className="headcount">Headcount: {night.presentIds.length}</p>
+        </div>
         <AddViewer locked={locked} />
         <button
           type="button"
-          className="quiet"
+          className="quiet pane-icon"
           aria-label="Reset all slices and weights"
           disabled={!anyAdjusted || locked}
           onClick={() => setResetting(true)}
@@ -296,11 +296,13 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
         <button
           type="button"
           ref={hideRef}
-          className="quiet hide-viewers"
+          className="quiet pane-icon hide-viewers"
           aria-label="Hide viewers"
           onClick={hide}
         >
-          <span aria-hidden="true">›</span>
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 3l5 5-5 5" />
+          </svg>
         </button>
       </div>
       <fieldset disabled={locked} className="setup">

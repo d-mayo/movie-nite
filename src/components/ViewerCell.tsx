@@ -243,7 +243,7 @@ export default function ViewerCell({
       }}
     >
       <div className="cell-head">
-        <span className="cell-edge" aria-hidden="true" style={{ background: viewer.color }} />
+        <span className="cell-dot" aria-hidden="true" style={{ background: viewer.color }} />
         <button
           type="button"
           className="quiet cell-eye"

@@ -973,30 +973,37 @@ html:has(.wheel-stage[data-zoom]) {
 
 .pane-head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
+  align-items: flex-start;
+  gap: var(--space-1);
   margin: 0 0 var(--space-3);
+}
+
+.pane-title {
+  margin-right: auto;
 }
 
 .pane-head h2 {
   margin: 0;
-  font: 400 1.35rem/1 'Bebas Neue', Impact, sans-serif;
+  font: 400 1.9rem/1 'Bebas Neue', Impact, sans-serif;
   letter-spacing: 0.04em;
-  white-space: nowrap;
-}
-
-.pane-head > button {
-  padding-inline: var(--space-2);
 }
 
 .pane-head .headcount {
-  margin: 0;
-  padding-top: 0.15rem;
-  white-space: nowrap;
+  margin: var(--space-1) 0 0;
   color: var(--muted);
-  font: 400 1.1rem/1 'Bebas Neue', Impact, sans-serif;
-  letter-spacing: 0.06em;
+  font-size: 0.85rem;
+}
+
+/* The header's three icon buttons: one size, one color, centered. */
+.pane-head .pane-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  color: var(--text);
 }
 
 /* The contact sheet: a rail of sprocket holes in the app's greys down the pane's left edge. */
@@ -1297,9 +1304,13 @@ dialog.wheel-drawer:focus {
   padding: var(--space-1) var(--space-2) var(--space-1) 0;
 }
 
-.cell-edge {
+.cell-dot {
   flex: none;
-  width: 6px;
+  align-self: center;
+  width: 10px;
+  height: 10px;
+  margin-left: var(--space-2);
+  border-radius: 50%;
 }
 
 .setup .cell-eye {
@@ -1432,7 +1443,7 @@ dialog.wheel-drawer:focus {
 }
 
 /* Won and away cells are dimmed; the eye toggle stays at full strength. */
-.cell.dimmed .cell-edge,
+.cell.dimmed .cell-dot,
 .cell.dimmed .cell-header {
   opacity: 0.55;
 }
@@ -1666,7 +1677,7 @@ dialog.wheel-drawer:focus {
   .setup-column > .card {
     display: flex;
     flex-direction: column;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-height: 0;
   }
 
@@ -1681,6 +1692,9 @@ dialog.wheel-drawer:focus {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
+    /* Room for the scrollbar beside the cells, never over them. */
+    scrollbar-gutter: stable;
+    padding-right: var(--space-2);
   }
 }
 
@@ -1876,26 +1890,12 @@ dialog.wheel-drawer:focus {
    is full (aria-disabled, so it keeps focus and the tooltip reaches the keyboard). */
 .add-viewer {
   position: relative;
-  margin-left: auto;
 }
 
-.add-viewer[aria-disabled='true'],
-.add-viewer:disabled {
-  color: var(--muted);
+.pane-head .add-viewer[aria-disabled='true'],
+.pane-head .add-viewer:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
-}
-
-.add-viewer[aria-disabled='true']::after {
-  content: '';
-  position: absolute;
-  inset: 25% 20%;
-  background: linear-gradient(
-    to top right,
-    transparent calc(50% - 1px),
-    var(--danger) calc(50% - 1px) calc(50% + 1px),
-    transparent calc(50% + 1px)
-  );
-  pointer-events: none;
 }
 
 .add-viewer .tip {
@@ -1918,6 +1918,24 @@ dialog.wheel-drawer:focus {
 .add-viewer:hover .tip,
 .add-viewer:focus-visible .tip {
   visibility: visible;
+}
+
+.add-popup {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  width: min(22rem, calc(100vw - 2rem));
+  height: fit-content;
+  margin: auto;
+  padding: var(--space-4);
+}
+
+.add-popup:not(:popover-open) {
+  display: none;
+}
+
+.add-popup::backdrop {
+  background: rgb(0 0 0 / 0.45);
 }
 
 .add-popup:popover-open form {
