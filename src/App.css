@@ -1271,7 +1271,7 @@ dialog.wheel-drawer:focus {
   /* A bit lighter than the pane: the page's tone in light, a lifted grey in dark. */
   background-color: var(--page);
   /* The viewer's color washes in from the left edge. */
-  background-image: linear-gradient(90deg, color-mix(in srgb, var(--viewer-color) 26%, transparent), transparent 50%);
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--viewer-color) 60%, transparent), color-mix(in srgb, var(--viewer-color) 20%, transparent) 28%, transparent 55%);
   border: 1px solid var(--card-border);
   border-radius: 8px;
 }
@@ -1971,5 +1971,5 @@ dialog.wheel-drawer:focus {
 }
 
 .setup li.cell.dimmed {
-  background-image: linear-gradient(90deg, color-mix(in srgb, var(--viewer-color) 15%, transparent), transparent 55%);
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--viewer-color) 32%, transparent), color-mix(in srgb, var(--viewer-color) 10%, transparent) 28%, transparent 55%);
 }
