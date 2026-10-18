@@ -54,7 +54,11 @@ export async function drawFromWatchlist(options: {
     if (memory.walks.get(username) === walking) memory.walks.delete(username)
     return walked
   }
-  if (walked.length === 0) return 'empty'
+  if (walked.length === 0) {
+    // Not kept: a watchlist that is empty now may be filled before the next press.
+    if (memory.walks.get(username) === walking) memory.walks.delete(username)
+    return 'empty'
+  }
 
   const remaining = [...walked]
   while (remaining.length > 0) {

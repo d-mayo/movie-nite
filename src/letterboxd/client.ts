@@ -25,8 +25,8 @@ export function createLetterboxdClient(
   apiBase: string,
   fetchFn: typeof fetch = (...args) => fetch(...args),
 ): LetterboxdClient {
-  async function get(path: string, signal?: AbortSignal) {
-    const response = await fetchFn(`${apiBase}${path}`, { headers: { Accept: 'application/json' }, signal })
+  async function get(path: string, signal?: AbortSignal, cache?: RequestCache) {
+    const response = await fetchFn(`${apiBase}${path}`, { headers: { Accept: 'application/json' }, signal, cache })
     const body = (await response.json()) as Record<string, unknown> | null
     return { status: response.status, body }
   }
@@ -46,7 +46,8 @@ export function createLetterboxdClient(
 
     async watchlistPage(username, page, signal) {
       try {
-        const { status, body } = await get(`/lb/${encodeURIComponent(username)}/watchlist?page=${page}`, signal)
+        // Revalidated every time, so a watchlist filled since the last look isn't hidden by the browser's hour-long cache.
+        const { status, body } = await get(`/lb/${encodeURIComponent(username)}/watchlist?page=${page}`, signal, 'no-cache')
         if (status === 200 && Array.isArray(body?.slugs) && typeof body.hasNext === 'boolean') {
           const slugs = body.slugs
           if (slugs.every((slug): slug is string => typeof slug === 'string')) {

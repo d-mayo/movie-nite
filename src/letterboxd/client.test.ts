@@ -58,6 +58,7 @@ describe('watchlistPage', () => {
     const { client, mock } = clientWith(reply(200, { slugs: ['a', 'b'], hasNext: true }))
     expect(await client.watchlistPage('jo', 2)).toEqual({ slugs: ['a', 'b'], hasNext: true })
     expect(mock.mock.calls[0][0]).toBe('https://api.test/lb/jo/watchlist?page=2')
+    expect(mock.mock.calls[0][1]).toMatchObject({ cache: 'no-cache' })
   })
 
   it("reads the Worker's own 404 bodies as private and missing", async () => {

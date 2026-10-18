@@ -71,6 +71,15 @@ describe('drawFromWatchlist', () => {
     expect(client.watchlistPage).toHaveBeenCalledTimes(2)
   })
 
+  it('walks again after an empty watchlist, in case it was filled', async () => {
+    const client = fakeClient([{ slugs: [], hasNext: false }])
+    const memory = createWatchlistMemory()
+    expect(await draw(client, memory)).toBe('empty')
+    client.watchlistPage.mockResolvedValue({ slugs: ['a'], hasNext: false })
+    client.filmTmdbId.mockResolvedValue(4)
+    expect(await draw(client, memory)).toBe(4)
+  })
+
   it('gives private, missing and empty', async () => {
     expect(await draw(fakeClient(['private']))).toBe('private')
     expect(await draw(fakeClient(['missing']))).toBe('missing')
