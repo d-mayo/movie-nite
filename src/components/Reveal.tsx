@@ -1,3 +1,4 @@
+import { letterboxdFilmUrl } from '../letterboxd/links.ts'
 import { useLayoutEffect, useState, type CSSProperties } from 'react'
 import type { Nomination, Outcome } from '../state/model.ts'
 import { posterUrl, type TmdbClient } from '../tmdb/client.ts'
@@ -184,7 +185,17 @@ function FilmReveal({ nomination, at, dot, byline, heldFilm, closeCall, onOutcom
         <Eyebrow color={dot} closeCall={closeCall}>
           Now showing
         </Eyebrow>
-        <h2 id="reveal-heading">{nomination.title}</h2>
+        <h2 id="reveal-heading">
+          <a
+            className="film-link"
+            href={letterboxdFilmUrl(nomination.tmdbId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open on Letterboxd"
+          >
+            {nomination.title}
+          </a>
+        </h2>
         {nomination.year !== null && <p className="reveal-year">{nomination.year}</p>}
         <p className="reveal-byline">{byline}</p>
         <p className="reveal-meta">

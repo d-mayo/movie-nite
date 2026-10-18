@@ -845,6 +845,32 @@ html:has(.wheel-stage[data-zoom]) {
   outline-color: var(--film-cream);
 }
 
+/* Film links look like the text they replace until hovered or focused. */
+.film-link {
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-decoration: none;
+}
+
+.film-link:hover,
+.film-link:focus-visible {
+  text-decoration: underline;
+}
+
+.reveal .film-link:hover,
+.reveal .film-link:focus-visible {
+  text-decoration-color: var(--film-cream);
+}
+
+.reveal .film-link:focus-visible {
+  outline: 2px solid var(--film-cream);
+}
+
+.night-over .film-link:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
 @media (max-width: 480px) {
   .reveal-film {
     grid-template-columns: minmax(0, 96px) minmax(0, 1fr);
