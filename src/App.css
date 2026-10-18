@@ -1357,8 +1357,8 @@ dialog.wheel-drawer:focus {
 .cell-lb-slot {
   flex: none;
   align-self: center;
-  margin-left: var(--space-1);
-  width: 1.75rem;
+  margin-left: 0;
+  width: 22px;
   height: 1.25rem;
 }
 
