@@ -30,7 +30,7 @@ export interface Viewer {
 
 export interface AppState {
   version: 1
-  settings: { tmdbToken: string | null; viewersHidden: boolean; wheel: WheelSettings }
+  settings: { viewersHidden: boolean; wheel: WheelSettings }
   roster: Viewer[]
   night: {
     presentIds: string[]
@@ -50,7 +50,7 @@ export interface AppState {
 
 export const defaultState: AppState = {
   version: 1,
-  settings: { tmdbToken: null, viewersHidden: false, wheel: defaultWheelSettings },
+  settings: { viewersHidden: false, wheel: defaultWheelSettings },
   roster: [],
   night: {
     presentIds: [],
@@ -63,10 +63,6 @@ export const defaultState: AppState = {
     holdoverDismissed: false,
   },
   holdover: null,
-}
-
-export function setToken(state: AppState, token: string | null): AppState {
-  return { ...state, settings: { ...state.settings, tmdbToken: token } }
 }
 
 export function setViewersHidden(state: AppState, hidden: boolean): AppState {

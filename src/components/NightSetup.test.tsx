@@ -30,7 +30,7 @@ function mount(state: AppState, locked = false) {
   const store = createAppStore(createMemoryPersistence(state))
   const ui = (isLocked: boolean) => (
     <AppStoreContext.Provider value={store}>
-      <NightSetup client={createTmdbClient('tok', vi.fn())} onAuthError={vi.fn()} locked={isLocked} onHide={vi.fn()} hideRef={createRef()} />
+      <NightSetup client={createTmdbClient('https://w.test', vi.fn())} locked={isLocked} onHide={vi.fn()} hideRef={createRef()} />
     </AppStoreContext.Provider>
   )
   const view = render(ui(locked))
@@ -38,7 +38,7 @@ function mount(state: AppState, locked = false) {
 }
 
 function setup() {
-  return mount({ ...defaultState, settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings } })
+  return mount({ ...defaultState, settings: { viewersHidden: false, wheel: defaultWheelSettings } })
 }
 
 function setupWith(
@@ -50,7 +50,7 @@ function setupWith(
   return mount(
     {
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
       roster,
       night: { ...defaultState.night, presentIds: roster.map((v) => v.id), ...night },
       holdover,

@@ -29,7 +29,7 @@ function setup(random: number, a: Nomination, b: Nomination, holdover: Nominatio
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
       holdover,
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
@@ -133,7 +133,7 @@ test('with a held film, Save for Next Week asks in the frame and Keep it goes ba
 })
 
 const pickFetch = vi.fn((url: string) => {
-  const search = String(url).includes('/search/')
+  const search = String(url).includes('/search')
   const body = search
     ? { results: [{ id: 9, title: 'Pick Me', release_date: '2001-01-01', poster_path: null }] }
     : { id: 9, title: 'Pick Me', release_date: '2001-01-01', poster_path: null, overview: 'o', runtime: 120, genres: [] }
@@ -144,7 +144,7 @@ test('a wildcard uses the same frame, with a steel dot before and after the pick
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
@@ -197,7 +197,7 @@ function setupSpin(random: () => number, fetchFn: typeof fetch = vi.fn()) {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
@@ -243,4 +243,24 @@ test('an ordinary wildcard reveal has no Close call tag', async () => {
   const dialog = await screen.findByRole('dialog')
   expect(within(dialog).getByText('Wildcard!')).toBeInTheDocument()
   expect(within(dialog).queryByText('Close call')).toBeNull()
+})
+
+test('a wildcard search with a failing fetch says film search is unavailable', async () => {
+  const store = createAppStore(
+    createMemoryPersistence({
+      ...defaultState,
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
+      roster: [
+        { id: 'a', name: 'Ann', color: '#e6194b' },
+        { id: 'b', name: 'Bo', color: '#f58231' },
+      ],
+      night: { ...defaultState.night, presentIds: ['a', 'b'], nominations: { a: film(1), b: film(2) } },
+    }),
+  )
+  const failing = vi.fn().mockRejectedValue(new TypeError('offline')) as unknown as typeof fetch
+  render(<App store={store} fetchFn={failing} random={() => 0.45} spinMs={20} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Spin' }))
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.change(within(dialog).getByLabelText('Search for a wildcard film'), { target: { value: 'pick' } })
+  expect(await within(dialog).findByText('Film search is unavailable right now')).toBeInTheDocument()
 })

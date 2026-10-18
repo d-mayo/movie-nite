@@ -104,23 +104,6 @@ main {
   text-align: center;
 }
 
-footer {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 1rem;
-  font-size: 0.7rem;
-  opacity: 0.6;
-  text-align: center;
-}
-
-footer p {
-  margin: 0;
-}
-
 .night {
   /* The banner (81px with its border) and the main's vertical padding (2rem each),
      which the full-height pane subtracts from the window. */
@@ -917,33 +900,6 @@ html:has(.wheel-stage[data-zoom]) {
 .night-over ul {
   list-style: none;
   padding: 0;
-}
-
-.token-prompt {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-3);
-  box-sizing: border-box;
-  max-width: 28rem;
-  margin: 0 auto;
-}
-
-.token-prompt h2,
-.token-prompt p {
-  margin: 0;
-}
-
-.token-prompt label {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  width: 100%;
-}
-
-.token-prompt .actions {
-  display: flex;
-  gap: var(--space-2);
 }
 
 .setup-column {
@@ -2002,4 +1958,40 @@ dialog.wheel-drawer:focus {
   .wheel-stage:has(.spin-button:hover) .spin-waiting {
     visibility: visible;
   }
+}
+
+.credits {
+  max-width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+
+.credits h2,
+.credits h3 {
+  margin: 0 0 var(--space-2);
+}
+
+.credits h3 {
+  font-size: 1rem;
+}
+
+.credits section {
+  margin-bottom: var(--space-3);
+}
+
+.credits img {
+  display: block;
+  width: 4rem;
+  height: auto;
+  margin-bottom: var(--space-2);
+}
+
+.credits ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+}
+
+.credits li {
+  margin-bottom: var(--space-1);
 }

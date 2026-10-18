@@ -26,7 +26,6 @@ import {
   removeViewer,
   setHoldoverDismissed,
   setPresent,
-  setToken,
   setViewersHidden,
   startSpin,
   setViewerSliceCount,
@@ -112,15 +111,13 @@ describe('nominate', () => {
 })
 
 describe('newNight', () => {
-  test('keeps leftover nominations, roster, token and ticks', () => {
-    let s = setToken(defaultState, 'tok')
-    s = addViewer(s, 'Ann', 'a')
+  test('keeps leftover nominations, roster and ticks', () => {
+    let s = addViewer(defaultState, 'Ann', 'a')
     s = nominate(s, 'a', film(1))
     s = newNight(s)
     expect(s.night.nominations.a.tmdbId).toBe(1)
     expect(s.night.presentIds).toEqual(['a'])
     expect(s.roster).toHaveLength(1)
-    expect(s.settings.tmdbToken).toBe('tok')
   })
 })
 
@@ -205,8 +202,8 @@ describe('endNight and clearHoldover', () => {
 })
 
 describe('newNight with a night in progress', () => {
-  test('clears won films, watched and ended; keeps the holdover, leftovers, roster, ticks, token', () => {
-    let s = nominate(addViewer(setToken(three(), 'tok'), 'Di', 'd'), 'd', film(3))
+  test('clears won films, watched and ended; keeps the holdover, leftovers, roster, ticks', () => {
+    let s = nominate(addViewer(three(), 'Di', 'd'), 'd', film(3))
     s = recordOutcome(s, film(1), 'tooLong', true)
     s = endNight(recordOutcome(s, film(2), 'watch', true))
     s = newNight(s)
@@ -216,7 +213,6 @@ describe('newNight with a night in progress', () => {
     expect(s.night.ended).toBe(false)
     expect(s.night.presentIds).toEqual(['a', 'b', 'c', 'd'])
     expect(s.holdover?.tmdbId).toBe(1)
-    expect(s.settings.tmdbToken).toBe('tok')
   })
 })
 
@@ -495,11 +491,9 @@ describe('the held film across nights', () => {
 describe('setViewersHidden', () => {
   test('defaults to false, toggles, and touches only the setting', () => {
     expect(defaultState.settings.viewersHidden).toBe(false)
-    const s = setToken(addViewer(defaultState, 'Ann', 'a'), 'tok')
+    const s = addViewer(defaultState, 'Ann', 'a')
     const hidden = setViewersHidden(s, true)
-    expect(hidden.settings).toEqual({
-      tmdbToken: 'tok',
-      viewersHidden: true,
+    expect(hidden.settings).toEqual({      viewersHidden: true,
       wheel: defaultWheelSettings,
     })
     expect(hidden.roster).toBe(s.roster)

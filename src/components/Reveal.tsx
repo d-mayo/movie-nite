@@ -29,7 +29,6 @@ interface Props {
   heldFilm?: Nomination | null
   // The spin was a close call: the frame carries a tag.
   closeCall?: boolean
-  onAuthError: () => void
   onOutcome: (nomination: Nomination, outcome: Outcome, fromWheel: boolean) => void
   onClose: () => void
 }
@@ -72,7 +71,6 @@ export default function Reveal({
   client,
   heldFilm = null,
   closeCall = false,
-  onAuthError,
   onOutcome,
   onClose,
 }: Props) {
@@ -123,7 +121,6 @@ export default function Reveal({
               <FilmSearch
                 label="Search for a wildcard film"
                 client={client}
-                onAuthError={onAuthError}
                 onPick={(nomination) => setPicked({ nomination, at: new Date() })}
               />
               <button type="button" className="reveal-back" onClick={onClose}>

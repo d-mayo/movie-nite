@@ -89,7 +89,6 @@ interface Props {
   spinMs?: number
   sound?: SoundEngine
   client: TmdbClient
-  onAuthError: () => void
   onBusyChange: (busy: boolean) => void
   // Where the "waiting for" message goes; under the wheel when there is none.
   reasonSlot?: HTMLElement | null
@@ -103,7 +102,6 @@ export default function WheelPanel({
   spinMs,
   sound = silentSound,
   client,
-  onAuthError,
   onBusyChange,
   reasonSlot,
 }: Props) {
@@ -420,7 +418,6 @@ export default function WheelPanel({
           client={client}
           heldFilm={holdover}
           closeCall={spin.closeCall}
-          onAuthError={onAuthError}
           onOutcome={outcome}
           onClose={close}
         />

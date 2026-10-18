@@ -27,7 +27,6 @@ const data = (s: ReturnType<ReturnType<typeof createAppStore>['getState']>) => (
 test('state survives a simulated reload', () => {
   const persistence = createMemoryPersistence()
   const a = createAppStore(persistence)
-  a.getState().setToken('tok')
   a.getState().addViewer('Ann')
   a.getState().addViewer('Bo')
   const ann = a.getState().roster[0].id
@@ -44,9 +43,9 @@ test('a remote change replaces the state', () => {
   const store = createAppStore(persistence)
   persistence.emitRemoteChange({
     ...defaultState,
-    settings: { tmdbToken: 'remote', viewersHidden: false, wheel: defaultState.settings.wheel },
+    settings: { viewersHidden: true, wheel: defaultState.settings.wheel },
   })
-  expect(store.getState().settings.tmdbToken).toBe('remote')
+  expect(store.getState().settings.viewersHidden).toBe(true)
 })
 
 test('viewersHidden defaults to false for an older save and survives a reload', () => {
@@ -65,7 +64,7 @@ test('stored data missing a field is merged over the defaults', () => {
     night: { presentIds: ['x'] },
   } as never)
   const store = createAppStore(persistence)
-  expect(store.getState().settings.tmdbToken).toBe('tok')
+  expect(store.getState().settings).not.toHaveProperty('tmdbToken')
   expect(store.getState().night).toEqual({
     presentIds: ['x'],
     nominations: {},
@@ -162,7 +161,7 @@ test('a stored state without settings.wheel loads the factory settings, field by
   const partial = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: { wildcardWeight: 4 } },
+      settings: { viewersHidden: false, wheel: { wildcardWeight: 4 } },
     } as never),
   )
   expect(partial.getState().settings.wheel).toEqual({
@@ -176,7 +175,7 @@ test('stored spin settings that are missing or invalid load as the factory value
     createAppStore(
       createMemoryPersistence({
         ...defaultState,
-        settings: { tmdbToken: 'tok', viewersHidden: false, wheel },
+        settings: { viewersHidden: false, wheel },
       } as never),
     ).getState().settings.wheel
   expect(load({ wildcardWeight: 4 })).toMatchObject({
@@ -196,7 +195,7 @@ test('stored sound settings that are missing or invalid load as the factory valu
     createAppStore(
       createMemoryPersistence({
         ...defaultState,
-        settings: { tmdbToken: 'tok', viewersHidden: false, wheel },
+        settings: { viewersHidden: false, wheel },
       } as never),
     ).getState().settings.wheel
   expect(load({})).toMatchObject({ soundMusic: 100, soundEffects: 100, soundVolume: 70 })
@@ -293,13 +292,13 @@ test('adding viewers works without crypto.randomUUID, as on a plain-HTTP origin'
 
 const loaded = (roster: unknown[]) =>
   createAppStore(
-    createMemoryPersistence({ ...defaultState, settings: { tmdbToken: 'tok', viewersHidden: false }, roster } as never),
+    createMemoryPersistence({ ...defaultState, settings: { viewersHidden: false }, roster } as never),
   ).getState()
 
 test('a stored roster without colors loads with presets in roster order', () => {
   const s = loaded([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }])
   expect(s.roster.map((v) => v.color)).toEqual(presetColors.slice(0, 3))
-  expect(s.settings.tmdbToken).toBe('tok')
+  expect(s.settings).not.toHaveProperty('tmdbToken')
   expect(s.version).toBe(1)
 })
 
@@ -343,4 +342,26 @@ test('restoring the wheel settings is saved and keeps adjustments', () => {
   const b = createAppStore(persistence).getState()
   expect(b.settings.wheel).toEqual(defaultWheelSettings)
   expect(b.night.adjustments).toEqual({ [ann]: { weight: 9 } })
+})
+
+test('a stored token is dropped, saves leave it out, and everything else loads as before', () => {
+  const wheel = { ...defaultState.settings.wheel, wildcardWeight: 4, soundVolume: 30 }
+  const persistence = createMemoryPersistence({
+    ...defaultState,
+    settings: { tmdbToken: 'old', viewersHidden: true, wheel },
+    roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
+    night: { ...defaultState.night, presentIds: ['a'], spun: true },
+  } as never)
+  const store = createAppStore(persistence)
+  const loadedState = store.getState()
+  expect(loadedState.settings).not.toHaveProperty('tmdbToken')
+  expect(loadedState.settings.viewersHidden).toBe(true)
+  expect(loadedState.settings.wheel).toMatchObject({ wildcardWeight: 4, soundVolume: 30 })
+  expect(loadedState.roster).toEqual([{ id: 'a', name: 'Ann', color: '#e6194b' }])
+  expect(loadedState.night.presentIds).toEqual(['a'])
+  expect(loadedState.night.spun).toBe(true)
+  store.getState().setViewersHidden(false)
+  const saved = persistence.load()!
+  expect(saved.settings).not.toHaveProperty('tmdbToken')
+  expect(saved.version).toBe(1)
 })

@@ -29,16 +29,14 @@ const movieBody = () =>
 
 function mount(fetchFn: (url: string) => Promise<Response>) {
   const onPick = vi.fn()
-  const onAuthError = vi.fn()
   render(
     <FilmSearch
       label="Find a film"
-      client={createTmdbClient('tok', fetchFn as unknown as typeof fetch)}
-      onAuthError={onAuthError}
+      client={createTmdbClient('https://w.test', fetchFn as unknown as typeof fetch)}
       onPick={onPick}
     />,
   )
-  return { onPick, onAuthError }
+  return { onPick }
 }
 
 const tick = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms))
@@ -47,7 +45,7 @@ const type = (value: string) =>
 
 test('typing shows results with poster and year, and picking reports the full film', async () => {
   const { onPick } = mount((url) =>
-    Promise.resolve(url.includes('/search/') ? searchBody() : movieBody()),
+    Promise.resolve(url.includes('/search') ? searchBody() : movieBody()),
   )
   type('alien')
   await tick(300)
@@ -64,7 +62,7 @@ test('a failing getMovie shows Retry, and retrying picks', async () => {
   let fail = true
   const { onPick } = mount((url) =>
     Promise.resolve(
-      url.includes('/search/') ? searchBody() : fail ? json({}, 500) : movieBody(),
+      url.includes('/search') ? searchBody() : fail ? json({}, 500) : movieBody(),
     ),
   )
   type('alien')
@@ -79,9 +77,15 @@ test('a failing getMovie shows Retry, and retrying picks', async () => {
   expect(onPick).toHaveBeenCalledTimes(1)
 })
 
-test('a 401 calls onAuthError', async () => {
-  const { onAuthError } = mount(() => Promise.resolve(json({}, 401)))
+test.each([
+  ['a 429', () => Promise.resolve(json({}, 429))],
+  ['a 502', () => Promise.resolve(json({}, 502))],
+  ['a 403', () => Promise.resolve(json({}, 403))],
+  ['a network error', () => Promise.reject(new TypeError('offline'))],
+])('%s on search shows that film search is unavailable and no results', async (_name, answer) => {
+  mount(answer)
   type('alien')
   await tick(300)
-  expect(onAuthError).toHaveBeenCalled()
+  expect(screen.getByRole('alert')).toHaveTextContent('Film search is unavailable right now')
+  expect(screen.queryByRole('button', { name: /^Pick / })).toBeNull()
 })

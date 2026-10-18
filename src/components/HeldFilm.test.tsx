@@ -16,11 +16,11 @@ const film: Nomination = {
   genres: [],
 }
 
-function setup(night: Partial<AppState['night']> = {}, holdover: Nomination | null = film, token = 'tok') {
+function setup(night: Partial<AppState['night']> = {}, holdover: Nomination | null = film) {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: token, viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
       roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
       night: {
         ...defaultState.night,
@@ -76,11 +76,6 @@ test('a dismissed film on a spun night shows the chip and no card', () => {
   setup({ spun: true, holdoverDismissed: true })
   expect(card()).toBeNull()
   expect(chip()).toBeInTheDocument()
-})
-
-test('the token prompt has no card', () => {
-  setup({}, film, '')
-  expect(card('From last session:')).toBeNull()
 })
 
 test('Dismiss shows the chip before End night and focuses it; the chip brings the card back and focuses Dismiss', () => {

@@ -1,11 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import App from '../App.tsx'
-import { addViewer, defaultState, recordOutcome, setToken } from '../state/model.ts'
+import { addViewer, defaultState, recordOutcome } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { AppStoreContext, createAppStore } from '../state/store.ts'
 import { createTmdbClient } from '../tmdb/client.ts'
-import { openCell } from '../test/cells.ts'
 import NominationSearch from './NominationSearch.tsx'
 
 beforeEach(() => vi.useFakeTimers())
@@ -36,22 +34,20 @@ const movieBody = (id: number, title: string) =>
   })
 
 function initial() {
-  return addViewer(setToken(defaultState, 'tok'), 'Ann', 'a')
+  return addViewer(defaultState, 'Ann', 'a')
 }
 
-function mount(fetchFn: typeof fetch, onAuthError = vi.fn()) {
+function mount(fetchFn: typeof fetch) {
   const store = createAppStore(createMemoryPersistence(initial()))
   render(
     <AppStoreContext.Provider value={store}>
       <NominationSearch
         viewerId="a"
         viewerName="Ann"
-        client={createTmdbClient('tok', fetchFn)}
-        onAuthError={onAuthError}
-      />
+        client={createTmdbClient('https://w.test', fetchFn)}      />
     </AppStoreContext.Provider>,
   )
-  return { store, onAuthError }
+  return { store }
 }
 
 const type = (value: string) =>
@@ -93,9 +89,9 @@ test('only the newest query shows when an older response arrives late', async ()
 test('picking stores the full nomination, and picking again replaces it', async () => {
   const fetchFn = vi.fn((url: string) =>
     Promise.resolve(
-      url.includes('/search/')
+      url.includes('/search')
         ? searchBody('Alien', 'Aliens')
-        : url.endsWith('/movie/1')
+        : url.endsWith('/tmdb/movie/1')
           ? movieBody(1, 'Alien')
           : movieBody(2, 'Aliens'),
     ),
@@ -123,9 +119,9 @@ test('picking stores the full nomination, and picking again replaces it', async 
 test('a failing getMovie shows an error with Retry and nominates nothing', async () => {
   const fetchFn = vi.fn((url: string) =>
     Promise.resolve(
-      url.includes('/search/')
+      url.includes('/search')
         ? searchBody('Alien', 'Aliens')
-        : url.endsWith('/movie/1')
+        : url.endsWith('/tmdb/movie/1')
           ? movieBody(1, 'Alien')
           : json({}, 500),
     ),
@@ -140,39 +136,9 @@ test('a failing getMovie shows an error with Retry and nominates nothing', async
   expect(store.getState().night.nominations.a).toBeUndefined()
 })
 
-test.each([
-  ['search', (url: string) => url.includes('/search/')],
-  ['getMovie', (url: string) => !url.includes('/search/')],
-])('a 401 on %s brings the token prompt back through App', async (_n, is401) => {
-  const fetchFn = vi.fn((url: string) =>
-    Promise.resolve(
-      is401(url)
-        ? json({}, 401)
-        : url.includes('/search/')
-          ? searchBody('Alien')
-          : json({}, 500),
-    ),
-  )
-  const store = createAppStore(createMemoryPersistence(initial()))
-  render(<App store={store} fetchFn={fetchFn as unknown as typeof fetch} />)
-  openCell('Ann')
-  type('alien')
-  await tick(300)
-  if (_n === 'getMovie') {
-    fireEvent.click(screen.getByRole('button', { name: 'Pick Alien (1999)' }))
-    await tick(0)
-  }
-  expect(screen.getByRole('alert')).toHaveTextContent(
-    'TMDB rejected the saved token',
-  )
-  expect(store.getState().settings.tmdbToken).toBeNull()
-  expect(screen.getByLabelText('TMDB Read Access Token')).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
-})
-
 test('a film that has already won tonight cannot be nominated', async () => {
   const fetchFn = vi.fn((url: string) =>
-    Promise.resolve(url.includes('/search/') ? searchBody('Alien') : movieBody(1, 'Alien')),
+    Promise.resolve(url.includes('/search') ? searchBody('Alien') : movieBody(1, 'Alien')),
   )
   const start = addViewer(initial(), 'Bo', 'b')
   const won = recordOutcome(start, { ...movieNomination(1) }, 'watch', true)
@@ -182,9 +148,7 @@ test('a film that has already won tonight cannot be nominated', async () => {
       <NominationSearch
         viewerId="a"
         viewerName="Ann"
-        client={createTmdbClient('tok', fetchFn as unknown as typeof fetch)}
-        onAuthError={vi.fn()}
-      />
+        client={createTmdbClient('https://w.test', fetchFn as unknown as typeof fetch)}      />
     </AppStoreContext.Provider>,
   )
   type('alien')

@@ -57,7 +57,7 @@ function mount(locked = false, night: Partial<typeof defaultState.night> = {}) {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
@@ -74,9 +74,7 @@ function mount(locked = false, night: Partial<typeof defaultState.night> = {}) {
   const ui = (isLocked: boolean) => (
     <AppStoreContext.Provider value={store}>
       <NightSetup
-        client={createTmdbClient('tok', vi.fn())}
-        onAuthError={vi.fn()}
-        locked={isLocked}
+        client={createTmdbClient('https://w.test', vi.fn())}        locked={isLocked}
         onHide={vi.fn()}
         hideRef={createRef()}
       />

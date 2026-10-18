@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useApp } from '../state/store.ts'
 import { canHover, closeDelayMs } from './canHover.ts'
+import Credits from './Credits.tsx'
 import WheelEditor from './WheelEditor.tsx'
 
 interface Props {
   locked: boolean
   // The held film's chip, which sits first in the toolbar.
   heldFilmChip?: ReactNode
-  onChangeToken: () => void
 }
 
 // Mounted only while shown, so React state always matches whether the dialog
@@ -50,10 +50,11 @@ function EndNightDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClos
   )
 }
 
-export default function NightControls({ locked, heldFilmChip, onChangeToken }: Props) {
+export default function NightControls({ locked, heldFilmChip }: Props) {
   const { night, endNight, newNight } = useApp()
   const [confirming, setConfirming] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [showingCredits, setShowingCredits] = useState(false)
   const menu = useRef<HTMLDivElement>(null)
   const gear = useRef<HTMLButtonElement>(null)
   // The gear menu closes shortly after the pointer leaves it, once it has been inside.
@@ -65,6 +66,10 @@ export default function NightControls({ locked, heldFilmChip, onChangeToken }: P
   }
   useEffect(() => clearMenuTimer, [])
   const closeDialog = useCallback(() => setConfirming(false), [])
+  const closeCredits = useCallback(() => {
+    setShowingCredits(false)
+    gear.current?.focus()
+  }, [])
   const closeDrawer = useCallback(() => {
     setEditing(false)
     gear.current?.focus()
@@ -126,16 +131,16 @@ export default function NightControls({ locked, heldFilmChip, onChangeToken }: P
         </button>
         <button
           type="button"
-          disabled={locked}
           onClick={() => {
             menu.current?.hidePopover()
-            onChangeToken()
+            setShowingCredits(true)
           }}
         >
-          Change TMDB token
+          Credits
         </button>
       </div>
       {editing && <WheelEditor locked={locked} onClosed={closeDrawer} anchor={gear} />}
+      {showingCredits && <Credits onClosed={closeCredits} />}
       {confirming && (
         <EndNightDialog onConfirm={endNight} onClosed={closeDialog} />
       )}

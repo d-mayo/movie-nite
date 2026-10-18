@@ -8,7 +8,6 @@ interface Props {
   viewerId: string
   viewerName: string
   client: TmdbClient
-  onAuthError: () => void
 }
 
 // A viewer with a film shows its poster, with an X on hover that takes the film
@@ -17,7 +16,6 @@ export default function NominationSearch({
   viewerId,
   viewerName,
   client,
-  onAuthError,
 }: Props) {
   const { night, nominate, removeNomination } = useApp()
   const nomination = night.nominations[viewerId]
@@ -59,7 +57,6 @@ export default function NominationSearch({
       <FilmSearch
         label={`Search a film for ${viewerName}`}
         client={client}
-        onAuthError={onAuthError}
         onPick={onPick}
       />
       {wonMessage && <p role="alert">{wonMessage}</p>}

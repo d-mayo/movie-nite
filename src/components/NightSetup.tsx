@@ -8,7 +8,6 @@ import ViewerCell, { type CellStatus } from './ViewerCell.tsx'
 
 interface Props {
   client: TmdbClient
-  onAuthError: () => void
   locked?: boolean
   onHide: () => void
   // The Hide viewers button, for the app to focus after the Show viewers press.
@@ -155,7 +154,7 @@ function ResetAllDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClos
 
 // The viewer pane: one cell per roster viewer, on the wheel first, then those
 // who have won tonight, then those who are away. At most one cell is open.
-export default function NightSetup({ client, onAuthError, locked = false, onHide, hideRef }: Props) {
+export default function NightSetup({ client, locked = false, onHide, hideRef }: Props) {
   const { roster, night, settings, resetAllViewerSettings } = useApp()
   const [resetting, setResetting] = useState(false)
   const list = useRef<HTMLUListElement>(null)
@@ -342,7 +341,6 @@ export default function NightSetup({ client, onAuthError, locked = false, onHide
               adjusted={night.adjustments[viewer.id] !== undefined}
               open={shownId === viewer.id}
               client={client}
-              onAuthError={onAuthError}
               onHeaderClick={(e) => headerClick(viewer.id, e)}
               onPresenceChange={() => {
                 if (openRef.current === viewer.id) show(null)

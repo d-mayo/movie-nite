@@ -42,7 +42,6 @@ interface Props {
   adjusted: boolean
   open: boolean
   client: TmdbClient
-  onAuthError: () => void
   onHeaderClick: (e: MouseEvent<HTMLButtonElement>) => void
   // Called when the eye toggle is used, which closes the cell.
   onPresenceChange: () => void
@@ -137,7 +136,6 @@ export default function ViewerCell({
   adjusted,
   open: openRequested,
   client,
-  onAuthError,
   onHeaderClick,
   onPresenceChange,
   onHoverStart,
@@ -314,7 +312,6 @@ export default function ViewerCell({
               viewerId={viewer.id}
               viewerName={viewer.name}
               client={client}
-              onAuthError={onAuthError}
             />
             <div className="cell-actions">
               <ColorPicker viewer={viewer} roster={roster} onToggle={track('color')} />

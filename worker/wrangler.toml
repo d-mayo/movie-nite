@@ -1,0 +1,17 @@
+name = "movie-nite"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+# The TMDB read token is a secret, never written here:
+#   npx wrangler secret put TMDB_TOKEN --config worker/wrangler.toml
+# For local runs it comes from worker/.dev.vars.
+
+[[ratelimits]]
+name = "TMDB_LIMIT"
+namespace_id = "8701"
+simple = { limit = 120, period = 60 }
+
+[[ratelimits]]
+name = "LB_LIMIT"
+namespace_id = "8702"
+simple = { limit = 300, period = 60 }
