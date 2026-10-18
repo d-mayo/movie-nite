@@ -1,3 +1,4 @@
+import type { SettledWalks } from '../letterboxd/useWatchlistWalks.ts'
 import { createRef } from 'react'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
@@ -28,11 +29,11 @@ const people = [
   { id: 'd', name: 'Di', color: '#3cb44b' },
 ]
 
-function mount(state: AppState, locked = false, waiting?: ReadonlySet<string>, watchlist?: WatchlistSource, fetchFn: typeof fetch = vi.fn()) {
+function mount(state: AppState, locked = false, waiting?: ReadonlySet<string>, watchlist?: WatchlistSource, fetchFn: typeof fetch = vi.fn(), settledWalks?: SettledWalks) {
   const store = createAppStore(createMemoryPersistence(state))
   const ui = (isLocked: boolean) => (
     <AppStoreContext.Provider value={store}>
-      <NightSetup client={createTmdbClient('https://w.test', fetchFn)} locked={isLocked} letterboxdWaiting={waiting} watchlist={watchlist} onHide={vi.fn()} hideRef={createRef()} />
+      <NightSetup client={createTmdbClient('https://w.test', fetchFn)} locked={isLocked} letterboxdWaiting={waiting} watchlist={watchlist} settledWalks={settledWalks} onHide={vi.fn()} hideRef={createRef()} />
     </AppStoreContext.Provider>
   )
   const view = render(ui(locked))
@@ -728,4 +729,52 @@ test('closing the cell while the film loads nominates nothing, and the next pres
   await act(async () => {})
   expect(store.getState().night.nominations.a.tmdbId).toBe(11)
   expect(lb.watchlistPage).toHaveBeenCalledTimes(1)
+})
+
+// The overlap label, through the open cell.
+function overlapSetup(filmSlug: LetterboxdClient['filmSlug'], walks: SettledWalks = new Map([['bo', ['alien-1999']]])) {
+  const lb: LetterboxdClient = {
+    checkProfile: vi.fn(),
+    watchlistPage: vi.fn(),
+    filmTmdbId: vi.fn(),
+    filmSlug,
+  }
+  const watchlist: WatchlistSource = { client: lb, memory: createWatchlistMemory(), random: () => 0 }
+  const roster = [
+    { ...people[0], letterboxd: { username: 'ann', status: 'found' as const } },
+    { ...people[1], letterboxd: { username: 'bo', status: 'found' as const } },
+  ]
+  const film = { tmdbId: 11, title: 'Alien', year: 1979, posterPath: null, overview: '', runtime: 117, genres: [] }
+  const state: AppState = {
+    ...defaultState,
+    settings: { viewersHidden: false, wheel: defaultWheelSettings },
+    roster,
+    night: { ...defaultState.night, presentIds: ['a', 'b'], nominations: { a: film } },
+  }
+  return { ...mount(state, false, undefined, watchlist, undefined, walks), lb, watchlist }
+}
+
+test("an open cell names the other viewer whose watchlist has the film", async () => {
+  overlapSetup(vi.fn(async () => 'alien-1999'))
+  openCell('Ann')
+  await act(async () => {})
+  expect(screen.getByText("Also on Bo's watchlist")).toBeInTheDocument()
+})
+
+test('closing the cell while the slug is looked up aborts it, and a late answer is kept nowhere', async () => {
+  let signal!: AbortSignal
+  let resolve!: (slug: string) => void
+  const { watchlist } = overlapSetup(
+    vi.fn((_id: number, s?: AbortSignal) => {
+      signal = s!
+      return new Promise<string>((r) => (resolve = r))
+    }),
+  )
+  openCell('Ann')
+  expect(screen.queryByText(/Also on/)).toBeNull()
+  fireEvent.click(header('Ann'))
+  expect(signal.aborted).toBe(true)
+  await act(async () => resolve('alien-1999'))
+  expect(watchlist.memory.slugs.has(11)).toBe(false)
+  expect(screen.queryByText(/Also on/)).toBeNull()
 })

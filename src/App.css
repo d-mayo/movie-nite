@@ -1802,6 +1802,14 @@ dialog.wheel-drawer:focus {
   font-size: 0.9rem;
 }
 
+/* Who else has the film on their Letterboxd watchlist; the column grows upward, so a longer line pushes the title up. */
+.nomination-overlap {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
 /* With no film, a found Letterboxd profile gets a poster-sized slot to draw from the watchlist, beside the search. */
 .nomination-pick {
   display: flex;
