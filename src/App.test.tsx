@@ -154,7 +154,7 @@ test('the banner has no Wheel settings button; the gear menu lists it first, dis
     within(document.getElementById('settings-menu')!)
       .getAllByRole('button')
       .map((b) => b.textContent)
-  expect(items()).toEqual(['Wheel settings'])
+  expect(items()).toEqual(['Wheel settings', 'Credits'])
   expect(screen.getByRole('button', { name: 'Wheel settings' })).toBeEnabled()
   act(() => store.getState().endNight())
   expect(screen.getByRole('button', { name: 'Wheel settings' })).toBeDisabled()

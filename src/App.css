@@ -1959,3 +1959,37 @@ dialog.wheel-drawer:focus {
     visibility: visible;
   }
 }
+
+.credits {
+  max-width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+
+.credits h2,
+.credits h3 {
+  margin: 0 0 var(--space-2);
+}
+
+.credits h3 {
+  font-size: 1rem;
+}
+
+.credits section {
+  margin-bottom: var(--space-3);
+}
+
+.credits img {
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+.credits ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+}
+
+.credits li {
+  margin-bottom: var(--space-1);
+}

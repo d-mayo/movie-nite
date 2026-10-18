@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useApp } from '../state/store.ts'
 import { canHover, closeDelayMs } from './canHover.ts'
+import Credits from './Credits.tsx'
 import WheelEditor from './WheelEditor.tsx'
 
 interface Props {
@@ -53,6 +54,7 @@ export default function NightControls({ locked, heldFilmChip }: Props) {
   const { night, endNight, newNight } = useApp()
   const [confirming, setConfirming] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [showingCredits, setShowingCredits] = useState(false)
   const menu = useRef<HTMLDivElement>(null)
   const gear = useRef<HTMLButtonElement>(null)
   // The gear menu closes shortly after the pointer leaves it, once it has been inside.
@@ -64,6 +66,10 @@ export default function NightControls({ locked, heldFilmChip }: Props) {
   }
   useEffect(() => clearMenuTimer, [])
   const closeDialog = useCallback(() => setConfirming(false), [])
+  const closeCredits = useCallback(() => {
+    setShowingCredits(false)
+    gear.current?.focus()
+  }, [])
   const closeDrawer = useCallback(() => {
     setEditing(false)
     gear.current?.focus()
@@ -123,8 +129,18 @@ export default function NightControls({ locked, heldFilmChip }: Props) {
         >
           Wheel settings
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            menu.current?.hidePopover()
+            setShowingCredits(true)
+          }}
+        >
+          Credits
+        </button>
       </div>
       {editing && <WheelEditor locked={locked} onClosed={closeDrawer} anchor={gear} />}
+      {showingCredits && <Credits onClosed={closeCredits} />}
       {confirming && (
         <EndNightDialog onConfirm={endNight} onClosed={closeDialog} />
       )}
