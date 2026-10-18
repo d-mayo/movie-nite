@@ -9,6 +9,8 @@ import ViewerCell, { type CellStatus } from './ViewerCell.tsx'
 interface Props {
   client: TmdbClient
   locked?: boolean
+  // The viewers whose Letterboxd check is waiting to retry; kept in memory only.
+  letterboxdWaiting?: ReadonlySet<string>
   onHide: () => void
   // The Hide viewers button, for the app to focus after the Show viewers press.
   hideRef: RefObject<HTMLButtonElement | null>
@@ -17,6 +19,8 @@ interface Props {
 // How long the pointer rests on a cell before it opens, and how long it must be
 // gone before the cell closes.
 const openDelayMs = 80
+
+const noneWaiting: ReadonlySet<string> = new Set()
 
 const rank: Record<CellStatus, number> = { wheel: 0, won: 1, away: 2 }
 
@@ -154,7 +158,13 @@ function ResetAllDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClos
 
 // The viewer pane: one cell per roster viewer, on the wheel first, then those
 // who have won tonight, then those who are away. At most one cell is open.
-export default function NightSetup({ client, locked = false, onHide, hideRef }: Props) {
+export default function NightSetup({
+  client,
+  locked = false,
+  letterboxdWaiting = noneWaiting,
+  onHide,
+  hideRef,
+}: Props) {
   const { roster, night, settings, resetAllViewerSettings } = useApp()
   const [resetting, setResetting] = useState(false)
   const list = useRef<HTMLUListElement>(null)
@@ -341,6 +351,7 @@ export default function NightSetup({ client, locked = false, onHide, hideRef }: 
               adjusted={night.adjustments[viewer.id] !== undefined}
               open={shownId === viewer.id}
               client={client}
+              letterboxdWaiting={letterboxdWaiting.has(viewer.id)}
               onHeaderClick={(e) => headerClick(viewer.id, e)}
               onPresenceChange={() => {
                 if (openRef.current === viewer.id) show(null)

@@ -1348,6 +1348,113 @@ dialog.wheel-drawer:focus {
   border-radius: var(--radius-sm);
 }
 
+/* The Letterboxd icon sits beside the header button, never inside it. */
+.cell-lb {
+  position: relative;
+  flex: none;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+}
+
+.cell-lb:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.cell-lb-missing .lb-mark {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+.lb-warning {
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  display: grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: var(--page);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.lb-spinner {
+  position: absolute;
+  inset: 2px;
+  border: 2px solid color-mix(in srgb, var(--muted) 30%, transparent);
+  border-top-color: var(--muted);
+  border-radius: 50%;
+}
+
+.lb-spinner.turning {
+  animation: lb-spin 0.9s linear infinite;
+}
+
+@keyframes lb-spin {
+  to {
+    rotate: 1turn;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lb-spinner.turning {
+    animation: none;
+  }
+}
+
+/* The open panel's Letterboxd row: the field and Link, or the username and Unlink. */
+.setup .cell-body > .lb-row {
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+}
+
+.lb-row > .lb-mark {
+  flex: none;
+}
+
+.lb-form {
+  flex: 1;
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+}
+
+.lb-form input {
+  flex: 1;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.lb-username {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-message {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.lb-message:empty {
+  display: none;
+}
+
 /* The hover shade covers the whole row, eye toggle included. */
 .setup .cell-head:hover {
   background: color-mix(in srgb, var(--text) 6%, transparent);

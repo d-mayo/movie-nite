@@ -306,3 +306,37 @@ test('with every fetch failing the night carries on: the wheel spins and the rev
   expect(await screen.findByRole('dialog')).toBeInTheDocument()
   expect(screen.queryByLabelText('TMDB Read Access Token')).toBeNull()
 })
+
+test("linking a Letterboxd username shows the pending icon, then the retry wording, then the profile link", async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  try {
+    const replies = [
+      new Response(JSON.stringify({ error: 'Letterboxd could not be checked' }), { status: 502 }),
+      new Response(JSON.stringify({ username: 'jo' }), { status: 200 }),
+    ]
+    const fetchFn = vi.fn(async (input: RequestInfo | URL) =>
+      String(input).endsWith('/lb/jo') ? replies.shift()! : new Response('{}', { status: 200 }),
+    ) as unknown as typeof fetch
+    const { store } = setup(fetchFn)
+    act(() => store.getState().addViewer('Ann'))
+    openCell('Ann')
+    fireEvent.change(screen.getByLabelText('Letterboxd username for Ann'), { target: { value: 'jo' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Link' }))
+    expect(screen.getByRole('link', { name: "Checking Ann's Letterboxd profile…" })).toBeInTheDocument()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(
+      screen.getByRole('link', { name: "Can't reach Letterboxd for Ann, trying again soon" }),
+    ).toBeInTheDocument()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000)
+    })
+    expect(screen.getByRole('link', { name: 'Ann on Letterboxd' })).toHaveAttribute(
+      'href',
+      'https://letterboxd.com/jo/',
+    )
+  } finally {
+    vi.useRealTimers()
+  }
+})

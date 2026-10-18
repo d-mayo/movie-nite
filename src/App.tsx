@@ -53,7 +53,7 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
   }, [hidden])
   const client = useMemo(() => createTmdbClient(defaultApiBase(), fetchFn), [fetchFn])
   const letterboxd = useMemo(() => createLetterboxdClient(defaultApiBase(), fetchFn), [fetchFn])
-  useProfileChecks(letterboxd)
+  const letterboxdWaiting = useProfileChecks(letterboxd)
 
   return (
     <>
@@ -78,6 +78,7 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
             <NightSetup
               client={client}
               locked={locked}
+              letterboxdWaiting={letterboxdWaiting}
               onHide={() => {
                 pendingFocus.current = 'show'
                 setViewersHidden(true)

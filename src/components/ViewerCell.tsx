@@ -15,6 +15,7 @@ import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import type { ViewerSetting } from '../wheel/edit.ts'
 import ColorPicker from './ColorPicker.tsx'
+import { LetterboxdIcon, LetterboxdRow } from './LetterboxdLink.tsx'
 import { Poster } from './FilmSearch.tsx'
 import NominationSearch from './NominationSearch.tsx'
 import { filmLabel } from './NightOver.tsx'
@@ -42,6 +43,8 @@ interface Props {
   adjusted: boolean
   open: boolean
   client: TmdbClient
+  // Whether this viewer's Letterboxd check is waiting to retry.
+  letterboxdWaiting: boolean
   onHeaderClick: (e: MouseEvent<HTMLButtonElement>) => void
   // Called when the eye toggle is used, which closes the cell.
   onPresenceChange: () => void
@@ -136,6 +139,7 @@ export default function ViewerCell({
   adjusted,
   open: openRequested,
   client,
+  letterboxdWaiting,
   onHeaderClick,
   onPresenceChange,
   onHoverStart,
@@ -297,6 +301,7 @@ export default function ViewerCell({
             </span>
           )}
         </button>
+        <LetterboxdIcon viewer={viewer} waiting={letterboxdWaiting} />
       </div>
       {open && (
         <div
@@ -353,6 +358,7 @@ export default function ViewerCell({
               </div>
             </div>
           </div>
+          <LetterboxdRow viewer={viewer} waiting={letterboxdWaiting} />
           <div className="inset-card">
             <Stepper
               label={`Slices for ${viewer.name}`}
