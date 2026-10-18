@@ -528,7 +528,7 @@ function setupLinked(
   )
 }
 
-const lbField = (name: string) => screen.getByLabelText(`Letterboxd username for ${name}`)
+const lbField = (name: string) => screen.getByLabelText(`Letterboxd profile for ${name}`)
 const openLinkPopup = (name: string) => fireEvent.click(screen.getByRole('button', { name: `Link Letterboxd for ${name}` }))
 
 afterEach(() => vi.unstubAllGlobals())

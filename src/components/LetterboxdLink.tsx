@@ -197,10 +197,11 @@ export function LetterboxdPanelIcon({
         }}
       >
         <form onSubmit={submit}>
-          <label htmlFor={fieldId}>Letterboxd username for {viewer.name}</label>
+          <label htmlFor={fieldId}>Letterboxd profile for {viewer.name}</label>
           <div className="lb-form">
             <input
               id={fieldId}
+              name="lb-profile"
               ref={field}
               type="text"
               autoComplete="off"

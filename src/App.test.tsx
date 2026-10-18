@@ -321,7 +321,7 @@ test("linking a Letterboxd username shows the pending icon, then the retry wordi
     act(() => store.getState().addViewer('Ann'))
     openCell('Ann')
     fireEvent.click(screen.getByRole('button', { name: 'Link Letterboxd for Ann' }))
-    fireEvent.change(screen.getByLabelText('Letterboxd username for Ann'), { target: { value: 'jo' } })
+    fireEvent.change(screen.getByLabelText('Letterboxd profile for Ann'), { target: { value: 'jo' } })
     fireEvent.click(screen.getByRole('button', { name: 'Link' }))
     expect(screen.getByRole('link', { name: "Checking Ann's Letterboxd profile…" })).toBeInTheDocument()
     await act(async () => {
