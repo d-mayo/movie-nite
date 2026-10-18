@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
-import worker, { isAllowedOrigin, parseFilmTmdbId, readWatchlistPage, type Env } from './index.ts'
+import worker, { isAllowedOrigin, parseFilmTmdbId, readTmdbRedirect, readWatchlistPage, type Env } from './index.ts'
 
 const TOKEN = 'secret-token-123'
 const ORIGIN = 'https://d-mayo.github.io'
@@ -448,6 +448,75 @@ describe('the Letterboxd film route', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://letterboxd.com/film/watchlist/')
     fetchMock.mockClear()
     expect((await call('/lb/a/b/c')).status).toBe(404)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('reading a TMDB redirect', () => {
+  it('gives the slug for every redirect status, absolute or relative', () => {
+    for (const status of [301, 302, 303, 307, 308]) {
+      expect(readTmdbRedirect(status, '/film/parasite-2019/', '')).toBe('parasite-2019')
+      expect(readTmdbRedirect(status, 'https://letterboxd.com/film/parasite-2019/', '')).toBe('parasite-2019')
+    }
+  })
+
+  it('calls the import page missing', () => {
+    expect(readTmdbRedirect(200, null, fixture('tmdb-import-result.200.html'))).toBe('missing')
+  })
+
+  it('calls everything else unavailable', () => {
+    expect(readTmdbRedirect(200, null, fixture('film.200.html'))).toBe('unavailable')
+    expect(readTmdbRedirect(302, 'https://example.com/film/a/', '')).toBe('unavailable')
+    expect(readTmdbRedirect(302, 'http://letterboxd.com/film/a/', '')).toBe('unavailable')
+    expect(readTmdbRedirect(302, '/film/Bad_Slug/', '')).toBe('unavailable')
+    expect(readTmdbRedirect(302, '/film/a/crew/', '')).toBe('unavailable')
+    expect(readTmdbRedirect(302, '/film/a', '')).toBe('unavailable')
+    expect(readTmdbRedirect(302, null, '')).toBe('unavailable')
+    expect(readTmdbRedirect(403, null, BLOCK)).toBe('unavailable')
+    expect(readTmdbRedirect(200, null, `Just a moment ${fixture('tmdb-import-result.200.html')}`)).toBe('unavailable')
+    expect(readTmdbRedirect(500, null, '')).toBe('unavailable')
+    expect(readTmdbRedirect(null, null, '')).toBe('unavailable')
+  })
+})
+
+describe('the Letterboxd film-by-TMDB route', () => {
+  it('answers the slug with a week of cache, not following redirects', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 302, headers: { Location: '/film/parasite-2019/' } }))
+    const res = await call('/lb/film-by-tmdb/496243')
+    expect(fetchMock.mock.calls[0][0]).toBe('https://letterboxd.com/tmdb/496243/')
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ redirect: 'manual' })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=604800')
+    expect(await res.json()).toEqual({ tmdbId: 496243, slug: 'parasite-2019' })
+  })
+
+  it('answers 404 for an id with no film and 502 otherwise, uncached', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(fixture('tmdb-import-result.200.html'), { status: 200 }))
+    let res = await call('/lb/film-by-tmdb/999999999')
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'No such film' })
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
+    fetchMock.mockResolvedValueOnce(new Response(BLOCK, { status: 403 }))
+    res = await call('/lb/film-by-tmdb/1')
+    expect(res.status).toBe(502)
+    expect(await res.json()).toEqual({ error: 'Letterboxd could not be read' })
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
+    fetchMock.mockRejectedValueOnce(new Error('network'))
+    expect((await call('/lb/film-by-tmdb/1')).status).toBe(502)
+  })
+
+  it('answers 400 for a bad id without fetching, and 404 with no id', async () => {
+    for (const path of ['/lb/film-by-tmdb/abc', '/lb/film-by-tmdb/12345678901', '/lb/film-by-tmdb/watchlist']) {
+      expect((await call(path)).status, path).toBe(400)
+    }
+    expect((await call('/lb/film-by-tmdb/')).status).toBe(404)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('counts against the Letterboxd limit', async () => {
+    const { env, lb } = makeEnv()
+    lb.mockResolvedValue({ success: false })
+    expect((await call('/lb/film-by-tmdb/1', { env })).status).toBe(429)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })
