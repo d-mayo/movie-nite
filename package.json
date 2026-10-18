@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "dev:lan": "vite --host",
+    "dev:worker": "wrangler dev --config worker/wrangler.toml --ip 0.0.0.0 --port 8787",
     "build": "tsc -b && vite build",
     "lint": "eslint . && tsc -b",
     "test": "vitest run",
@@ -21,6 +22,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261016.1",
     "@eslint/js": "^10.0.1",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
@@ -36,6 +38,7 @@
     "typescript": "~5.9",
     "typescript-eslint": "^8.71.0",
     "vite": "^8.3.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "wrangler": "^4.151.1"
   }
 }

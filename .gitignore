@@ -23,5 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# The Worker's local token and Wrangler's build output
+worker/.dev.vars
+.wrangler/
+
 # Original recordings the cuts in src/assets/sound/ are made from
 sound-sources/
