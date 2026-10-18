@@ -181,6 +181,7 @@ function lbClient(overrides: Partial<LetterboxdClient> = {}): LetterboxdClient {
     checkProfile: vi.fn(),
     watchlistPage: vi.fn(async () => ({ slugs: ['a', 'b'], hasNext: false })),
     filmTmdbId: vi.fn(async (slug: string) => (slug === 'a' ? 11 : 22)),
+    filmSlug: vi.fn(async () => 'unavailable' as const),
     ...overrides,
   }
 }

@@ -12,7 +12,11 @@ export interface LetterboxdClient {
   watchlistPage(username: string, page: number, signal?: AbortSignal): Promise<WatchlistPageResult>
   /** The film's TMDB id, null when it is not a film the app can nominate, or unavailable. */
   filmTmdbId(slug: string, signal?: AbortSignal): Promise<number | null | 'unavailable'>
+  /** The film's Letterboxd slug for a TMDB id, null when Letterboxd has no such film, or unavailable. */
+  filmSlug(tmdbId: number, signal?: AbortSignal): Promise<string | null | 'unavailable'>
 }
+
+const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 function isAbort(error: unknown, signal?: AbortSignal): boolean {
   return !!signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')
@@ -69,6 +73,20 @@ export function createLetterboxdClient(
         if (status === 200 && body?.slug === slug) {
           if (typeof body.tmdbId === 'number') return body.tmdbId
           if (body.tmdbId === null) return null
+        }
+        if (status === 404 && body?.error === 'No such film') return null
+        return 'unavailable'
+      } catch (error) {
+        if (isAbort(error, signal)) throw error
+        return 'unavailable'
+      }
+    },
+
+    async filmSlug(tmdbId, signal) {
+      try {
+        const { status, body } = await get(`/lb/film-by-tmdb/${tmdbId}`, signal)
+        if (status === 200 && body?.tmdbId === tmdbId && typeof body.slug === 'string' && SLUG.test(body.slug)) {
+          return body.slug
         }
         if (status === 404 && body?.error === 'No such film') return null
         return 'unavailable'

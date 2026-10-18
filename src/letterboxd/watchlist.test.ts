@@ -10,6 +10,7 @@ function fakeClient(
     checkProfile: vi.fn(),
     watchlistPage: vi.fn(async (_user: string, page: number) => pages[Math.min(page, pages.length) - 1]),
     filmTmdbId: vi.fn(async (slug: string) => (slug in ids ? ids[slug] : 'unavailable')),
+    filmSlug: vi.fn(async () => 'unavailable' as const),
   }
 }
 

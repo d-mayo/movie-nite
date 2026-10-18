@@ -682,6 +682,7 @@ function drawingSetup(fetchFn: typeof fetch, nominations: AppState['night']['nom
     checkProfile: vi.fn(),
     watchlistPage: vi.fn(async () => ({ slugs: ['a', 'b'], hasNext: false })),
     filmTmdbId: vi.fn(async (slug: string) => (slug === 'a' ? 11 : 22)),
+    filmSlug: vi.fn(async () => 'unavailable' as const),
   }
   const watchlist: WatchlistSource = { client: lb, memory: createWatchlistMemory(), random: () => 0 }
   const roster = [{ ...people[0], letterboxd: { username: 'ann', status: 'found' as const } }, people[1]]
