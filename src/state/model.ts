@@ -11,6 +11,7 @@ import {
   type WheelSettings,
 } from '../wheel/edit.ts'
 import { firstFreePreset, isPreset, maxViewers } from '../wheel/colors.ts'
+import { isLinkableUsername } from '../letterboxd/links.ts'
 
 export interface Nomination {
   tmdbId: number
@@ -22,10 +23,19 @@ export interface Nomination {
   genres: string[]
 }
 
+export type LetterboxdStatus = 'pending' | 'found' | 'missing'
+
+export interface LetterboxdLink {
+  username: string
+  status: LetterboxdStatus
+}
+
 export interface Viewer {
   id: string
   name: string
   color: string
+  // Their Letterboxd profile, kept across nights; pending until the background check resolves.
+  letterboxd?: LetterboxdLink
 }
 
 export interface AppState {
@@ -93,6 +103,54 @@ export function setViewerColor(state: AppState, id: string, color: string): AppS
   if (!viewer || viewer.color === color) return state
   if (state.roster.some((v) => v.color === color)) return state
   return { ...state, roster: state.roster.map((v) => (v.id === id ? { ...v, color } : v)) }
+}
+
+// Links a username (lowercased, pending its check); one the app can't link changes nothing.
+export function linkLetterboxd(state: AppState, id: string, username: string): AppState {
+  if (!isLinkableUsername(username)) return state
+  const letterboxd: LetterboxdLink = { username: username.toLowerCase(), status: 'pending' }
+  if (!state.roster.some((v) => v.id === id)) return state
+  return { ...state, roster: state.roster.map((v) => (v.id === id ? { ...v, letterboxd } : v)) }
+}
+
+// Sets the check's outcome, only while that username is still the one linked.
+export function setLetterboxdStatus(
+  state: AppState,
+  id: string,
+  username: string,
+  status: LetterboxdStatus,
+): AppState {
+  const viewer = state.roster.find((v) => v.id === id)
+  if (!viewer?.letterboxd || viewer.letterboxd.username !== username) return state
+  if (viewer.letterboxd.status === status) return state
+  return {
+    ...state,
+    roster: state.roster.map((v) => (v.id === id ? { ...v, letterboxd: { username, status } } : v)),
+  }
+}
+
+export function unlinkLetterboxd(state: AppState, id: string): AppState {
+  const viewer = state.roster.find((v) => v.id === id)
+  if (!viewer?.letterboxd) return state
+  return {
+    ...state,
+    roster: state.roster.map((v) => {
+      if (v.id !== id) return v
+      const { letterboxd: _dropped, ...rest } = v
+      void _dropped
+      return rest
+    }),
+  }
+}
+
+const letterboxdStatuses: readonly unknown[] = ['pending', 'found', 'missing']
+
+// A stored Letterboxd link, or undefined when its username or status isn't valid.
+export function validLetterboxd(value: unknown): LetterboxdLink | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const { username, status } = value as { username?: unknown; status?: unknown }
+  if (!isLinkableUsername(username) || !letterboxdStatuses.includes(status)) return undefined
+  return { username: username.toLowerCase(), status: status as LetterboxdStatus }
 }
 
 function withoutNomination(

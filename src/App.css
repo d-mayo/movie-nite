@@ -1348,6 +1348,183 @@ dialog.wheel-drawer:focus {
   border-radius: var(--radius-sm);
 }
 
+/* The Letterboxd icon is a sibling of the header button, never inside it, laid over the empty
+   slot the header leaves after the name (placed in LetterboxdIcon). */
+.setup .cell-head {
+  position: relative;
+}
+
+.cell-lb-slot {
+  flex: none;
+  align-self: center;
+  margin-left: 0;
+  width: 22px;
+  height: 1.25rem;
+}
+
+.cell-lb-anchor {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+}
+
+.cell-lb {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+/* A soft shadow keeps the mark readable on any viewer color. */
+.lb-mark {
+  filter: drop-shadow(0 0 1px rgb(0 0 0 / 0.55)) drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.35));
+}
+
+.cell-lb:focus-visible,
+.lb-panel:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.cell-lb-missing .lb-mark,
+.lb-panel-missing .lb-mark {
+  opacity: 0.4;
+  filter: grayscale(1) drop-shadow(0 0 1px rgb(0 0 0 / 0.55));
+}
+
+.lb-warning {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: var(--page);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* The checking ring sits well clear of the mark. */
+.lb-spinner {
+  position: absolute;
+  inset: -1px;
+  border: 1.5px solid color-mix(in srgb, var(--muted) 30%, transparent);
+  border-top-color: var(--muted);
+  border-radius: 50%;
+}
+
+.lb-spinner.turning {
+  animation: lb-spin 0.9s linear infinite;
+}
+
+@keyframes lb-spin {
+  to {
+    rotate: 1turn;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lb-spinner.turning {
+    animation: none;
+  }
+}
+
+/* The panel's Letterboxd icon, among the swatch and menu buttons: washed out while unlinked. */
+.lb-panel {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+}
+
+.lb-panel-unlinked .lb-mark {
+  opacity: 0.6;
+  filter: saturate(0.4) drop-shadow(0 0 1px rgb(0 0 0 / 0.55));
+}
+
+.lb-panel-unlinked:hover .lb-mark,
+.lb-panel-unlinked:focus-visible .lb-mark {
+  opacity: 0.9;
+  filter: saturate(0.8) drop-shadow(0 0 1px rgb(0 0 0 / 0.55));
+}
+
+.lb-popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: var(--space-3);
+  width: 19rem;
+  max-width: calc(100vw - 1rem);
+  box-sizing: border-box;
+  overflow: visible;
+  text-align: left;
+}
+
+/* The panel's color swatch is a touch smaller than the presets it opens. */
+.cell-main > .cell-actions > .swatch {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.cell-main > .cell-actions > .quiet svg {
+  display: block;
+}
+
+/* The ⋯ button's own side padding would leave a wider gap after the swatch than before it. */
+.cell-main > .cell-actions > .quiet {
+  padding-inline: 3px;
+}
+
+.lb-popover:not(:popover-open) {
+  display: none;
+}
+
+.lb-popover label {
+  align-self: flex-start;
+  text-align: left;
+}
+
+.lb-popover form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.lb-form {
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.lb-form input {
+  flex: 1;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.lb-popover .field-error:empty {
+  display: none;
+}
+
 /* The hover shade covers the whole row, eye toggle included. */
 .setup .cell-head:hover {
   background: color-mix(in srgb, var(--text) 6%, transparent);

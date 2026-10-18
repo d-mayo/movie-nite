@@ -1,7 +1,7 @@
 import { createRef } from 'react'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { expect, test, vi } from 'vitest'
-import { defaultState, type AppState, type Nomination } from '../state/model.ts'
+import { afterEach, expect, test, vi } from 'vitest'
+import { defaultState, type AppState, type LetterboxdLink, type Nomination, type Viewer } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { AppStoreContext, createAppStore } from '../state/store.ts'
 import { addViewer as add, header, markAway, markHere, openCell, removeViewer } from '../test/cells.ts'
@@ -26,11 +26,11 @@ const people = [
   { id: 'd', name: 'Di', color: '#3cb44b' },
 ]
 
-function mount(state: AppState, locked = false) {
+function mount(state: AppState, locked = false, waiting?: ReadonlySet<string>) {
   const store = createAppStore(createMemoryPersistence(state))
   const ui = (isLocked: boolean) => (
     <AppStoreContext.Provider value={store}>
-      <NightSetup client={createTmdbClient('https://w.test', vi.fn())} locked={isLocked} onHide={vi.fn()} hideRef={createRef()} />
+      <NightSetup client={createTmdbClient('https://w.test', vi.fn())} locked={isLocked} letterboxdWaiting={waiting} onHide={vi.fn()} hideRef={createRef()} />
     </AppStoreContext.Provider>
   )
   const view = render(ui(locked))
@@ -508,4 +508,168 @@ test('the summary shows the effective slices and weight', () => {
   act(() => store.getState().setDefaultSlices(2))
   act(() => store.getState().setDefaultWeight(7))
   expect(cellOf('Ann').querySelector('.cell-summary')).toHaveTextContent('2 slices · weight 7')
+})
+
+// A night of Ann and Bo, Ann with the given Letterboxd link; `night` adds to the night.
+function setupLinked(
+  letterboxd: LetterboxdLink | undefined,
+  { waiting, night = {} }: { waiting?: ReadonlySet<string>; night?: Partial<typeof defaultState.night> } = {},
+) {
+  const roster: Viewer[] = [{ ...people[0], letterboxd }, people[1]]
+  return mount(
+    {
+      ...defaultState,
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
+      roster,
+      night: { ...defaultState.night, presentIds: ['a', 'b'], ...night },
+    },
+    false,
+    waiting,
+  )
+}
+
+const lbField = (name: string) => screen.getByLabelText(`Letterboxd profile for ${name}`)
+const openLinkPopup = (name: string) => fireEvent.click(screen.getByRole('button', { name: `Link Letterboxd for ${name}` }))
+
+afterEach(() => vi.unstubAllGlobals())
+
+test('an unlinked open panel has a washed-out Letterboxd icon with a Link Letterboxd tooltip that opens a popup', () => {
+  setupLinked(undefined)
+  openCell('Ann')
+  const icon = screen.getByRole('button', { name: 'Link Letterboxd for Ann' })
+  expect(icon).toHaveAttribute('title', 'Link Letterboxd')
+  expect(icon).toHaveClass('lb-panel-unlinked')
+  openLinkPopup('Ann')
+  expect(lbField('Ann')).toBeInTheDocument()
+})
+
+test('typing @Jo in the popup and pressing Link links jo at once', () => {
+  const { store } = setupLinked(undefined)
+  openCell('Ann')
+  openLinkPopup('Ann')
+  fireEvent.change(lbField('Ann'), { target: { value: '@Jo' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Link' }))
+  expect(store.getState().roster[0].letterboxd).toEqual({ username: 'jo', status: 'pending' })
+  // The panel icon is now the profile link, with the username as its tooltip.
+  const link = screen.getByRole('link', { name: 'Letterboxd profile jo' })
+  expect(link).toHaveAttribute('href', 'https://letterboxd.com/jo/')
+  expect(link).toHaveAttribute('target', '_blank')
+  expect(link.getAttribute('rel')?.split(' ')).toEqual(expect.arrayContaining(['noopener', 'noreferrer']))
+})
+
+test('a pasted profile address with Enter links the username', () => {
+  const { store } = setupLinked(undefined)
+  openCell('Ann')
+  openLinkPopup('Ann')
+  const field = lbField('Ann')
+  fireEvent.change(field, { target: { value: 'https://letterboxd.com/Jo/films/' } })
+  fireEvent.submit(field.closest('form')!)
+  expect(store.getState().roster[0].letterboxd).toEqual({ username: 'jo', status: 'pending' })
+})
+
+test('an invalid entry says so in the popup and links nothing', () => {
+  const { store } = setupLinked(undefined)
+  openCell('Ann')
+  openLinkPopup('Ann')
+  fireEvent.change(lbField('Ann'), { target: { value: 'letterboxd.com/film/dune/' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Link' }))
+  expect(screen.getByText("That isn't a Letterboxd username").closest('[role="status"]')).not.toBeNull()
+  expect(store.getState().roster[0].letterboxd).toBeUndefined()
+})
+
+test('a linked panel icon shows the username as its tooltip, or the check state while pending', () => {
+  setupLinked({ username: 'jo', status: 'found' })
+  openCell('Ann')
+  expect(screen.getByRole('link', { name: 'Letterboxd profile jo' })).toHaveAttribute('title', 'jo')
+})
+
+test('a pending panel icon says it is checking, or that Letterboxd cannot be reached, and the slices still change', () => {
+  const { store } = setupLinked({ username: 'jo', status: 'pending' })
+  openCell('Ann')
+  expect(screen.getByRole('link', { name: 'Letterboxd profile jo' })).toHaveAttribute('title', 'jo: checking…')
+  const slices = screen.getByRole('group', { name: 'Slices for Ann' })
+  fireEvent.click(within(slices).getAllByRole('button').at(-1)!)
+  expect(store.getState().night.adjustments.a?.slices).toBe(4)
+})
+
+test('with a retry waiting the panel icon says Letterboxd cannot be reached', () => {
+  setupLinked({ username: 'jo', status: 'pending' }, { waiting: new Set(['a']) })
+  openCell('Ann')
+  expect(screen.getByRole('link', { name: 'Letterboxd profile jo' })).toHaveAttribute(
+    'title',
+    "jo: Letterboxd can't be reached, trying again soon",
+  )
+})
+
+test('a missing profile is a dimmed warning in the panel, not a link, and Unlink Letterboxd in the menu clears it', () => {
+  const { store } = setupLinked({ username: 'jo', status: 'missing' })
+  openCell('Ann')
+  const panel = within(document.querySelector('.cell-body') as HTMLElement)
+  expect(panel.getByRole('img', { name: 'No Letterboxd profile called jo' })).toHaveAttribute('tabindex', '0')
+  expect(panel.queryByRole('link')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'More for Ann' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Unlink Letterboxd' }))
+  expect(store.getState().roster[0].letterboxd).toBeUndefined()
+  expect(screen.getByRole('button', { name: 'Link Letterboxd for Ann' })).toBeInTheDocument()
+})
+
+test('Unlink Letterboxd in the menu is disabled while nothing is linked', () => {
+  setupLinked(undefined)
+  openCell('Ann')
+  fireEvent.click(screen.getByRole('button', { name: 'More for Ann' }))
+  expect(screen.getByRole('button', { name: 'Unlink Letterboxd' })).toBeDisabled()
+})
+
+const lbLinkIn = (name: string) => within(cellOf(name)).queryByRole('link')
+
+test.each([
+  ['on the wheel', {}],
+  ['away', { presentIds: ['b'] }],
+  ['won', { nominations: { a: film }, wonFilms: [1] }],
+])('a found viewer %s has a Letterboxd link beside the name, outside the header button', (_, night) => {
+  setupLinked({ username: 'jo', status: 'found' }, { night })
+  const link = within(cellOf('Ann')).getByRole('link', { name: 'Ann on Letterboxd' })
+  expect(link).toHaveAttribute('href', 'https://letterboxd.com/jo/')
+  expect(link).toHaveAttribute('target', '_blank')
+  expect(link.getAttribute('rel')?.split(' ')).toEqual(expect.arrayContaining(['noopener', 'noreferrer']))
+  // Hovering shows the username.
+  expect(link).toHaveAttribute('title', 'jo')
+  expect(link.getAttribute('tabindex')).not.toBe('-1')
+  expect(header('Ann').contains(link)).toBe(false)
+  // It is placed over the slot the header leaves after the name.
+  expect(cellOf('Ann').querySelector('.cell-title .cell-lb-slot')).not.toBeNull()
+  const expanded = header('Ann').getAttribute('aria-expanded')
+  fireEvent.click(link)
+  expect(header('Ann').getAttribute('aria-expanded')).toBe(expanded)
+})
+
+test('a pending viewer has a spinning icon named for the check', () => {
+  setupLinked({ username: 'jo', status: 'pending' })
+  const link = within(cellOf('Ann')).getByRole('link', { name: "Checking Ann's Letterboxd profile…" })
+  expect(link).toHaveAttribute('title', 'jo: checking…')
+  expect(within(link).getByTestId('lb-spinner')).toHaveClass('turning')
+})
+
+test('the pending spinner does not turn under reduced motion', () => {
+  vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }))
+  setupLinked({ username: 'jo', status: 'pending' })
+  expect(within(cellOf('Ann')).getByTestId('lb-spinner')).not.toHaveClass('turning')
+})
+
+test('a pending viewer with a retry waiting has the icon named for it', () => {
+  setupLinked({ username: 'jo', status: 'pending' }, { waiting: new Set(['a']) })
+  expect(
+    within(cellOf('Ann')).getByRole('link', { name: "Can't reach Letterboxd for Ann, trying again soon" }),
+  ).toBeInTheDocument()
+})
+
+test('a missing viewer has a focusable warning icon and no link; an unlinked one has nothing', () => {
+  setupLinked({ username: 'jo', status: 'missing' })
+  expect(lbLinkIn('Ann')).toBeNull()
+  const icon = within(cellOf('Ann')).getByRole('img', { name: 'No Letterboxd profile called jo' })
+  expect(icon).toHaveAttribute('tabindex', '0')
+  expect(icon).toHaveAttribute('title', 'No Letterboxd profile called jo')
+  expect(lbLinkIn('Bo')).toBeNull()
+  expect(cellOf('Bo').querySelector('.cell-lb')).toBeNull()
+  expect(cellOf('Bo').querySelector('.cell-lb-slot')).toBeNull()
 })

@@ -10,6 +10,8 @@ import WheelPanel from './components/WheelPanel.tsx'
 import type { SoundEngine } from './sound/engine.ts'
 import { AppStoreContext, useApp, type AppStore } from './state/store.ts'
 import { createTmdbClient, defaultApiBase } from './tmdb/client.ts'
+import { createLetterboxdClient } from './letterboxd/client.ts'
+import { useProfileChecks } from './letterboxd/useProfileChecks.ts'
 
 interface Props {
   store: AppStore
@@ -50,6 +52,8 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
     pendingFocus.current = null
   }, [hidden])
   const client = useMemo(() => createTmdbClient(defaultApiBase(), fetchFn), [fetchFn])
+  const letterboxd = useMemo(() => createLetterboxdClient(defaultApiBase(), fetchFn), [fetchFn])
+  const letterboxdWaiting = useProfileChecks(letterboxd)
 
   return (
     <>
@@ -74,6 +78,7 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
             <NightSetup
               client={client}
               locked={locked}
+              letterboxdWaiting={letterboxdWaiting}
               onHide={() => {
                 pendingFocus.current = 'show'
                 setViewersHidden(true)

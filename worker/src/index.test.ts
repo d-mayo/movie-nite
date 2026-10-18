@@ -215,3 +215,81 @@ describe('the Letterboxd probe', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })
+
+describe('the Letterboxd profile check', () => {
+  const page = (status: number, body: string) => new Response(body, { status })
+
+  it('fetches the lowercased profile like the probe and reports a found one with a one-hour cache', async () => {
+    fetchMock.mockResolvedValueOnce(page(200, '<html>jo</html>'))
+    const res = await call('/lb/Jo_1')
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('https://letterboxd.com/jo_1/')
+    expect((init.headers as Record<string, string>)['User-Agent']).toBe('Mozilla/5.0 (compatible; movie-nite/1.0)')
+    expect((init.headers as Record<string, string>).Accept).toBe('text/html')
+    expect(init.signal).toBeInstanceOf(AbortSignal)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ username: 'jo_1' })
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=3600')
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe(ORIGIN)
+  })
+
+  it('reports an unchallenged 404 as no such profile', async () => {
+    fetchMock.mockResolvedValueOnce(page(404, 'gone'))
+    const res = await call('/lb/jo')
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'No such profile' })
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
+  })
+
+  it.each([
+    ['a 403 challenge', () => page(403, 'denied')],
+    ['a 200 challenge page', () => page(200, '<title>Just a moment...</title>')],
+    ['a 404 challenge page', () => page(404, '<title>Just a moment...</title>')],
+    ['a 500', () => page(500, 'oops')],
+  ])('answers 502 for %s', async (_, make) => {
+    fetchMock.mockResolvedValueOnce(make())
+    const res = await call('/lb/jo')
+    expect(res.status).toBe(502)
+    expect(await res.json()).toEqual({ error: 'Letterboxd could not be checked' })
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
+  })
+
+  it('answers 502 when the fetch throws', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('network'))
+    const res = await call('/lb/jo')
+    expect(res.status).toBe(502)
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
+  })
+
+  it('answers 400 for a bad username and 404 for other paths, without fetching', async () => {
+    for (const [path, status] of [
+      ['/lb/a.b', 400],
+      [`/lb/${'a'.repeat(16)}`, 400],
+      ['/lb/', 404],
+      ['/lb/jo/extra', 404],
+    ] as const) {
+      const res = await call(path)
+      expect(res.status, path).toBe(status)
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('leaves /lb/probe to the probe', async () => {
+    fetchMock.mockResolvedValueOnce(page(200, '<html>loreno</html>'))
+    const res = await call('/lb/probe')
+    expect(fetchMock.mock.calls[0][0]).toBe('https://letterboxd.com/loreno/')
+    expect(await res.json()).toEqual({ ok: true, status: 200, challenged: false })
+  })
+
+  it('counts against the Letterboxd budget and answers 429 when it is spent', async () => {
+    const { env, tmdb, lb } = makeEnv()
+    await call('/lb/jo', { env, ip: '9.9.9.9' })
+    expect(lb).toHaveBeenCalledWith({ key: '9.9.9.9' })
+    expect(tmdb).not.toHaveBeenCalled()
+    fetchMock.mockClear()
+    lb.mockResolvedValue({ success: false })
+    const res = await call('/lb/jo', { env })
+    expect(res.status).toBe(429)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})

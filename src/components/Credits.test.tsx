@@ -99,3 +99,11 @@ test('each credit’s source link and author also appear in the sound README', (
     expect(readme, c.file).toContain(c.author)
   }
 })
+
+test('Credits has a Letterboxd section on where its data comes from and the lack of affiliation', () => {
+  setup()
+  openCredits()
+  const section = screen.getByRole('region', { name: 'Letterboxd' })
+  expect(section).toHaveTextContent(/comes from public Letterboxd pages/)
+  expect(section).toHaveTextContent(/movie-nite is not affiliated with Letterboxd/)
+})

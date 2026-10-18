@@ -34,6 +34,9 @@ import {
   type Nomination,
   setViewerColor,
   maxViewers,
+  linkLetterboxd,
+  setLetterboxdStatus,
+  unlinkLetterboxd,
 } from './model.ts'
 import { presetColors } from '../wheel/colors.ts'
 import { defaultWheelSettings, effectiveSetting } from '../wheel/edit.ts'
@@ -500,5 +503,42 @@ describe('setViewersHidden', () => {
     expect(hidden.night).toBe(s.night)
     expect(hidden.holdover).toBe(s.holdover)
     expect(setViewersHidden(hidden, false).settings.viewersHidden).toBe(false)
+  })
+})
+
+describe('Letterboxd links', () => {
+  const linked = () => linkLetterboxd(addViewer(addViewer(defaultState, 'Ann', 'a'), 'Bo', 'b'), 'a', 'Jo')
+
+  test('linking stores the lowercased username, pending', () => {
+    const s = linked()
+    expect(s.roster[0].letterboxd).toEqual({ username: 'jo', status: 'pending' })
+    expect(s.roster[1].letterboxd).toBeUndefined()
+  })
+
+  test('linking refuses a username the app cannot link, or an unknown viewer', () => {
+    const s = addViewer(defaultState, 'Ann', 'a')
+    expect(linkLetterboxd(s, 'a', 'bad name')).toBe(s)
+    expect(linkLetterboxd(s, 'a', 'probe')).toBe(s)
+    expect(linkLetterboxd(s, 'x', 'jo')).toBe(s)
+  })
+
+  test('setting the status changes only the username still linked', () => {
+    const s = linked()
+    expect(setLetterboxdStatus(s, 'a', 'jo', 'found').roster[0].letterboxd).toEqual({ username: 'jo', status: 'found' })
+    expect(setLetterboxdStatus(s, 'a', 'jo', 'missing').roster[0].letterboxd?.status).toBe('missing')
+    expect(setLetterboxdStatus(s, 'a', 'sam', 'found')).toBe(s)
+    expect(setLetterboxdStatus(s, 'b', 'jo', 'found')).toBe(s)
+  })
+
+  test('unlinking removes it', () => {
+    const s = unlinkLetterboxd(linked(), 'a')
+    expect(s.roster[0]).toEqual({ id: 'a', name: 'Ann', color: presetColors[0] })
+    expect(unlinkLetterboxd(s, 'a')).toBe(s)
+  })
+
+  test('New night keeps it, and Remove from roster drops it with the viewer', () => {
+    const s = setLetterboxdStatus(linked(), 'a', 'jo', 'found')
+    expect(newNight(s).roster[0].letterboxd).toEqual({ username: 'jo', status: 'found' })
+    expect(removeViewer(s, 'a').roster.some((v) => v.letterboxd)).toBe(false)
   })
 })

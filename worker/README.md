@@ -1,6 +1,6 @@
 # The movie-nite Worker
 
-A small Cloudflare Worker that holds the group's TMDB read token and relays the app's two TMDB calls (`/tmdb/search` and `/tmdb/movie/<id>`). It also has `/lb/probe`, which checks whether Letterboxd lets Cloudflare through. It answers only the live site and local or LAN dev pages, and limits each IP to 120 TMDB and 300 Letterboxd requests a minute.
+A small Cloudflare Worker that holds the group's TMDB read token and relays the app's two TMDB calls (`/tmdb/search` and `/tmdb/movie/<id>`). It also has `/lb/probe`, which checks whether Letterboxd lets Cloudflare through, and `/lb/<user>`, which checks whether a Letterboxd profile exists: `200 {"username": ...}` when it does, `404` "No such profile" when Letterboxd says it doesn't, and `502` when Letterboxd can't be checked (a bot challenge included). It answers only the live site and local or LAN dev pages, and limits each IP to 120 TMDB and 300 Letterboxd requests a minute.
 
 ## One-time setup (you do this, not Claude)
 

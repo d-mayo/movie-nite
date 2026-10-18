@@ -31,10 +31,16 @@ import {
   setViewersHidden,
   setViewerColor,
   setViewerSliceCount,
+  linkLetterboxd,
+  setLetterboxdStatus,
+  unlinkLetterboxd,
+  validLetterboxd,
   setViewerWeightOnWheel,
   startSpin,
   type AppState,
+  type LetterboxdStatus,
   type Nomination,
+  type Viewer,
   type Outcome,
 } from './model.ts'
 import { newId } from './id.ts'
@@ -58,6 +64,9 @@ export interface AppActions {
   addViewer(name: string): void
   removeViewer(id: string): void
   setViewerColor(id: string, color: string): void
+  linkLetterboxd(id: string, username: string): void
+  setLetterboxdStatus(id: string, username: string, status: LetterboxdStatus): void
+  unlinkLetterboxd(id: string): void
   setPresent(id: string, present: boolean): void
   nominate(viewerId: string, nomination: Nomination): void
   removeNomination(viewerId: string): void
@@ -164,6 +173,16 @@ function adjustmentsFromLayout(layout: unknown): Record<string, Adjustment> {
   return adjustments
 }
 
+// A stored Letterboxd link whose username or status isn't valid is dropped; the rest of the viewer is kept.
+function withValidLetterboxd(roster: Viewer[]): Viewer[] {
+  return roster.map((v) => {
+    if (!v || typeof v !== 'object' || !('letterboxd' in v)) return v
+    const { letterboxd, ...rest } = v
+    const valid = validLetterboxd(letterboxd)
+    return valid ? { ...rest, letterboxd: valid } : rest
+  })
+}
+
 // Merges one level deep so fields added by later versions get their defaults.
 function mergeOverDefaults(stored: AppState | null): AppState {
   if (!stored) return defaultState
@@ -182,7 +201,7 @@ function mergeOverDefaults(stored: AppState | null): AppState {
   return {
     ...defaultState,
     ...stored,
-    roster: Array.isArray(stored.roster) ? assignColors(stored.roster) : defaultState.roster,
+    roster: Array.isArray(stored.roster) ? withValidLetterboxd(assignColors(stored.roster)) : defaultState.roster,
     settings: { ...defaultState.settings, ...storedSettings, wheel: mergeWheel(stored.settings?.wheel) },
     night,
   }
@@ -207,6 +226,10 @@ export function createAppStore(persistence: Persistence): AppStore {
       addViewer: (name) => update((s) => addViewer(s, name, newId())),
       removeViewer: (id) => update((s) => removeViewer(s, id)),
       setViewerColor: (id, color) => update((s) => setViewerColor(s, id, color)),
+      linkLetterboxd: (id, username) => update((s) => linkLetterboxd(s, id, username)),
+      setLetterboxdStatus: (id, username, status) =>
+        update((s) => setLetterboxdStatus(s, id, username, status)),
+      unlinkLetterboxd: (id) => update((s) => unlinkLetterboxd(s, id)),
       setPresent: (id, present) => update((s) => setPresent(s, id, present)),
       nominate: (viewerId, nomination) => update((s) => nominate(s, viewerId, nomination)),
       resetAllViewerSettings: () => update((s) => resetViewerSettings(s)),
