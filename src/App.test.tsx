@@ -231,7 +231,8 @@ test('the moved buttons are gone from the setup, the spin panel and Night over',
   const summary = screen.getByRole('region', { name: 'Night over' })
   expect(within(summary).queryByRole('button', { name: 'New night' })).toBeNull()
   expect(within(summary).getByText('Alien (1979)')).toBeInTheDocument()
-  expect(within(summary).getByText(/Watch next session: Heat/)).toBeInTheDocument()
+  expect(within(summary).getByText(/Watch next session:/)).toBeInTheDocument()
+  expect(within(summary).getByRole('link', { name: /Heat/ })).toBeInTheDocument()
 })
 
 test('the banner controls are disabled during a spin and its reveal, even if the night ends', async () => {
