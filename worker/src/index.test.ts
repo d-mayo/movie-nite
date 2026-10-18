@@ -174,3 +174,44 @@ describe('wrangler.toml', () => {
     expect(toml).not.toMatch(/\[vars\]/)
   })
 })
+
+describe('the Letterboxd probe', () => {
+  const page = (status: number, body: string) => new Response(body, { status })
+
+  it('fetches the profile and reports a clean page', async () => {
+    fetchMock.mockResolvedValueOnce(page(200, '<html>loreno</html>'))
+    const res = await call('/lb/probe')
+    expect(fetchMock.mock.calls[0][0]).toBe('https://letterboxd.com/loreno/')
+    expect(await res.json()).toEqual({ ok: true, status: 200, challenged: false })
+  })
+
+  it('counts against the Letterboxd budget only', async () => {
+    const { env, tmdb, lb } = makeEnv()
+    await call('/lb/probe', { env, ip: '9.9.9.9' })
+    expect(lb).toHaveBeenCalledWith({ key: '9.9.9.9' })
+    expect(tmdb).not.toHaveBeenCalled()
+  })
+
+  it('flags a 403 or a challenge page', async () => {
+    fetchMock.mockResolvedValueOnce(page(403, 'denied'))
+    expect(await (await call('/lb/probe')).json()).toEqual({ ok: false, status: 403, challenged: true })
+    fetchMock.mockResolvedValueOnce(page(503, '<title>Just a moment...</title>'))
+    expect(await (await call('/lb/probe')).json()).toEqual({ ok: false, status: 503, challenged: true })
+  })
+
+  it('reports a 404 as not ok and not challenged', async () => {
+    fetchMock.mockResolvedValueOnce(page(404, 'gone'))
+    expect(await (await call('/lb/probe')).json()).toEqual({ ok: false, status: 404, challenged: false })
+  })
+
+  it('reports a failed fetch with a null status', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('network'))
+    expect(await (await call('/lb/probe')).json()).toEqual({ ok: false, status: null, challenged: false })
+  })
+
+  it('refuses a disallowed origin without fetching', async () => {
+    const res = await call('/lb/probe', { origin: 'https://evil.example' })
+    expect(res.status).toBe(403)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})

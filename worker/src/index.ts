@@ -5,6 +5,7 @@ export interface Env {
 }
 
 const TMDB_API = 'https://api.themoviedb.org/3'
+const LETTERBOXD_PROFILE = 'https://letterboxd.com/loreno/'
 const SITE_ORIGIN = 'https://d-mayo.github.io'
 const FALLBACK_KEY = 'local'
 
@@ -26,6 +27,12 @@ export function isAllowedOrigin(origin: string | null): origin is string {
   if (!m) return false
   const [a, b] = [Number(m[1]), Number(m[2])]
   return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)
+}
+
+/** Whether a response looks like a bot challenge rather than the page asked for. */
+export function looksChallenged(status: number | null, body: string): boolean {
+  if (status === 403 || status === 503) return true
+  return /just a moment|cf-chl/i.test(body)
 }
 
 function json(body: unknown, status: number, headers: Record<string, string>): Response {
@@ -56,6 +63,26 @@ async function relayTmdb(url: string, env: Env, maxAge: number, cors: Record<str
       'Cache-Control': `public, max-age=${maxAge}`,
       ...cors,
     },
+  })
+}
+
+async function probeLetterboxd(cors: Record<string, string>): Promise<Response> {
+  let status: number | null = null
+  let body = ''
+  try {
+    const res = await fetch(LETTERBOXD_PROFILE, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; movie-nite/1.0)', Accept: 'text/html' },
+      signal: AbortSignal.timeout(8000),
+    })
+    status = res.status
+    body = await res.text()
+  } catch {
+    // a failed fetch leaves the status null
+  }
+  const ok = status === 200 && !looksChallenged(status, body)
+  return json({ ok, status, challenged: looksChallenged(status, body) }, 200, {
+    ...cors,
+    'Cache-Control': 'no-store',
   })
 }
 
@@ -95,6 +122,7 @@ export default {
       if (!/^\d+$/.test(film[1])) return failure(400, 'A numeric film id is needed', cors)
       return relayTmdb(`${TMDB_API}/movie/${film[1]}`, env, 86400, cors)
     }
+    if (path === '/lb/probe') return probeLetterboxd(cors)
     return failure(404, 'Not found', cors)
   },
 } satisfies ExportedHandler<Env>
