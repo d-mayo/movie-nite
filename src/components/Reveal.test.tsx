@@ -244,3 +244,23 @@ test('an ordinary wildcard reveal has no Close call tag', async () => {
   expect(within(dialog).getByText('Wildcard!')).toBeInTheDocument()
   expect(within(dialog).queryByText('Close call')).toBeNull()
 })
+
+test('a wildcard search with a failing fetch says film search is unavailable', async () => {
+  const store = createAppStore(
+    createMemoryPersistence({
+      ...defaultState,
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
+      roster: [
+        { id: 'a', name: 'Ann', color: '#e6194b' },
+        { id: 'b', name: 'Bo', color: '#f58231' },
+      ],
+      night: { ...defaultState.night, presentIds: ['a', 'b'], nominations: { a: film(1), b: film(2) } },
+    }),
+  )
+  const failing = vi.fn().mockRejectedValue(new TypeError('offline')) as unknown as typeof fetch
+  render(<App store={store} fetchFn={failing} random={() => 0.45} spinMs={20} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Spin' }))
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.change(within(dialog).getByLabelText('Search for a wildcard film'), { target: { value: 'pick' } })
+  expect(await within(dialog).findByText('Film search is unavailable right now')).toBeInTheDocument()
+})

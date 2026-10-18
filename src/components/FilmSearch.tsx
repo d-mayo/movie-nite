@@ -63,7 +63,7 @@ export default function FilmSearch({ label, client, onPick }: Props) {
         })
         .catch(() => {
           if (controller.signal.aborted) return
-          setSearchError('Search failed. Try again.')
+          setSearchError('Film search is unavailable right now')
         })
     }, debounceMs)
     return () => {

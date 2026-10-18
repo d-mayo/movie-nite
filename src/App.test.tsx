@@ -287,3 +287,21 @@ test('each Slices change in a cell redraws the wheel at once, and a weight is ke
   fireEvent.change(screen.getByLabelText('Weight for Ann'), { target: { value: '7.5' } })
   expect(screen.getByLabelText('Weight for Ann')).toHaveValue('7.5')
 })
+
+test('with every fetch failing the night carries on: the wheel spins and the reveal opens', async () => {
+  const store = createAppStore(
+    createMemoryPersistence({
+      ...defaultState,
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
+      roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
+      night: { ...defaultState.night, presentIds: ['a'], nominations: { a: film } },
+    }),
+  )
+  const failing = vi.fn().mockRejectedValue(new TypeError('offline')) as unknown as typeof fetch
+  render(<App store={store} fetchFn={failing} random={() => 0.01} spinMs={20} />)
+  const spin = screen.getByRole('button', { name: 'Spin' })
+  expect(spin).toBeEnabled()
+  fireEvent.click(spin)
+  expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  expect(screen.queryByLabelText('TMDB Read Access Token')).toBeNull()
+})

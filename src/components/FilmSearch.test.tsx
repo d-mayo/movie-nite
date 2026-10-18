@@ -76,3 +76,16 @@ test('a failing getMovie shows Retry, and retrying picks', async () => {
   await tick(0)
   expect(onPick).toHaveBeenCalledTimes(1)
 })
+
+test.each([
+  ['a 429', () => Promise.resolve(json({}, 429))],
+  ['a 502', () => Promise.resolve(json({}, 502))],
+  ['a 403', () => Promise.resolve(json({}, 403))],
+  ['a network error', () => Promise.reject(new TypeError('offline'))],
+])('%s on search shows that film search is unavailable and no results', async (_name, answer) => {
+  mount(answer)
+  type('alien')
+  await tick(300)
+  expect(screen.getByRole('alert')).toHaveTextContent('Film search is unavailable right now')
+  expect(screen.queryByRole('button', { name: /^Pick / })).toBeNull()
+})
