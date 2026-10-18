@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { LetterboxdClient, WatchlistPageResult } from './client.ts'
-import { createWatchlistMemory, drawFromWatchlist, MAX_WATCHLIST_PAGES } from './watchlist.ts'
+import { createWatchlistMemory, drawFromWatchlist, ensureWalk, MAX_WATCHLIST_PAGES, subscribeToSettled } from './watchlist.ts'
 
 function fakeClient(
   pages: WatchlistPageResult[],
@@ -108,5 +108,63 @@ describe('drawFromWatchlist', () => {
     expect(await draw(client, memory)).toBe('unavailable')
     client.filmTmdbId.mockResolvedValueOnce(5)
     expect(await draw(client, memory)).toBe(5)
+  })
+})
+
+describe('settled walks', () => {
+  it("records a draw's walk and a direct walk, telling the listeners once each", async () => {
+    const client = fakeClient([{ slugs: ['a', 'b'], hasNext: false }], { a: 1, b: 2 })
+    const memory = createWatchlistMemory()
+    const listener = vi.fn()
+    subscribeToSettled(memory, listener)
+    await draw(client, memory)
+    expect(memory.settled.get('jo')).toEqual(['a', 'b'])
+    expect(listener).toHaveBeenCalledTimes(1)
+    await ensureWalk(client, memory, 'sam')
+    expect(memory.settled.get('sam')).toEqual(['a', 'b'])
+    expect(listener).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops telling a listener that unsubscribed', async () => {
+    const client = fakeClient([{ slugs: ['a'], hasNext: false }])
+    const memory = createWatchlistMemory()
+    const listener = vi.fn()
+    subscribeToSettled(memory, listener)()
+    await ensureWalk(client, memory, 'jo')
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('records an empty list yet lets the next draw walk again, and updates on a successful re-walk', async () => {
+    const client = fakeClient([{ slugs: [], hasNext: false }], { a: 1 })
+    const memory = createWatchlistMemory()
+    expect(await draw(client, memory)).toBe('empty')
+    expect(memory.settled.get('jo')).toEqual([])
+    client.watchlistPage.mockResolvedValue({ slugs: ['a'], hasNext: false })
+    expect(await draw(client, memory)).toBe(1)
+    expect(client.watchlistPage).toHaveBeenCalledTimes(2)
+    expect(memory.settled.get('jo')).toEqual(['a'])
+  })
+
+  it('records nothing for a failed walk, and the next draw walks again', async () => {
+    const client = fakeClient(['unavailable'])
+    const memory = createWatchlistMemory()
+    const listener = vi.fn()
+    subscribeToSettled(memory, listener)
+    await ensureWalk(client, memory, 'jo')
+    for (const failure of ['private', 'missing'] as const) {
+      client.watchlistPage.mockResolvedValue(failure)
+      await draw(client, memory)
+    }
+    expect(memory.settled.size).toBe(0)
+    expect(listener).not.toHaveBeenCalled()
+    expect(client.watchlistPage).toHaveBeenCalledTimes(3)
+  })
+
+  it("knows a drawn film's slug without asking Letterboxd", async () => {
+    const client = fakeClient([{ slugs: ['a'], hasNext: false }], { a: 7 })
+    const memory = createWatchlistMemory()
+    await draw(client, memory)
+    expect(memory.slugs.get(7)).toBe('a')
+    expect(client.filmSlug).not.toHaveBeenCalled()
   })
 })

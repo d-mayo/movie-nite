@@ -7,14 +7,27 @@ export type DrawResult = number | 'empty' | 'exhausted' | 'private' | 'missing' 
 
 type Walk = string[] | 'private' | 'missing' | 'unavailable'
 
-/** What a session remembers: each username's walked slugs and each slug's TMDB id (null: not a film to nominate). */
+/**
+ * What a session remembers: each username's walk (kept unless it failed or came back empty), each slug's TMDB id
+ * (null: not a film to nominate), each username's settled walk (every successful one, empty included, for the
+ * overlap label), each TMDB id's Letterboxd slug (null: Letterboxd has no film) and who is listening for settled walks.
+ */
 export interface WatchlistMemory {
   walks: Map<string, Promise<Walk>>
   ids: Map<string, number | null>
+  settled: Map<string, readonly string[]>
+  slugs: Map<number, string | null>
+  listeners: Set<() => void>
 }
 
 export function createWatchlistMemory(): WatchlistMemory {
-  return { walks: new Map(), ids: new Map() }
+  return { walks: new Map(), ids: new Map(), settled: new Map(), slugs: new Map(), listeners: new Set() }
+}
+
+/** Calls `listener` whenever a walk settles into the memory; returns the way to stop. */
+export function subscribeToSettled(memory: WatchlistMemory, listener: () => void): () => void {
+  memory.listeners.add(listener)
+  return () => memory.listeners.delete(listener)
 }
 
 async function walk(client: LetterboxdClient, username: string): Promise<Walk> {
@@ -26,6 +39,31 @@ async function walk(client: LetterboxdClient, username: string): Promise<Walk> {
     if (!result.hasNext) break
   }
   return slugs
+}
+
+/**
+ * The username's walk, started if none is kept and shared by whoever asks while it runs. A successful walk is
+ * recorded as settled at once; an empty or failed one is not kept, so the next draw walks again. It takes no abort:
+ * a walk that has begun finishes.
+ */
+export function ensureWalk(client: LetterboxdClient, memory: WatchlistMemory, username: string): Promise<Walk> {
+  let walking = memory.walks.get(username)
+  if (!walking) {
+    const started: Promise<Walk> = walk(client, username).then((walked) => {
+      if (typeof walked !== 'string') {
+        memory.settled.set(username, walked)
+        for (const listener of [...memory.listeners]) listener()
+      }
+      // Not kept when failed, or empty: a watchlist that is empty now may be filled before the next press.
+      if ((typeof walked === 'string' || walked.length === 0) && memory.walks.get(username) === started) {
+        memory.walks.delete(username)
+      }
+      return walked
+    })
+    walking = started
+    memory.walks.set(username, walking)
+  }
+  return walking
 }
 
 /**
@@ -42,21 +80,9 @@ export async function drawFromWatchlist(options: {
 }): Promise<DrawResult> {
   const { client, memory, excluded, random } = options
   const username = options.username.toLowerCase()
-  let walking = memory.walks.get(username)
-  if (!walking) {
-    walking = walk(client, username)
-    memory.walks.set(username, walking)
-  }
-  const walked = await walking
-  if (typeof walked === 'string') {
-    if (memory.walks.get(username) === walking) memory.walks.delete(username)
-    return walked
-  }
-  if (walked.length === 0) {
-    // Not kept: a watchlist that is empty now may be filled before the next press.
-    if (memory.walks.get(username) === walking) memory.walks.delete(username)
-    return 'empty'
-  }
+  const walked = await ensureWalk(client, memory, username)
+  if (typeof walked === 'string') return walked
+  if (walked.length === 0) return 'empty'
 
   const remaining = [...walked]
   while (remaining.length > 0) {
@@ -68,7 +94,10 @@ export async function drawFromWatchlist(options: {
       memory.ids.set(slug, found)
       id = found
     }
-    if (id !== null && !excluded.has(id)) return id
+    if (id !== null && !excluded.has(id)) {
+      memory.slugs.set(id, slug)
+      return id
+    }
   }
   return 'exhausted'
 }
