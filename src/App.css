@@ -1802,21 +1802,26 @@ dialog.wheel-drawer:focus {
   font-size: 0.9rem;
 }
 
-/* The film control and, above it, who else has the film on their Letterboxd watchlist: its own box at the film's width, so the film display (and Re-roll's place in it) never moves. */
+/* The film control. Who else has the film on their Letterboxd watchlist floats as its own card just above the open cell panel (its positioned ancestor), at the panel's width, so the panel's own layout never moves. */
 .nomination-block {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
 }
 
 .nomination-overlap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + var(--space-2));
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  background: color-mix(in srgb, var(--text) 6%, var(--card));
-  border: 1px solid var(--card-border);
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
   color: var(--muted);
   font-size: 0.85rem;
   line-height: 1.3;
