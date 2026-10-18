@@ -5,7 +5,7 @@ A web app for the FFF movie-night group to pick tonight's film: viewers nominate
 A static single-page app (React, TypeScript, Vite) hosted on GitHub Pages, with one small Cloudflare Worker in `worker/` that holds the TMDB token and relays the app's TMDB calls.
 
 ## Commands
-<!-- covers: package.json, .github/workflows/*.yml; verified: 2026-10-17 -->
+<!-- covers: package.json, .github/workflows/*.yml; verified: 2026-10-18 -->
 - Run tests: `npm test`
 - Lint: `npm run lint`
 - Dev server: `npm run dev` (serves at http://localhost:5173/movie-nite/)
