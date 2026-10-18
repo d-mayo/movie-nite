@@ -32,6 +32,13 @@ export default function Credits({ onClosed }: { onClosed: () => void }) {
           .
         </p>
       </section>
+      <section aria-labelledby="credits-letterboxd">
+        <h3 id="credits-letterboxd">Letterboxd</h3>
+        <p>
+          Letterboxd data comes from public Letterboxd pages. movie-nite is not affiliated with
+          Letterboxd.
+        </p>
+      </section>
       <section aria-labelledby="credits-sounds">
         <h3 id="credits-sounds">Sounds</h3>
         <ul>
