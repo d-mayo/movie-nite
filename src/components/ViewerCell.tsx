@@ -15,7 +15,7 @@ import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import type { ViewerSetting } from '../wheel/edit.ts'
 import ColorPicker from './ColorPicker.tsx'
-import { LetterboxdIcon, LetterboxdRow } from './LetterboxdLink.tsx'
+import { LetterboxdIcon, LetterboxdPanelIcon } from './LetterboxdLink.tsx'
 import { Poster } from './FilmSearch.tsx'
 import NominationSearch from './NominationSearch.tsx'
 import { filmLabel } from './NightOver.tsx'
@@ -146,8 +146,14 @@ export default function ViewerCell({
   onHoverEnd,
   onHold,
 }: Props) {
-  const { setPresent, removeViewer, setViewerWeight, setViewerSlices, resetViewerSettings } =
-    useApp()
+  const {
+    setPresent,
+    removeViewer,
+    setViewerWeight,
+    setViewerSlices,
+    resetViewerSettings,
+    unlinkLetterboxd,
+  } = useApp()
   // Only a viewer on the wheel has anything to change: an away or won viewer has no body, no menu.
   const expandable = status === 'wheel'
   const open = openRequested && expandable
@@ -155,6 +161,8 @@ export default function ViewerCell({
   const menu = useRef<HTMLDivElement>(null)
   const item = useRef<HTMLLIElement>(null)
   const body = useRef<HTMLDivElement>(null)
+  // The empty space after the name where the Letterboxd icon sits.
+  const lbSlot = useRef<HTMLSpanElement>(null)
   const closeDialog = useCallback(() => setConfirming(false), [])
   // Each of these keeps an open cell open: a slider being dragged, keyboard
   // focus inside, a popover or the Remove confirmation being open.
@@ -280,6 +288,7 @@ export default function ViewerCell({
                   <span className="visually-hidden">Adjusted tonight</span>
                 </>
               )}
+              {viewer.letterboxd && <span className="cell-lb-slot" ref={lbSlot} aria-hidden="true" />}
             </span>
             <span className="cell-filmtitle">
               {film ? filmLabel(film) : status === 'wheel' && 'No film yet'}
@@ -301,7 +310,7 @@ export default function ViewerCell({
             </span>
           )}
         </button>
-        <LetterboxdIcon viewer={viewer} waiting={letterboxdWaiting} />
+        <LetterboxdIcon viewer={viewer} waiting={letterboxdWaiting} slot={lbSlot} />
       </div>
       {open && (
         <div
@@ -319,6 +328,7 @@ export default function ViewerCell({
               client={client}
             />
             <div className="cell-actions">
+              <LetterboxdPanelIcon viewer={viewer} waiting={letterboxdWaiting} onToggle={track('letterboxd')} />
               <ColorPicker viewer={viewer} roster={roster} onToggle={track('color')} />
               <button
                 type="button"
@@ -348,6 +358,16 @@ export default function ViewerCell({
                 </button>
                 <button
                   type="button"
+                  disabled={!viewer.letterboxd}
+                  onClick={() => {
+                    menu.current?.hidePopover()
+                    unlinkLetterboxd(viewer.id)
+                  }}
+                >
+                  Unlink Letterboxd
+                </button>
+                <button
+                  type="button"
                   onClick={() => {
                     menu.current?.hidePopover()
                     setConfirming(true)
@@ -358,7 +378,6 @@ export default function ViewerCell({
               </div>
             </div>
           </div>
-          <LetterboxdRow viewer={viewer} waiting={letterboxdWaiting} />
           <div className="inset-card">
             <Stepper
               label={`Slices for ${viewer.name}`}

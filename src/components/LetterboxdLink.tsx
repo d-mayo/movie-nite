@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type RefObject, type SyntheticEvent } from 'react'
 import { letterboxdProfileUrl, parseLetterboxdUsername } from '../letterboxd/links.ts'
 import type { Viewer } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import { prefersReducedMotion, watchReducedMotion } from '../wheel/reducedMotion.ts'
+import { placeUnder } from './placePopover.ts'
 
 // Letterboxd's three-dot mark, readable at a size where the wordmark isn't.
-function LetterboxdMark() {
+function LetterboxdMark({ width }: { width: number }) {
   return (
-    <svg className="lb-mark" viewBox="0 0 24 10" width="20" height="9" aria-hidden="true">
+    <svg className="lb-mark" viewBox="0 0 24 10" width={width} height={(width * 10) / 24} aria-hidden="true">
       <circle cx="4.5" cy="5" r="4.2" fill="#ff8000" />
       <circle cx="12" cy="5" r="4.2" fill="#00e054" />
       <circle cx="19.5" cy="5" r="4.2" fill="#40bcf4" />
@@ -27,20 +28,68 @@ const profileLinkProps = (username: string) => ({
   rel: 'noopener noreferrer',
 })
 
-// The cell head's Letterboxd icon, beside the header button so pressing it never opens or
-// closes the panel. A link to the profile once found or while checking; a dimmed, focusable
+// What a linked viewer's check says, as a tooltip: the username once found.
+function statusText(viewer: Viewer, waiting: boolean): string {
+  const link = viewer.letterboxd
+  if (!link) return 'Link Letterboxd'
+  if (link.status === 'found') return link.username
+  if (link.status === 'missing') return `No Letterboxd profile called ${link.username}`
+  return waiting
+    ? `${link.username}: Letterboxd can't be reached, trying again soon`
+    : `${link.username}: checking…`
+}
+
+const cellIconSize = 22
+
+// The cell head's Letterboxd icon, a sibling of the header button so pressing it never opens or
+// closes the panel, placed over the empty slot the header leaves after the viewer's name. A link
+// to the profile once found or while checking (hover shows the username); a dimmed, focusable
 // warning when Letterboxd says there is no such profile; nothing while unlinked.
-export function LetterboxdIcon({ viewer, waiting }: { viewer: Viewer; waiting: boolean }) {
+export function LetterboxdIcon({
+  viewer,
+  waiting,
+  slot,
+}: {
+  viewer: Viewer
+  waiting: boolean
+  slot: RefObject<HTMLElement | null>
+}) {
   const reduced = useReducedMotion()
+  const anchor = useRef<HTMLSpanElement>(null)
+  const linked = viewer.letterboxd !== undefined
+  useLayoutEffect(() => {
+    const el = anchor.current
+    const slotEl = slot.current
+    const head = el?.parentElement
+    if (!el || !slotEl || !head) return
+    function place() {
+      if (!el || !slotEl || !head) return
+      const s = slotEl.getBoundingClientRect()
+      const h = head.getBoundingClientRect()
+      el.style.left = `${Math.round(s.left - h.left + (s.width - cellIconSize) / 2)}px`
+      el.style.top = `${Math.round(s.top - h.top + (s.height - cellIconSize) / 2)}px`
+    }
+    place()
+    window.addEventListener('resize', place)
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(place) : null
+    observer?.observe(head)
+    observer?.observe(slotEl)
+    return () => {
+      window.removeEventListener('resize', place)
+      observer?.disconnect()
+    }
+  }, [slot, linked])
   const link = viewer.letterboxd
   if (!link) return null
   if (link.status === 'missing') {
     const label = `No Letterboxd profile called ${link.username}`
     return (
-      <span className="cell-lb cell-lb-missing" role="img" tabIndex={0} aria-label={label} title={label}>
-        <LetterboxdMark />
-        <span className="lb-warning" aria-hidden="true">
-          !
+      <span className="cell-lb-anchor" ref={anchor}>
+        <span className="cell-lb cell-lb-missing" role="img" tabIndex={0} aria-label={label} title={label}>
+          <LetterboxdMark width={13} />
+          <span className="lb-warning" aria-hidden="true">
+            !
+          </span>
         </span>
       </span>
     )
@@ -52,31 +101,38 @@ export function LetterboxdIcon({ viewer, waiting }: { viewer: Viewer; waiting: b
         ? `Can't reach Letterboxd for ${viewer.name}, trying again soon`
         : `Checking ${viewer.name}'s Letterboxd profile…`
   return (
-    <a className="cell-lb" {...profileLinkProps(link.username)} aria-label={label} title={label}>
-      <LetterboxdMark />
-      {link.status === 'pending' && (
-        <span className={reduced ? 'lb-spinner' : 'lb-spinner turning'} data-testid="lb-spinner" aria-hidden="true" />
-      )}
-    </a>
+    <span className="cell-lb-anchor" ref={anchor}>
+      <a className="cell-lb" {...profileLinkProps(link.username)} aria-label={label} title={statusText(viewer, waiting)}>
+        <LetterboxdMark width={13} />
+        {link.status === 'pending' && (
+          <span className={reduced ? 'lb-spinner' : 'lb-spinner turning'} data-testid="lb-spinner" aria-hidden="true" />
+        )}
+      </a>
+    </span>
   )
 }
 
-// The open panel's Letterboxd row: a username field while unlinked, else the username and Unlink.
-// Linking saves at once; the background check (useProfileChecks) settles the status.
-export function LetterboxdRow({ viewer, waiting }: { viewer: Viewer; waiting: boolean }) {
-  const { linkLetterboxd, unlinkLetterboxd } = useApp()
-  const link = viewer.letterboxd
+// The panel's Letterboxd icon, in the row with the color swatch and menu. Washed out while
+// unlinked: pressing it opens a small popup to enter the username (a pasted profile address works
+// too), which links at once; the background check settles the status. Linked, it is the profile
+// link, with the username (or the check's state) as its tooltip. Unlink lives in the ⋯ menu.
+export function LetterboxdPanelIcon({
+  viewer,
+  waiting,
+  onToggle,
+}: {
+  viewer: Viewer
+  waiting: boolean
+  onToggle: (e: SyntheticEvent<HTMLElement>) => void
+}) {
+  const { linkLetterboxd } = useApp()
+  const popover = useRef<HTMLDivElement>(null)
+  const field = useRef<HTMLInputElement>(null)
   const [text, setText] = useState('')
   const [invalid, setInvalid] = useState(false)
-  const field = useRef<HTMLInputElement>(null)
-  const unlink = useRef<HTMLButtonElement>(null)
-  // Where focus goes once the row swaps between field and username, so it stays in the panel.
-  const focusNext = useRef<'field' | 'unlink' | null>(null)
-  useEffect(() => {
-    if (focusNext.current === 'unlink') unlink.current?.focus()
-    if (focusNext.current === 'field') field.current?.focus()
-    focusNext.current = null
-  }, [link?.username])
+  const link = viewer.letterboxd
+  const id = `lb-popover-${viewer.id}`
+  const fieldId = `lb-field-${viewer.id}`
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -85,71 +141,85 @@ export function LetterboxdRow({ viewer, waiting }: { viewer: Viewer; waiting: bo
       setInvalid(true)
       return
     }
-    focusNext.current = 'unlink'
-    setText('')
     linkLetterboxd(viewer.id, username)
+    popover.current?.hidePopover()
   }
 
-  let message = ''
-  if (!link && invalid) message = "That isn't a Letterboxd username"
-  else if (link?.status === 'pending') {
-    message = waiting ? "Letterboxd can't be reached right now. Trying again soon." : 'Checking…'
-  } else if (link?.status === 'missing') message = `No Letterboxd profile called ${link.username}`
-
-  const fieldId = `lb-field-${viewer.id}`
+  if (link?.status === 'missing') {
+    const label = `No Letterboxd profile called ${link.username}`
+    return (
+      <span className="lb-panel lb-panel-missing" role="img" tabIndex={0} aria-label={label} title={label}>
+        <LetterboxdMark width={20} />
+        <span className="lb-warning" aria-hidden="true">
+          !
+        </span>
+      </span>
+    )
+  }
+  if (link) {
+    return (
+      <a
+        className="lb-panel"
+        {...profileLinkProps(link.username)}
+        aria-label={`Letterboxd profile ${link.username}`}
+        title={statusText(viewer, waiting)}
+      >
+        <LetterboxdMark width={20} />
+      </a>
+    )
+  }
   return (
-    <div className="lb-row">
-      <LetterboxdMark />
-      {link ? (
-        <>
-          {link.status === 'missing' ? (
-            <span className="lb-username">{link.username}</span>
-          ) : (
-            <a className="lb-username" {...profileLinkProps(link.username)}>
-              {link.username}
-            </a>
-          )}
-          <button
-            type="button"
-            ref={unlink}
-            className="quiet lb-unlink"
-            aria-label={`Unlink ${viewer.name}'s Letterboxd`}
-            onClick={() => {
-              focusNext.current = 'field'
-              setInvalid(false)
-              unlinkLetterboxd(viewer.id)
-            }}
-          >
-            Unlink
-          </button>
-        </>
-      ) : (
-        <form className="lb-form" onSubmit={submit}>
-          <label className="visually-hidden" htmlFor={fieldId}>
-            Letterboxd username for {viewer.name}
-          </label>
-          <input
-            id={fieldId}
-            ref={field}
-            type="text"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder="Letterboxd username"
-            value={text}
-            aria-invalid={invalid || undefined}
-            onChange={(e) => {
-              setText(e.target.value)
-              setInvalid(false)
-            }}
-          />
-          <button type="submit" className="quiet">
-            Link
-          </button>
+    <>
+      <button
+        type="button"
+        className="lb-panel lb-panel-unlinked"
+        aria-label={`Link Letterboxd for ${viewer.name}`}
+        title="Link Letterboxd"
+        popoverTarget={id}
+        onClick={(e) => placeUnder(e, popover.current)}
+      >
+        <LetterboxdMark width={20} />
+      </button>
+      <div
+        id={id}
+        popover="auto"
+        ref={popover}
+        className="card lb-popover"
+        onToggle={(e) => {
+          onToggle(e)
+          if ((e.nativeEvent as Event & { newState?: string }).newState === 'open') field.current?.focus()
+          else {
+            setText('')
+            setInvalid(false)
+          }
+        }}
+      >
+        <form onSubmit={submit}>
+          <label htmlFor={fieldId}>Letterboxd username for {viewer.name}</label>
+          <div className="lb-form">
+            <input
+              id={fieldId}
+              ref={field}
+              type="text"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="username or address"
+              value={text}
+              aria-invalid={invalid || undefined}
+              onChange={(e) => {
+                setText(e.target.value)
+                setInvalid(false)
+              }}
+            />
+            <button type="submit" className="quiet">
+              Link
+            </button>
+          </div>
+          <p className="field-error" role="status">
+            {invalid ? "That isn't a Letterboxd username" : ''}
+          </p>
         </form>
-      )}
-      <p className="lb-message" role="status">
-        {message}
-      </p>
-    </div>
+      </div>
+    </>
   )
 }

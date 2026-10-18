@@ -529,60 +529,95 @@ function setupLinked(
 }
 
 const lbField = (name: string) => screen.getByLabelText(`Letterboxd username for ${name}`)
-const statusOf = (text: string) => screen.getByText(text).closest('[role="status"]')
-const lbRow = () => document.querySelector('.lb-row') as HTMLElement
+const openLinkPopup = (name: string) => fireEvent.click(screen.getByRole('button', { name: `Link Letterboxd for ${name}` }))
 
 afterEach(() => vi.unstubAllGlobals())
 
-test('typing @Jo and pressing Link links jo at once, shown as a profile link with Checking… and Unlink', () => {
+test('an unlinked open panel has a washed-out Letterboxd icon with a Link Letterboxd tooltip that opens a popup', () => {
+  setupLinked(undefined)
+  openCell('Ann')
+  const icon = screen.getByRole('button', { name: 'Link Letterboxd for Ann' })
+  expect(icon).toHaveAttribute('title', 'Link Letterboxd')
+  expect(icon).toHaveClass('lb-panel-unlinked')
+  openLinkPopup('Ann')
+  expect(lbField('Ann')).toBeInTheDocument()
+})
+
+test('typing @Jo in the popup and pressing Link links jo at once', () => {
   const { store } = setupLinked(undefined)
   openCell('Ann')
+  openLinkPopup('Ann')
   fireEvent.change(lbField('Ann'), { target: { value: '@Jo' } })
   fireEvent.click(screen.getByRole('button', { name: 'Link' }))
   expect(store.getState().roster[0].letterboxd).toEqual({ username: 'jo', status: 'pending' })
-  const link = within(lbRow()).getByRole('link', { name: 'jo' })
+  // The panel icon is now the profile link, with the username as its tooltip.
+  const link = screen.getByRole('link', { name: 'Letterboxd profile jo' })
   expect(link).toHaveAttribute('href', 'https://letterboxd.com/jo/')
   expect(link).toHaveAttribute('target', '_blank')
   expect(link.getAttribute('rel')?.split(' ')).toEqual(expect.arrayContaining(['noopener', 'noreferrer']))
-  expect(statusOf('Checking…')).not.toBeNull()
-  expect(screen.getByRole('button', { name: /unlink/i })).toBeInTheDocument()
 })
 
 test('a pasted profile address with Enter links the username', () => {
   const { store } = setupLinked(undefined)
   openCell('Ann')
+  openLinkPopup('Ann')
   const field = lbField('Ann')
   fireEvent.change(field, { target: { value: 'https://letterboxd.com/Jo/films/' } })
   fireEvent.submit(field.closest('form')!)
   expect(store.getState().roster[0].letterboxd).toEqual({ username: 'jo', status: 'pending' })
 })
 
-test('an invalid entry says so and links nothing', () => {
+test('an invalid entry says so in the popup and links nothing', () => {
   const { store } = setupLinked(undefined)
   openCell('Ann')
+  openLinkPopup('Ann')
   fireEvent.change(lbField('Ann'), { target: { value: 'letterboxd.com/film/dune/' } })
   fireEvent.click(screen.getByRole('button', { name: 'Link' }))
-  expect(statusOf("That isn't a Letterboxd username")).not.toBeNull()
+  expect(screen.getByText("That isn't a Letterboxd username").closest('[role="status"]')).not.toBeNull()
   expect(store.getState().roster[0].letterboxd).toBeUndefined()
 })
 
-test('a missing profile says so and its username is not a link; Unlink brings the field back', () => {
-  const { store } = setupLinked({ username: 'jo', status: 'missing' })
+test('a linked panel icon shows the username as its tooltip, or the check state while pending', () => {
+  setupLinked({ username: 'jo', status: 'found' })
   openCell('Ann')
-  expect(statusOf('No Letterboxd profile called jo')).not.toBeNull()
-  expect(within(lbRow()).queryByRole('link')).toBeNull()
-  fireEvent.click(screen.getByRole('button', { name: /unlink/i }))
-  expect(store.getState().roster[0].letterboxd).toBeUndefined()
-  expect(lbField('Ann')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Letterboxd profile jo' })).toHaveAttribute('title', 'jo')
 })
 
-test('with a retry waiting the row says Letterboxd cannot be reached, and the slices still change', () => {
-  const { store } = setupLinked({ username: 'jo', status: 'pending' }, { waiting: new Set(['a']) })
+test('a pending panel icon says it is checking, or that Letterboxd cannot be reached, and the slices still change', () => {
+  const { store } = setupLinked({ username: 'jo', status: 'pending' })
   openCell('Ann')
-  expect(statusOf("Letterboxd can't be reached right now. Trying again soon.")).not.toBeNull()
+  expect(screen.getByRole('link', { name: 'Letterboxd profile jo' })).toHaveAttribute('title', 'jo: checking…')
   const slices = screen.getByRole('group', { name: 'Slices for Ann' })
   fireEvent.click(within(slices).getAllByRole('button').at(-1)!)
   expect(store.getState().night.adjustments.a?.slices).toBe(4)
+})
+
+test('with a retry waiting the panel icon says Letterboxd cannot be reached', () => {
+  setupLinked({ username: 'jo', status: 'pending' }, { waiting: new Set(['a']) })
+  openCell('Ann')
+  expect(screen.getByRole('link', { name: 'Letterboxd profile jo' })).toHaveAttribute(
+    'title',
+    "jo: Letterboxd can't be reached, trying again soon",
+  )
+})
+
+test('a missing profile is a dimmed warning in the panel, not a link, and Unlink Letterboxd in the menu clears it', () => {
+  const { store } = setupLinked({ username: 'jo', status: 'missing' })
+  openCell('Ann')
+  const panel = within(document.querySelector('.cell-body') as HTMLElement)
+  expect(panel.getByRole('img', { name: 'No Letterboxd profile called jo' })).toHaveAttribute('tabindex', '0')
+  expect(panel.queryByRole('link')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'More for Ann' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Unlink Letterboxd' }))
+  expect(store.getState().roster[0].letterboxd).toBeUndefined()
+  expect(screen.getByRole('button', { name: 'Link Letterboxd for Ann' })).toBeInTheDocument()
+})
+
+test('Unlink Letterboxd in the menu is disabled while nothing is linked', () => {
+  setupLinked(undefined)
+  openCell('Ann')
+  fireEvent.click(screen.getByRole('button', { name: 'More for Ann' }))
+  expect(screen.getByRole('button', { name: 'Unlink Letterboxd' })).toBeDisabled()
 })
 
 const lbLinkIn = (name: string) => within(cellOf(name)).queryByRole('link')
@@ -591,15 +626,18 @@ test.each([
   ['on the wheel', {}],
   ['away', { presentIds: ['b'] }],
   ['won', { nominations: { a: film }, wonFilms: [1] }],
-])('a found viewer %s has a Letterboxd link beside the header button', (_, night) => {
+])('a found viewer %s has a Letterboxd link beside the name, outside the header button', (_, night) => {
   setupLinked({ username: 'jo', status: 'found' }, { night })
   const link = within(cellOf('Ann')).getByRole('link', { name: 'Ann on Letterboxd' })
   expect(link).toHaveAttribute('href', 'https://letterboxd.com/jo/')
   expect(link).toHaveAttribute('target', '_blank')
   expect(link.getAttribute('rel')?.split(' ')).toEqual(expect.arrayContaining(['noopener', 'noreferrer']))
-  expect(link).toHaveAttribute('title', 'Ann on Letterboxd')
+  // Hovering shows the username.
+  expect(link).toHaveAttribute('title', 'jo')
   expect(link.getAttribute('tabindex')).not.toBe('-1')
   expect(header('Ann').contains(link)).toBe(false)
+  // It is placed over the slot the header leaves after the name.
+  expect(cellOf('Ann').querySelector('.cell-title .cell-lb-slot')).not.toBeNull()
   const expanded = header('Ann').getAttribute('aria-expanded')
   fireEvent.click(link)
   expect(header('Ann').getAttribute('aria-expanded')).toBe(expanded)
@@ -608,7 +646,7 @@ test.each([
 test('a pending viewer has a spinning icon named for the check', () => {
   setupLinked({ username: 'jo', status: 'pending' })
   const link = within(cellOf('Ann')).getByRole('link', { name: "Checking Ann's Letterboxd profile…" })
-  expect(link).toHaveAttribute('title', "Checking Ann's Letterboxd profile…")
+  expect(link).toHaveAttribute('title', 'jo: checking…')
   expect(within(link).getByTestId('lb-spinner')).toHaveClass('turning')
 })
 
@@ -633,4 +671,5 @@ test('a missing viewer has a focusable warning icon and no link; an unlinked one
   expect(icon).toHaveAttribute('title', 'No Letterboxd profile called jo')
   expect(lbLinkIn('Bo')).toBeNull()
   expect(cellOf('Bo').querySelector('.cell-lb')).toBeNull()
+  expect(cellOf('Bo').querySelector('.cell-lb-slot')).toBeNull()
 })
