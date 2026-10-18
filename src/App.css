@@ -1413,7 +1413,7 @@ dialog.wheel-drawer:focus {
 /* The checking ring sits well clear of the mark. */
 .lb-spinner {
   position: absolute;
-  inset: -3px;
+  inset: -1px;
   border: 1.5px solid color-mix(in srgb, var(--muted) 30%, transparent);
   border-top-color: var(--muted);
   border-radius: 50%;
