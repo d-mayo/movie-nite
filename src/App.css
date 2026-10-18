@@ -1981,6 +1981,8 @@ dialog.wheel-drawer:focus {
 
 .credits img {
   display: block;
+  width: 4rem;
+  height: auto;
   margin-bottom: var(--space-2);
 }
 
