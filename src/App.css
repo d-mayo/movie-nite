@@ -1846,7 +1846,53 @@ dialog.wheel-drawer:focus {
   margin-top: var(--space-1);
 }
 
+/* Re-roll keeps its label while drawing: three dots, always taking their room, light up in turn. */
+.reroll .dots {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.reroll .dots i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+}
+
+.reroll[aria-busy='true'] .dots i {
+  animation: reroll-dot 1.2s infinite;
+}
+
+.reroll[aria-busy='true'] .dots i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.reroll[aria-busy='true'] .dots i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes reroll-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0;
+  }
+  20%,
+  40% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reroll[aria-busy='true'] .dots i {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 .draw-message {
+  display: block;
   margin: var(--space-1) 0 0;
   color: var(--muted);
   font-size: 0.85rem;

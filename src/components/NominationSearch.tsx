@@ -48,6 +48,7 @@ export default function NominationSearch({ viewerId, viewerName, client, letterb
   }, [])
 
   const canDraw = !!watchlist && letterboxd?.status === 'found'
+  const canReroll = canDraw && !!nomination && watchlist.memory.drawn.get(viewerId) === nomination.tmdbId
 
   function onPick(picked: Nomination) {
     if (night.wonFilms.includes(picked.tmdbId)) {
@@ -103,13 +104,18 @@ export default function NominationSearch({ viewerId, viewerName, client, letterb
       }
       if (signal?.aborted) return
       setWonMessage(null)
+      watchlist.memory.drawn.set(viewerId, drawn.tmdbId)
       nominate(viewerId, drawn)
     } finally {
       if (!signal?.aborted) setDrawing(false)
     }
   }
 
-  const status = drawMessage && <p role="status" className="draw-message">{drawMessage}</p>
+  const status = drawMessage && (
+    <span role="status" className="draw-message">
+      {drawMessage}
+    </span>
+  )
 
   if (nomination) {
     return (
@@ -128,10 +134,15 @@ export default function NominationSearch({ viewerId, viewerName, client, letterb
         <span className="nomination-text">
           <span className="nomination-title">{nomination.title}</span>
           {nomination.year !== null && <span className="nomination-year">({nomination.year})</span>}
-          {canDraw && (
+          {canReroll && (
             <button type="button" className="quiet reroll" disabled={drawing} aria-busy={drawing} onClick={draw}>
               <Dice />
-              {drawing ? 'Drawing…' : 'Re-roll'}
+              Re-roll
+              <span className="dots" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
             </button>
           )}
           {status}

@@ -11,10 +11,12 @@ type Walk = string[] | 'private' | 'missing' | 'unavailable'
 export interface WatchlistMemory {
   walks: Map<string, Promise<Walk>>
   ids: Map<string, number | null>
+  // The TMDB id each viewer's current film was drawn as, so Re-roll shows only for a film that came from a draw.
+  drawn: Map<string, number>
 }
 
 export function createWatchlistMemory(): WatchlistMemory {
-  return { walks: new Map(), ids: new Map() }
+  return { walks: new Map(), ids: new Map(), drawn: new Map() }
 }
 
 async function walk(client: LetterboxdClient, username: string): Promise<Walk> {

@@ -46,7 +46,8 @@ function mount(fetchFn: typeof fetch) {
       <NominationSearch
         viewerId="a"
         viewerName="Ann"
-        client={createTmdbClient('https://w.test', fetchFn)}      />
+        client={createTmdbClient('https://w.test', fetchFn)}
+      />
     </AppStoreContext.Provider>,
   )
   return { store }
@@ -150,7 +151,8 @@ test('a film that has already won tonight cannot be nominated', async () => {
       <NominationSearch
         viewerId="a"
         viewerName="Ann"
-        client={createTmdbClient('https://w.test', fetchFn as unknown as typeof fetch)}      />
+        client={createTmdbClient('https://w.test', fetchFn as unknown as typeof fetch)}
+      />
     </AppStoreContext.Provider>,
   )
   type('alien')
@@ -232,20 +234,30 @@ test('an unlinked viewer has no slot', () => {
   expect(screen.queryByRole('button', { name: 'Random from watchlist' })).toBeNull()
 })
 
-test('Re-roll replaces the film once the new one is ready, whatever the first film came from', async () => {
-  const start = nominate(initial(), 'a', movieNomination(11))
-  const { store } = mountDrawing({ start })
-  expect(screen.getByText('Alien')).toBeInTheDocument()
+test('Re-roll shows only for a film drawn from the watchlist, and replaces it once the new one is ready', async () => {
+  const { store } = mountDrawing()
+  fireEvent.click(slot())
+  await flush()
+  expect(store.getState().night.nominations.a.tmdbId).toBe(11)
   fireEvent.click(screen.getByRole('button', { name: 'Re-roll' }))
-  expect(screen.getByRole('button', { name: 'Drawing…' })).toBeDisabled()
-  expect(screen.getByText('Alien')).toBeInTheDocument()
+  const busy = screen.getByRole('button', { name: 'Re-roll' })
+  expect(busy).toBeDisabled()
+  expect(busy).toHaveAttribute('aria-busy', 'true')
+  expect(screen.getByText('Film 11')).toBeInTheDocument()
   await flush()
   expect(store.getState().night.nominations.a.tmdbId).toBe(22)
   expect(screen.getByText('Film 22')).toBeInTheDocument()
 })
 
-test('pressing the poster removes the film, which brings back the slot', async () => {
+test('a film picked from search has no Re-roll', () => {
   mountDrawing({ start: nominate(initial(), 'a', movieNomination(11)) })
+  expect(screen.queryByRole('button', { name: 'Re-roll' })).toBeNull()
+})
+
+test('pressing the poster removes the film, which brings back the slot', async () => {
+  mountDrawing()
+  fireEvent.click(slot())
+  await flush()
   fireEvent.click(screen.getByRole('button', { name: /^Remove .* from Ann$/ }))
   expect(slot()).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Re-roll' })).toBeNull()
@@ -296,12 +308,17 @@ test('a drawn film that fails to load shows a message, and a failed Re-roll keep
 })
 
 test('a failed Re-roll leaves the current film', async () => {
-  const start = nominate(initial(), 'a', movieNomination(11))
-  const { store } = mountDrawing({ start, lb: lbClient({ watchlistPage: vi.fn(async () => 'unavailable' as const) }) })
+  const fetchFn = vi
+    .fn()
+    .mockResolvedValueOnce(movieBody(11, 'Film 11'))
+    .mockResolvedValue(new Response('nope', { status: 500 })) as unknown as typeof fetch
+  const { store } = mountDrawing({ fetchFn })
+  fireEvent.click(slot())
+  await flush()
   fireEvent.click(screen.getByRole('button', { name: 'Re-roll' }))
   await flush()
   expect(store.getState().night.nominations.a.tmdbId).toBe(11)
-  expect(screen.getByRole('status')).toHaveTextContent("Letterboxd can't be reached right now.")
+  expect(screen.getByRole('status')).toHaveTextContent("The drawn film couldn't be loaded. Try again.")
 })
 
 test('closing the panel while the film loads nominates nothing', async () => {

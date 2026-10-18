@@ -697,9 +697,11 @@ function drawingSetup(fetchFn: typeof fetch, nominations: AppState['night']['nom
 const movieResponse = (id: number) =>
   new Response(JSON.stringify({ id, title: `Film ${id}`, release_date: '2000-01-01', poster_path: null, overview: '', runtime: 90, genres: [] }))
 
-test('Re-roll is there again when the cell reopens', () => {
-  drawingSetup(vi.fn(), { a: { ...film, tmdbId: 11 } })
+test('Re-roll is there again when the cell reopens after a draw', async () => {
+  drawingSetup(vi.fn(async () => movieResponse(11)) as unknown as typeof fetch)
   openCell('Ann')
+  fireEvent.click(screen.getByRole('button', { name: 'Random from watchlist' }))
+  await act(async () => {})
   expect(screen.getByRole('button', { name: 'Re-roll' })).toBeInTheDocument()
   fireEvent.click(header('Ann'))
   openCell('Ann')
