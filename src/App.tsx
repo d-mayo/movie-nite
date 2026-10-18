@@ -12,6 +12,7 @@ import { AppStoreContext, useApp, type AppStore } from './state/store.ts'
 import { createTmdbClient, defaultApiBase } from './tmdb/client.ts'
 import { createLetterboxdClient } from './letterboxd/client.ts'
 import { useProfileChecks } from './letterboxd/useProfileChecks.ts'
+import { createWatchlistMemory } from './letterboxd/watchlist.ts'
 
 interface Props {
   store: AppStore
@@ -54,6 +55,11 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
   const client = useMemo(() => createTmdbClient(defaultApiBase(), fetchFn), [fetchFn])
   const letterboxd = useMemo(() => createLetterboxdClient(defaultApiBase(), fetchFn), [fetchFn])
   const letterboxdWaiting = useProfileChecks(letterboxd)
+  // The session's watchlist walks and film ids, kept while the app is open.
+  const watchlist = useMemo(
+    () => ({ client: letterboxd, memory: createWatchlistMemory(), random: random ?? Math.random }),
+    [letterboxd, random],
+  )
 
   return (
     <>
@@ -79,6 +85,7 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
               client={client}
               locked={locked}
               letterboxdWaiting={letterboxdWaiting}
+              watchlist={watchlist}
               onHide={() => {
                 pendingFocus.current = 'show'
                 setViewersHidden(true)

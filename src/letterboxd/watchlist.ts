@@ -68,3 +68,10 @@ export async function drawFromWatchlist(options: {
   }
   return 'exhausted'
 }
+
+/** What the panel needs to draw: the Worker client, the session's memory and the random source. */
+export interface WatchlistSource {
+  client: LetterboxdClient
+  memory: WatchlistMemory
+  random: () => number
+}

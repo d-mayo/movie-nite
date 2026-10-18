@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent, type RefObject } from 'react'
 import { maxNameLength, maxViewers } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
+import type { WatchlistSource } from '../letterboxd/watchlist.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import { effectiveSetting } from '../wheel/edit.ts'
 import { canHover, closeDelayMs } from './canHover.ts'
@@ -11,6 +12,8 @@ interface Props {
   locked?: boolean
   // The viewers whose Letterboxd check is waiting to retry; kept in memory only.
   letterboxdWaiting?: ReadonlySet<string>
+  // Where a viewer with a found Letterboxd profile draws a film from; without it there is no draw.
+  watchlist?: WatchlistSource
   onHide: () => void
   // The Hide viewers button, for the app to focus after the Show viewers press.
   hideRef: RefObject<HTMLButtonElement | null>
@@ -162,6 +165,7 @@ export default function NightSetup({
   client,
   locked = false,
   letterboxdWaiting = noneWaiting,
+  watchlist,
   onHide,
   hideRef,
 }: Props) {
@@ -352,6 +356,7 @@ export default function NightSetup({
               open={shownId === viewer.id}
               client={client}
               letterboxdWaiting={letterboxdWaiting.has(viewer.id)}
+              watchlist={watchlist}
               onHeaderClick={(e) => headerClick(viewer.id, e)}
               onPresenceChange={() => {
                 if (openRef.current === viewer.id) show(null)

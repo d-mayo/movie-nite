@@ -6,6 +6,8 @@ import { createMemoryPersistence } from '../state/persistence.ts'
 import { AppStoreContext, createAppStore } from '../state/store.ts'
 import { addViewer as add, header, markAway, markHere, openCell, removeViewer } from '../test/cells.ts'
 import { createTmdbClient } from '../tmdb/client.ts'
+import type { LetterboxdClient } from '../letterboxd/client.ts'
+import { createWatchlistMemory, type WatchlistSource } from '../letterboxd/watchlist.ts'
 import NightSetup from './NightSetup.tsx'
 import { defaultWheelSettings } from '../wheel/edit.ts'
 
@@ -26,11 +28,11 @@ const people = [
   { id: 'd', name: 'Di', color: '#3cb44b' },
 ]
 
-function mount(state: AppState, locked = false, waiting?: ReadonlySet<string>) {
+function mount(state: AppState, locked = false, waiting?: ReadonlySet<string>, watchlist?: WatchlistSource, fetchFn: typeof fetch = vi.fn()) {
   const store = createAppStore(createMemoryPersistence(state))
   const ui = (isLocked: boolean) => (
     <AppStoreContext.Provider value={store}>
-      <NightSetup client={createTmdbClient('https://w.test', vi.fn())} locked={isLocked} letterboxdWaiting={waiting} onHide={vi.fn()} hideRef={createRef()} />
+      <NightSetup client={createTmdbClient('https://w.test', fetchFn)} locked={isLocked} letterboxdWaiting={waiting} watchlist={watchlist} onHide={vi.fn()} hideRef={createRef()} />
     </AppStoreContext.Provider>
   )
   const view = render(ui(locked))
@@ -672,4 +674,55 @@ test('a missing viewer has a focusable warning icon and no link; an unlinked one
   expect(lbLinkIn('Bo')).toBeNull()
   expect(cellOf('Bo').querySelector('.cell-lb')).toBeNull()
   expect(cellOf('Bo').querySelector('.cell-lb-slot')).toBeNull()
+})
+
+// Drawing from a Letterboxd watchlist, through the open cell.
+function drawingSetup(fetchFn: typeof fetch, nominations: AppState['night']['nominations'] = {}) {
+  const lb: LetterboxdClient = {
+    checkProfile: vi.fn(),
+    watchlistPage: vi.fn(async () => ({ slugs: ['a', 'b'], hasNext: false })),
+    filmTmdbId: vi.fn(async (slug: string) => (slug === 'a' ? 11 : 22)),
+  }
+  const watchlist: WatchlistSource = { client: lb, memory: createWatchlistMemory(), random: () => 0 }
+  const roster = [{ ...people[0], letterboxd: { username: 'ann', status: 'found' as const } }, people[1]]
+  const state: AppState = {
+    ...defaultState,
+    settings: { viewersHidden: false, wheel: defaultWheelSettings },
+    roster,
+    night: { ...defaultState.night, presentIds: ['a', 'b'], nominations },
+  }
+  return { ...mount(state, false, undefined, watchlist, fetchFn), lb }
+}
+
+const movieResponse = (id: number) =>
+  new Response(JSON.stringify({ id, title: `Film ${id}`, release_date: '2000-01-01', poster_path: null, overview: '', runtime: 90, genres: [] }))
+
+test('Re-roll is there again when the cell reopens', () => {
+  drawingSetup(vi.fn(), { a: { ...film, tmdbId: 11 } })
+  openCell('Ann')
+  expect(screen.getByRole('button', { name: 'Re-roll' })).toBeInTheDocument()
+  fireEvent.click(header('Ann'))
+  openCell('Ann')
+  expect(screen.getByRole('button', { name: 'Re-roll' })).toBeInTheDocument()
+})
+
+test('closing the cell while the film loads nominates nothing, and the next press uses the kept walk', async () => {
+  let resolve!: (r: Response) => void
+  const fetchFn = vi.fn()
+    .mockImplementationOnce(() => new Promise<Response>((r) => (resolve = r)))
+    .mockImplementation(async () => movieResponse(11)) as unknown as typeof fetch
+  const { store, lb } = drawingSetup(fetchFn)
+  openCell('Ann')
+  fireEvent.click(screen.getByRole('button', { name: 'Random from watchlist' }))
+  await act(async () => {})
+  fireEvent.click(header('Ann'))
+  await act(async () => {
+    resolve(movieResponse(11))
+  })
+  expect(store.getState().night.nominations.a).toBeUndefined()
+  openCell('Ann')
+  fireEvent.click(screen.getByRole('button', { name: 'Random from watchlist' }))
+  await act(async () => {})
+  expect(store.getState().night.nominations.a.tmdbId).toBe(11)
+  expect(lb.watchlistPage).toHaveBeenCalledTimes(1)
 })
