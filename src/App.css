@@ -1784,11 +1784,19 @@ dialog.wheel-drawer:focus {
   font-weight: 600;
   line-height: 1.25;
   overflow-wrap: anywhere;
+  /* Always two lines tall (longer titles are cut), so the Re-roll button below stays put between films. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  min-height: 2.5em;
 }
 
 .nomination-year {
   color: var(--muted);
   font-size: 0.9rem;
+  min-height: 1.25em;
 }
 
 /* With no film, a found Letterboxd profile gets a poster-sized slot to draw from the watchlist, beside the search. */

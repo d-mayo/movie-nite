@@ -132,8 +132,10 @@ export default function NominationSearch({ viewerId, viewerName, client, letterb
           </button>
         </span>
         <span className="nomination-text">
-          <span className="nomination-title">{nomination.title}</span>
-          {nomination.year !== null && <span className="nomination-year">({nomination.year})</span>}
+          <span className="nomination-title" title={nomination.title}>
+            {nomination.title}
+          </span>
+          <span className="nomination-year">{nomination.year !== null && `(${nomination.year})`}</span>
           {canReroll && (
             <button type="button" className="quiet reroll" disabled={drawing} aria-busy={drawing} onClick={draw}>
               <Dice />
