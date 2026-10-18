@@ -192,7 +192,7 @@ test('Too long on a wildcard pick saves the holdover and leaves the wheel alone'
 test('Close on a wildcard pick changes nothing', async () => {
   const store = setupNight(wildcard, wildcardFetch)
   const dialog = await pickWildcardFilm()
-  const pickedLink = within(dialog).getByRole('link', { name: /\S/ })
+  const pickedLink = within(dialog).getByRole('link', { name: /^Open .* on Letterboxd$/ })
   expect(pickedLink.getAttribute('href')).toMatch(/^https:\/\/letterboxd\.com\/tmdb\/\d+\/$/)
   const before = store.getState().night
   fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))

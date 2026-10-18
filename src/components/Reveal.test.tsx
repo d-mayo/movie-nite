@@ -116,17 +116,17 @@ test('a nomination is a film frame: details in order, the dot in the viewer colo
   expect(dot.style.getPropertyValue('--dot')).toBe('#e6194b')
 })
 
-test('the title links to the film on Letterboxd without renaming the dialog', async () => {
+test('the poster links to the film on Letterboxd without renaming the dialog', async () => {
   setup(0.01, film(1), film(2))
   const dialog = await screen.findByRole('dialog')
-  const link = within(within(dialog).getByRole('heading', { name: 'Film 1' })).getByRole('link', {
-    name: 'Film 1',
-  })
+  const link = within(dialog).getByRole('link', { name: 'Open Film 1 on Letterboxd' })
   expect(link).toHaveAttribute('href', 'https://letterboxd.com/tmdb/1/')
   expect(link).toHaveAttribute('target', '_blank')
   expect(link.getAttribute('rel')).toMatch(/noopener/)
   expect(link.getAttribute('rel')).toMatch(/noreferrer/)
   expect(link).toHaveAttribute('title', 'Open on Letterboxd')
+  expect(within(link).getByRole('img', { name: 'Poster of Film 1' })).toBeInTheDocument()
+  expect(within(within(dialog).getByRole('heading', { name: 'Film 1' })).queryByRole('link')).toBeNull()
   expect(dialog).toHaveAccessibleName('Film 1')
   expect(within(dialog).getAllByRole('link')).toHaveLength(1)
 })
