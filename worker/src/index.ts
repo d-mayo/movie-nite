@@ -66,24 +66,37 @@ async function relayTmdb(url: string, env: Env, maxAge: number, cors: Record<str
   })
 }
 
-async function probeLetterboxd(cors: Record<string, string>): Promise<Response> {
-  let status: number | null = null
-  let body = ''
+/** Fetches a Letterboxd page as the probe and the profile check do; a failed fetch gives a null status. */
+async function fetchLetterboxd(url: string): Promise<{ status: number | null; body: string }> {
   try {
-    const res = await fetch(LETTERBOXD_PROFILE, {
+    const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; movie-nite/1.0)', Accept: 'text/html' },
       signal: AbortSignal.timeout(8000),
     })
-    status = res.status
-    body = await res.text()
+    return { status: res.status, body: await res.text() }
   } catch {
-    // a failed fetch leaves the status null
+    return { status: null, body: '' }
   }
+}
+
+async function probeLetterboxd(cors: Record<string, string>): Promise<Response> {
+  const { status, body } = await fetchLetterboxd(LETTERBOXD_PROFILE)
   const ok = status === 200 && !looksChallenged(status, body)
   return json({ ok, status, challenged: looksChallenged(status, body) }, 200, {
     ...cors,
     'Cache-Control': 'no-store',
   })
+}
+
+/** Whether a Letterboxd profile exists: found, missing (an unchallenged 404), or a 502 for anything else. */
+async function checkProfile(user: string, cors: Record<string, string>): Promise<Response> {
+  const username = user.toLowerCase()
+  const { status, body } = await fetchLetterboxd(`https://letterboxd.com/${username}/`)
+  if (status === 200 && !looksChallenged(status, body)) {
+    return json({ username }, 200, { ...cors, 'Cache-Control': 'public, max-age=3600' })
+  }
+  if (status === 404 && !looksChallenged(status, body)) return failure(404, 'No such profile', cors)
+  return failure(502, 'Letterboxd could not be checked', cors)
 }
 
 export default {
@@ -123,6 +136,11 @@ export default {
       return relayTmdb(`${TMDB_API}/movie/${film[1]}`, env, 86400, cors)
     }
     if (path === '/lb/probe') return probeLetterboxd(cors)
+    const profile = /^\/lb\/([^/]+)$/.exec(path)
+    if (profile) {
+      if (!/^[A-Za-z0-9_]{1,15}$/.test(profile[1])) return failure(400, 'A Letterboxd username is needed', cors)
+      return checkProfile(profile[1], cors)
+    }
     return failure(404, 'Not found', cors)
   },
 } satisfies ExportedHandler<Env>
