@@ -365,3 +365,27 @@ test('a stored token is dropped, saves leave it out, and everything else loads a
   expect(saved.settings).not.toHaveProperty('tmdbToken')
   expect(saved.version).toBe(1)
 })
+
+test('a Letterboxd link survives a reload, and an invalid stored one is dropped', () => {
+  const persistence = createMemoryPersistence()
+  const a = createAppStore(persistence)
+  a.getState().addViewer('Ann')
+  const ann = a.getState().roster[0].id
+  a.getState().linkLetterboxd(ann, 'Jo')
+  a.getState().setLetterboxdStatus(ann, 'jo', 'found')
+  expect(createAppStore(persistence).getState().roster[0].letterboxd).toEqual({ username: 'jo', status: 'found' })
+  a.getState().unlinkLetterboxd(ann)
+  expect(createAppStore(persistence).getState().roster[0].letterboxd).toBeUndefined()
+
+  const s = loaded([
+    { id: 'a', name: 'A', letterboxd: { username: 'bad name', status: 'found' } },
+    { id: 'b', name: 'B', letterboxd: { username: 'jo', status: 'odd' } },
+    { id: 'c', name: 'C', letterboxd: 'jo' },
+    { id: 'd', name: 'D', letterboxd: 7 },
+    { id: 'e', name: 'E', letterboxd: { username: 'Sam', status: 'pending' } },
+  ])
+  expect(s.roster.map((v) => v.letterboxd)).toEqual([undefined, undefined, undefined, undefined, { username: 'sam', status: 'pending' }])
+  expect(s.roster.map((v) => v.name)).toEqual(['A', 'B', 'C', 'D', 'E'])
+  expect(s.roster.every((v) => !('letterboxd' in v) || v.letterboxd)).toBe(true)
+  expect(s.version).toBe(1)
+})
