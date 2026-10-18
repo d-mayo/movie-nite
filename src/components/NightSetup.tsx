@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent, type RefObject } from 'react'
 import { maxNameLength, maxViewers } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
+import type { SettledWalks } from '../letterboxd/useWatchlistWalks.ts'
 import type { WatchlistSource } from '../letterboxd/watchlist.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import { effectiveSetting } from '../wheel/edit.ts'
@@ -14,6 +15,8 @@ interface Props {
   letterboxdWaiting?: ReadonlySet<string>
   // Where a viewer with a found Letterboxd profile draws a film from; without it there is no draw.
   watchlist?: WatchlistSource
+  // Each username's settled watchlist walk, for the overlap label on a viewer's film.
+  settledWalks?: SettledWalks
   onHide: () => void
   // The Hide viewers button, for the app to focus after the Show viewers press.
   hideRef: RefObject<HTMLButtonElement | null>
@@ -166,6 +169,7 @@ export default function NightSetup({
   locked = false,
   letterboxdWaiting = noneWaiting,
   watchlist,
+  settledWalks,
   onHide,
   hideRef,
 }: Props) {
@@ -357,6 +361,7 @@ export default function NightSetup({
               client={client}
               letterboxdWaiting={letterboxdWaiting.has(viewer.id)}
               watchlist={watchlist}
+              settledWalks={settledWalks}
               onHeaderClick={(e) => headerClick(viewer.id, e)}
               onPresenceChange={() => {
                 if (openRef.current === viewer.id) show(null)

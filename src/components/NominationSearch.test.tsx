@@ -181,6 +181,7 @@ function lbClient(overrides: Partial<LetterboxdClient> = {}): LetterboxdClient {
     checkProfile: vi.fn(),
     watchlistPage: vi.fn(async () => ({ slugs: ['a', 'b'], hasNext: false })),
     filmTmdbId: vi.fn(async (slug: string) => (slug === 'a' ? 11 : 22)),
+    filmSlug: vi.fn(async () => 'unavailable' as const),
     ...overrides,
   }
 }
@@ -331,4 +332,156 @@ test('closing the panel while the film loads nominates nothing', async () => {
   resolve(movieBody(11, 'Film 11'))
   await flush()
   expect(store.getState().night.nominations.a).toBeUndefined()
+})
+
+// The overlap label: which other present viewers have the film on their settled watchlist.
+function overlapStore() {
+  const store = createAppStore(createMemoryPersistence(initial()))
+  const s = store.getState()
+  s.linkLetterboxd('a', 'ann')
+  s.setLetterboxdStatus('a', 'ann', 'found')
+  for (const name of ['Jo', 'Sam', 'Alex']) {
+    s.addViewer(name)
+    const id = store.getState().roster.find((v) => v.name === name)!.id
+    s.linkLetterboxd(id, name.toLowerCase())
+    s.setLetterboxdStatus(id, name.toLowerCase(), 'found')
+  }
+  s.nominate('a', movieNomination(11))
+  return store
+}
+
+function mountOverlap(options: {
+  store?: ReturnType<typeof overlapStore>
+  walks: Record<string, string[]>
+  filmSlug?: LetterboxdClient['filmSlug']
+  memory?: ReturnType<typeof createWatchlistMemory>
+}) {
+  const store = options.store ?? overlapStore()
+  const lb = lbClient({ filmSlug: options.filmSlug ?? vi.fn(async () => 'alien-1999') })
+  const memory = options.memory ?? createWatchlistMemory()
+  const ui = (walks: Record<string, string[]>) => (
+    <AppStoreContext.Provider value={store}>
+      <NominationSearch
+        viewerId="a"
+        viewerName="Ann"
+        client={createTmdbClient('https://w.test', vi.fn() as unknown as typeof fetch)}
+        letterboxd={{ username: 'ann', status: 'found' }}
+        watchlist={{ client: lb, memory, random: () => 0 }}
+        settledWalks={new Map(Object.entries(walks))}
+      />
+    </AppStoreContext.Provider>
+  )
+  const view = render(ui(options.walks))
+  return { store, lb, memory, unmount: view.unmount, setWalks: (walks: Record<string, string[]>) => view.rerender(ui(walks)) }
+}
+
+const line = () => document.querySelector('.nomination-overlap')
+
+test('the label names the other viewers with the film, in roster order', async () => {
+  const { setWalks } = mountOverlap({ walks: { jo: ['alien-1999'] } })
+  await flush()
+  expect(line()).toHaveTextContent("Also on Jo's watchlist")
+  setWalks({ jo: ['alien-1999'], sam: ['alien-1999'] })
+  expect(line()).toHaveTextContent("Also on Jo's and Sam's watchlists")
+  setWalks({ alex: ['alien-1999'], sam: ['alien-1999'], jo: ['alien-1999'], ann: ['alien-1999'] })
+  expect(line()).toHaveTextContent("Also on Jo's, Sam's and Alex's watchlists")
+  expect(line()).not.toHaveAttribute('role')
+  expect(line()).not.toHaveAttribute('aria-live')
+})
+
+test('the nominator, and a viewer whose walk lacks the film, are never named', async () => {
+  mountOverlap({ walks: { ann: ['alien-1999'], jo: ['other'] } })
+  await flush()
+  expect(line()).toBeNull()
+})
+
+test('an away, unlinked, pending or missing viewer is left out, and a won-tonight one is named', async () => {
+  const store = overlapStore()
+  const id = (name: string) => store.getState().roster.find((v) => v.name === name)!.id
+  store.getState().setPresent(id('Jo'), false)
+  store.getState().unlinkLetterboxd(id('Sam'))
+  store.getState().setLetterboxdStatus(id('Alex'), 'alex', 'missing')
+  store.getState().addViewer('Di')
+  store.getState().linkLetterboxd(id('Di'), 'di')
+  store.getState().addViewer('Ed')
+  store.getState().linkLetterboxd(id('Ed'), 'ed')
+  store.getState().setLetterboxdStatus(id('Ed'), 'ed', 'found')
+  store.getState().nominate(id('Ed'), movieNomination(99))
+  store.getState().recordOutcome(movieNomination(99), 'watch', true)
+  const all = ['alien-1999']
+  mountOverlap({ store, walks: { jo: all, sam: all, alex: all, di: all, ed: all } })
+  await flush()
+  expect(line()).toHaveTextContent("Also on Ed's watchlist")
+})
+
+test('the label sits above Re-roll, and Re-roll still works', async () => {
+  const store = overlapStore()
+  store.getState().nominate('a', { ...movieNomination(11), fromWatchlist: true })
+  mountOverlap({ store, walks: { jo: ['alien-1999'] } })
+  await flush()
+  const reroll = screen.getByRole('button', { name: 'Re-roll' })
+  expect(line()!.compareDocumentPosition(reroll) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(reroll).toBeEnabled()
+})
+
+test('a pending lookup, a null and an unavailable answer show no label, and only unavailable is asked again', async () => {
+  let resolve!: (v: string | null | 'unavailable') => void
+  const filmSlug = vi.fn(() => new Promise<string | null | 'unavailable'>((r) => (resolve = r)))
+  const memory = createWatchlistMemory()
+  const walks = { jo: ['alien-1999'] }
+  const first = mountOverlap({ walks, filmSlug, memory })
+  expect(line()).toBeNull()
+  await act(async () => resolve(null))
+  expect(line()).toBeNull()
+  expect(memory.slugs.get(11)).toBeNull()
+  first.unmount()
+
+  const again = mountOverlap({ walks, filmSlug, memory })
+  expect(filmSlug).toHaveBeenCalledTimes(1)
+  expect(again.memory.slugs.get(11)).toBeNull()
+})
+
+test('an unavailable lookup is not kept', async () => {
+  const filmSlug = vi.fn(async () => 'unavailable' as const)
+  const memory = createWatchlistMemory()
+  mountOverlap({ walks: { jo: ['alien-1999'] }, filmSlug, memory })
+  await flush()
+  expect(line()).toBeNull()
+  expect(memory.slugs.has(11)).toBe(false)
+})
+
+test('a drawn film needs no lookup', async () => {
+  const filmSlug = vi.fn(async () => 'unavailable' as const)
+  const memory = createWatchlistMemory()
+  memory.slugs.set(11, 'alien-1999')
+  mountOverlap({ walks: { jo: ['alien-1999'] }, filmSlug, memory })
+  expect(filmSlug).not.toHaveBeenCalled()
+  expect(line()).toHaveTextContent("Also on Jo's watchlist")
+})
+
+test('a lookup is aborted when the film changes, and its late answer changes nothing', async () => {
+  let signal!: AbortSignal
+  let resolve!: (v: string) => void
+  const filmSlug = vi.fn((_id: number, s?: AbortSignal) => {
+    signal = s!
+    return new Promise<string>((r) => (resolve = r))
+  })
+  const { store, memory } = mountOverlap({ walks: { jo: ['alien-1999'] }, filmSlug })
+  act(() => store.getState().removeNomination('a'))
+  expect(signal.aborted).toBe(true)
+  await act(async () => resolve('alien-1999'))
+  expect(memory.slugs.has(11)).toBe(false)
+  expect(line()).toBeNull()
+})
+
+test('a film nominated while the panel is open is looked up, and so is the next one after removal', async () => {
+  const filmSlug = vi.fn(async (id: number) => (id === 22 ? 'film-22' : 'alien-1999'))
+  const { store } = mountOverlap({ walks: { jo: ['film-22'] }, filmSlug })
+  await flush()
+  expect(line()).toBeNull()
+  act(() => store.getState().removeNomination('a'))
+  act(() => store.getState().nominate('a', movieNomination(22)))
+  await flush()
+  expect(filmSlug).toHaveBeenLastCalledWith(22, expect.any(AbortSignal))
+  expect(line()).toHaveTextContent("Also on Jo's watchlist")
 })

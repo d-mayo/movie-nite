@@ -136,3 +136,42 @@ describe('filmTmdbId', () => {
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
   })
 })
+
+describe('filmSlug', () => {
+  it('asks the Worker for the TMDB id and reads the slug', async () => {
+    const { client, mock } = clientWith(reply(200, { tmdbId: 496243, slug: 'parasite-2019' }))
+    expect(await client.filmSlug(496243)).toBe('parasite-2019')
+    expect(mock.mock.calls[0][0]).toBe('https://api.test/lb/film-by-tmdb/496243')
+  })
+
+  it("reads the Worker's No such film 404 as null", async () => {
+    const { client } = clientWith(reply(404, { error: 'No such film' }))
+    expect(await client.filmSlug(1)).toBeNull()
+  })
+
+  it.each([
+    ['a 200 for another id', reply(200, { tmdbId: 2, slug: 'a' })],
+    ['a 200 with a bad slug', reply(200, { tmdbId: 1, slug: 'Bad_Slug' })],
+    ['a 200 with no slug', reply(200, { tmdbId: 1 })],
+    ['an unknown 404', reply(404, { error: 'Not found' })],
+    ['a 502', reply(502, { error: 'Letterboxd could not be read' })],
+    [
+      'a thrown fetch',
+      async () => {
+        throw new TypeError('Failed to fetch')
+      },
+    ],
+  ])('reads %s as unavailable', async (_, fetchFn) => {
+    const { client } = clientWith(fetchFn)
+    expect(await client.filmSlug(1)).toBe('unavailable')
+  })
+
+  it('rethrows an abort', async () => {
+    const controller = new AbortController()
+    const { client } = clientWith(async () => {
+      controller.abort()
+      throw new DOMException('aborted', 'AbortError')
+    })
+    await expect(client.filmSlug(1, controller.signal)).rejects.toThrow()
+  })
+})

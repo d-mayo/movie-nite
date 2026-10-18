@@ -67,15 +67,19 @@ async function relayTmdb(url: string, env: Env, maxAge: number, cors: Record<str
 }
 
 /** Fetches a Letterboxd page as the probe and the profile check do; a failed fetch gives a null status. */
-async function fetchLetterboxd(url: string): Promise<{ status: number | null; body: string }> {
+async function fetchLetterboxd(
+  url: string,
+  redirect: 'follow' | 'manual' = 'follow',
+): Promise<{ status: number | null; body: string; location: string | null }> {
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; movie-nite/1.0)', Accept: 'text/html' },
       signal: AbortSignal.timeout(8000),
+      redirect,
     })
-    return { status: res.status, body: await res.text() }
+    return { status: res.status, body: await res.text(), location: res.headers.get('Location') }
   } catch {
-    return { status: null, body: '' }
+    return { status: null, body: '', location: null }
   }
 }
 
@@ -147,6 +151,41 @@ async function filmLookup(slug: string, cors: Record<string, string>): Promise<R
   return failure(502, 'Letterboxd could not be read', cors)
 }
 
+const FILM_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+export type TmdbRedirectRead = string | 'missing' | 'unavailable'
+
+/**
+ * Reads Letterboxd's answer for a TMDB id, fetched without following redirects: a redirect to /film/<slug>/ gives the slug,
+ * an unchallenged 200 "TMDB Import Result" page means Letterboxd has no film for the id, and anything else is unavailable.
+ */
+export function readTmdbRedirect(status: number | null, location: string | null, html: string): TmdbRedirectRead {
+  if (status === null || looksChallenged(status, html)) return 'unavailable'
+  if (status === 301 || status === 302 || status === 303 || status === 307 || status === 308) {
+    if (!location) return 'unavailable'
+    let target: URL
+    try {
+      target = new URL(location, 'https://letterboxd.com/')
+    } catch {
+      return 'unavailable'
+    }
+    if (target.protocol !== 'https:' || target.hostname !== 'letterboxd.com') return 'unavailable'
+    const m = /^\/film\/([^/]+)\/$/.exec(target.pathname)
+    return m && m[1].length <= 200 && FILM_SLUG.test(m[1]) ? m[1] : 'unavailable'
+  }
+  if (status === 200 && /<title>[^<]*TMDB Import Result/i.test(html)) return 'missing'
+  return 'unavailable'
+}
+
+/** A film's Letterboxd slug from its TMDB id: 200 with the slug, 404 when Letterboxd has no film, 502 when unreadable. */
+async function filmByTmdb(id: string, cors: Record<string, string>): Promise<Response> {
+  const { status, body, location } = await fetchLetterboxd(`https://letterboxd.com/tmdb/${id}/`, 'manual')
+  const read = readTmdbRedirect(status, location, body)
+  if (read === 'missing') return failure(404, 'No such film', cors)
+  if (read === 'unavailable') return failure(502, 'Letterboxd could not be read', cors)
+  return json({ tmdbId: Number(id), slug: read }, 200, { ...cors, 'Cache-Control': 'public, max-age=604800' })
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const origin = request.headers.get('Origin')
@@ -184,9 +223,14 @@ export default {
       return relayTmdb(`${TMDB_API}/movie/${film[1]}`, env, 86400, cors)
     }
     if (path === '/lb/probe') return probeLetterboxd(cors)
+    const byTmdb = /^\/lb\/film-by-tmdb\/([^/]+)$/.exec(path)
+    if (byTmdb) {
+      if (!/^\d{1,10}$/.test(byTmdb[1])) return failure(400, 'A numeric film id is needed', cors)
+      return filmByTmdb(byTmdb[1], cors)
+    }
     const filmPage = /^\/lb\/film\/([^/]+)$/.exec(path)
     if (filmPage) {
-      if (filmPage[1].length > 200 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(filmPage[1])) {
+      if (filmPage[1].length > 200 || !FILM_SLUG.test(filmPage[1])) {
         return failure(400, 'A Letterboxd film slug is needed', cors)
       }
       return filmLookup(filmPage[1], cors)

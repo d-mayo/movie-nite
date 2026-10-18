@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { SettledWalks } from '../letterboxd/useWatchlistWalks.ts'
 import { drawFromWatchlist, type DrawResult, type WatchlistSource } from '../letterboxd/watchlist.ts'
 import type { LetterboxdLink, Nomination } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
@@ -12,6 +13,8 @@ interface Props {
   // The viewer's Letterboxd profile and where to draw from; a draw is offered only for a found profile.
   letterboxd?: LetterboxdLink
   watchlist?: WatchlistSource
+  // Each username's settled watchlist walk, for the overlap label.
+  settledWalks?: SettledWalks
 }
 
 function Dice() {
@@ -29,11 +32,68 @@ function Dice() {
   )
 }
 
+// "Jo's", "Jo's and Sam's", "Jo's, Sam's and Alex's".
+function possessives(names: string[]): string {
+  const owned = names.map((name) => `${name}'s`)
+  return owned.length === 1 ? owned[0] : `${owned.slice(0, -1).join(', ')} and ${owned[owned.length - 1]}`
+}
+
+// Which other present viewers have the film on their settled Letterboxd watchlist. The film's slug is asked of
+// Letterboxd when the session doesn't know it yet; a failure or an unknown film just leaves the line out.
+function OverlapLabel({
+  tmdbId,
+  viewerId,
+  watchlist,
+  settledWalks,
+}: {
+  tmdbId: number
+  viewerId: string
+  watchlist: WatchlistSource
+  settledWalks: SettledWalks
+}) {
+  const { roster, night } = useApp()
+  const { client, memory } = watchlist
+  const [slug, setSlug] = useState<string | null | undefined>(() => memory.slugs.get(tmdbId))
+  useEffect(() => {
+    if (memory.slugs.has(tmdbId)) return
+    const controller = new AbortController()
+    client
+      .filmSlug(tmdbId, controller.signal)
+      .then((found) => {
+        if (controller.signal.aborted || found === 'unavailable') return
+        memory.slugs.set(tmdbId, found)
+        setSlug(found)
+      })
+      .catch(() => {})
+    return () => controller.abort()
+  }, [client, memory, tmdbId])
+
+  if (!slug) return null
+  const names: string[] = []
+  for (const other of roster) {
+    if (other.id === viewerId || other.letterboxd?.status !== 'found' || !night.presentIds.includes(other.id)) continue
+    if (settledWalks.get(other.letterboxd.username.toLowerCase())?.includes(slug)) names.push(other.name)
+  }
+  if (names.length === 0) return null
+  return (
+    <div className="nomination-overlap">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="7.6" r="1.3" fill="currentColor" stroke="none" />
+        <path d="M9.6 11h2.6v6.4m-2.8 0h5.2" strokeLinecap="butt" />
+      </svg>
+      <span>
+        Also on {possessives(names)} {names.length === 1 ? 'watchlist' : 'watchlists'}
+      </span>
+    </div>
+  )
+}
+
 // A viewer with a film shows its poster, with an X on hover that takes the film
 // off the wheel; a viewer without one gets the search. A viewer whose Letterboxd
 // profile was found can also draw a film from their watchlist, as the first
 // nomination (the slot) or a replacement (Re-roll).
-export default function NominationSearch({ viewerId, viewerName, client, letterboxd, watchlist }: Props) {
+export default function NominationSearch({ viewerId, viewerName, client, letterboxd, watchlist, settledWalks }: Props) {
   const { night, holdover, nominate, removeNomination } = useApp()
   const nomination = night.nominations[viewerId]
   const [wonMessage, setWonMessage] = useState<string | null>(null)
@@ -118,37 +178,48 @@ export default function NominationSearch({ viewerId, viewerName, client, letterb
 
   if (nomination) {
     return (
-      <div className="nomination">
-        <span className="poster-remove">
-          <Poster path={nomination.posterPath} title={nomination.title} large />
-          <button
-            type="button"
-            className="poster-x"
-            aria-label={`Remove ${nomination.title} from ${viewerName}`}
-            onClick={() => removeNomination(viewerId)}
-          >
-            <span aria-hidden="true">✕</span>
-          </button>
-        </span>
-        <span className="nomination-text">
-          <span className="nomination-title" title={nomination.title}>
-            {nomination.title}
-          </span>
-          {nomination.year !== null && <span className="nomination-year">({nomination.year})</span>}
-          {status}
-          {canReroll && (
-            <button type="button" className="quiet reroll" disabled={drawing} aria-busy={drawing} onClick={draw}>
-              <Dice />
-              Re-roll
-              <span className="dots" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-              </span>
+      <div className="nomination-block">
+        {watchlist && settledWalks && (
+          <OverlapLabel
+            key={nomination.tmdbId}
+            tmdbId={nomination.tmdbId}
+            viewerId={viewerId}
+            watchlist={watchlist}
+            settledWalks={settledWalks}
+          />
+        )}
+        <div className="nomination">
+          <span className="poster-remove">
+            <Poster path={nomination.posterPath} title={nomination.title} large />
+            <button
+              type="button"
+              className="poster-x"
+              aria-label={`Remove ${nomination.title} from ${viewerName}`}
+              onClick={() => removeNomination(viewerId)}
+            >
+              <span aria-hidden="true">✕</span>
             </button>
-          )}
-          {!canReroll && <span className="reroll-spacer" aria-hidden="true" />}
-        </span>
+          </span>
+          <span className="nomination-text">
+            <span className="nomination-title" title={nomination.title}>
+              {nomination.title}
+            </span>
+            {nomination.year !== null && <span className="nomination-year">({nomination.year})</span>}
+            {status}
+            {canReroll && (
+              <button type="button" className="quiet reroll" disabled={drawing} aria-busy={drawing} onClick={draw}>
+                <Dice />
+                Re-roll
+                <span className="dots" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              </button>
+            )}
+            {!canReroll && <span className="reroll-spacer" aria-hidden="true" />}
+          </span>
+        </div>
       </div>
     )
   }
