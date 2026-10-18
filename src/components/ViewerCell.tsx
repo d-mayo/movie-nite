@@ -12,6 +12,7 @@ import {
 } from 'react'
 import type { Nomination, Viewer } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
+import type { WatchlistSource } from '../letterboxd/watchlist.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import type { ViewerSetting } from '../wheel/edit.ts'
 import ColorPicker from './ColorPicker.tsx'
@@ -45,6 +46,7 @@ interface Props {
   client: TmdbClient
   // Whether this viewer's Letterboxd check is waiting to retry.
   letterboxdWaiting: boolean
+  watchlist?: WatchlistSource
   onHeaderClick: (e: MouseEvent<HTMLButtonElement>) => void
   // Called when the eye toggle is used, which closes the cell.
   onPresenceChange: () => void
@@ -140,6 +142,7 @@ export default function ViewerCell({
   open: openRequested,
   client,
   letterboxdWaiting,
+  watchlist,
   onHeaderClick,
   onPresenceChange,
   onHoverStart,
@@ -326,6 +329,8 @@ export default function ViewerCell({
               viewerId={viewer.id}
               viewerName={viewer.name}
               client={client}
+              letterboxd={viewer.letterboxd}
+              watchlist={watchlist}
             />
             <div className="cell-actions">
               <LetterboxdPanelIcon viewer={viewer} waiting={letterboxdWaiting} onToggle={track('letterboxd')} />

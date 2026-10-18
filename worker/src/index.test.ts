@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
-import worker, { isAllowedOrigin, type Env } from './index.ts'
+import worker, { isAllowedOrigin, parseFilmTmdbId, readWatchlistPage, type Env } from './index.ts'
 
 const TOKEN = 'secret-token-123'
 const ORIGIN = 'https://d-mayo.github.io'
@@ -290,6 +290,164 @@ describe('the Letterboxd profile check', () => {
     lb.mockResolvedValue({ success: false })
     const res = await call('/lb/jo', { env })
     expect(res.status).toBe(429)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+function fixture(name: string): string {
+  return readFileSync(`worker/fixtures/${name}`, 'utf8')
+}
+
+const BLOCK = '<title>Letterboxd - Forbidden</title> Just a moment...'
+
+describe('reading a watchlist page', () => {
+  it('reads the slugs in order and sees the next page', () => {
+    const read = readWatchlistPage(200, fixture('watchlist-next.200.html'))
+    expect(read).toMatchObject({ hasNext: true })
+    const slugs = (read as { slugs: string[] }).slugs
+    expect(slugs).toHaveLength(5)
+    expect(slugs[0]).toBe('possible-love')
+    expect(slugs[1]).toBe('cameron-winter-at-carnegie-hall')
+  })
+
+  it('sees no next page on the last page', () => {
+    const read = readWatchlistPage(200, fixture('watchlist-last.200.html'))
+    expect(read).toMatchObject({ hasNext: false })
+    expect((read as { slugs: string[] }).slugs).toHaveLength(3)
+  })
+
+  it('gives no slugs past the end and drops duplicates', () => {
+    expect(readWatchlistPage(200, fixture('watchlist-past-end.200.html'))).toEqual({ slugs: [], hasNext: false })
+    expect(readWatchlistPage(200, 'data-item-slug="a" data-item-slug="a" data-item-slug="b"')).toEqual({
+      slugs: ['a', 'b'],
+      hasNext: false,
+    })
+  })
+
+  it('tells private, missing and unavailable apart', () => {
+    expect(readWatchlistPage(403, fixture('watchlist-private.403.html'))).toBe('private')
+    expect(readWatchlistPage(404, fixture('watchlist-missing.404.html'))).toBe('missing')
+    expect(readWatchlistPage(403, BLOCK)).toBe('unavailable')
+    expect(readWatchlistPage(404, BLOCK)).toBe('unavailable')
+    expect(readWatchlistPage(503, '')).toBe('unavailable')
+    expect(readWatchlistPage(500, '')).toBe('unavailable')
+    expect(readWatchlistPage(null, '')).toBe('unavailable')
+  })
+})
+
+describe('reading a film page', () => {
+  it('gives the movie id', () => {
+    expect(parseFilmTmdbId(fixture('film.200.html'))).toBe(496243)
+  })
+
+  it('gives null without a movie id', () => {
+    expect(parseFilmTmdbId(fixture('film-no-tmdb-movie.200.html'))).toBeNull()
+    expect(parseFilmTmdbId('<body data-tmdb-type="tv" data-tmdb-id="5">')).toBeNull()
+  })
+})
+
+describe('the Letterboxd watchlist route', () => {
+  const html = (name: string, status: number) => new Response(fixture(name), { status })
+
+  it('fetches page 1 and page 3, lowercased, and caches a good answer for an hour', async () => {
+    fetchMock.mockResolvedValueOnce(html('watchlist-next.200.html', 200))
+    const res = await call('/lb/JoE/watchlist')
+    expect(fetchMock.mock.calls[0][0]).toBe('https://letterboxd.com/joe/watchlist/')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=3600')
+    expect(await res.json()).toMatchObject({ hasNext: true })
+    fetchMock.mockResolvedValueOnce(html('watchlist-last.200.html', 200))
+    await call('/lb/joe/watchlist?page=3')
+    expect(fetchMock.mock.calls[1][0]).toBe('https://letterboxd.com/joe/watchlist/page/3/')
+  })
+
+  it('answers the two 404s with no-store', async () => {
+    fetchMock.mockResolvedValueOnce(html('watchlist-private.403.html', 403))
+    let res = await call('/lb/joe/watchlist')
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'Watchlist is private' })
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
+    fetchMock.mockResolvedValueOnce(html('watchlist-missing.404.html', 404))
+    res = await call('/lb/joe/watchlist')
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'No such watchlist' })
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
+  })
+
+  it('answers 502 with no-store for a block, a challenge, a 500 and a thrown fetch', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(BLOCK, { status: 403 }))
+    fetchMock.mockResolvedValueOnce(new Response('Just a moment...', { status: 200 }))
+    fetchMock.mockResolvedValueOnce(new Response('oops', { status: 500 }))
+    fetchMock.mockRejectedValueOnce(new Error('network'))
+    for (let i = 0; i < 4; i++) {
+      const res = await call('/lb/joe/watchlist')
+      expect(res.status).toBe(502)
+      expect(res.headers.get('Cache-Control')).toBe('no-store')
+      expect(await res.json()).toEqual({ error: 'Letterboxd could not be read' })
+    }
+  })
+
+  it('answers 400 for a bad user or page without fetching', async () => {
+    for (const path of [
+      '/lb/a.b/watchlist',
+      `/lb/${'a'.repeat(16)}/watchlist`,
+      '/lb/joe/watchlist?page=0',
+      '/lb/joe/watchlist?page=100',
+      '/lb/joe/watchlist?page=x',
+      '/lb/joe/watchlist?page=1.5',
+    ]) {
+      expect((await call(path)).status, path).toBe(400)
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('counts against the Letterboxd budget', async () => {
+    const { env, lb } = makeEnv()
+    lb.mockResolvedValue({ success: false })
+    expect((await call('/lb/joe/watchlist', { env })).status).toBe(429)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('the Letterboxd film route', () => {
+  it('answers the movie id, or null, with a week of cache', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(fixture('film.200.html'), { status: 200 }))
+    let res = await call('/lb/film/parasite-2019')
+    expect(fetchMock.mock.calls[0][0]).toBe('https://letterboxd.com/film/parasite-2019/')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=604800')
+    expect(await res.json()).toEqual({ slug: 'parasite-2019', tmdbId: 496243 })
+    fetchMock.mockResolvedValueOnce(new Response(fixture('film-no-tmdb-movie.200.html'), { status: 200 }))
+    res = await call('/lb/film/some-show')
+    expect(await res.json()).toEqual({ slug: 'some-show', tmdbId: null })
+  })
+
+  it('answers 404 for an unknown film and 502 otherwise', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(fixture('film-missing.404.html'), { status: 404 }))
+    let res = await call('/lb/film/zz-none')
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'No such film' })
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
+    fetchMock.mockResolvedValueOnce(new Response(BLOCK, { status: 403 }))
+    res = await call('/lb/film/zz-none')
+    expect(res.status).toBe(502)
+    fetchMock.mockRejectedValueOnce(new Error('network'))
+    expect((await call('/lb/film/zz-none')).status).toBe(502)
+  })
+
+  it('answers 400 for a bad slug without fetching', async () => {
+    for (const path of ['/lb/film/Bad_Slug', '/lb/film/-a', '/lb/film/a--b', `/lb/film/${'a'.repeat(201)}`]) {
+      expect((await call(path)).status, path).toBe(400)
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('treats /lb/film/watchlist as a film and leaves the other routes alone', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(fixture('film.200.html'), { status: 200 }))
+    await call('/lb/film/watchlist')
+    expect(fetchMock.mock.calls[0][0]).toBe('https://letterboxd.com/film/watchlist/')
+    fetchMock.mockClear()
+    expect((await call('/lb/a/b/c')).status).toBe(404)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })

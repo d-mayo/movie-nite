@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'vitest'
-import { addViewer, defaultState } from './model.ts'
+import { addViewer, defaultState, nominate } from './model.ts'
 import {
   createLocalStoragePersistence,
   createMemoryPersistence,
@@ -16,6 +16,13 @@ describe('localStorage persistence', () => {
     expect(createLocalStoragePersistence(localStorage, 'k').load()).toEqual(
       sample,
     )
+  })
+
+  test('keeps the fromWatchlist mark on a nomination across a reload', () => {
+    const film = { tmdbId: 1, title: 'F', year: null, posterPath: null, overview: '', runtime: null, genres: [], fromWatchlist: true }
+    const p = createLocalStoragePersistence(localStorage, 'k')
+    p.save(nominate(sample, 'a', film))
+    expect(createLocalStoragePersistence(localStorage, 'k').load()?.night.nominations.a.fromWatchlist).toBe(true)
   })
 
   test('load returns null for no data, corrupt JSON and another version', () => {

@@ -99,6 +99,54 @@ async function checkProfile(user: string, cors: Record<string, string>): Promise
   return failure(502, 'Letterboxd could not be checked', cors)
 }
 
+export type WatchlistRead = { slugs: string[]; hasNext: boolean } | 'private' | 'missing' | 'unavailable'
+
+/**
+ * Reads one Letterboxd watchlist page: its film slugs in page order and whether a next page is linked.
+ * A 403 that is not a bot challenge is a private watchlist (Letterboxd sends the same "classified" page as for a block),
+ * an unchallenged 404 is a missing one, and anything else is unavailable.
+ */
+export function readWatchlistPage(status: number | null, html: string): WatchlistRead {
+  if (status === null || /just a moment|cf-chl/i.test(html)) return 'unavailable'
+  if (status === 403) return 'private'
+  if (status === 404) return 'missing'
+  if (status !== 200) return 'unavailable'
+  const slugs: string[] = []
+  for (const m of html.matchAll(/data-item-slug="([^"]+)"/g)) {
+    if (!slugs.includes(m[1])) slugs.push(m[1])
+  }
+  return { slugs, hasNext: /<a class="next"/.test(html) }
+}
+
+/** The TMDB id of a Letterboxd film page, only when the page says it is a movie. */
+export function parseFilmTmdbId(html: string): number | null {
+  if (!/data-tmdb-type="movie"/.test(html)) return null
+  const id = /data-tmdb-id="(\d+)"/.exec(html)
+  return id ? Number(id[1]) : null
+}
+
+/** One page of a viewer's watchlist: 200 with slugs, 404 for a private or missing one, 502 when unreadable. */
+async function watchlistPage(user: string, page: number, cors: Record<string, string>): Promise<Response> {
+  const username = user.toLowerCase()
+  const path = page === 1 ? 'watchlist/' : `watchlist/page/${page}/`
+  const { status, body } = await fetchLetterboxd(`https://letterboxd.com/${username}/${path}`)
+  const read = readWatchlistPage(status, body)
+  if (read === 'private') return failure(404, 'Watchlist is private', cors)
+  if (read === 'missing') return failure(404, 'No such watchlist', cors)
+  if (read === 'unavailable') return failure(502, 'Letterboxd could not be read', cors)
+  return json(read, 200, { ...cors, 'Cache-Control': 'public, max-age=3600' })
+}
+
+/** A film's TMDB id from its Letterboxd page: 200 with the id (or null), 404 when unknown, 502 when unreadable. */
+async function filmLookup(slug: string, cors: Record<string, string>): Promise<Response> {
+  const { status, body } = await fetchLetterboxd(`https://letterboxd.com/film/${slug}/`)
+  if (status === 200 && !looksChallenged(status, body)) {
+    return json({ slug, tmdbId: parseFilmTmdbId(body) }, 200, { ...cors, 'Cache-Control': 'public, max-age=604800' })
+  }
+  if (status === 404 && !looksChallenged(status, body)) return failure(404, 'No such film', cors)
+  return failure(502, 'Letterboxd could not be read', cors)
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const origin = request.headers.get('Origin')
@@ -136,6 +184,21 @@ export default {
       return relayTmdb(`${TMDB_API}/movie/${film[1]}`, env, 86400, cors)
     }
     if (path === '/lb/probe') return probeLetterboxd(cors)
+    const filmPage = /^\/lb\/film\/([^/]+)$/.exec(path)
+    if (filmPage) {
+      if (filmPage[1].length > 200 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(filmPage[1])) {
+        return failure(400, 'A Letterboxd film slug is needed', cors)
+      }
+      return filmLookup(filmPage[1], cors)
+    }
+    const watchlist = /^\/lb\/([^/]+)\/watchlist$/.exec(path)
+    if (watchlist) {
+      if (!/^[A-Za-z0-9_]{1,15}$/.test(watchlist[1])) return failure(400, 'A Letterboxd username is needed', cors)
+      const raw = url.searchParams.get('page') ?? '1'
+      const page = /^\d{1,2}$/.test(raw) ? Number(raw) : 0
+      if (page < 1 || page > 99) return failure(400, 'A page from 1 to 99 is needed', cors)
+      return watchlistPage(watchlist[1], page, cors)
+    }
     const profile = /^\/lb\/([^/]+)$/.exec(path)
     if (profile) {
       if (!/^[A-Za-z0-9_]{1,15}$/.test(profile[1])) return failure(400, 'A Letterboxd username is needed', cors)

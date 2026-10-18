@@ -21,6 +21,8 @@ export interface Nomination {
   overview: string
   runtime: number | null
   genres: string[]
+  // Set when the film was drawn from the viewer's Letterboxd watchlist, which is what lets them re-roll it.
+  fromWatchlist?: boolean
 }
 
 export type LetterboxdStatus = 'pending' | 'found' | 'missing'
