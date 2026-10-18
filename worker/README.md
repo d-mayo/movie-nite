@@ -12,7 +12,7 @@ Never paste a token or an ID into a chat. You type each one only into the page o
 2. Open the verification email Cloudflare sends and click its link.
 3. Sign in at <https://dash.cloudflare.com>. If it asks you to add a domain or pick a plan, skip it: you need neither.
 4. In the left menu, click **Workers & Pages** (under Compute).
-5. If it asks you to choose a **workers.dev subdomain**, type a name (for example `ldema`) and confirm. If you already have one, it is shown on this page.
+5. Scroll to the right-hand column of the Workers & Pages page (headed Account details). It shows your **workers.dev subdomain**; if it offers to set one, choose a name there. Ignore the **Create application** button: the Worker is created by Wrangler and CI, not from the dashboard.
 6. Write the subdomain down. The Worker will live at `https://movie-nite.<subdomain>.workers.dev`. Tell Claude the subdomain only.
 
 ### B. The deploy credentials, for GitHub
