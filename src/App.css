@@ -1478,9 +1478,19 @@ dialog.wheel-drawer:focus {
   text-align: left;
 }
 
+/* The panel's color swatch is a touch smaller than the presets it opens. */
+.cell-main > .cell-actions > .swatch {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.cell-main > .cell-actions > .quiet svg {
+  display: block;
+}
+
 /* The ⋯ button's own side padding would leave a wider gap after the swatch than before it. */
 .cell-main > .cell-actions > .quiet {
-  padding-inline: var(--space-1);
+  padding-inline: 3px;
 }
 
 .lb-popover:not(:popover-open) {

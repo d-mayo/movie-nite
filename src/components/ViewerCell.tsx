@@ -337,7 +337,11 @@ export default function ViewerCell({
                 popoverTarget={`cell-menu-${viewer.id}`}
                 onClick={(e) => placeUnder(e, menu.current)}
               >
-                <span aria-hidden="true">⋯</span>
+                <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="currentColor">
+                  <circle cx="3" cy="8" r="1.4" />
+                  <circle cx="8" cy="8" r="1.4" />
+                  <circle cx="13" cy="8" r="1.4" />
+                </svg>
               </button>
               <div
                 id={`cell-menu-${viewer.id}`}
