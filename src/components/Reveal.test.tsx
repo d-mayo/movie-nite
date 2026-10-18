@@ -124,7 +124,6 @@ test('the poster links to the film on Letterboxd without renaming the dialog', a
   expect(link).toHaveAttribute('target', '_blank')
   expect(link.getAttribute('rel')).toMatch(/noopener/)
   expect(link.getAttribute('rel')).toMatch(/noreferrer/)
-  expect(link).toHaveAttribute('title', 'Open on Letterboxd')
   expect(within(link).getByRole('img', { name: 'Poster of Film 1' })).toBeInTheDocument()
   expect(within(within(dialog).getByRole('heading', { name: 'Film 1' })).queryByRole('link')).toBeNull()
   expect(dialog).toHaveAccessibleName('Film 1')

@@ -217,6 +217,6 @@ test('the summary lists the watched films and the Watch next session film', asyn
     expect(link).toHaveAttribute('target', '_blank')
     expect(link.getAttribute('rel')).toMatch(/noopener.*noreferrer|noreferrer.*noopener/)
     expect(link).toHaveAttribute('title', 'Open on Letterboxd')
-  }
+    }
   expect(within(summary).getByText(/Watch next session:/).closest('a')).toBeNull()
 })

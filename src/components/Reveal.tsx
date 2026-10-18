@@ -177,7 +177,6 @@ function FilmReveal({ nomination, at, dot, byline, heldFilm, closeCall, onOutcom
           href={letterboxdFilmUrl(nomination.tmdbId)}
           target="_blank"
           rel="noopener noreferrer"
-          title="Open on Letterboxd"
           aria-label={`Open ${nomination.title} on Letterboxd`}
         >
           {nomination.posterPath ? (
