@@ -1777,9 +1777,13 @@ dialog.wheel-drawer:focus {
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
-  /* As tall as the poster, so Re-roll, pinned to the bottom, stays put whatever the title's length. */
+  /* As tall as the poster; with Re-roll, the content is packed to the bottom so the button stays put and a longer title grows upward from just above it. */
   align-self: stretch;
   min-height: 120px;
+}
+
+.nomination-text:has(.reroll) {
+  justify-content: flex-end;
 }
 
 .nomination-title {
@@ -1852,7 +1856,7 @@ dialog.wheel-drawer:focus {
   align-items: center;
   align-self: flex-start;
   gap: var(--space-2);
-  margin-top: auto;
+  margin-top: var(--space-1);
 }
 
 /* Re-roll keeps its label while drawing: three dots, always taking their room, light up in turn. */

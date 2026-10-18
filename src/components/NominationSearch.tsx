@@ -48,7 +48,7 @@ export default function NominationSearch({ viewerId, viewerName, client, letterb
   }, [])
 
   const canDraw = !!watchlist && letterboxd?.status === 'found'
-  const canReroll = canDraw && !!nomination && watchlist.memory.drawn.get(viewerId) === nomination.tmdbId
+  const canReroll = canDraw && !!nomination && nomination.fromWatchlist === true
 
   function onPick(picked: Nomination) {
     if (night.wonFilms.includes(picked.tmdbId)) {
@@ -104,8 +104,7 @@ export default function NominationSearch({ viewerId, viewerName, client, letterb
       }
       if (signal?.aborted) return
       setWonMessage(null)
-      watchlist.memory.drawn.set(viewerId, drawn.tmdbId)
-      nominate(viewerId, drawn)
+      nominate(viewerId, { ...drawn, fromWatchlist: true })
     } finally {
       if (!signal?.aborted) setDrawing(false)
     }
