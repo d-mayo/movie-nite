@@ -76,9 +76,16 @@ function OverlapLabel({
   }
   if (names.length === 0) return null
   return (
-    <span className="nomination-overlap">
-      Also on {possessives(names)} {names.length === 1 ? 'watchlist' : 'watchlists'}
-    </span>
+    <div className="nomination-overlap">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="7.6" r="1.3" fill="currentColor" stroke="none" />
+        <path d="M9.6 11h2.6v6.4m-2.8 0h5.2" strokeLinecap="butt" />
+      </svg>
+      <span>
+        Also on {possessives(names)} {names.length === 1 ? 'watchlist' : 'watchlists'}
+      </span>
+    </div>
   )
 }
 
@@ -171,46 +178,48 @@ export default function NominationSearch({ viewerId, viewerName, client, letterb
 
   if (nomination) {
     return (
-      <div className="nomination">
-        <span className="poster-remove">
-          <Poster path={nomination.posterPath} title={nomination.title} large />
-          <button
-            type="button"
-            className="poster-x"
-            aria-label={`Remove ${nomination.title} from ${viewerName}`}
-            onClick={() => removeNomination(viewerId)}
-          >
-            <span aria-hidden="true">✕</span>
-          </button>
-        </span>
-        <span className="nomination-text">
-          <span className="nomination-title" title={nomination.title}>
-            {nomination.title}
-          </span>
-          {nomination.year !== null && <span className="nomination-year">({nomination.year})</span>}
-          {watchlist && settledWalks && (
-            <OverlapLabel
-              key={nomination.tmdbId}
-              tmdbId={nomination.tmdbId}
-              viewerId={viewerId}
-              watchlist={watchlist}
-              settledWalks={settledWalks}
-            />
-          )}
-          {status}
-          {canReroll && (
-            <button type="button" className="quiet reroll" disabled={drawing} aria-busy={drawing} onClick={draw}>
-              <Dice />
-              Re-roll
-              <span className="dots" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-              </span>
+      <div className="nomination-block">
+        {watchlist && settledWalks && (
+          <OverlapLabel
+            key={nomination.tmdbId}
+            tmdbId={nomination.tmdbId}
+            viewerId={viewerId}
+            watchlist={watchlist}
+            settledWalks={settledWalks}
+          />
+        )}
+        <div className="nomination">
+          <span className="poster-remove">
+            <Poster path={nomination.posterPath} title={nomination.title} large />
+            <button
+              type="button"
+              className="poster-x"
+              aria-label={`Remove ${nomination.title} from ${viewerName}`}
+              onClick={() => removeNomination(viewerId)}
+            >
+              <span aria-hidden="true">✕</span>
             </button>
-          )}
-          {!canReroll && <span className="reroll-spacer" aria-hidden="true" />}
-        </span>
+          </span>
+          <span className="nomination-text">
+            <span className="nomination-title" title={nomination.title}>
+              {nomination.title}
+            </span>
+            {nomination.year !== null && <span className="nomination-year">({nomination.year})</span>}
+            {status}
+            {canReroll && (
+              <button type="button" className="quiet reroll" disabled={drawing} aria-busy={drawing} onClick={draw}>
+                <Dice />
+                Re-roll
+                <span className="dots" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              </button>
+            )}
+            {!canReroll && <span className="reroll-spacer" aria-hidden="true" />}
+          </span>
+        </div>
       </div>
     )
   }

@@ -1802,12 +1802,29 @@ dialog.wheel-drawer:focus {
   font-size: 0.9rem;
 }
 
-/* Who else has the film on their Letterboxd watchlist; the column grows upward, so a longer line pushes the title up. */
+/* The film control and, above it, who else has the film on their Letterboxd watchlist: its own box at the film's width, so the film display (and Re-roll's place in it) never moves. */
+.nomination-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 .nomination-overlap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in srgb, var(--text) 6%, var(--card));
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   line-height: 1.3;
   overflow-wrap: anywhere;
+}
+
+.nomination-overlap svg {
+  flex: none;
 }
 
 /* With no film, a found Letterboxd profile gets a poster-sized slot to draw from the watchlist, beside the search. */
