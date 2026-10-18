@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'vitest'
-import { addViewer, defaultState, setToken } from './model.ts'
+import { addViewer, defaultState } from './model.ts'
 import {
   createLocalStoragePersistence,
   createMemoryPersistence,
@@ -7,7 +7,7 @@ import {
 
 afterEach(() => localStorage.clear())
 
-const sample = addViewer(setToken(defaultState, 'tok'), 'Ann', 'a')
+const sample = addViewer(defaultState, 'Ann', 'a')
 
 describe('localStorage persistence', () => {
   test('round-trips state', () => {

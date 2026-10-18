@@ -1,17 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import logoDark from './assets/logo/logo-dark-transparent.svg'
 import logoLight from './assets/logo/logo-light-transparent.svg'
-import tmdbLogo from './assets/tmdb-logo.svg'
 import './App.css'
 import { HeldFilmCard, HeldFilmChip, type FocusRequest } from './components/HeldFilm.tsx'
 import NightControls from './components/NightControls.tsx'
 import NightSetup from './components/NightSetup.tsx'
 import ViewerKey from './components/ViewerKey.tsx'
 import WheelPanel from './components/WheelPanel.tsx'
-import TokenPrompt from './components/TokenPrompt.tsx'
 import type { SoundEngine } from './sound/engine.ts'
 import { AppStoreContext, useApp, type AppStore } from './state/store.ts'
-import { createTmdbClient } from './tmdb/client.ts'
+import { createTmdbClient, defaultApiBase } from './tmdb/client.ts'
 
 interface Props {
   store: AppStore
@@ -20,19 +18,6 @@ interface Props {
   spinMs?: number
   // The sound engine; silent when left out.
   sound?: SoundEngine
-}
-
-const rejectedMessage = 'TMDB rejected the saved token'
-
-function Attribution() {
-  return (
-    <footer>
-      <img src={tmdbLogo} alt="TMDB" height="12" />
-      <p>
-        This product uses the TMDB API but is not endorsed or certified by TMDB.
-      </p>
-    </footer>
-  )
 }
 
 function Banner({ children }: { children?: ReactNode }) {
@@ -50,81 +35,28 @@ function Banner({ children }: { children?: ReactNode }) {
 }
 
 function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
-  const { settings, setToken, setViewersHidden } = useApp()
-  const [message, setMessage] = useState<string | null>(null)
+  const { settings, setViewersHidden } = useApp()
   const [locked, setLocked] = useState(false)
-  const [changingToken, setChangingToken] = useState(false)
   const [focusRequest, setFocusRequest] = useState<FocusRequest>(null)
   // Set by a Hide or Show press and consumed once, so reloading hidden takes no focus.
   const pendingFocus = useRef<'show' | 'hide' | null>(null)
   const showTab = useRef<HTMLButtonElement>(null)
   const [reasonSlot, setReasonSlot] = useState<HTMLElement | null>(null)
   const hideButton = useRef<HTMLButtonElement>(null)
-  const token = settings.tmdbToken
   const hidden = settings.viewersHidden
   useEffect(() => {
     const target = pendingFocus.current === 'show' ? showTab : hideButton
     if (pendingFocus.current) target.current?.focus()
     pendingFocus.current = null
   }, [hidden])
-  // Bumped by Cancel, so a check that settles afterwards is discarded.
-  const tokenChecks = useRef(0)
+  const client = useMemo(() => createTmdbClient(defaultApiBase(), fetchFn), [fetchFn])
 
-  async function saveToken(candidate: string) {
-    const check = tokenChecks.current
-    await createTmdbClient(candidate, fetchFn).checkToken()
-    if (check !== tokenChecks.current) return
-    setMessage(null)
-    setToken(candidate)
-    setChangingToken(false)
-  }
-
-  // The one place a TmdbAuthError from any TMDB call ends up.
-  const handleAuthError = useCallback(() => {
-    setMessage(rejectedMessage)
-    // The wheel unmounts with the token, possibly mid-spin, so unlock setup here.
-    setLocked(false)
-    setChangingToken(false)
-    setToken(null)
-  }, [setToken])
-  const client = useMemo(
-    () => (token ? createTmdbClient(token, fetchFn) : null),
-    [token, fetchFn],
-  )
-
-  if (!token || !client || changingToken) {
-    return (
-      <>
-        <Banner />
-        <main>
-          <TokenPrompt
-            message={message}
-            onSubmit={saveToken}
-            onCancel={
-              token && client
-                ? () => {
-                    tokenChecks.current += 1
-                    setMessage(null)
-                    setChangingToken(false)
-                  }
-                : undefined
-            }
-          />
-        </main>
-        <Attribution />
-      </>
-    )
-  }
   return (
     <>
       <Banner>
         <NightControls
           locked={locked}
           heldFilmChip={<HeldFilmChip focusRequest={focusRequest} onRequestFocus={setFocusRequest} />}
-          onChangeToken={() => {
-            setMessage(null)
-            setChangingToken(true)
-          }}
         />
       </Banner>
       <main>
@@ -134,7 +66,6 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
             spinMs={spinMs}
             sound={sound}
             client={client}
-            onAuthError={handleAuthError}
             onBusyChange={setLocked}
             reasonSlot={reasonSlot}
           />
@@ -142,7 +73,6 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
           <div className="setup-column">
             <NightSetup
               client={client}
-              onAuthError={handleAuthError}
               locked={locked}
               onHide={() => {
                 pendingFocus.current = 'show'

@@ -1,14 +1,6 @@
 import type { Nomination } from '../state/model.ts'
 
-const apiBase = 'https://api.themoviedb.org/3'
 const imageBase = 'https://image.tmdb.org/t/p'
-
-export class TmdbAuthError extends Error {
-  constructor() {
-    super('TMDB rejected the token')
-    this.name = 'TmdbAuthError'
-  }
-}
 
 export interface SearchResult {
   tmdbId: number
@@ -18,7 +10,6 @@ export interface SearchResult {
 }
 
 export interface TmdbClient {
-  checkToken(): Promise<void>
   searchMovies(query: string, signal?: AbortSignal): Promise<SearchResult[]>
   getMovie(id: number): Promise<Nomination>
 }
@@ -33,39 +24,38 @@ export function posterUrl(path: string, size = 'w92'): string {
   return `${imageBase}/${size}${path}`
 }
 
+// Where the Worker lives: VITE_API_BASE when set, else port 8787 on the page's own host (dev, LAN).
+export function defaultApiBase(): string {
+  const configured = import.meta.env.VITE_API_BASE
+  if (configured) return configured
+  return `${window.location.protocol}//${window.location.hostname}:8787`
+}
+
 export function createTmdbClient(
-  token: string,
+  apiBase: string,
   fetchFn: typeof fetch = (...args) => fetch(...args),
 ): TmdbClient {
   async function get(path: string, signal?: AbortSignal): Promise<unknown> {
     let response: Response
     try {
       response = await fetchFn(`${apiBase}${path}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
+        headers: { Accept: 'application/json' },
         signal,
       })
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         throw error
       }
-      throw new Error('Could not reach TMDB', { cause: error })
+      throw new Error('Could not reach the film service', { cause: error })
     }
-    if (response.status === 401) throw new TmdbAuthError()
-    if (!response.ok) throw new Error(`TMDB answered ${response.status}`)
+    if (!response.ok) throw new Error(`The film service answered ${response.status}`)
     return response.json()
   }
 
   return {
-    async checkToken() {
-      await get('/authentication')
-    },
-
     async searchMovies(query, signal) {
       const body = (await get(
-        `/search/movie?query=${encodeURIComponent(query)}&include_adult=false`,
+        `/tmdb/search?query=${encodeURIComponent(query)}`,
         signal,
       )) as {
         results: {
@@ -84,7 +74,7 @@ export function createTmdbClient(
     },
 
     async getMovie(id) {
-      const m = (await get(`/movie/${id}`)) as {
+      const m = (await get(`/tmdb/movie/${id}`)) as {
         id: number
         title: string
         release_date?: string

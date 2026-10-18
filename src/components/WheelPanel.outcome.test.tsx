@@ -49,7 +49,7 @@ function setupNight(
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
@@ -126,7 +126,7 @@ test('the night ends when the last viewer on the wheel wins', async () => {
 })
 
 const wildcardFetch = vi.fn((url: string) => {
-  const search = String(url).includes('/search/')
+  const search = String(url).includes('/search')
   const body = search
     ? { results: [{ id: 9, title: 'Pick Me', release_date: '2001-01-01', poster_path: null }] }
     : {

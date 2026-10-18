@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import type { Nomination } from '../state/model.ts'
 import {
   posterUrl,
-  TmdbAuthError,
   type SearchResult,
   type TmdbClient,
 } from '../tmdb/client.ts'
@@ -14,7 +13,6 @@ const maxResults = 8
 interface Props {
   label: string
   client: TmdbClient
-  onAuthError: () => void
   onPick: (nomination: Nomination) => void
 }
 
@@ -43,7 +41,7 @@ export function Poster({
 }
 
 // Type-ahead film search; reports the picked film's full details through onPick.
-export default function FilmSearch({ label, client, onAuthError, onPick }: Props) {
+export default function FilmSearch({ label, client, onPick }: Props) {
   const [query, setQuery] = useState('')
   const [found, setFound] = useState<{ query: string; items: SearchResult[] }>()
   const [searchError, setSearchError] = useState<string | null>(null)
@@ -63,17 +61,16 @@ export default function FilmSearch({ label, client, onAuthError, onPick }: Props
           setSearchError(null)
           setFound({ query: trimmed, items: items.slice(0, maxResults) })
         })
-        .catch((error: unknown) => {
+        .catch(() => {
           if (controller.signal.aborted) return
-          if (error instanceof TmdbAuthError) onAuthError()
-          else setSearchError('Search failed. Try again.')
+          setSearchError('Search failed. Try again.')
         })
     }, debounceMs)
     return () => {
       clearTimeout(timer)
       controller.abort()
     }
-  }, [trimmed, searching, client, onAuthError])
+  }, [trimmed, searching, client])
 
   async function pick(result: SearchResult) {
     setPickError(null)
@@ -82,9 +79,8 @@ export default function FilmSearch({ label, client, onAuthError, onPick }: Props
       setQuery('')
       setFound(undefined)
       onPick(nomination)
-    } catch (error) {
-      if (error instanceof TmdbAuthError) onAuthError()
-      else setPickError(result)
+    } catch {
+      setPickError(result)
     }
   }
 

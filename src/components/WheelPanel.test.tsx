@@ -39,7 +39,7 @@ function setup(
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false, wheel },
+      settings: { viewersHidden: false, wheel },
       roster,
       night: {
         ...defaultState.night,
@@ -86,9 +86,7 @@ function setupCrowd(
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: {
-        tmdbToken: 'tok',
-        viewersHidden: false,
+      settings: {        viewersHidden: false,
         wheel: {
           ...defaultWheelSettings,
           wildcardsPerViewer: false,
@@ -116,7 +114,7 @@ test('there is no Spin button with no viewers, and the empty-wheel text shows', 
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
     }),
   )
   render(<App store={store} fetchFn={vi.fn()} />)
@@ -142,8 +140,6 @@ test('spinning locks setup, rests in the drawn slice and shows a snapshot', asyn
   expect(screen.getByRole('button', { name: 'Ann is here' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Add a viewer' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Settings' })).toBeEnabled()
-  fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
-  expect(screen.getByRole('button', { name: 'Change TMDB token' })).toBeDisabled()
   expect(header('Ann')).toBeDisabled()
 
   const before = hrefs()
@@ -186,46 +182,6 @@ test('the draw uses crypto.getRandomValues by default', async () => {
   expect(spy).toHaveBeenCalled()
   await screen.findByRole('dialog')
   spy.mockRestore()
-})
-
-test('a 401 from the wildcard search unlocks setup once a new token is saved', async () => {
-  const fetchFn = vi.fn((url: RequestInfo | URL) =>
-    Promise.resolve(
-      new Response('{}', {
-        status: String(url).includes('/search/') ? 401 : 200,
-      }),
-    ),
-  )
-  const store = createAppStore(
-    createMemoryPersistence({
-      ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
-      roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
-      night: {
-        ...defaultState.night,
-        presentIds: ['a'],
-        nominations: { a: film(1) },
-      },
-    }),
-  )
-  // The first wildcard in the default layout, landed on by the draw.
-  const slices = deriveSlices(['a'], defaultWheelSettings, {})
-  const total = slices.reduce((sum, s) => sum + s.weight, 0)
-  const at = slices.findIndex((s) => s.kind === 'wildcard')
-  const before = slices.slice(0, at).reduce((sum, s) => sum + s.weight, 0)
-  const random = () => (before + slices[at].weight / 2) / total
-  render(<App store={store} fetchFn={fetchFn as typeof fetch} random={random} spinMs={20} />)
-  fireEvent.click(spinButton())
-  const dialog = await screen.findByRole('dialog')
-  fireEvent.change(within(dialog).getByLabelText('Search for a wildcard film'), {
-    target: { value: 'ab' },
-  })
-
-  const prompt = await screen.findByLabelText('TMDB Read Access Token')
-  fireEvent.change(prompt, { target: { value: 'new' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Ann is here' })).toBeEnabled())
-  expect(spinButton()).toBeEnabled()
 })
 
 test('the wheel drops viewers whose film has won, and follows ticks', () => {
@@ -279,7 +235,7 @@ test('the waiting message lists names with and, and a final comma and and for th
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
@@ -378,7 +334,7 @@ test('React commits nothing while the wheel drifts, and a spin costs a fixed few
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
@@ -745,7 +701,7 @@ test('a wildcard landing cues the same way, and Back to the wheel fades the musi
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
       roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
       night: { ...defaultState.night, presentIds: ['a'], nominations: { a: film(1) } },
     }),
@@ -818,9 +774,7 @@ test('a close-call spin cues once before the landing, zooms from the cue and cle
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: {
-        tmdbToken: 'tok',
-        viewersHidden: false,
+      settings: {        viewersHidden: false,
         wheel: { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 },
       },
       roster: [

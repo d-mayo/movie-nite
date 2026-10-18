@@ -7,7 +7,6 @@ interface Props {
   locked: boolean
   // The held film's chip, which sits first in the toolbar.
   heldFilmChip?: ReactNode
-  onChangeToken: () => void
 }
 
 // Mounted only while shown, so React state always matches whether the dialog
@@ -50,7 +49,7 @@ function EndNightDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClos
   )
 }
 
-export default function NightControls({ locked, heldFilmChip, onChangeToken }: Props) {
+export default function NightControls({ locked, heldFilmChip }: Props) {
   const { night, endNight, newNight } = useApp()
   const [confirming, setConfirming] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -123,16 +122,6 @@ export default function NightControls({ locked, heldFilmChip, onChangeToken }: P
           }}
         >
           Wheel settings
-        </button>
-        <button
-          type="button"
-          disabled={locked}
-          onClick={() => {
-            menu.current?.hidePopover()
-            onChangeToken()
-          }}
-        >
-          Change TMDB token
         </button>
       </div>
       {editing && <WheelEditor locked={locked} onClosed={closeDrawer} anchor={gear} />}

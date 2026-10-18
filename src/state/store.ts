@@ -28,7 +28,6 @@ import {
   setSoundMuted,
   setShowLabels,
   restoreWheelSettings,
-  setToken,
   setViewersHidden,
   setViewerColor,
   setViewerSliceCount,
@@ -55,7 +54,6 @@ import {
 import { assignColors } from '../wheel/colors.ts'
 
 export interface AppActions {
-  setToken(token: string | null): void
   setViewersHidden(hidden: boolean): void
   addViewer(name: string): void
   removeViewer(id: string): void
@@ -176,11 +174,16 @@ function mergeOverDefaults(stored: AppState | null): AppState {
   if (!storedNight.adjustments || typeof storedNight.adjustments !== 'object') {
     night.adjustments = layout && typeof layout === 'object' ? adjustmentsFromLayout(layout) : {}
   }
+  // A token stored by an older version is dropped: the Worker holds it now.
+  const { tmdbToken: _dropped, ...storedSettings } = (stored.settings ?? {}) as AppState['settings'] & {
+    tmdbToken?: unknown
+  }
+  void _dropped
   return {
     ...defaultState,
     ...stored,
     roster: Array.isArray(stored.roster) ? assignColors(stored.roster) : defaultState.roster,
-    settings: { ...defaultState.settings, ...stored.settings, wheel: mergeWheel(stored.settings?.wheel) },
+    settings: { ...defaultState.settings, ...storedSettings, wheel: mergeWheel(stored.settings?.wheel) },
     night,
   }
 }
@@ -200,7 +203,6 @@ export function createAppStore(persistence: Persistence): AppStore {
     const update = (fn: (s: AppState) => AppState) => set((full) => fn(dataOf(full)))
     return {
       ...mergeOverDefaults(persistence.load()),
-      setToken: (token) => update((s) => setToken(s, token)),
       setViewersHidden: (hidden) => update((s) => setViewersHidden(s, hidden)),
       addViewer: (name) => update((s) => addViewer(s, name, newId())),
       removeViewer: (id) => update((s) => removeViewer(s, id)),

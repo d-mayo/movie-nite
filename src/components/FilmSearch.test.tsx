@@ -29,16 +29,14 @@ const movieBody = () =>
 
 function mount(fetchFn: (url: string) => Promise<Response>) {
   const onPick = vi.fn()
-  const onAuthError = vi.fn()
   render(
     <FilmSearch
       label="Find a film"
-      client={createTmdbClient('tok', fetchFn as unknown as typeof fetch)}
-      onAuthError={onAuthError}
+      client={createTmdbClient('https://w.test', fetchFn as unknown as typeof fetch)}
       onPick={onPick}
     />,
   )
-  return { onPick, onAuthError }
+  return { onPick }
 }
 
 const tick = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms))
@@ -47,7 +45,7 @@ const type = (value: string) =>
 
 test('typing shows results with poster and year, and picking reports the full film', async () => {
   const { onPick } = mount((url) =>
-    Promise.resolve(url.includes('/search/') ? searchBody() : movieBody()),
+    Promise.resolve(url.includes('/search') ? searchBody() : movieBody()),
   )
   type('alien')
   await tick(300)
@@ -64,7 +62,7 @@ test('a failing getMovie shows Retry, and retrying picks', async () => {
   let fail = true
   const { onPick } = mount((url) =>
     Promise.resolve(
-      url.includes('/search/') ? searchBody() : fail ? json({}, 500) : movieBody(),
+      url.includes('/search') ? searchBody() : fail ? json({}, 500) : movieBody(),
     ),
   )
   type('alien')
@@ -77,11 +75,4 @@ test('a failing getMovie shows Retry, and retrying picks', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
   await tick(0)
   expect(onPick).toHaveBeenCalledTimes(1)
-})
-
-test('a 401 calls onAuthError', async () => {
-  const { onAuthError } = mount(() => Promise.resolve(json({}, 401)))
-  type('alien')
-  await tick(300)
-  expect(onAuthError).toHaveBeenCalled()
 })

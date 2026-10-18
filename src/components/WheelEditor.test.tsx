@@ -24,7 +24,7 @@ function setup(extra: { random?: () => number; spinMs?: number } = { spinMs: 20 
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { tmdbToken: 'tok', viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: defaultWheelSettings },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
