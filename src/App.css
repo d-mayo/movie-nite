@@ -1357,6 +1357,7 @@ dialog.wheel-drawer:focus {
 .cell-lb-slot {
   flex: none;
   align-self: center;
+  margin-left: var(--space-1);
   width: 1.75rem;
   height: 1.25rem;
 }
@@ -1455,13 +1456,14 @@ dialog.wheel-drawer:focus {
 }
 
 .lb-panel-unlinked .lb-mark {
-  opacity: 0.45;
-  filter: grayscale(1) drop-shadow(0 0 1px rgb(0 0 0 / 0.55));
+  opacity: 0.6;
+  filter: saturate(0.4) drop-shadow(0 0 1px rgb(0 0 0 / 0.55));
 }
 
 .lb-panel-unlinked:hover .lb-mark,
 .lb-panel-unlinked:focus-visible .lb-mark {
-  opacity: 0.8;
+  opacity: 0.9;
+  filter: saturate(0.8) drop-shadow(0 0 1px rgb(0 0 0 / 0.55));
 }
 
 .lb-popover {

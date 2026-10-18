@@ -74,6 +74,8 @@ export function LetterboxdIcon({
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(place) : null
     observer?.observe(head)
     observer?.observe(slotEl)
+    // The name's row grows when the asterisk appears, moving the slot without resizing it.
+    if (slotEl.parentElement) observer?.observe(slotEl.parentElement)
     return () => {
       window.removeEventListener('resize', place)
       observer?.disconnect()
@@ -203,7 +205,12 @@ export function LetterboxdPanelIcon({
               type="text"
               autoComplete="off"
               spellCheck={false}
-              placeholder="username or address"
+              // Keep password managers (Bitwarden, 1Password, LastPass) from offering a login here.
+              data-bwignore="true"
+              data-1p-ignore="true"
+              data-lpignore="true"
+              data-form-type="other"
+              placeholder="name or profile address"
               value={text}
               aria-invalid={invalid || undefined}
               onChange={(e) => {
