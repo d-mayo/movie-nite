@@ -56,6 +56,7 @@ export function LetterboxdIcon({
 }) {
   const reduced = useReducedMotion()
   const anchor = useRef<HTMLSpanElement>(null)
+  const placeRef = useRef<(() => void) | null>(null)
   const linked = viewer.letterboxd !== undefined
   useLayoutEffect(() => {
     const el = anchor.current
@@ -69,6 +70,7 @@ export function LetterboxdIcon({
       el.style.left = `${Math.round(s.left - h.left + (s.width - cellIconSize) / 2)}px`
       el.style.top = `${Math.round(s.top - h.top + (s.height - cellIconSize) / 2)}px`
     }
+    placeRef.current = place
     place()
     window.addEventListener('resize', place)
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(place) : null
@@ -77,10 +79,16 @@ export function LetterboxdIcon({
     // The name's row grows when the asterisk appears, moving the slot without resizing it.
     if (slotEl.parentElement) observer?.observe(slotEl.parentElement)
     return () => {
+      placeRef.current = null
       window.removeEventListener('resize', place)
       observer?.disconnect()
     }
   }, [slot, linked])
+  // The slot also moves, without resizing, when the asterisk after the name comes or goes, and
+  // that is a render of this cell, so place again after every one.
+  useLayoutEffect(() => {
+    placeRef.current?.()
+  })
   const link = viewer.letterboxd
   if (!link) return null
   if (link.status === 'missing') {
