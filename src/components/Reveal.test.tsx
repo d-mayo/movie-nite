@@ -85,6 +85,7 @@ test('a wildcard says so, and Back to the wheel returns to the wheel', async () 
   setup(0.45, film(1), film(2))
   const dialog = await screen.findByRole('dialog')
   expect(within(dialog).getByText('Wildcard!')).toBeInTheDocument()
+  expect(within(dialog).queryByRole('link')).not.toBeInTheDocument()
   fireEvent.click(within(dialog).getByRole('button', { name: 'Back to the wheel' }))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Ann is here' })).toBeEnabled()
@@ -113,6 +114,20 @@ test('a nomination is a film frame: details in order, the dot in the viewer colo
   expect(dialog).toHaveAccessibleName('Film 1')
   const dot = dialog.querySelector<HTMLElement>('.reveal-dot')!
   expect(dot.style.getPropertyValue('--dot')).toBe('#e6194b')
+})
+
+test('the poster links to the film on Letterboxd without renaming the dialog', async () => {
+  setup(0.01, film(1), film(2))
+  const dialog = await screen.findByRole('dialog')
+  const link = within(dialog).getByRole('link', { name: 'Open Film 1 on Letterboxd' })
+  expect(link).toHaveAttribute('href', 'https://letterboxd.com/tmdb/1/')
+  expect(link).toHaveAttribute('target', '_blank')
+  expect(link.getAttribute('rel')).toMatch(/noopener/)
+  expect(link.getAttribute('rel')).toMatch(/noreferrer/)
+  expect(within(link).getByRole('img', { name: 'Poster of Film 1' })).toBeInTheDocument()
+  expect(within(within(dialog).getByRole('heading', { name: 'Film 1' })).queryByRole('link')).toBeNull()
+  expect(dialog).toHaveAccessibleName('Film 1')
+  expect(within(dialog).getAllByRole('link')).toHaveLength(1)
 })
 
 test('Watch comes before Save for Next Week', async () => {

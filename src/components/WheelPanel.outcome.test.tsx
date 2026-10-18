@@ -192,6 +192,8 @@ test('Too long on a wildcard pick saves the holdover and leaves the wheel alone'
 test('Close on a wildcard pick changes nothing', async () => {
   const store = setupNight(wildcard, wildcardFetch)
   const dialog = await pickWildcardFilm()
+  const pickedLink = within(dialog).getByRole('link', { name: /^Open .* on Letterboxd$/ })
+  expect(pickedLink.getAttribute('href')).toMatch(/^https:\/\/letterboxd\.com\/tmdb\/\d+\/$/)
   const before = store.getState().night
   fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
   expect(store.getState().night).toBe(before)
@@ -206,6 +208,15 @@ test('the summary lists the watched films and the Watch next session film', asyn
   fireEvent.click(within(dialog).getByRole('button', { name: 'Watch' }))
   act(() => store.getState().endNight())
   const summary = screen.getByRole('region', { name: 'Night over' })
-  expect(within(summary).getByText('Film 1 (2000)')).toBeInTheDocument()
-  expect(within(summary).getByText(/Watch next session: Film 5/)).toBeInTheDocument()
+  for (const [name, id] of [
+    ['Film 1 (2000)', 1],
+    ['Film 5 (2000)', 5],
+  ] as const) {
+    const link = within(summary).getByRole('link', { name })
+    expect(link).toHaveAttribute('href', `https://letterboxd.com/tmdb/${id}/`)
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link.getAttribute('rel')).toMatch(/noopener.*noreferrer|noreferrer.*noopener/)
+    expect(link).toHaveAttribute('title', 'Open on Letterboxd')
+    }
+  expect(within(summary).getByText(/Watch next session:/).closest('a')).toBeNull()
 })

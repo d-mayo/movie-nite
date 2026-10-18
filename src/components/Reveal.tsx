@@ -1,3 +1,5 @@
+import letterboxdLogo from '../assets/letterboxd-logo.png'
+import { letterboxdFilmUrl } from '../letterboxd/links.ts'
 import { useLayoutEffect, useState, type CSSProperties } from 'react'
 import type { Nomination, Outcome } from '../state/model.ts'
 import { posterUrl, type TmdbClient } from '../tmdb/client.ts'
@@ -170,15 +172,27 @@ function FilmReveal({ nomination, at, dot, byline, heldFilm, closeCall, onOutcom
         ×
       </button>
       <div className="reveal-poster">
-        {nomination.posterPath ? (
-          <img
-            src={posterUrl(nomination.posterPath, 'w185')}
-            alt={`Poster of ${nomination.title}`}
-            width="185"
-          />
-        ) : (
-          <span role="img" aria-label="No poster" className="poster-placeholder" />
-        )}
+        <a
+          className="reveal-poster-link"
+          href={letterboxdFilmUrl(nomination.tmdbId)}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Open ${nomination.title} on Letterboxd`}
+        >
+          {nomination.posterPath ? (
+            <img
+              src={posterUrl(nomination.posterPath, 'w185')}
+              alt={`Poster of ${nomination.title}`}
+              width="185"
+            />
+          ) : (
+            <span role="img" aria-label="No poster" className="poster-placeholder" />
+          )}
+          <span className="reveal-poster-go" aria-hidden="true">
+            <span>Go to</span>
+            <img src={letterboxdLogo} alt="" />
+          </span>
+        </a>
       </div>
       <div className="reveal-info">
         <Eyebrow color={dot} closeCall={closeCall}>

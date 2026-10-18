@@ -675,6 +675,49 @@ html:has(.wheel-stage[data-zoom]) {
   box-sizing: border-box;
 }
 
+/* The poster is the Letterboxd link: on hover or focus a grey haze fades in over it. */
+.reveal-poster-link {
+  position: relative;
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 3px;
+}
+
+.reveal-poster-link:focus-visible {
+  outline: 2px solid var(--film-cream);
+  outline-offset: 2px;
+}
+
+.reveal-poster-go {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--film-steel-light) 68%, transparent);
+  backdrop-filter: blur(8px);
+  color: var(--film-stock);
+  font: 1.4rem/1 'Bebas Neue', Impact, sans-serif;
+  letter-spacing: 0.08em;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.reveal-poster-go img {
+  width: 70%;
+  height: auto;
+  aspect-ratio: auto;
+}
+
+.reveal-poster-link:hover .reveal-poster-go,
+.reveal-poster-link:focus-visible .reveal-poster-go {
+  opacity: 1;
+}
+
 .reveal-poster .poster-placeholder {
   background: var(--film-steel-dark);
   border: 1px solid var(--film-steel);
@@ -843,6 +886,23 @@ html:has(.wheel-stage[data-zoom]) {
 
 .reveal :focus-visible {
   outline-color: var(--film-cream);
+}
+
+/* Film links look like the text they replace until hovered or focused. */
+.film-link {
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-decoration: none;
+}
+
+.film-link:hover,
+.film-link:focus-visible {
+  text-decoration: underline;
+}
+
+.night-over .film-link:focus-visible {
+  outline: 2px solid var(--accent);
 }
 
 @media (max-width: 480px) {
