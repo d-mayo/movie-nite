@@ -147,6 +147,7 @@ export default function NominationSearch({ viewerId, viewerName, client, letterb
               </span>
             </button>
           )}
+          {!canReroll && <span className="reroll-spacer" aria-hidden="true" />}
         </span>
       </div>
     )
