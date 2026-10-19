@@ -111,6 +111,8 @@ export const crossfadeMs = 150
 
 // How long the projector flicker plays on the open wheel before the reveal opens.
 export const revealHoldMs = 650
+// A blind wheel that lands on a wildcard is unveiled this much longer before the wildcard wheel.
+export const blindWildcardHoldMs = 3000
 
 // The pointer's height as a share of the wheel's width, which is the zoom's origin (8.5% down the wheel).
 const pointerShare = 0.085
@@ -262,6 +264,7 @@ export default function WheelPanel({
     // A wildcard drawn on the main wheel opens the wildcard wheel, when it is on and has a card to deal.
     const toCards =
       !onCards && slices[drawn].kind === 'wildcard' && settings.wheel.wildcardWheel && canDeal(dealContext())
+    const blindPress = !onCards && isBlind(night)
     const reduced = prefersReducedMotion()
     const plan = spinPlan(settings.wheel, reduced)
     const { angle: from, speed } = motion.current()
@@ -377,10 +380,11 @@ export default function WheelPanel({
             holdMs - closeCallEaseOutMs,
           )
         }
+        const wait = toCards && blindPress ? holdMs + blindWildcardHoldMs : holdMs
         holdTimer.current = setTimeout(() => {
           if (toCards) enterCards()
           else setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null })
-        }, holdMs)
+        }, wait)
       }
       motion.play(
         path,
@@ -449,7 +453,7 @@ export default function WheelPanel({
       deal: onCards ? spin.deal : null,
       waiting: false,
       leaving: false,
-      blind: !onCards && isBlind(night),
+      blind: blindPress,
       toCards,
     })
     onBusyChange(true)

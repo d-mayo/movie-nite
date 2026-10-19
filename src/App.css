@@ -806,8 +806,8 @@ html:has(.wheel-stage[data-zoom]) {
   }
 }
 
-.reveal-blind .reveal-poster,
-.reveal-blind h2 {
+/* The whole film print, frame and details, comes into focus. */
+.reveal-blind {
   animation: reveal-focus 1.8s ease-out 0.5s backwards;
 }
 
