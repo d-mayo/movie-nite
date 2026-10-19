@@ -11,6 +11,7 @@ import {
   minSpinTurnsPerSecond,
 } from '../wheel/edit.ts'
 import { canHover, closeDelayMs } from './canHover.ts'
+import CardSwitches, { listedCards } from './CardSwitches.tsx'
 import Slider from './Slider.tsx'
 import Stepper from './Stepper.tsx'
 
@@ -40,7 +41,7 @@ function RestoreDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClose
   return (
     <dialog ref={ref} className="card confirm" aria-labelledby="restore-heading">
       <h2 id="restore-heading">Restore all wheel settings?</h2>
-      <p>Every wildcard, spin, default and sound setting goes back to its factory value. Adjustments made for a viewer stay.</p>
+      <p>Every wildcard, card switch, spin, default and sound setting goes back to its factory value. Adjustments made for a viewer stay.</p>
       <div className="confirm-actions">
         <button
           type="button"
@@ -85,7 +86,9 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
   const { wheel } = settings
   const dialog = useRef<HTMLDialogElement>(null)
   const [confirming, setConfirming] = useState(false)
-  // Read by the document listeners, which outlive a render.
+  const [choosing, setChoosing] = useState(false)
+  const chooseButton = useRef<HTMLButtonElement>(null)
+  // Read by the document listeners, which outlive a render. True while a dialog sits over the popover.
   const confirmingRef = useRef(false)
   // True once the pointer has been inside since the popover opened, or since
   // the Restore confirmation closed.
@@ -190,9 +193,30 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
     clearTimer()
     dialog.current?.focus()
   }, [clearTimer])
-  const atFactory = (Object.keys(defaultWheelSettings) as (keyof typeof wheel)[]).every(
-    (k) => wheel[k] === defaultWheelSettings[k],
-  )
+  function showCards() {
+    confirmingRef.current = true
+    clearTimer()
+    setChoosing(true)
+  }
+  // Back to the popover and the button that opened the overlay.
+  const closeCards = useCallback(() => {
+    confirmingRef.current = false
+    setChoosing(false)
+    wasInside.current = false
+    outside.current = false
+    clearTimer()
+    chooseButton.current?.focus()
+  }, [clearTimer])
+  const atFactory = (Object.keys(defaultWheelSettings) as (keyof typeof wheel)[]).every((k) => {
+    const now = wheel[k]
+    const factory = defaultWheelSettings[k]
+    if (Array.isArray(now) && Array.isArray(factory)) {
+      return now.length === factory.length && now.every((v, i) => v === factory[i])
+    }
+    return now === factory
+  })
+  // Counted over the listed cards, so an unknown id in the saved list lowers nothing.
+  const cardsOn = listedCards.filter((card) => !wheel.disabledCards.includes(card.id)).length
   const onWheel = viewersOnWheel(night)
   return (
     <>
@@ -257,6 +281,20 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
                   />
                   Wildcard wheel
                 </label>
+              </div>
+              <div className="cards-choose">
+                <button
+                  ref={chooseButton}
+                  type="button"
+                  className="quiet"
+                  disabled={locked || !wheel.wildcardWheel}
+                  onClick={showCards}
+                >
+                  Choose cards
+                </button>
+                <span>
+                  {cardsOn} of {listedCards.length} on
+                </span>
               </div>
             </fieldset>
             <fieldset className="inset-card" disabled={locked} aria-labelledby="spin-heading">
@@ -396,6 +434,7 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
         </div>
       </dialog>
       {confirming && <RestoreDialog onConfirm={restoreWheelSettings} onClosed={closeConfirm} />}
+      {choosing && <CardSwitches onClosed={closeCards} />}
     </>
   )
 }

@@ -2807,3 +2807,85 @@ dialog.wheel-drawer:focus {
   text-align: right;
   font-size: 0.8rem;
 }
+
+/* The Choose cards overlay over the Wheel settings popover: a modal dialog about 80% of the
+   window (nearly all of it on a phone), its body scrolling inside itself. */
+dialog.card-switches {
+  box-sizing: border-box;
+  width: 80vw;
+  height: 80vh;
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-align: left;
+}
+
+dialog.card-switches[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+dialog.card-switches::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+
+@media (max-width: 899px) {
+  dialog.card-switches {
+    width: calc(100vw - 1rem);
+    height: calc(100vh - 1rem);
+  }
+}
+
+.card-switches-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--card-border);
+}
+
+.card-switches-head h2 {
+  margin: 0;
+}
+
+.card-switches-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+.card-switches h3 {
+  margin: 0 0 var(--space-2);
+}
+
+.card-switches section + section {
+  margin-top: var(--space-4);
+}
+
+.card-switches ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card-switches li p {
+  margin: var(--space-1) 0 0;
+  padding-left: 3rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* The Choose cards button and its count, in the Wildcard Cards card. */
+.cards-choose {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
