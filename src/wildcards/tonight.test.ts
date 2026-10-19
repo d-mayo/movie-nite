@@ -13,6 +13,38 @@ const wildcards: CardEffect = {
   change: { kind: 'wildcards', amount: 1 },
 }
 
+const picks: CardEffect = {
+  cardId: 'picks-again',
+  label: 'Sam picks again',
+  change: { kind: 'picksAgain', viewerIds: ['s'], tmdbId: 1 },
+}
+const reshuffle: CardEffect = {
+  cardId: 'reshuffle',
+  label: 'Reshuffle Sam',
+  change: { kind: 'reshuffle', viewerIds: ['s'], tmdbId: 2 },
+}
+const blind = (used: boolean): CardEffect => ({
+  cardId: 'blind-spin',
+  label: 'Blind spin',
+  change: { kind: 'blindSpin', used },
+})
+
+describe('the Picks Again, Reshuffle and Blind Spin cards', () => {
+  it('keeps a viewer card while its viewer is on the roster, and Blind Spin all night', () => {
+    const all = [picks, reshuffle, blind(false), blind(true)]
+    expect(chipEffects(all, ['s'])).toEqual(all)
+    expect(chipEffects(all, [])).toEqual([blind(false), blind(true)])
+  })
+
+  it('lists Picks Again and Reshuffle for their viewer, never Blind Spin', () => {
+    expect(viewerCardLabels([picks, reshuffle, blind(false)], 's')).toEqual([
+      'Sam picks again',
+      'Reshuffle Sam',
+    ])
+    expect(viewerCardLabels([picks, reshuffle, blind(false)], 'j')).toEqual([])
+  })
+})
+
 describe('chipEffects', () => {
   it('keeps landing order and two equal labels as two entries', () => {
     const a = weight('Sam +2 weight', 's')

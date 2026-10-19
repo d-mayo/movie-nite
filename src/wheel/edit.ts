@@ -132,7 +132,8 @@ export function effectiveSetting(
   let slices = own.slices
   let weight = own.weight
   for (const { change } of effects) {
-    if (change.kind === 'wildcards' || !change.viewerIds.includes(viewerId)) continue
+    if (change.kind !== 'slices' && change.kind !== 'weight') continue
+    if (!change.viewerIds.includes(viewerId)) continue
     if (change.kind === 'slices') slices += change.amount
     else weight += change.amount
   }

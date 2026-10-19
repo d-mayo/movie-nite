@@ -96,7 +96,7 @@ export interface AppActions {
   setSoundMuted(muted: boolean): void
   setShowLabels(show: boolean): void
   setWildcardWheel(on: boolean): void
-  addCardEffect(effect: CardEffect): void
+  addCardEffect(effect: CardEffect, nomination?: Nomination): void
   restoreWheelSettings(): void
 }
 
@@ -264,7 +264,7 @@ export function createAppStore(persistence: Persistence): AppStore {
       setSoundMuted: (muted) => update((s) => setSoundMuted(s, muted)),
       setShowLabels: (show) => update((s) => setShowLabels(s, show)),
       setWildcardWheel: (on) => update((s) => setWildcardWheel(s, on)),
-      addCardEffect: (effect) => update((s) => addCardEffect(s, effect)),
+      addCardEffect: (effect, nomination) => update((s) => addCardEffect(s, effect, nomination)),
       restoreWheelSettings: () => update(restoreWheelSettings),
     }
   })

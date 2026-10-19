@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest'
-import { defaultState, type Nomination } from './model.ts'
+import { defaultState, isBlind, type Nomination } from './model.ts'
 import { createMemoryPersistence } from './persistence.ts'
 import { createAppStore } from './store.ts'
 import { presetColors } from '../wheel/colors.ts'
@@ -443,4 +443,22 @@ test('the wildcard wheel setting loads as on unless stored as a boolean, and Res
   expect(createAppStore(persistence).getState().settings.wheel.wildcardWheel).toBe(false)
   store.getState().restoreWheelSettings()
   expect(store.getState().settings.wheel.wildcardWheel).toBe(true)
+})
+
+test('a stored night with a pending Blind Spin loads blind, and a malformed one drops', () => {
+  const persistence = createMemoryPersistence()
+  const blind = (used: unknown) => ({
+    cardId: 'blind-spin',
+    label: 'Blind spin',
+    change: { kind: 'blindSpin', used },
+  })
+  persistence.save({
+    ...defaultState,
+    night: { ...defaultState.night, cardEffects: [blind(false), blind('no')] } as never,
+  })
+  const store = createAppStore(persistence)
+  expect(store.getState().night.cardEffects).toEqual([blind(false)])
+  expect(isBlind(store.getState().night)).toBe(true)
+  store.getState().startSpin()
+  expect(isBlind(createAppStore(persistence).getState().night)).toBe(false)
 })

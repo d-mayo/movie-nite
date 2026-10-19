@@ -10,6 +10,7 @@ import {
   isValidSpinTurnsPerSecond,
   isValidWeight,
   isValidWildcardCount,
+  wildcardTotal,
   spinPlan,
   type WheelSettings,
 } from './edit.ts'
@@ -178,6 +179,17 @@ describe('the wheel with card effects', () => {
     const fx = [weightFx(-6, 'A'), sliceFx(20, 'A')]
     expect(effectiveSetting(wheel(), {}, 'A', fx)).toEqual({ slices: 12, weight: 0.5 })
     expect(effectiveSetting(wheel(), {}, 'B', fx)).toEqual({ slices: 3, weight: 5 })
+  })
+
+  test('Picks Again, Reshuffle and Blind Spin change nothing on the wheel', () => {
+    const extra: CardEffect[] = [
+      { cardId: 'picks-again', label: 'x', change: { kind: 'picksAgain', viewerIds: ['A'], tmdbId: 1 } },
+      { cardId: 'reshuffle', label: 'x', change: { kind: 'reshuffle', viewerIds: ['A'], tmdbId: 2 } },
+      { cardId: 'blind-spin', label: 'x', change: { kind: 'blindSpin', used: false } },
+    ]
+    expect(effectiveSetting(wheel(), {}, 'A', extra)).toEqual(effectiveSetting(wheel(), {}, 'A'))
+    expect(wildcardTotal(2, wheel(), extra)).toBe(wildcardTotal(2, wheel()))
+    expect(deriveSlices(['A', 'B'], wheel(), {}, extra)).toEqual(deriveSlices(['A', 'B'], wheel(), {}))
   })
 
   test('derives the wheel with the effects', () => {

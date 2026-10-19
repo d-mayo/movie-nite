@@ -25,7 +25,7 @@ describe('dealCards', () => {
       if (change.kind === 'wildcards') {
         expect(change.amount).toBeGreaterThanOrEqual(1)
         expect(change.amount).toBeLessThanOrEqual(3)
-      } else {
+      } else if (change.kind !== 'blindSpin') {
         expect(change.viewerIds.every((id) => ['a', 'b', 'c'].includes(id))).toBe(true)
       }
     }

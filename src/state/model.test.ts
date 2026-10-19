@@ -37,7 +37,12 @@ import {
   linkLetterboxd,
   setLetterboxdStatus,
   unlinkLetterboxd,
+  addCardEffect,
+  isBlind,
+  isReshuffleLocked,
+  refusedFilms,
 } from './model.ts'
+import type { CardEffect } from '../wildcards/cards.ts'
 import { presetColors } from '../wheel/colors.ts'
 import { defaultWheelSettings, effectiveSetting } from '../wheel/edit.ts'
 
@@ -497,7 +502,8 @@ describe('setViewersHidden', () => {
     expect(defaultState.settings.viewersHidden).toBe(false)
     const s = addViewer(defaultState, 'Ann', 'a')
     const hidden = setViewersHidden(s, true)
-    expect(hidden.settings).toEqual({      viewersHidden: true,
+    expect(hidden.settings).toEqual({
+      viewersHidden: true,
       wheel: defaultWheelSettings,
     })
     expect(hidden.roster).toBe(s.roster)
@@ -541,5 +547,89 @@ describe('Letterboxd links', () => {
     const s = setLetterboxdStatus(linked(), 'a', 'jo', 'found')
     expect(newNight(s).roster[0].letterboxd).toEqual({ username: 'jo', status: 'found' })
     expect(removeViewer(s, 'a').roster.some((v) => v.letterboxd)).toBe(false)
+  })
+})
+
+describe('Picks Again, Reshuffle and Blind Spin', () => {
+  const two = () => addViewer(addViewer(defaultState, 'Ann', 'a'), 'Bo', 'b')
+  const picksAgain = (id: string, tmdbId: number): CardEffect => ({
+    cardId: 'picks-again',
+    label: 'p',
+    change: { kind: 'picksAgain', viewerIds: [id], tmdbId },
+  })
+  const reshuffle = (id: string, tmdbId: number): CardEffect => ({
+    cardId: 'reshuffle',
+    label: 'r',
+    change: { kind: 'reshuffle', viewerIds: [id], tmdbId },
+  })
+  const blind: CardEffect = { cardId: 'blind-spin', label: 'b', change: { kind: 'blindSpin', used: false } }
+
+  test('Picks Again removes the film and refuses it for that viewer only', () => {
+    let s = nominate(two(), 'a', film(1))
+    s = addCardEffect(s, picksAgain('a', 1))
+    expect(s.night.nominations.a).toBeUndefined()
+    expect(s.night.cardEffects).toHaveLength(1)
+    expect(refusedFilms(s.night, 'a')).toEqual([1])
+    expect(nominate(s, 'a', film(1))).toBe(s)
+    expect(nominate(s, 'b', film(1)).night.nominations.b?.tmdbId).toBe(1)
+    expect(nominate(s, 'a', film(2)).night.nominations.a?.tmdbId).toBe(2)
+  })
+
+  test('Picks Again takes even a locked film off', () => {
+    let s = addCardEffect(nominate(two(), 'a', film(1)), reshuffle('a', 2), film(2))
+    s = addCardEffect(s, picksAgain('a', 2))
+    expect(s.night.nominations.a).toBeUndefined()
+  })
+
+  test('Reshuffle nominates the new film and locks it against remove and nominate', () => {
+    let s = nominate(two(), 'a', film(1))
+    s = addCardEffect(s, reshuffle('a', 2), film(2))
+    expect(s.night.nominations.a?.tmdbId).toBe(2)
+    expect(isReshuffleLocked(s.night, 'a')).toBe(true)
+    expect(removeNomination(s, 'a')).toBe(s)
+    expect(nominate(s, 'a', film(3))).toBe(s)
+  })
+
+  test('a Reshuffle without its film changes nothing', () => {
+    const s = nominate(two(), 'a', film(1))
+    expect(addCardEffect(s, reshuffle('a', 2))).toBe(s)
+    expect(addCardEffect(s, reshuffle('a', 2), film(3))).toBe(s)
+  })
+
+  test('a later card replaces a locked film, and the old lock then lapses', () => {
+    const s = addCardEffect(nominate(two(), 'a', film(1)), reshuffle('a', 2), film(2))
+    const again = addCardEffect(s, reshuffle('a', 3), film(3))
+    expect(again.night.nominations.a?.tmdbId).toBe(3)
+    expect(isReshuffleLocked(again.night, 'a')).toBe(true)
+    const picked = addCardEffect(s, picksAgain('a', 2))
+    expect(isReshuffleLocked(picked.night, 'a')).toBe(false)
+    expect(nominate(picked, 'a', film(4)).night.nominations.a?.tmdbId).toBe(4)
+  })
+
+  test('New night clears the refusal and the lock', () => {
+    const s = newNight(addCardEffect(nominate(two(), 'a', film(1)), reshuffle('a', 2), film(2)))
+    expect(isReshuffleLocked(s.night, 'a')).toBe(false)
+    expect(nominate(s, 'a', film(3)).night.nominations.a?.tmdbId).toBe(3)
+    const p = newNight(addCardEffect(nominate(two(), 'a', film(1)), picksAgain('a', 1)))
+    expect(nominate(p, 'a', film(1)).night.nominations.a?.tmdbId).toBe(1)
+  })
+
+  test('startSpin marks a pending Blind Spin used, spun or not, and keeps a used one used', () => {
+    const pending = addCardEffect(two(), blind)
+    expect(isBlind(pending.night)).toBe(true)
+    const first = startSpin(pending)
+    expect(isBlind(first.night)).toBe(false)
+    expect(first.night.spun).toBe(true)
+    expect(first.night.cardEffects[0].change).toEqual({ kind: 'blindSpin', used: true })
+    const later = startSpin(addCardEffect(startSpin(two()), blind))
+    expect(isBlind(later.night)).toBe(false)
+    expect(startSpin(later)).toBe(later)
+  })
+
+  test('only the first spin clears the held film', () => {
+    const spun = startSpin({ ...two(), holdover: film(9) })
+    expect(spun.holdover).toBeNull()
+    const again = startSpin(addCardEffect({ ...spun, holdover: film(8) }, blind))
+    expect(again.holdover?.tmdbId).toBe(8)
   })
 })

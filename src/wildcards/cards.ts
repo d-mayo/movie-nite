@@ -11,6 +11,12 @@ import {
 export type CardChange =
   | { kind: 'slices' | 'weight'; amount: number; viewerIds: string[] }
   | { kind: 'wildcards'; amount: number }
+  // X's film came off the wheel, and X can't nominate that film again tonight.
+  | { kind: 'picksAgain'; viewerIds: [string]; tmdbId: number }
+  // X's film was swapped for the film with this TMDB id, locked while it is X's.
+  | { kind: 'reshuffle'; viewerIds: [string]; tmdbId: number }
+  // The main wheel is blind until the next main spin lands; `used` once that spin has begun.
+  | { kind: 'blindSpin'; used: boolean }
 
 // A card's landed effect, kept in the night.
 export interface CardEffect {
@@ -191,7 +197,23 @@ export const cards: CardDef[] = [
 
 function validChange(value: unknown): value is CardChange {
   if (!value || typeof value !== 'object') return false
-  const change = value as { kind?: unknown; amount?: unknown; viewerIds?: unknown }
+  const change = value as {
+    kind?: unknown
+    amount?: unknown
+    viewerIds?: unknown
+    tmdbId?: unknown
+    used?: unknown
+  }
+  if (change.kind === 'blindSpin') return typeof change.used === 'boolean'
+  if (change.kind === 'picksAgain' || change.kind === 'reshuffle') {
+    return (
+      Array.isArray(change.viewerIds) &&
+      change.viewerIds.length === 1 &&
+      typeof change.viewerIds[0] === 'string' &&
+      typeof change.tmdbId === 'number' &&
+      Number.isInteger(change.tmdbId)
+    )
+  }
   if (typeof change.amount !== 'number' || !Number.isInteger(change.amount)) return false
   if (change.kind === 'wildcards') return true
   if (change.kind !== 'slices' && change.kind !== 'weight') return false

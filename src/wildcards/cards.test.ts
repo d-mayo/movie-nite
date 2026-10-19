@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { seeded } from './seeded.ts'
-import { cards, type DealContext, type DealViewer } from './cards.ts'
+import { cards, validCardEffects, type DealContext, type DealViewer } from './cards.ts'
 
 const viewer = (id: string, slices = 3, weight = 5): DealViewer => ({
   id,
@@ -107,5 +107,29 @@ describe('the wheel cards', () => {
       const change = byId('everyone-weight').roll(context, seeded(seed)).effect.change
       expect(change.kind === 'weight' && Math.abs(change.amount)).toBe(1)
     }
+  })
+})
+
+describe('validCardEffects for the new kinds', () => {
+  const ok = [
+    { cardId: 'picks-again', label: 'a', change: { kind: 'picksAgain', viewerIds: ['s'], tmdbId: 5 } },
+    { cardId: 'reshuffle', label: 'b', change: { kind: 'reshuffle', viewerIds: ['s'], tmdbId: 6 } },
+    { cardId: 'blind-spin', label: 'c', change: { kind: 'blindSpin', used: false } },
+  ]
+
+  it('keeps well-formed effects', () => {
+    expect(validCardEffects(ok)).toEqual(ok)
+  })
+
+  it('drops a missing film id, a bad viewer list or a non-boolean used', () => {
+    const bad = [
+      { cardId: 'p', label: 'a', change: { kind: 'picksAgain', viewerIds: ['s'] } },
+      { cardId: 'p', label: 'a', change: { kind: 'picksAgain', viewerIds: [], tmdbId: 1 } },
+      { cardId: 'r', label: 'a', change: { kind: 'reshuffle', viewerIds: ['s', 't'], tmdbId: 1 } },
+      { cardId: 'r', label: 'a', change: { kind: 'reshuffle', viewerIds: ['s'], tmdbId: 1.5 } },
+      { cardId: 'b', label: 'a', change: { kind: 'blindSpin', used: 'no' } },
+      { cardId: 'b', label: 'a', change: { kind: 'blindSpin' } },
+    ]
+    expect(validCardEffects([...bad, ...ok])).toEqual(ok)
   })
 })
