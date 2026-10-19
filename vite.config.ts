@@ -8,6 +8,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    css: { include: [/index\.css/] },
+    // Only the stylesheets the style tests read (as ?raw): App.css imported by a component stays empty.
+    css: { include: [/index\.css/, /App\.css\?raw/] },
   },
 })

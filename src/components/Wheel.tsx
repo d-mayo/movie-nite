@@ -1,9 +1,9 @@
 import { useId, useState, type Ref } from 'react'
 import { posterUrl } from '../tmdb/client.ts'
 import { mixColor } from '../wheel/colors.ts'
-import { layoutLabel, layoutWatermark, layoutWildcard, markHeight, markWidth, sticksInner } from '../wheel/labels.ts'
+import { layoutCardLabel, layoutLabel, layoutWatermark, layoutWildcard, markHeight, markWidth, sticksInner } from '../wheel/labels.ts'
 import { pivotY } from '../wheel/pins.ts'
-import { blindColor, type Wedge } from '../wheel/wedges.ts'
+import { blindColor, type CardGlyph, type Wedge } from '../wheel/wedges.ts'
 import Reel, { barsPath } from './Reel.tsx'
 
 // The flapper's tongue hangs from the pivot screw at `pivotY`; its tip reaches inside the pins.
@@ -113,6 +113,88 @@ function Slate({ wedge, clipId }: { wedge: Wedge; clipId: string }) {
   )
 }
 
+// The card glyphs, black, drawn in a 10-unit box centered on the origin.
+function Glyph({ kind }: { kind: CardGlyph }) {
+  switch (kind) {
+    case 'wheel':
+      return (
+        <>
+          <circle r="4.2" fill="none" strokeWidth="1" />
+          <circle r="0.9" stroke="none" />
+          <path d="M0 -4 V4 M-4 0 H4 M-2.8 -2.8 L2.8 2.8 M2.8 -2.8 L-2.8 2.8" fill="none" strokeWidth="0.7" />
+        </>
+      )
+    case 'film':
+      return (
+        <>
+          <rect x="-4" y="-3.2" width="8" height="6.4" rx="0.6" fill="none" strokeWidth="1" />
+          <rect x="-2.4" y="-1.8" width="4.8" height="3.6" stroke="none" />
+        </>
+      )
+    case 'pumpkin':
+      return (
+        <>
+          <path d="M0 -3.6 C-5 -4.2 -5.4 3.8 -1.6 4 C-0.6 4.4 0.6 4.4 1.6 4 C5.4 3.8 5 -4.2 0 -3.6 Z" stroke="none" />
+          <path d="M0 -3.4 L0.6 -5 L1.8 -5" fill="none" strokeWidth="0.9" />
+          <path
+            d="M-2.6 -0.6 L-1.2 -1.8 L-0.2 -0.4 Z M0.2 -0.4 L1.2 -1.8 L2.6 -0.6 Z M-2.2 1.6 L-1 1 L0 1.8 L1 1 L2.2 1.6 L1 2.8 L-1 2.8 Z"
+            className="card-glyph-cut"
+            stroke="none"
+          />
+        </>
+      )
+    case 'tree':
+      return (
+        <>
+          <path d="M0 -4.8 L2.6 -1.2 H1.2 L3.4 1.8 H1.4 L3.8 4 H-3.8 L-1.4 1.8 H-3.4 L-1.2 -1.2 H-2.6 Z" stroke="none" />
+          <rect x="-0.7" y="4" width="1.4" height="1" stroke="none" />
+        </>
+      )
+    case 'heart':
+      return (
+        <path
+          d="M0 4.4 C-6 0.6 -4.4 -4.2 -1.8 -3.6 C-0.8 -3.4 0 -2.4 0 -1.6 C0 -2.4 0.8 -3.4 1.8 -3.6 C4.4 -4.2 6 0.6 0 4.4 Z"
+          stroke="none"
+        />
+      )
+    case 'claw':
+      return (
+        <>
+          <path d="M-3.6 4.4 C-4.6 0.8 -3.4 -2.4 -1.2 -4.6 C-1.8 -1.8 -1.6 0.6 -0.6 2.6 Z" stroke="none" />
+          <path d="M-0.8 4.6 C-1.4 0.6 -0.4 -2.8 1.6 -5 C1.4 -2 1.6 0.6 2.2 2.8 Z" stroke="none" />
+          <path d="M2 4.6 C1.6 1.4 2.8 -1.6 4.8 -3.4 C4 -0.8 3.8 1.2 3.8 3.2 Z" stroke="none" />
+        </>
+      )
+  }
+}
+
+// The wildcard wheel's film grain and vignette over the face of the disc, clipped to it (never the
+// stage's box). The grain is a noise filter on a still rectangle that CSS steps about, so no script
+// runs per frame and reduced motion only has to stop the animation.
+function Negative({ uid }: { uid: string }) {
+  return (
+    <g data-testid="negative-face" clipPath={`url(#${uid}-disc)`} pointerEvents="none">
+      <defs>
+        <clipPath id={`${uid}-disc`}>
+          <circle r={radius} />
+        </clipPath>
+        <filter id={`${uid}-grain`} x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="7" stitchTiles="stitch" />
+          <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.4 0.95" />
+        </filter>
+        <radialGradient id={`${uid}-vignette`} cx="0" cy="0" r={radius} gradientUnits="userSpaceOnUse">
+          <stop offset="0.5" stopColor="#000000" stopOpacity="0" />
+          <stop offset="1" stopColor="#000000" stopOpacity="0.45" />
+        </radialGradient>
+      </defs>
+      <g className="wheel-grain" data-testid="grain">
+        <rect x="-140" y="-140" width="280" height="280" filter={`url(#${uid}-grain)`} opacity="0.35" />
+      </g>
+      <circle r={radius} fill={`url(#${uid}-vignette)`} data-testid="vignette" />
+    </g>
+  )
+}
+
 function WedgeShape({
   wedge,
   id,
@@ -132,8 +214,9 @@ function WedgeShape({
   const isWildcard = slice.kind === 'wildcard'
   const isCard = slice.kind === 'card'
   const gradient = gradientId(uid, wedge.color)
+  const cardLabel = isCard ? layoutCardLabel(wedge.cardLabel ?? '', width) : null
   const label = isCard
-    ? layoutLabel(wedge.cardLabel ?? '', null, width)
+    ? null
     : isWildcard || !showLabels
       ? null
       : layoutLabel(wedge.viewerName ?? '', nomination?.title ?? null, width)
@@ -156,7 +239,14 @@ function WedgeShape({
           <Slate wedge={wedge} clipId={`${uid}-clip-${id}`} />
         </>
       ) : isCard ? (
-        <path d={wedgePath(wedge)} className="film-fill-steel" stroke="#000000" strokeOpacity="0.4" strokeWidth="0.5" />
+        // The negative: a wheel card is film cream, a movie card steel-light, each with a thin black edge.
+        <path
+          d={wedgePath(wedge)}
+          data-card-type={wedge.cardType}
+          className={wedge.cardType === 'movie' ? 'card-fill-movie' : 'card-fill-wheel'}
+          stroke="#000000"
+          strokeWidth="0.5"
+        />
       ) : (
         <path d={wedgePath(wedge)} fill={`url(#${gradient})`} stroke="#000000" strokeOpacity="0.4" strokeWidth="0.5" />
       )}
@@ -214,6 +304,28 @@ function WedgeShape({
               {label.title.text}
             </text>
           )}
+        </g>
+      )}
+      {cardLabel && (
+        <g transform={`rotate(${mid - 90})`} className="wedge-text">
+          <text
+            data-testid="card-label"
+            className="wheel-label wheel-label-card"
+            x={cardLabel.text.x}
+            y={cardLabel.text.y}
+            textAnchor="end"
+            fontSize={cardLabel.text.size}
+          >
+            {cardLabel.text.text}
+          </text>
+          <g
+            data-testid="card-glyph"
+            data-glyph={wedge.cardGlyph}
+            className="card-glyph"
+            transform={`translate(${cardLabel.glyph.x} ${cardLabel.glyph.y}) scale(${cardLabel.glyph.size / 10})`}
+          >
+            <Glyph kind={wedge.cardGlyph ?? 'film'} />
+          </g>
         </g>
       )}
       {word && (
@@ -276,13 +388,15 @@ interface Props {
   blind?: boolean
   // False leaves the viewers' names and titles off; a wildcard's word stays.
   showLabels?: boolean
+  // The wildcard wheel's negative look: grain and a vignette over the face.
+  negative?: boolean
   // The rotating group; its transform is written by the wheel's motion loop.
   groupRef: Ref<SVGGElement>
   // The flapper's group, turned about the pivot by the same loop.
   flapperRef?: Ref<SVGGElement>
 }
 
-export default function Wheel({ wedges, showLabels = true, blind = false, groupRef, flapperRef }: Props) {
+export default function Wheel({ wedges, showLabels = true, blind = false, negative = false, groupRef, flapperRef }: Props) {
   const uid = useId().replace(/:/g, '')
   // Once the wheel has been blind its reel back stays mounted, so it can dissolve away.
   const [wasBlind, setWasBlind] = useState(false)
@@ -305,6 +419,7 @@ export default function Wheel({ wedges, showLabels = true, blind = false, groupR
         {(blind || wasBlind) && <ReelBack hidden={!blind} />}
         <Reel wedges={wedges} />
       </g>
+      {negative && <Negative uid={uid} />}
       <circle data-testid="gloss" r={radius} fill={`url(#${uid}-gloss)`} pointerEvents="none" />
       <g data-testid="pointer">
         <g ref={flapperRef} data-testid="flapper">

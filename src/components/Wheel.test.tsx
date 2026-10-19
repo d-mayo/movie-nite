@@ -241,7 +241,7 @@ test('a very narrow wildcard has no watermark and shows a ? instead of the word'
   expect(screen.getByTestId('wildcard-word').textContent).toBe('?')
 })
 
-test('a deal draws one steel wedge per card with its label whatever Show labels says, and a frame each', () => {
+test('a deal draws one negative wedge per card with its label whatever Show labels says, and a frame each', () => {
   const deal = dealCards(
     { viewers: [{ id: 'a', name: 'Ann', slices: 3, weight: 5, film: null, canReshuffle: false, canBacklog: false }], wildcardCount: 3, today: new Date(2026, 2, 15), commonGround: false },
     seeded(4),
@@ -255,8 +255,27 @@ test('a deal draws one steel wedge per card with its label whatever Show labels 
     expect(cards).toHaveLength(8)
     for (const wedge of cards) expect(wedge.getAttribute('data-kind')).toBe('card')
     expect(screen.getAllByTestId('frame')).toHaveLength(8)
-    expect(screen.getAllByTestId('label-tag').length).toBeGreaterThan(0)
+    expect(screen.queryAllByTestId('label-tag')).toHaveLength(0)
+    expect(screen.getAllByTestId('card-label').length).toBeGreaterThan(0)
+    expect(screen.getAllByTestId('card-glyph').length).toBe(screen.getAllByTestId('card-label').length)
     expect(container.querySelector('svg.wheel > g')?.querySelector('[data-testid="wedge"]')).not.toBeNull()
     unmount()
   }
+})
+
+test('card wedges carry their type and glyph kind, and the grain and vignette show only when negative', () => {
+  const deal = [
+    { cardId: 'everyone-weight', type: 'wheel', label: 'Everyone +1 weight', weight: 3 },
+    { cardId: 'halloween', type: 'movie', label: 'Halloween', weight: 3 },
+  ] as unknown as Parameters<typeof buildCardWedges>[0]
+  const { container, rerender } = render(<Wheel wedges={buildCardWedges(deal)} groupRef={null} />)
+  expect(container.querySelectorAll('[data-card-type="wheel"]')).toHaveLength(1)
+  expect(container.querySelectorAll('[data-card-type="movie"]')).toHaveLength(1)
+  expect(screen.getAllByTestId('card-glyph').map((g) => g.getAttribute('data-glyph'))).toEqual(['wheel', 'pumpkin'])
+  expect(screen.queryByTestId('negative-face')).toBeNull()
+  rerender(<Wheel wedges={buildCardWedges(deal)} negative groupRef={null} />)
+  const face = screen.getByTestId('negative-face')
+  expect(face.getAttribute('clip-path')).toMatch(/^url\(#.+-disc\)$/)
+  expect(within(face).getByTestId('grain')).toBeTruthy()
+  expect(within(face).getByTestId('vignette')).toBeTruthy()
 })

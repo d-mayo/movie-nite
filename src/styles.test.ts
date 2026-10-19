@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import css from './index.css?raw'
+import appCss from './App.css?raw'
 
 const GREYS = ['#262626', '#4a4c43', '#8f9186', '#b7b9a8', '#eeeee2', '#f6f6ee']
 
@@ -138,6 +139,29 @@ describe('reveal frame', () => {
   test('text, muted, danger and cream read on the film stock', () => {
     for (const color of [reveal['--text'], reveal['--muted'], reveal['--danger'], light['--film-cream']]) {
       expect(contrast(color, light['--film-stock']), color).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+})
+
+describe('the wildcard wheel stylesheet', () => {
+  const rules = (source: string) =>
+    [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }))
+
+  test('reduced motion stops the grain', () => {
+    expect(appCss).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{\s*\.wheel \.wheel-grain\s*\{\s*animation:\s*none/,
+    )
+  })
+
+  test('reduced motion turns the cans flip off', () => {
+    expect(appCss).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.can-turn\s*\{\s*transition:\s*none/)
+  })
+
+  test('the stage itself never gets a transform or filter (it holds fixed descendants)', () => {
+    for (const { selector, body } of rules(appCss)) {
+      const parts = selector.split(',').map((part) => part.trim())
+      if (!parts.some((part) => /(^|\s)\.wheel-stage(\[[^\]]*\])*$/.test(part))) continue
+      expect(body, selector).not.toMatch(/(^|[\s;])(transform|filter|scale|translate|rotate|perspective|backdrop-filter):/)
     }
   })
 })

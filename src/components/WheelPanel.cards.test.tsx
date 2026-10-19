@@ -257,6 +257,23 @@ test('the card opens face up with no flip under reduced motion, and the wheel st
   expect(screen.queryByTestId('flicker')).toBeNull()
 }, 9000)
 
+test('the stage carries the cards marker and the negative face only while the wildcard wheel shows', async () => {
+  setup()
+  const stage = document.querySelector('.wheel-stage')!
+  expect(stage).not.toHaveAttribute('data-wheel')
+  expect(screen.queryByTestId('negative-face')).toBeNull()
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
+  expect(stage).toHaveAttribute('data-wheel', 'cards')
+  expect(screen.getByTestId('negative-face')).toBeTruthy()
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  fireEvent.click(screen.getByRole('button', { name: 'Back to the main wheel' }))
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  expect(stage).not.toHaveAttribute('data-wheel')
+  expect(screen.queryByTestId('negative-face')).toBeNull()
+})
+
 test('the music plays on through the wildcard wheel: no landing sounds at the wildcard, keep-music spin, landing at the card, fade at Back', async () => {
   const { engine, log } = recordingSound()
   setup({ sound: engine })

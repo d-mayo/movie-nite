@@ -447,6 +447,75 @@ html:has(.wheel-stage[data-zoom]) {
   fill: var(--film-steel-dark);
 }
 
+/* The wildcard wheel is the film's negative: cream and steel-light wedges with black type on a cream
+   strip with black holes. Only the stage marked data-wheel="cards" turns; the main wheel, the banner
+   and the page around it keep the positive. The same film tokens are used, swapped between parts. */
+.wheel .card-fill-wheel {
+  fill: var(--film-cream);
+}
+
+.wheel .card-fill-movie {
+  fill: var(--film-steel-light);
+}
+
+.wheel .wheel-label-card {
+  fill: #000;
+}
+
+.wheel .card-glyph {
+  fill: #000;
+  stroke: #000;
+}
+
+.wheel .card-glyph-cut {
+  fill: var(--film-cream);
+}
+
+.wheel-stage[data-wheel='cards'] .wheel {
+  background: var(--film-cream);
+}
+
+.wheel-stage[data-wheel='cards'] .wheel .film-stock {
+  stroke: var(--film-cream);
+}
+
+.wheel-stage[data-wheel='cards'] .wheel .film-edge {
+  stroke: #000;
+}
+
+.wheel-stage[data-wheel='cards'] .wheel .film-hole {
+  fill: #000;
+}
+
+/* The grain steps about under the disc's clip; reduced motion leaves it still. */
+.wheel .wheel-grain {
+  animation: wheel-grain 0.6s steps(1, end) infinite;
+}
+
+@keyframes wheel-grain {
+  0% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-7px, 4px);
+  }
+  40% {
+    transform: translate(5px, -9px);
+  }
+  60% {
+    transform: translate(-3px, -6px);
+  }
+  80% {
+    transform: translate(8px, 7px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel .wheel-grain {
+    animation: none;
+  }
+}
+
 .wheel-empty {
   display: grid;
   place-items: center;

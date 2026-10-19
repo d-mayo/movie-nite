@@ -756,10 +756,11 @@ export default function WheelPanel({
         ref={stageRef}
         data-zoom={spin?.zoom ?? undefined}
         data-fade={fading ? 'out' : undefined}
+        data-wheel={spin?.wheel === 'cards' ? 'cards' : undefined}
       >
         {/* A close call's zoom scales this wrapper, not the stage, which the reveal measures and the flicker sits in. */}
         <div className="wheel-zoom">
-          <Wheel wedges={shownWedges} showLabels={settings.wheel.showLabels && !blind} blind={blind} groupRef={motion.groupRef} flapperRef={motion.flapperRef} />
+          <Wheel wedges={shownWedges} showLabels={settings.wheel.showLabels && !blind} blind={blind} negative={spin?.wheel === 'cards'} groupRef={motion.groupRef} flapperRef={motion.flapperRef} />
           {wedges.length > 0 && (
             <button
               type="button"
