@@ -29,7 +29,7 @@ function setup(random: number, a: Nomination, b: Nomination, holdover: Nominatio
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: { ...defaultWheelSettings, wildcardWheel: false } },
       holdover,
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
@@ -159,7 +159,7 @@ test('a wildcard uses the same frame, with a steel dot before and after the pick
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: { ...defaultWheelSettings, wildcardWheel: false } },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
@@ -212,7 +212,7 @@ function setupSpin(random: () => number, fetchFn: typeof fetch = vi.fn()) {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: { ...defaultWheelSettings, wildcardWheel: false } },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
@@ -264,7 +264,7 @@ test('a wildcard search with a failing fetch says film search is unavailable', a
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: { ...defaultWheelSettings, wildcardWheel: false } },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },

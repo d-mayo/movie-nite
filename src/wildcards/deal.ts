@@ -11,6 +11,11 @@ export const maxCardWeight = 5
 // A few tries per slot to avoid a wedge that repeats one already dealt.
 const labelTries = 3
 
+// Whether any card can be dealt.
+export function canDeal(context: DealContext): boolean {
+  return cards.some((card) => card.eligible(context))
+}
+
 // Eight cards, each drawn uniformly from the eligible ones and rolled (the same
 // card may come up twice); none when no card is eligible.
 export function dealCards(context: DealContext, random: () => number): DealtCard[] {

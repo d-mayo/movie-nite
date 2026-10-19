@@ -707,7 +707,7 @@ test('a wildcard landing cues the same way, and Back to the wheel fades the musi
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: { ...defaultWheelSettings, wildcardWheel: false } },
       roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
       night: { ...defaultState.night, presentIds: ['a'], nominations: { a: film(1) } },
     }),
@@ -1172,7 +1172,7 @@ test('with the debug flag Force countdowns shows beside the others, starts unche
   try {
     setupCrowd({ random: () => 0.5, spinMs: 20 }, 6)
     const boxes = screen.getAllByRole('checkbox').map((b) => b.parentElement!.textContent!.trim())
-    expect(boxes.slice(-3).map((t) => t.replace(/ \(.*/, ''))).toEqual(['Force close calls', 'Force catches', 'Force countdowns'])
+    expect(boxes.slice(-4).map((t) => t.replace(/ \(.*/, ''))).toEqual(['Force close calls', 'Force catches', 'Force countdowns', 'Force wildcards'])
     const box = screen.getByLabelText('Force countdowns')
     expect(box).not.toBeChecked()
     expect(box).toBeEnabled()

@@ -28,6 +28,20 @@ export function drawSlice(slices: Slice[], random: () => number): number {
   return slices.length - 1
 }
 
+// Like drawSlice, but among the wildcard slices alone (by weight); null when there is none.
+export function drawWildcardSlice(slices: Slice[], random: () => number): number | null {
+  const wild = slices.flatMap((s, i) => (s.kind === 'wildcard' ? [i] : []))
+  if (wild.length === 0) return null
+  const total = wild.reduce((sum, i) => sum + slices[i].weight, 0)
+  const target = random() * total
+  let cumulative = 0
+  for (const i of wild) {
+    cumulative += slices[i].weight
+    if (target < cumulative) return i
+  }
+  return wild[wild.length - 1]
+}
+
 // The wheel angle under the pointer for a given rotation.
 export function angleUnderPointer(rotation: number): number {
   return (((-rotation % 360) + 360) % 360)
