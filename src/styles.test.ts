@@ -149,7 +149,7 @@ describe('the wildcard wheel stylesheet', () => {
 
   test('reduced motion stops the grain', () => {
     expect(appCss).toMatch(
-      /@media \(prefers-reduced-motion: reduce\) \{\s*\.wheel \.wheel-grain\s*\{\s*animation:\s*none/,
+      /@media \(prefers-reduced-motion: reduce\) \{\s*\.stage-grain\s*\{\s*animation:\s*none/,
     )
   })
 

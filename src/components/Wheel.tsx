@@ -168,31 +168,6 @@ function Glyph({ kind }: { kind: CardGlyph }) {
   }
 }
 
-// The wildcard wheel's film grain and vignette over the whole stage (the wheel svg's box, the
-// negative's cream ground included, hub and pointer under them). The grain is a noise filter on a
-// still rectangle that CSS steps about, so no script runs per frame and reduced motion only has to
-// stop the animation. No blend mode: a full-size blend layer can draw hairline seams.
-function Negative({ uid }: { uid: string }) {
-  return (
-    <g data-testid="negative-face" pointerEvents="none">
-      <defs>
-        <filter id={`${uid}-grain`} x="0" y="0" width="100%" height="100%">
-          <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="7" stitchTiles="stitch" />
-          <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.4 0.95" />
-        </filter>
-        <radialGradient id={`${uid}-vignette`} cx="0" cy="0" r="175" gradientUnits="userSpaceOnUse">
-          <stop offset="0.45" stopColor="#4a4a44" stopOpacity="0" />
-          <stop offset="1" stopColor="#4a4a44" stopOpacity="0.45" />
-        </radialGradient>
-      </defs>
-      <g className="wheel-grain" data-testid="grain">
-        <rect x="-160" y="-160" width="320" height="320" filter={`url(#${uid}-grain)`} opacity="0.2" />
-      </g>
-      <rect x="-124" y="-124" width="248" height="248" fill={`url(#${uid}-vignette)`} data-testid="vignette" />
-    </g>
-  )
-}
-
 function WedgeShape({
   wedge,
   id,
@@ -386,15 +361,13 @@ interface Props {
   blind?: boolean
   // False leaves the viewers' names and titles off; a wildcard's word stays.
   showLabels?: boolean
-  // The wildcard wheel's negative look: grain and a vignette over the face.
-  negative?: boolean
   // The rotating group; its transform is written by the wheel's motion loop.
   groupRef: Ref<SVGGElement>
   // The flapper's group, turned about the pivot by the same loop.
   flapperRef?: Ref<SVGGElement>
 }
 
-export default function Wheel({ wedges, showLabels = true, blind = false, negative = false, groupRef, flapperRef }: Props) {
+export default function Wheel({ wedges, showLabels = true, blind = false, groupRef, flapperRef }: Props) {
   const uid = useId().replace(/:/g, '')
   // Once the wheel has been blind its reel back stays mounted, so it can dissolve away.
   const [wasBlind, setWasBlind] = useState(false)
@@ -417,7 +390,6 @@ export default function Wheel({ wedges, showLabels = true, blind = false, negati
         {(blind || wasBlind) && <ReelBack hidden={!blind} />}
         <Reel wedges={wedges} />
       </g>
-      {negative && <Negative uid={uid} />}
       <circle data-testid="gloss" r={radius} fill={`url(#${uid}-gloss)`} pointerEvents="none" />
       <g data-testid="pointer">
         <g ref={flapperRef} data-testid="flapper">

@@ -472,7 +472,42 @@ html:has(.wheel-stage[data-zoom]) {
 }
 
 .wheel-stage[data-wheel='cards'] .wheel {
-  background: var(--film-cream);
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The whole page is the negative while the wildcard wheel shows: the app's light-scheme tokens in both
+   modes, so the cream ground, banner and viewer pane all flip (the reveal keeps its own dark frame). */
+body {
+  transition: background-color 0.6s;
+}
+
+html:has(.wheel-stage[data-wheel='cards']) {
+  color-scheme: light;
+  --page: #f6f6ee;
+  --card: #eeeee2;
+  --text: #262626;
+  --muted: #4a4c43;
+  --border: #4a4c43;
+  --card-border: #b7b9a8;
+  --accent: #4a4c43;
+  --accent-text: #f6f6ee;
+  --danger: #9b1c1c;
+  --shadow-card: 0 1px 2px rgb(38 38 38 / 0.12), 0 2px 8px rgb(38 38 38 / 0.08);
+  --shadow-control: 0 1px 1px rgb(38 38 38 / 0.15);
+}
+
+/* Grain and a vignette over the whole page's ground, under everything on it (no blend mode: a
+   full-size blend layer can draw hairline seams). The grain steps about by CSS alone. */
+.stage-grain {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse at center, transparent 50%, rgb(74 74 68 / 0.4) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 0.95'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.22'/%3E%3C/svg%3E");
+  animation: wheel-grain 0.6s steps(1, end) infinite;
 }
 
 /* The hub and the pointer are part of the negative too: stock with cream lines. */
@@ -522,31 +557,26 @@ html:has(.wheel-stage[data-zoom]) {
   fill: #000;
 }
 
-/* The grain steps about under the svg's own box; reduced motion leaves it still. */
-.wheel .wheel-grain {
-  animation: wheel-grain 0.6s steps(1, end) infinite;
-}
-
 @keyframes wheel-grain {
   0% {
-    transform: translate(0, 0);
+    background-position: 0 0, 0 0;
   }
   20% {
-    transform: translate(-7px, 4px);
+    background-position: 0 0, -70px 40px;
   }
   40% {
-    transform: translate(5px, -9px);
+    background-position: 0 0, 50px -90px;
   }
   60% {
-    transform: translate(-3px, -6px);
+    background-position: 0 0, -30px -60px;
   }
   80% {
-    transform: translate(8px, 7px);
+    background-position: 0 0, 80px 70px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wheel .wheel-grain {
+  .stage-grain {
     animation: none;
   }
 }

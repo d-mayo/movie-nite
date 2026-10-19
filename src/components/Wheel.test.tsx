@@ -263,18 +263,13 @@ test('a deal draws one negative wedge per card with its label whatever Show labe
   }
 })
 
-test('card wedges carry their type and glyph kind, and the grain and vignette (over the whole stage) show only when negative', () => {
+test('card wedges carry their type and glyph kind', () => {
   const deal = [
     { cardId: 'everyone-weight', type: 'wheel', label: 'Everyone +1 weight', weight: 3 },
     { cardId: 'halloween', type: 'movie', label: 'Halloween', weight: 3 },
   ] as unknown as Parameters<typeof buildCardWedges>[0]
-  const { container, rerender } = render(<Wheel wedges={buildCardWedges(deal)} groupRef={null} />)
+  const { container } = render(<Wheel wedges={buildCardWedges(deal)} groupRef={null} />)
   expect(container.querySelectorAll('[data-card-type="wheel"]')).toHaveLength(1)
   expect(container.querySelectorAll('[data-card-type="movie"]')).toHaveLength(1)
   expect(screen.getAllByTestId('card-glyph').map((g) => g.getAttribute('data-glyph'))).toEqual(['wheel', 'pumpkin'])
-  expect(screen.queryByTestId('negative-face')).toBeNull()
-  rerender(<Wheel wedges={buildCardWedges(deal)} negative groupRef={null} />)
-  const face = screen.getByTestId('negative-face')
-  expect(within(face).getByTestId('grain')).toBeTruthy()
-  expect(within(face).getByTestId('vignette')).toBeTruthy()
 })

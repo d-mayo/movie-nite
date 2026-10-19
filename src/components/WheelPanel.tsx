@@ -832,7 +832,7 @@ export default function WheelPanel({
       >
         {/* A close call's zoom scales this wrapper, not the stage, which the reveal measures and the flicker sits in. */}
         <div className="wheel-zoom">
-          <Wheel wedges={shownWedges} showLabels={settings.wheel.showLabels && !blind} blind={blind} negative={spin?.wheel === 'cards'} groupRef={motion.groupRef} flapperRef={motion.flapperRef} />
+          <Wheel wedges={shownWedges} showLabels={settings.wheel.showLabels && !blind} blind={blind} groupRef={motion.groupRef} flapperRef={motion.flapperRef} />
           {wedges.length > 0 && (
             <button
               type="button"
@@ -857,6 +857,7 @@ export default function WheelPanel({
           </p>
         )}
       </div>
+      {spin?.wheel === 'cards' && <div className="stage-grain" data-testid="negative-face" aria-hidden="true" />}
       <CardChips />
       {debug && (
         <label className="debug-force">
