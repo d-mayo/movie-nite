@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SettledWalks } from '../letterboxd/useWatchlistWalks.ts'
-import { drawFromWatchlist, type DrawResult, type WatchlistSource } from '../letterboxd/watchlist.ts'
-import type { LetterboxdLink, Nomination } from '../state/model.ts'
+import { drawExclusions, drawMessage as wordsFor } from '../letterboxd/drawing.ts'
+import { drawFromWatchlist, type WatchlistSource } from '../letterboxd/watchlist.ts'
+import { isReshuffleLocked, refusedFilms, type LetterboxdLink, type Nomination } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import FilmSearch, { Poster } from './FilmSearch.tsx'
@@ -108,38 +109,27 @@ export default function NominationSearch({ viewerId, viewerName, client, letterb
   }, [])
 
   const canDraw = !!watchlist && letterboxd?.status === 'found'
-  const canReroll = canDraw && !!nomination && nomination.fromWatchlist === true
+  // A film a Reshuffle gave them can't be removed or re-rolled; only another card replaces it.
+  const locked = isReshuffleLocked(night, viewerId)
+  const canReroll = canDraw && !!nomination && nomination.fromWatchlist === true && !locked
 
   function onPick(picked: Nomination) {
     if (night.wonFilms.includes(picked.tmdbId)) {
       setWonMessage(`${picked.title} has already won tonight. Pick another film.`)
       return
     }
+    if (refusedFilms(night, viewerId).includes(picked.tmdbId)) {
+      setWonMessage(`${picked.title} came off the wheel tonight. Pick another film.`)
+      return
+    }
     setWonMessage(null)
     nominate(viewerId, picked)
-  }
-
-  function messageFor(result: Exclude<DrawResult, number>): string {
-    switch (result) {
-      case 'empty':
-        return `${viewerName}'s watchlist is empty.`
-      case 'exhausted':
-        return `Every film on ${viewerName}'s watchlist is already in play tonight.`
-      case 'private':
-        return `${viewerName}'s watchlist is private.`
-      case 'missing':
-        return `Letterboxd has no watchlist for ${letterboxd?.username ?? viewerName}.`
-      case 'unavailable':
-        return "Letterboxd can't be reached right now."
-    }
   }
 
   async function draw() {
     if (!watchlist || !letterboxd || drawing) return
     const signal = lifetime.current?.signal
-    const excluded = new Set<number>(Object.values(night.nominations).map((film) => film.tmdbId))
-    for (const id of night.wonFilms) excluded.add(id)
-    if (holdover) excluded.add(holdover.tmdbId)
+    const excluded = drawExclusions(night, holdover, viewerId)
     setDrawing(true)
     setDrawMessage(null)
     try {
@@ -152,7 +142,7 @@ export default function NominationSearch({ viewerId, viewerName, client, letterb
       })
       if (signal?.aborted) return
       if (typeof result === 'string') {
-        setDrawMessage(messageFor(result))
+        setDrawMessage(wordsFor(result, viewerName, letterboxd?.username))
         return
       }
       let drawn: Nomination
@@ -191,14 +181,16 @@ export default function NominationSearch({ viewerId, viewerName, client, letterb
         <div className="nomination">
           <span className="poster-remove">
             <Poster path={nomination.posterPath} title={nomination.title} large />
-            <button
-              type="button"
-              className="poster-x"
-              aria-label={`Remove ${nomination.title} from ${viewerName}`}
-              onClick={() => removeNomination(viewerId)}
-            >
-              <span aria-hidden="true">✕</span>
-            </button>
+            {!locked && (
+              <button
+                type="button"
+                className="poster-x"
+                aria-label={`Remove ${nomination.title} from ${viewerName}`}
+                onClick={() => removeNomination(viewerId)}
+              >
+                <span aria-hidden="true">✕</span>
+              </button>
+            )}
           </span>
           <span className="nomination-text">
             <span className="nomination-title" title={nomination.title}>

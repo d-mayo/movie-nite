@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { addViewer, defaultState, nominate, recordOutcome, type AppState, type LetterboxdLink } from '../state/model.ts'
+import { addCardEffect, addViewer, defaultState, nominate, recordOutcome, type AppState, type LetterboxdLink } from '../state/model.ts'
+import type { CardEffect } from '../wildcards/cards.ts'
 import type { LetterboxdClient } from '../letterboxd/client.ts'
 import { createWatchlistMemory } from '../letterboxd/watchlist.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
@@ -484,4 +485,58 @@ test('a film nominated while the panel is open is looked up, and so is the next 
   await flush()
   expect(filmSlug).toHaveBeenLastCalledWith(22, expect.any(AbortSignal))
   expect(line()).toHaveTextContent("Also on Jo's watchlist")
+})
+
+// Cards that changed this viewer's film.
+const picksAgainEffect = (tmdbId: number): CardEffect => ({
+  cardId: 'picks-again',
+  label: 'Ann picks again',
+  change: { kind: 'picksAgain', viewerIds: ['a'], tmdbId },
+})
+const reshuffleEffect = (tmdbId: number): CardEffect => ({
+  cardId: 'reshuffle',
+  label: 'Reshuffle Ann',
+  change: { kind: 'reshuffle', viewerIds: ['a'], tmdbId },
+})
+
+test('picking a film a Picks Again refused shows a message naming it and nominates nothing', async () => {
+  const fetchFn = vi.fn((url: string) =>
+    Promise.resolve(url.includes('/search') ? searchBody('Alien') : movieBody(1, 'Alien')),
+  )
+  const start = addCardEffect(initial(), picksAgainEffect(1))
+  const store = createAppStore(createMemoryPersistence(start))
+  render(
+    <AppStoreContext.Provider value={store}>
+      <NominationSearch
+        viewerId="a"
+        viewerName="Ann"
+        client={createTmdbClient('https://w.test', fetchFn as unknown as typeof fetch)}
+      />
+    </AppStoreContext.Provider>,
+  )
+  type('alien')
+  await tick(300)
+  fireEvent.click(screen.getByRole('button', { name: 'Pick Alien (1999)' }))
+  await tick(0)
+  expect(screen.getByRole('alert')).toHaveTextContent('Alien came off the wheel tonight')
+  expect(store.getState().night.nominations.a).toBeUndefined()
+})
+
+test('the watchlist draw never returns a refused film', async () => {
+  const { store } = mountDrawing({ start: addCardEffect(initial(), picksAgainEffect(11)) })
+  fireEvent.click(slot())
+  await flush()
+  expect(store.getState().night.nominations.a.tmdbId).toBe(22)
+})
+
+test('a film a Reshuffle gave has no X and no Re-roll, while an unlocked drawn film keeps its Re-roll', async () => {
+  const given = { ...movieNomination(11), fromWatchlist: true }
+  const locked = addCardEffect(nominate(initial(), 'a', given), reshuffleEffect(11), given)
+  const { view } = mountDrawing({ start: locked })
+  expect(screen.queryByRole('button', { name: /^Remove .* from Ann$/ })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Re-roll' })).toBeNull()
+  view.unmount()
+  mountDrawing({ start: nominate(initial(), 'a', given) })
+  expect(screen.getByRole('button', { name: 'Re-roll' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /^Remove .* from Ann$/ })).toBeInTheDocument()
 })
