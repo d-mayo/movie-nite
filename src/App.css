@@ -779,6 +779,17 @@ html:has(.wheel-stage[data-zoom]) {
   }
 }
 
+.reveal-blind .reveal-poster,
+.reveal-blind h2 {
+  animation: reveal-focus 1.8s ease-out 0.5s backwards;
+}
+
+@keyframes reveal-focus {
+  from {
+    filter: blur(18px);
+  }
+}
+
 .reveal-film {
   --hole: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='22'%3E%3Crect width='12' height='12' rx='3'/%3E%3C/svg%3E");
   position: relative;

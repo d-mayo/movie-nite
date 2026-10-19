@@ -51,14 +51,17 @@ export function buildWedges(
 // wheel's gradient ids are built from it.
 export const blindColor = '#7c8087'
 
-// The main wheel under a Blind Spin: nomination wedges lose their names, titles, posters and
-// viewer colors; wildcards are untouched.
+// The main wheel under a Blind Spin: every wedge, wildcards included, becomes a plain
+// steel nomination wedge with no name, title, poster, viewer color or clapperboard. Only
+// the look changes: the spin keeps the real wedges, so the drawn index and the arcs hold.
 export function blindfold(wedges: Wedge[]): Wedge[] {
-  return wedges.map((wedge) =>
-    wedge.slice.kind === 'nomination'
-      ? { ...wedge, color: blindColor, viewerName: null, nomination: null }
-      : wedge,
-  )
+  return wedges.map((wedge) => ({
+    ...wedge,
+    slice: { kind: 'nomination', viewerId: '', weight: wedge.slice.weight },
+    color: blindColor,
+    viewerName: null,
+    nomination: null,
+  }))
 }
 
 // The wildcard wheel: one wedge per dealt card, its size the card's weight.

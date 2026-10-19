@@ -693,6 +693,7 @@ export default function WheelPanel({
           client={client}
           heldFilm={holdover}
           closeCall={spin.closeCall}
+          blind={spin.blind}
           onOutcome={outcome}
           onClose={close}
         />

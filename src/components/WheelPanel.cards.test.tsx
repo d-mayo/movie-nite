@@ -429,6 +429,8 @@ async function openCard() {
 const posterFilm = (id: number): Nomination => ({ ...film(id), posterPath: '/p.jpg' })
 const wheelText = () => (document.querySelector('svg.wheel')!.textContent ?? '').toUpperCase()
 const wheelImages = () => document.querySelectorAll('svg.wheel image').length
+const frameFills = () =>
+  Array.from(document.querySelectorAll('[data-testid="frame"]')).map((f) => f.getAttribute('fill'))
 const nominationFrameFills = () =>
   Array.from(document.querySelectorAll('[data-testid="frame"]'))
     .map((f) => f.getAttribute('fill'))
@@ -561,8 +563,9 @@ test('Blind Spin: the wheel comes back blind, stays blind through the next main 
   expect(wheelText()).not.toContain('ANN')
   expect(wheelText()).not.toContain('FILM')
   expect(new Set(nominationFrameFills())).toEqual(new Set([blindColor]))
-  expect(wedgeKinds()).toContain('wildcard')
-  expect(screen.getAllByTestId('wildcard-word').length).toBeGreaterThan(0)
+  expect(new Set(wedgeKinds())).toEqual(new Set(['nomination']))
+  expect(screen.queryAllByTestId('wildcard-word')).toHaveLength(0)
+  expect(new Set(frameFills())).toEqual(new Set([blindColor]))
   // The main press uses it up, but the wheel stays blind until the landing.
   forceCard('wildcards')
   fireEvent.click(spinButton())
@@ -591,4 +594,17 @@ test('the debug Force card select deals eight of the chosen card, and Random dea
   expect(within(dialog).getByRole('heading')).toHaveTextContent('Blind Spin')
   fireEvent.click(within(dialog).getByRole('button', { name: 'Back to the main wheel' }))
   await waitFor(() => expect(isBlind(store.getState().night)).toBe(true))
+})
+
+test('the reveal after a blind spin comes into focus from a blur, and an ordinary one does not', async () => {
+  const pending: CardEffect = { cardId: 'blind-spin', label: 'Blind spin', change: { kind: 'blindSpin', used: false } }
+  setup({ cardEffects: [pending], random: () => 0.01 })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(document.querySelector('.reveal-blind')).not.toBeNull()
+  cleanup()
+  setup({ random: () => 0.01 })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(document.querySelector('.reveal-blind')).toBeNull()
 })

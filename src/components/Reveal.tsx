@@ -31,6 +31,8 @@ interface Props {
   heldFilm?: Nomination | null
   // The spin was a close call: the frame carries a tag.
   closeCall?: boolean
+  // The spin was a blind one: the poster and title come into focus from a blur.
+  blind?: boolean
   onOutcome: (nomination: Nomination, outcome: Outcome, fromWheel: boolean) => void
   onClose: () => void
 }
@@ -73,6 +75,7 @@ export default function Reveal({
   client,
   heldFilm = null,
   closeCall = false,
+  blind = false,
   onOutcome,
   onClose,
 }: Props) {
@@ -96,7 +99,7 @@ export default function Reveal({
       className={reduced ? 'reveal' : 'reveal reveal-thread'}
       style={centerX === null ? undefined : { left: centerX }}
     >
-      <div className="reveal-film">
+      <div className={blind && fromWheel && !reduced ? 'reveal-film reveal-blind' : 'reveal-film'}>
         {shown ? (
           <FilmReveal
             nomination={shown.nomination}
