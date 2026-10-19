@@ -68,7 +68,7 @@ export default function CardReveal({ card, closeCall = false, text, busy = false
         data-testid="card-turn"
         onAnimationEnd={(e) => e.target === e.currentTarget && setFlip(false)}
       >
-        <div className="card-face">
+        <div className={`card-face card-face-${card.type}`}>
           <p className="card-type">
             {typeLines[card.type]}
             {closeCall && <span className="reveal-tag">Close call</span>}

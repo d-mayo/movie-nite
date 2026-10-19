@@ -348,6 +348,14 @@ test('Shortest on the Board names the film and its runtime, takes it on a press,
   expect(wedgeKinds().filter((k) => k === 'wildcard')).toHaveLength(2)
 })
 
+test('a movie card has the movie face', async () => {
+  forceCard('shortest-on-the-board')
+  setup({ fetchFn: tmdbFetch().fetchFn })
+  const dialog = await openCard()
+  expect(dialog.querySelector('.card-face')).toHaveClass('card-face-movie')
+  expect(dialog.querySelector('.card-face')).not.toHaveClass('card-face-wheel')
+})
+
 test("Watch on a movie card's film slams the clapperboard, and the lock ends when it has opened", async () => {
   forceCard('shortest-on-the-board')
   setup({ fetchFn: tmdbFetch().fetchFn })

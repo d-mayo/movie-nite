@@ -309,6 +309,21 @@ test('Back on a wheel card slams the WILDCARD clapperboard, swaps under it, and 
   expect(store.getState().night.cardEffects).toHaveLength(1)
 })
 
+test('a wheel card has the wheel face, not the movie face', async () => {
+  setup()
+  const dialog = await openCard()
+  const face = dialog.querySelector('.card-face')!
+  expect(face).toHaveClass('card-face-wheel')
+  expect(face).not.toHaveClass('card-face-movie')
+})
+
+test('a Reshuffle card has the wheel face too', async () => {
+  forceCard('reshuffle')
+  setup({ fetchFn: reshuffleFetch().fetchFn, people: linkedRoster })
+  const dialog = await openCard()
+  expect(dialog.querySelector('.card-face')).toHaveClass('card-face-wheel')
+})
+
 function stubReducedMotion() {
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query.includes('prefers-reduced-motion'),

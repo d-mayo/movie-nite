@@ -970,7 +970,8 @@ html:has(.wheel-stage[data-zoom]) {
   }
 }
 
-/* A landed wildcard card (interim look, the film tokens): it turns over from its back to its face. */
+/* A landed wildcard card, on the film tokens: it turns over from its back to its face. A wheel card's face is
+   film cream with film-stock type; a movie card's is film stock with cream type and a steel-light border. */
 .card-reveal {
   position: fixed;
   inset: 50% auto auto 50%;
@@ -1064,6 +1065,62 @@ html:has(.wheel-stage[data-zoom]) {
 .card-back-button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* The wheel card's cream face: everything drawn in cream or steel-light on the stock face is recolored to
+   read on cream. */
+.card-face-wheel {
+  background: var(--film-cream);
+  color: var(--film-stock);
+  border-color: var(--film-stock);
+}
+
+.card-face-wheel .card-type {
+  color: var(--film-steel);
+}
+
+.card-face-wheel .reveal-tag {
+  border-color: var(--film-stock);
+  color: var(--film-stock);
+}
+
+.card-face-wheel .card-back-button {
+  background: var(--film-stock);
+  color: var(--film-cream);
+}
+
+.card-face-wheel .card-back-button:focus-visible {
+  outline: 3px solid var(--film-stock);
+  outline-offset: 2px;
+}
+
+.card-face-wheel .film-cans-status {
+  color: var(--film-steel);
+}
+
+.card-face-wheel .can-arrow {
+  border-top-color: var(--film-stock);
+}
+
+.card-face-wheel .can:focus-visible {
+  outline-color: var(--film-stock);
+}
+
+.card-face-wheel .can-film {
+  border: 2px solid var(--film-stock);
+}
+
+.card-face-wheel .can-chosen .can-film {
+  outline-color: var(--film-steel);
+}
+
+.card-face-movie {
+  border-color: var(--film-steel-light);
+}
+
+.card-face-movie .card-back-button:focus-visible {
+  outline: 3px solid var(--film-cream);
+  outline-offset: 2px;
 }
 
 /* A movie card's film cans: round steel cans that flip over to the film's poster, an arrow that ticks between the
