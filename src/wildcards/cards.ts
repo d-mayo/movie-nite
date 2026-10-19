@@ -34,6 +34,10 @@ export interface DealViewer {
   name: string
   slices: number
   weight: number
+  // Their nominated film, if they have one.
+  film: { tmdbId: number; title: string } | null
+  // True when a Reshuffle could draw them a film from their Letterboxd watchlist.
+  canReshuffle: boolean
 }
 
 export interface DealContext {
@@ -187,12 +191,92 @@ const wildcardsCard: CardDef = {
   },
 }
 
+// X's film comes off the wheel, and X can't nominate it again tonight.
+const picksAgainCard: CardDef = {
+  id: 'picks-again',
+  type: 'wheel',
+  fff: false,
+  eligible: (context) => context.viewers.some((v) => v.film),
+  roll(context, random) {
+    const viewer = pick(
+      context.viewers.filter((v) => v.film),
+      random,
+    )
+    const film = viewer.film!
+    const label = `${viewer.name} picks again`
+    return {
+      cardId: 'picks-again',
+      type: 'wheel',
+      fff: false,
+      label,
+      title: `${viewer.name} Picks Again`,
+      text: `${film.title} comes off the wheel, and ${viewer.name} picks a different film.`,
+      effect: {
+        cardId: 'picks-again',
+        label,
+        change: { kind: 'picksAgain', viewerIds: [viewer.id], tmdbId: film.tmdbId },
+      },
+    }
+  },
+}
+
+// X's film is swapped for a random one from their watchlist. The film is only
+// known once the draw is done, so the rolled effect carries 0 until then.
+const reshuffleCard: CardDef = {
+  id: 'reshuffle',
+  type: 'wheel',
+  fff: false,
+  eligible: (context) => context.viewers.some((v) => v.canReshuffle),
+  roll(context, random) {
+    const viewer = pick(
+      context.viewers.filter((v) => v.canReshuffle),
+      random,
+    )
+    const label = `Reshuffle ${viewer.name}`
+    return {
+      cardId: 'reshuffle',
+      type: 'wheel',
+      fff: false,
+      label,
+      title: label,
+      text: `${viewer.name}'s film is swapped for a random one from their watchlist, and stays for the night.`,
+      effect: {
+        cardId: 'reshuffle',
+        label,
+        change: { kind: 'reshuffle', viewerIds: [viewer.id], tmdbId: 0 },
+      },
+    }
+  },
+}
+
+// Always eligible: every deal follows a main press, which has used up any pending one.
+const blindSpinCard: CardDef = {
+  id: 'blind-spin',
+  type: 'wheel',
+  fff: false,
+  eligible: () => true,
+  roll() {
+    return {
+      cardId: 'blind-spin',
+      type: 'wheel',
+      fff: false,
+      label: 'Blind spin',
+      title: 'Blind Spin',
+      text: 'The next spin hides the names, titles and posters until it lands.',
+      effect: { cardId: 'blind-spin', label: 'Blind spin', change: { kind: 'blindSpin', used: false } },
+    }
+  },
+}
+
 export const cards: CardDef[] = [
   viewerCard('viewer-weight', 'weight'),
   viewerCard('viewer-slices', 'slices'),
   everyoneCard('everyone-weight', 'weight'),
   everyoneCard('everyone-slices', 'slices'),
   wildcardsCard,
+  picksAgainCard,
+  reshuffleCard,
+  blindSpinCard,
 ]
 
 function validChange(value: unknown): value is CardChange {

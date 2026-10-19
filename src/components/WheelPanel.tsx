@@ -202,6 +202,10 @@ export default function WheelPanel({
       viewers: ordered.map((v) => ({
         id: v.id,
         name: v.name,
+        film: night.nominations[v.id]
+          ? { tmdbId: night.nominations[v.id].tmdbId, title: night.nominations[v.id].title }
+          : null,
+        canReshuffle: false,
         ...effectiveSetting(settings.wheel, night.adjustments, v.id, night.cardEffects),
       })),
       wildcardCount: wildcardTotal(ordered.length, settings.wheel, night.cardEffects),
