@@ -85,6 +85,91 @@ describe('the TMDB relay', () => {
   })
 })
 
+describe('the TMDB discover relay', () => {
+  const EDGE =
+    'with_genres=27|53&with_keywords=1,2&with_original_language=ja&primary_release_date.gte=2000-02-29' +
+    '&primary_release_date.lte=2020-12-31&vote_average.gte=0&vote_average.lte=10&vote_count.gte=999999&page=500'
+
+  it('relays every allowed parameter at its edge with the Worker-set flags and the token', async () => {
+    const res = await call(`/tmdb/discover?${EDGE}`)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ results: [] })
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=3600')
+    const [url, init] = fetchMock.mock.calls[0]
+    const sent = new URL(url)
+    expect(`${sent.origin}${sent.pathname}`).toBe('https://api.themoviedb.org/3/discover/movie')
+    expect(Object.fromEntries(sent.searchParams)).toEqual({
+      with_genres: '27|53',
+      with_keywords: '1,2',
+      with_original_language: 'ja',
+      'primary_release_date.gte': '2000-02-29',
+      'primary_release_date.lte': '2020-12-31',
+      'vote_average.gte': '0',
+      'vote_average.lte': '10',
+      'vote_count.gte': '999999',
+      page: '500',
+      include_adult: 'false',
+      include_video: 'false',
+    })
+    expect((init.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`)
+  })
+
+  it('relays no parameters at all as plain discover', async () => {
+    expect((await call('/tmdb/discover')).status).toBe(200)
+    expect(Object.fromEntries(new URL(fetchMock.mock.calls[0][0]).searchParams)).toEqual({
+      include_adult: 'false',
+      include_video: 'false',
+    })
+  })
+
+  it('answers 502 without the token when TMDB fails or is unreachable', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('x', { status: 500 }))
+    fetchMock.mockRejectedValueOnce(new Error('network'))
+    for (let i = 0; i < 2; i++) {
+      const res = await call('/tmdb/discover?page=2')
+      expect(res.status).toBe(502)
+      expect(res.headers.get('Cache-Control')).toBe('no-store')
+      expect(JSON.stringify(await res.json())).not.toContain(TOKEN)
+    }
+  })
+
+  it('counts against the TMDB budget, not the Letterboxd one', async () => {
+    const { env, tmdb, lb } = makeEnv()
+    await call('/tmdb/discover', { env })
+    expect(tmdb).toHaveBeenCalledTimes(1)
+    expect(lb).not.toHaveBeenCalled()
+  })
+
+  it('answers 400 naming the parameter, without calling TMDB, for anything not allowed', async () => {
+    const bad = [
+      'sort_by=popularity.desc',
+      'include_adult=true',
+      'api_key=x',
+      'page=1&page=2',
+      'page=',
+      'with_genres=27,x',
+      `with_genres=${Array.from({ length: 21 }, (_, i) => i + 1).join(',')}`,
+      'with_original_language=EN',
+      'primary_release_date.gte=1990',
+      'primary_release_date.lte=2020-13-45',
+      'primary_release_date.lte=2021-02-29',
+      'vote_average.gte=11',
+      'vote_average.gte=1.234',
+      'vote_count.gte=-1',
+      'vote_count.gte=1000000',
+      'page=0',
+      'page=501',
+    ]
+    for (const query of bad) {
+      const res = await call(`/tmdb/discover?${query}`)
+      expect(res.status, query).toBe(400)
+      const { error } = (await res.json()) as { error: string }
+      expect(error, query).toContain(query.split('=')[0])
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
 describe('the origin check', () => {
   it.each([
     'https://d-mayo.github.io',

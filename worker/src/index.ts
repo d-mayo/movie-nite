@@ -227,6 +227,43 @@ async function filmByTmdb(id: string, cors: Record<string, string>): Promise<Res
   return json({ tmdbId: Number(id), slug: read }, 200, { ...cors, 'Cache-Control': 'public, max-age=604800' })
 }
 
+function isRealDate(value: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!m) return false
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])]
+  const date = new Date(Date.UTC(y, mo - 1, d))
+  return date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d
+}
+
+const IDS = /^\d{1,10}(?:[,|]\d{1,10}){0,19}$/
+
+/** The discover parameters the Worker relays, each with its check; anything else is refused. */
+const DISCOVER_PARAMS: Record<string, (value: string) => boolean> = {
+  with_genres: (v) => IDS.test(v),
+  with_keywords: (v) => IDS.test(v),
+  with_original_language: (v) => /^[a-z]{2}$/.test(v),
+  'primary_release_date.gte': isRealDate,
+  'primary_release_date.lte': isRealDate,
+  'vote_average.gte': (v) => /^(?:\d|10)(?:\.\d{1,2})?$/.test(v) && Number(v) <= 10,
+  'vote_average.lte': (v) => /^(?:\d|10)(?:\.\d{1,2})?$/.test(v) && Number(v) <= 10,
+  'vote_count.gte': (v) => /^\d{1,6}$/.test(v),
+  page: (v) => /^\d{1,3}$/.test(v) && Number(v) >= 1 && Number(v) <= 500,
+}
+
+/** The TMDB discover address for a request's query, or the name of the first parameter that is not allowed. */
+function discoverAddress(query: URLSearchParams): { address: string } | { bad: string } {
+  const out = new URLSearchParams()
+  for (const name of new Set(query.keys())) {
+    const values = query.getAll(name)
+    const check = Object.hasOwn(DISCOVER_PARAMS, name) ? DISCOVER_PARAMS[name] : null
+    if (!check || values.length !== 1 || !check(values[0])) return { bad: name }
+    out.set(name, values[0])
+  }
+  out.set('include_adult', 'false')
+  out.set('include_video', 'false')
+  return { address: `${TMDB_API}/discover/movie?${out}` }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const origin = request.headers.get('Origin')
@@ -257,6 +294,11 @@ export default {
         3600,
         cors,
       )
+    }
+    if (path === '/tmdb/discover') {
+      const built = discoverAddress(url.searchParams)
+      if ('bad' in built) return failure(400, `Bad discover parameter: ${built.bad}`, cors)
+      return relayTmdb(built.address, env, 3600, cors)
     }
     const film = /^\/tmdb\/movie\/([^/]+)$/.exec(path)
     if (film) {
