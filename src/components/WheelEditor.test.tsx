@@ -698,7 +698,7 @@ describe('choosing cards', () => {
     const box = within(overlay()!)
     expect(box.getByRole('heading', { name: 'Wheel cards' })).toBeInTheDocument()
     expect(box.getByRole('heading', { name: 'Movie cards' })).toBeInTheDocument()
-    expect(box.getAllByRole('switch')).toHaveLength(listed.length)
+    expect(box.getAllByRole('switch')).toHaveLength(listed.length + 2)
     for (const card of listed) {
       expect(box.getByRole('switch', { name: card.name })).toHaveAccessibleDescription(card.description)
     }
@@ -710,6 +710,30 @@ describe('choosing cards', () => {
     expect(screen.getByText(`${listed.length - 1} of ${listed.length} on`)).toBeInTheDocument()
     fireEvent.click(blind)
     expect(store.getState().settings.wheel.disabledCards).toEqual([])
+  })
+
+  test('each group has a switch that turns all its cards on or off, and shows a dash when mixed', () => {
+    const store = setup()
+    openEditor()
+    fireEvent.click(choose())
+    const box = within(overlay()!)
+    const wheelIds = listed.filter((c) => c.type === 'wheel').map((c) => c.id)
+    const movieIds = listed.filter((c) => c.type === 'movie').map((c) => c.id)
+    const wheelAll = box.getByRole('switch', { name: 'All wheel cards' }) as HTMLInputElement
+    const movieAll = box.getByRole('switch', { name: 'All movie cards' }) as HTMLInputElement
+    expect(wheelAll).toBeChecked()
+    fireEvent.click(wheelAll)
+    expect(store.getState().settings.wheel.disabledCards).toEqual(wheelIds)
+    expect(wheelAll).not.toBeChecked()
+    expect(movieAll).toBeChecked()
+    expect(box.getByText(`0 of ${wheelIds.length} on`)).toBeInTheDocument()
+    fireEvent.click(box.getByRole('switch', { name: 'Blind spin' }))
+    expect(wheelAll.indeterminate).toBe(true)
+    fireEvent.click(wheelAll)
+    expect(store.getState().settings.wheel.disabledCards).toEqual([])
+    fireEvent.click(movieAll)
+    expect(store.getState().settings.wheel.disabledCards).toEqual(movieIds)
+    expect(screen.getByText(`${wheelIds.length} of ${listed.length} on`)).toBeInTheDocument()
   })
 
   test('Done, Escape and a press outside close it, focus returns to the button, and a press inside does not', () => {

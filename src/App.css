@@ -2859,11 +2859,25 @@ dialog.card-switches::backdrop {
 }
 
 .card-switches h3 {
-  margin: 0 0 var(--space-2);
+  margin: 0;
+}
+
+/* Each group is a card of its own, with its all-on switch in the head. */
+.card-switches section.card-group {
+  padding: var(--space-3) var(--space-4);
+  background: color-mix(in srgb, var(--text) 6%, var(--card));
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
 }
 
 .card-switches section + section {
   margin-top: var(--space-4);
+}
+
+.card-switches .card-head {
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--card-border);
 }
 
 .card-switches ul {

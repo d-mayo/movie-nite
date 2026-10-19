@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type RefCallback } from 'react'
 import { useApp } from '../state/store.ts'
 import { cards, type CardType } from '../wildcards/cards.ts'
 
@@ -13,7 +13,7 @@ const groups: { type: CardType; heading: string }[] = [
 // Mounted only while shown, like Credits: Done unmounts it directly and Escape does so
 // through the native `close` event. A press outside its box closes it too.
 export default function CardSwitches({ onClosed }: { onClosed: () => void }) {
-  const { settings, setCardEnabled } = useApp()
+  const { settings, setCardEnabled, setCardsEnabled } = useApp()
   const { disabledCards } = settings.wheel
   const ref = useRef<HTMLDialogElement>(null)
   // True from a press on the backdrop, outside the box, until its click.
@@ -55,13 +55,36 @@ export default function CardSwitches({ onClosed }: { onClosed: () => void }) {
         </button>
       </div>
       <div className="card-switches-body">
-        {groups.map(({ type, heading }) => (
-          <section key={type} aria-labelledby={`card-group-${type}`}>
-            <h3 id={`card-group-${type}`}>{heading}</h3>
+        {groups.map(({ type, heading }) => {
+          const group = listedCards.filter((card) => card.type === type)
+          const on = group.filter((card) => !disabledCards.includes(card.id)).length
+          // Neither all on nor all off: the group switch shows the dash.
+          const mixed: RefCallback<HTMLInputElement> = (el) => {
+            if (el) el.indeterminate = on > 0 && on < group.length
+          }
+          return (
+          <section key={type} className="card-group" aria-labelledby={`card-group-${type}`}>
+            <div className="card-head">
+              <h3 id={`card-group-${type}`}>{heading}</h3>
+              <label className="switch">
+                <input
+                  ref={mixed}
+                  type="checkbox"
+                  role="switch"
+                  aria-label={`All ${heading.toLowerCase()}`}
+                  checked={on === group.length}
+                  onChange={(e) =>
+                    setCardsEnabled(
+                      group.map((card) => card.id),
+                      e.target.checked,
+                    )
+                  }
+                />
+                {on} of {group.length} on
+              </label>
+            </div>
             <ul>
-              {listedCards
-                .filter((card) => card.type === type)
-                .map((card) => (
+              {group.map((card) => (
                   <li key={card.id}>
                     <label className="switch">
                       <input
@@ -75,10 +98,11 @@ export default function CardSwitches({ onClosed }: { onClosed: () => void }) {
                     </label>
                     <p id={`card-desc-${card.id}`}>{card.description}</p>
                   </li>
-                ))}
+              ))}
             </ul>
           </section>
-        ))}
+          )
+        })}
       </div>
     </dialog>
   )

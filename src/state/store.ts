@@ -30,6 +30,7 @@ import {
   setShowLabels,
   setWildcardWheel,
   setCardEnabled,
+  setCardsEnabled,
   restoreWheelSettings,
   setViewersHidden,
   setViewerColor,
@@ -98,6 +99,7 @@ export interface AppActions {
   setShowLabels(show: boolean): void
   setWildcardWheel(on: boolean): void
   setCardEnabled(cardId: string, enabled: boolean): void
+  setCardsEnabled(cardIds: string[], enabled: boolean): void
   addCardEffect(effect: CardEffect, nomination?: Nomination): void
   restoreWheelSettings(): void
 }
@@ -270,6 +272,7 @@ export function createAppStore(persistence: Persistence): AppStore {
       setShowLabels: (show) => update((s) => setShowLabels(s, show)),
       setWildcardWheel: (on) => update((s) => setWildcardWheel(s, on)),
       setCardEnabled: (cardId, enabled) => update((s) => setCardEnabled(s, cardId, enabled)),
+      setCardsEnabled: (cardIds, enabled) => update((s) => setCardsEnabled(s, cardIds, enabled)),
       addCardEffect: (effect, nomination) => update((s) => addCardEffect(s, effect, nomination)),
       restoreWheelSettings: () => update(restoreWheelSettings),
     }
