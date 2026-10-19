@@ -213,6 +213,15 @@ main {
     margin-inline: auto;
   }
 
+  /* With the pane hidden the chips run the panel's width, so they keep to the
+     left of the held-film card (its published width plus its corner offset and a
+     gap; unset with no card, the fallback cancels the gap). */
+  .night.viewers-hidden .card-chips {
+    align-self: stretch;
+    box-sizing: border-box;
+    padding-right: calc(var(--held-film-width, -2rem) + 2rem);
+  }
+
   .night.viewers-hidden .setup-column {
     translate: 100vw 0;
     visibility: hidden;
@@ -620,6 +629,14 @@ html:has(.wheel-stage[data-zoom]) {
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--space-2);
+}
+
+/* Below 900 px the held-film card hangs over the page's bottom corner, so the
+   night leaves room for it and the chips can scroll clear. */
+@media (max-width: 899px) {
+  .night {
+    padding-bottom: var(--held-film-height, 0px);
+  }
 }
 
 .card-chip {
