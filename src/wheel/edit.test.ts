@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
+  cardBonus,
   deriveSlices,
   defaultWheelSettings,
   effectiveSetting,
@@ -13,6 +14,7 @@ import {
   type WheelSettings,
 } from './edit.ts'
 import type { Slice } from './layout.ts'
+import type { CardEffect } from '../wildcards/cards.ts'
 
 const labels = (slices: Slice[]) => slices.map((s) => (s.kind === 'wildcard' ? 'W' : s.viewerId))
 const wheel = (change: Partial<WheelSettings> = {}): WheelSettings => ({
@@ -144,5 +146,62 @@ describe('the spin', () => {
   test('a volume is an integer from 0 to 100', () => {
     for (const v of [0, 5, 70, 100]) expect(isValidSoundVolume(v)).toBe(true)
     for (const v of [-1, 101, 50.5, NaN, Infinity]) expect(isValidSoundVolume(v)).toBe(false)
+  })
+})
+
+describe('the wheel with card effects', () => {
+  const weightFx = (amount: number, ...viewerIds: string[]): CardEffect => ({
+    cardId: 'viewer-weight',
+    label: 'fx',
+    change: { kind: 'weight', amount, viewerIds },
+  })
+  const sliceFx = (amount: number, ...viewerIds: string[]): CardEffect => ({
+    cardId: 'viewer-slices',
+    label: 'fx',
+    change: { kind: 'slices', amount, viewerIds },
+  })
+  const wildFx = (amount: number): CardEffect => ({
+    cardId: 'wildcards',
+    label: 'fx',
+    change: { kind: 'wildcards', amount },
+  })
+
+  test('adds a named viewer\'s change over their adjustment or default', () => {
+    expect(effectiveSetting(wheel(), {}, 'A', [weightFx(2, 'A'), sliceFx(1, 'A')])).toEqual({
+      slices: 4,
+      weight: 7,
+    })
+    expect(effectiveSetting(wheel(), { A: { weight: 8 } }, 'A', [weightFx(2, 'A')]).weight).toBe(10)
+  })
+
+  test('clamps the sum and ignores viewers not named', () => {
+    const fx = [weightFx(-6, 'A'), sliceFx(20, 'A')]
+    expect(effectiveSetting(wheel(), {}, 'A', fx)).toEqual({ slices: 12, weight: 0.5 })
+    expect(effectiveSetting(wheel(), {}, 'B', fx)).toEqual({ slices: 3, weight: 5 })
+  })
+
+  test('derives the wheel with the effects', () => {
+    const slices = deriveSlices(['A', 'B'], wheel(), {}, [sliceFx(1, 'A'), weightFx(5, 'A')])
+    const a = slices.filter((s) => s.kind === 'nomination' && s.viewerId === 'A')
+    expect(a).toHaveLength(4)
+    expect(a[0].weight).toBeCloseTo(10 / 4)
+  })
+
+  test('an unnamed joiner is unaffected', () => {
+    const slices = deriveSlices(['A', 'B', 'J'], wheel(), {}, [sliceFx(2, 'A', 'B')])
+    expect(slices.filter((s) => s.kind === 'nomination' && s.viewerId === 'J')).toHaveLength(3)
+  })
+
+  test('adds wildcards in both modes and caps them at 12', () => {
+    const count = (s: Slice[]) => s.filter((x) => x.kind === 'wildcard').length
+    expect(count(deriveSlices(['A', 'B'], wheel(), {}, [wildFx(2)]))).toBe(4)
+    expect(count(deriveSlices(['A'], wheel({ wildcardsPerViewer: false, wildcardCount: 3 }), {}, [wildFx(3)]))).toBe(6)
+    expect(count(deriveSlices(['A'], wheel({ wildcardsPerViewer: false, wildcardCount: 11 }), {}, [wildFx(3), wildFx(3)]))).toBe(12)
+  })
+
+  test('cardBonus is what the cards actually add', () => {
+    expect(cardBonus(wheel(), {}, 'A', [weightFx(2, 'A')])).toEqual({ slices: 0, weight: 2 })
+    expect(cardBonus(wheel(), {}, 'A', [weightFx(20, 'A')])).toEqual({ slices: 0, weight: 15 })
+    expect(cardBonus(wheel(), {}, 'B', [weightFx(2, 'A')])).toEqual({ slices: 0, weight: 0 })
   })
 })

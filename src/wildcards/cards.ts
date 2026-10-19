@@ -188,3 +188,25 @@ export const cards: CardDef[] = [
   everyoneCard('everyone-slices', 'slices'),
   wildcardsCard,
 ]
+
+function validChange(value: unknown): value is CardChange {
+  if (!value || typeof value !== 'object') return false
+  const change = value as { kind?: unknown; amount?: unknown; viewerIds?: unknown }
+  if (typeof change.amount !== 'number' || !Number.isInteger(change.amount)) return false
+  if (change.kind === 'wildcards') return true
+  if (change.kind !== 'slices' && change.kind !== 'weight') return false
+  return Array.isArray(change.viewerIds) && change.viewerIds.every((id) => typeof id === 'string')
+}
+
+// The stored effects that have the right shape; anything else is dropped.
+export function validCardEffects(value: unknown): CardEffect[] {
+  if (!Array.isArray(value)) return []
+  return value.filter(
+    (e): e is CardEffect =>
+      !!e &&
+      typeof e === 'object' &&
+      typeof (e as CardEffect).cardId === 'string' &&
+      typeof (e as CardEffect).label === 'string' &&
+      validChange((e as CardEffect).change),
+  )
+}

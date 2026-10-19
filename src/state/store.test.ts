@@ -67,6 +67,7 @@ test('stored data missing a field is merged over the defaults', () => {
   expect(store.getState().settings).not.toHaveProperty('tmdbToken')
   expect(store.getState().night).toEqual({
     presentIds: ['x'],
+    cardEffects: [],
     nominations: {},
     wonFilms: [],
     watched: [],
@@ -150,6 +151,7 @@ test('wheel settings and adjustments survive a reload', () => {
     soundVolume: 35,
     soundMuted: true,
     showLabels: false,
+    wildcardWheel: true,
   })
 })
 
@@ -388,4 +390,57 @@ test('a Letterboxd link survives a reload, and an invalid stored one is dropped'
   expect(s.roster.map((v) => v.name)).toEqual(['A', 'B', 'C', 'D', 'E'])
   expect(s.roster.every((v) => !('letterboxd' in v) || v.letterboxd)).toBe(true)
   expect(s.version).toBe(1)
+})
+
+const effect = {
+  cardId: 'wildcards',
+  label: '+1 wildcard',
+  change: { kind: 'wildcards' as const, amount: 1 },
+}
+
+test('a landed card effect is stored, survives a reload and is cleared by New night only', () => {
+  const persistence = createMemoryPersistence()
+  const a = createAppStore(persistence)
+  a.getState().addViewer('Ann')
+  const ann = a.getState().roster[0].id
+  a.getState().addCardEffect(effect)
+  a.getState().setViewerWeight(ann, 8)
+  a.getState().resetAllViewerSettings()
+  a.getState().resetViewerSettings(ann)
+  expect(a.getState().night.cardEffects).toEqual([effect])
+  a.getState().removeViewer(ann)
+  expect(a.getState().night.cardEffects).toEqual([effect])
+  expect(createAppStore(persistence).getState().night.cardEffects).toEqual([effect])
+  a.getState().newNight()
+  expect(a.getState().night.cardEffects).toEqual([])
+})
+
+test('a stored night loads only its valid card effects', () => {
+  const persistence = createMemoryPersistence()
+  persistence.save({
+    ...defaultState,
+    night: {
+      ...defaultState.night,
+      cardEffects: [effect, { cardId: 1 }, null, { cardId: 'x', label: 'y', change: { kind: 'bad' } }],
+    } as never,
+  })
+  expect(createAppStore(persistence).getState().night.cardEffects).toEqual([effect])
+  const old = createMemoryPersistence()
+  const { cardEffects: _dropped, ...night } = defaultState.night
+  void _dropped
+  old.save({ ...defaultState, night: night as never })
+  expect(createAppStore(old).getState().night.cardEffects).toEqual([])
+})
+
+test('the wildcard wheel setting loads as on unless stored as a boolean, and Restore turns it on', () => {
+  const persistence = createMemoryPersistence()
+  const wheel = { ...defaultWheelSettings, wildcardWheel: 'no' as never }
+  persistence.save({ ...defaultState, settings: { ...defaultState.settings, wheel } })
+  const store = createAppStore(persistence)
+  expect(store.getState().settings.wheel.wildcardWheel).toBe(true)
+  store.getState().setWildcardWheel(false)
+  expect(store.getState().settings.wheel.wildcardWheel).toBe(false)
+  expect(createAppStore(persistence).getState().settings.wheel.wildcardWheel).toBe(false)
+  store.getState().restoreWheelSettings()
+  expect(store.getState().settings.wheel.wildcardWheel).toBe(true)
 })

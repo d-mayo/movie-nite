@@ -10,6 +10,7 @@ import {
   type Adjustment,
   type WheelSettings,
 } from '../wheel/edit.ts'
+import type { CardEffect } from '../wildcards/cards.ts'
 import { firstFreePreset, isPreset, maxViewers } from '../wheel/colors.ts'
 import { isLinkableUsername } from '../letterboxd/links.ts'
 
@@ -56,6 +57,8 @@ export interface AppState {
     spun: boolean
     // True while the held film's corner card is shrunk to the banner chip.
     holdoverDismissed: boolean
+    // The landed wildcard cards; the wheel is derived with them for the rest of the night.
+    cardEffects: CardEffect[]
   }
   holdover: Nomination | null
 }
@@ -73,6 +76,7 @@ export const defaultState: AppState = {
     adjustments: {},
     spun: false,
     holdoverDismissed: false,
+    cardEffects: [],
   },
   holdover: null,
 }
@@ -240,6 +244,7 @@ export function newNight(state: AppState): AppState {
       adjustments: {},
       spun: false,
       holdoverDismissed: false,
+      cardEffects: [],
     },
   }
 }
@@ -307,6 +312,11 @@ export function setSoundEffects(state: AppState, level: number): AppState {
 export function setSoundMuted(state: AppState, muted: boolean): AppState {
   if (state.settings.wheel.soundMuted === muted) return state
   return withWheel(state, { soundMuted: muted })
+}
+
+export function setWildcardWheel(state: AppState, on: boolean): AppState {
+  if (state.settings.wheel.wildcardWheel === on) return state
+  return withWheel(state, { wildcardWheel: on })
 }
 
 export function setShowLabels(state: AppState, show: boolean): AppState {
@@ -385,6 +395,10 @@ export function recordOutcome(
     night,
     holdover: outcome === 'tooLong' ? nomination : state.holdover,
   }
+}
+
+export function addCardEffect(state: AppState, effect: CardEffect): AppState {
+  return { ...state, night: { ...state.night, cardEffects: [...state.night.cardEffects, effect] } }
 }
 
 export function endNight(state: AppState): AppState {

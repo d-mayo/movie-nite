@@ -21,7 +21,7 @@ export function buildWedges(
 ): Wedge[] {
   const onWheel = viewersOnWheel(night)
   const ordered = roster.map((v) => v.id).filter((id) => onWheel.includes(id))
-  const slices = deriveSlices(ordered, wheel, night.adjustments)
+  const slices = deriveSlices(ordered, wheel, night.adjustments, night.cardEffects)
   const arcs = sliceArcs(slices)
   return slices.map((slice, i) => {
     if (slice.kind === 'wildcard') {
