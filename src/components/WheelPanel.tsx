@@ -631,7 +631,7 @@ export default function WheelPanel({
       }
       if (source?.kind === 'commonGround') {
         if (!watchlist) {
-          fail(drawMessage('unavailable', '', undefined))
+          fail("Letterboxd can't be reached right now.")
           return
         }
         const group = commonGroundGroup(roster, night.presentIds, watchlist.memory)
@@ -644,7 +644,7 @@ export default function WheelPanel({
           count: maxCanFilms,
         }).catch(() => 'unavailable' as const)
         if (typeof shared === 'string') {
-          fail(shared === 'unavailable' ? drawMessage('unavailable', '', undefined) : 'No film on the shared watchlists can be used.')
+          fail(shared === 'unavailable' ? "Letterboxd can't be reached right now." : 'No film on the shared watchlists can be used.')
           return
         }
         const films = await loadFilms(client, shared.map((s) => s.tmdbId))

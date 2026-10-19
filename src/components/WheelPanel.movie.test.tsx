@@ -79,6 +79,8 @@ function setup(options: {
   nominations?: Record<string, Nomination>
   people?: typeof roster
   holdover?: Nomination | null
+  wonFilms?: number[]
+  watched?: Nomination[]
   fetchFn: typeof fetch
 }) {
   const present = options.present ?? ['a', 'b', 'c']
@@ -90,6 +92,8 @@ function setup(options: {
       night: {
         ...defaultState.night,
         presentIds: present,
+        wonFilms: options.wonFilms ?? [],
+        watched: options.watched ?? [],
         nominations: options.nominations ?? { a: film(1), b: film(2), c: film(3) },
       },
       holdover: options.holdover ?? null,
@@ -435,13 +439,17 @@ function lbFetch(options: {
   lists: Record<string, string[]>
   ids: Record<string, number | null>
   noDetails?: boolean
+  private?: boolean
+  filmFails?: boolean
 }) {
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
   const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
     const list = /\/lb\/([a-z]+)\/watchlist/.exec(url)
+    if (list && options.private) return json({ error: 'Watchlist is private' }, 404)
     if (list) return json({ slugs: options.lists[list[1]] ?? [], hasNext: false })
     if (url.includes('/lb/film/')) {
+      if (options.filmFails) return json({}, 500)
       const slug = url.split('/').pop()!
       return json({ slug, tmdbId: options.ids[slug] ?? null })
     }
@@ -581,4 +589,62 @@ test('Common Ground with only excluded shared films shows a message and lands no
   expect(within(dialog).getByText('No film on the shared watchlists can be used.')).toBeInTheDocument()
   fireEvent.click(backButton(dialog))
   expect(store.getState().night.cardEffects).toEqual([])
+})
+
+test("X's Backlog skips the won and watched films", async () => {
+  forceCard('backlog')
+  const fetchFn = lbFetch({
+    lists: { ann: ['w', 'x', 'z'], bo: [] },
+    ids: { w: 201, x: 202, z: 204 },
+  })
+  setup({ fetchFn, people: linked, wonFilms: [201], watched: [film(202)] })
+  await walksSettled(fetchFn)
+  const dialog = await openCard()
+  fireEvent.click(await within(dialog).findByRole('button', { name: 'Show the film' }))
+  await screen.findByRole('heading', { name: 'Found 204' })
+})
+
+test("a two-film Backlog gives two cans and text reading 'Two'", async () => {
+  forceCard('backlog')
+  const fetchFn = lbFetch({ lists: { ann: ['x', 'y'], bo: [] }, ids: { x: 101, y: 102 } })
+  setup({ fetchFn, people: linked })
+  await walksSettled(fetchFn)
+  const dialog = await openCard()
+  expect(await within(dialog).findAllByRole('button', { name: /^Pick can/ })).toHaveLength(2)
+  expect(within(dialog).getByText("Two films from Ann's watchlist in the cans.")).toBeInTheDocument()
+})
+
+test('a Backlog with a private watchlist shows the message and Back lands nothing', async () => {
+  forceCard('backlog')
+  const fetchFn = lbFetch({ lists: {}, ids: {}, private: true })
+  const { store } = setup({ fetchFn, people: linked })
+  await walksSettled(fetchFn)
+  const dialog = await openCard()
+  await waitFor(() => expect(backButton(dialog)).toBeEnabled())
+  expect(within(dialog).getByText("Ann's watchlist is private.")).toBeInTheDocument()
+  fireEvent.click(backButton(dialog))
+  expect(store.getState().night.cardEffects).toEqual([])
+})
+
+test('Common Ground shows a message when Letterboxd fails while mapping the shared films', async () => {
+  forceCard('common-ground')
+  const fetchFn = lbFetch({ lists: { ann: ['x'], bo: ['x'] }, ids: { x: 101 }, filmFails: true })
+  const { store } = setup({ fetchFn, people: linked })
+  await walksSettled(fetchFn)
+  const dialog = await openCard()
+  await waitFor(() => expect(backButton(dialog)).toBeEnabled())
+  expect(within(dialog).getByText("Letterboxd can't be reached right now.")).toBeInTheDocument()
+  fireEvent.click(backButton(dialog))
+  expect(store.getState().night.cardEffects).toEqual([])
+})
+
+test("an away viewer's watchlist is left out of Common Ground's group", async () => {
+  forceCard('common-ground')
+  const fetchFn = lbFetch({ lists: { ann: ['x'], bo: ['x'] }, ids: { x: 101 } })
+  setup({ fetchFn, people: linked, present: ['a', 'c'] })
+  await waitFor(() => expect(vi.mocked(fetchFn).mock.calls.some((c) => String(c[0]).includes('/lb/ann/watchlist'))).toBe(true))
+  await act(async () => {})
+  const dialog = await openCard()
+  await waitFor(() => expect(backButton(dialog)).toBeEnabled())
+  expect(within(dialog).getByText('No film on the shared watchlists can be used.')).toBeInTheDocument()
 })
