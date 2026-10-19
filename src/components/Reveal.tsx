@@ -11,7 +11,7 @@ import FilmSearch from './FilmSearch.tsx'
 const snippetChars = 140
 
 // A wildcard's grey would vanish on the black stock, so its dot is the steel light.
-const wildcardDot = 'var(--film-steel-light)'
+export const wildcardDot = 'var(--film-steel-light)'
 
 function Eyebrow({ color, closeCall, children }: { color: string; closeCall: boolean; children: string }) {
   return (
@@ -23,8 +23,21 @@ function Eyebrow({ color, closeCall, children }: { color: string; closeCall: boo
   )
 }
 
+// A film that came through a movie card: it has no wedge of its own.
+export interface CardFilm {
+  nomination: Nomination
+  // The card's name, or the viewer and the card.
+  byline: string
+  // The viewer's color for their own film, else the wildcard's steel light.
+  dot: string
+  // The film was a viewer's own, so it wins as a main-wheel win does.
+  fromWheel: boolean
+}
+
 interface Props {
-  wedge: Wedge
+  // The wedge that landed; a film from a movie card is given as `film` instead.
+  wedge?: Wedge
+  film?: CardFilm
   revealedAt: Date
   client: TmdbClient
   // The film already saved for next week this night, which a second save replaces.
@@ -71,6 +84,7 @@ export function useStageCenter(): number | null {
 
 export default function Reveal({
   wedge,
+  film,
   revealedAt,
   client,
   heldFilm = null,
@@ -85,12 +99,15 @@ export default function Reveal({
   const [picked, setPicked] = useState<Pick | null>(null)
 
   // A nomination reveal is a viewer's film; a wildcard reveal shows the picked film once there is one.
-  const shown: Pick | null = wedge.nomination
-    ? { nomination: wedge.nomination, at: revealedAt }
-    : picked
-  const fromWheel = wedge.nomination !== null
+  const shown: Pick | null = film
+    ? { nomination: film.nomination, at: revealedAt }
+    : wedge?.nomination
+      ? { nomination: wedge.nomination, at: revealedAt }
+      : picked
+  const fromWheel = film ? film.fromWheel : wedge?.nomination != null
 
-  const dot = fromWheel ? wedge.color : wildcardDot
+  const dot = film ? film.dot : wedge && fromWheel ? wedge.color : wildcardDot
+  const byline = film ? film.byline : fromWheel ? `Nominated by ${wedge?.viewerName}` : 'Wildcard pick'
 
   return (
     <div
@@ -99,13 +116,13 @@ export default function Reveal({
       className={reduced ? 'reveal' : 'reveal reveal-thread'}
       style={centerX === null ? undefined : { left: centerX }}
     >
-      <div className={blind && fromWheel && !reduced ? 'reveal-film reveal-blind' : 'reveal-film'}>
+      <div className={blind && fromWheel && !film && !reduced ? 'reveal-film reveal-blind' : 'reveal-film'}>
         {shown ? (
           <FilmReveal
             nomination={shown.nomination}
             at={shown.at}
             dot={dot}
-            byline={fromWheel ? `Nominated by ${wedge.viewerName}` : 'Wildcard pick'}
+            byline={byline}
             heldFilm={heldFilm}
             closeCall={closeCall}
             onOutcome={(outcome) => onOutcome(shown.nomination, outcome, fromWheel)}

@@ -795,6 +795,74 @@ html:has(.wheel-stage[data-zoom]) {
   cursor: default;
 }
 
+/* A movie card's sealed film cans (interim look): plain buttons on film stock, opening to the film's poster. */
+.film-cans {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.film-cans-status {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--film-steel-light);
+}
+
+.film-cans-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-auto-flow: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.can {
+  box-sizing: border-box;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--space-1);
+  width: 100%;
+  min-height: 9rem;
+  padding: var(--space-2);
+  background: var(--film-steel-dark);
+  color: var(--film-cream);
+  border: 2px solid var(--film-steel);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.can:disabled {
+  cursor: default;
+}
+
+.can-open {
+  background: var(--film-stock);
+  border-color: var(--film-steel-light);
+}
+
+.can-open img {
+  max-width: 100%;
+  height: auto;
+}
+
+.can-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.can-year {
+  font-size: 0.75rem;
+  color: var(--film-steel-light);
+}
+
+.can-seal {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2rem;
+}
+
 .reveal-thread {
   animation: reveal-thread 0.6s ease-out;
 }

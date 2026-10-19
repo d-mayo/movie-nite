@@ -25,10 +25,13 @@ import { catchChance, forcedCatchRotation, isCatch } from '../wheel/catch.ts'
 import { pinAngles, pinPastPointer, pushStart } from '../wheel/pins.ts'
 import { blindfold, buildCardWedges, buildWedges, type Wedge } from '../wheel/wedges.ts'
 import { effectiveSetting, spinPlan, wildcardTotal } from '../wheel/edit.ts'
-import { drawExclusions, drawMessage } from '../letterboxd/drawing.ts'
-import { canBeReshuffled, drawFromWatchlist, type WatchlistSource } from '../letterboxd/watchlist.ts'
+import { drawExclusions, drawMessage, movieExclusions } from '../letterboxd/drawing.ts'
+import { canBeReshuffled, drawFilmsFromWatchlist, type WatchlistSource } from '../letterboxd/watchlist.ts'
+import { drawDiscoverFilms, filmsMessage, loadFilms, maxCanFilms } from '../tmdb/discoverDraw.ts'
+import { newCans, pickCan, takeFilm, type Cans } from '../wildcards/cans.ts'
 import { cards, type DealContext } from '../wildcards/cards.ts'
 import { canDeal, dealCards, dealSize, type DealtCard } from '../wildcards/deal.ts'
+import FilmCans from './FilmCans.tsx'
 import {
   buildCatchPath,
   buildCloseCallPath,
@@ -45,7 +48,7 @@ import { silentSound, type SoundEngine } from '../sound/engine.ts'
 import CardReveal from './CardReveal.tsx'
 import Countdown from './Countdown.tsx'
 import NightOver from './NightOver.tsx'
-import Reveal from './Reveal.tsx'
+import Reveal, { wildcardDot, type CardFilm } from './Reveal.tsx'
 import Wheel from './Wheel.tsx'
 import { useWheelMotion, type Cue } from './useWheelMotion.ts'
 
@@ -97,12 +100,15 @@ interface Spin {
   blind: boolean
   // The landing is on a wildcard that opens the wildcard wheel.
   toCards: boolean
+  // The film a movie card gave, once the room took it: its reveal replaces the card.
+  taken: { film: CardFilm; at: Date } | null
 }
 
-// A Reshuffle card's draw: under way, done with the film it found, or failed with why.
-type Reshuffle =
+// A card's draw of films (a Reshuffle's or a movie card's): under way, ready with the films in their cans, or
+// failed with why. The cans and the pick live here, in memory only.
+type Draw =
   | { key: Date; phase: 'drawing' }
-  | { key: Date; phase: 'done'; film: Nomination }
+  | { key: Date; phase: 'ready'; cans: Cans }
   | { key: Date; phase: 'failed'; message: string }
 
 // Half of a crossfade between the main wheel and the wildcard wheel: the stage fades out, the
@@ -162,7 +168,7 @@ export default function WheelPanel({
   const [forceCard, setForceCard] = useState('')
   // The stage is faded out between the main wheel and the wildcard wheel.
   const [fading, setFading] = useState(false)
-  const [reshuffle, setReshuffle] = useState<Reshuffle | null>(null)
+  const [draw, setDraw] = useState<Draw | null>(null)
   const fadeTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const countdownTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const holdTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -442,6 +448,7 @@ export default function WheelPanel({
           leaving: false,
           blind: false,
           toCards: false,
+          taken: null,
         }),
       )
     }
@@ -460,6 +467,7 @@ export default function WheelPanel({
       leaving: false,
       blind: blindPress,
       toCards,
+      taken: null,
     })
     onBusyChange(true)
     if (!countdown) {
@@ -495,24 +503,8 @@ export default function WheelPanel({
     onBusyChange(false)
   }
 
-  // The card's effect joins the night, the stage fades back to the main wheel, and the lock ends.
-  function back() {
-    const card = spin?.deal?.[spin.drawn]
-    if (!card || spin.leaving) return
-    const { change } = card.effect
-    if (change.kind === 'reshuffle') {
-      // A Reshuffle lands only with its film; one still drawing waits, and a failed one lands no card.
-      const current = reshuffle?.key === spin.revealedAt ? reshuffle : null
-      if (!current || current.phase === 'drawing') return
-      if (current.phase === 'done') {
-        addCardEffect(
-          { ...card.effect, change: { ...change, tmdbId: current.film.tmdbId } },
-          current.film,
-        )
-      }
-    } else {
-      addCardEffect(card.effect)
-    }
+  // The stage fades back to the main wheel, and the lock ends.
+  function leave() {
     clearTimeout(holdTimer.current)
     clearTimeout(easeTimer.current)
     if (musicOn.current) sound.revealClosed()
@@ -524,73 +516,152 @@ export default function WheelPanel({
     })
   }
 
-  // A Reshuffle card draws as it turns over: the film is only swapped in when Back lands the card.
-  const shownCard = spin?.revealedAt && spin.wheel === 'cards' && !spin.leaving ? spin.deal?.[spin.drawn] : null
-  const reshuffleKey = shownCard?.effect.change.kind === 'reshuffle' ? (spin?.revealedAt ?? null) : null
-  const latest = useRef({ night, holdover, roster, client, watchlist, card: shownCard })
+  // The current draw, when it is the shown card's.
+  const shownCard =
+    spin?.revealedAt && spin.wheel === 'cards' && !spin.leaving && !spin.taken ? spin.deal?.[spin.drawn] : null
+  const current = draw?.key === spin?.revealedAt ? draw : null
+
+  // The card's effect joins the night, the stage fades back to the main wheel, and the lock ends.
+  function back() {
+    const card = spin?.deal?.[spin.drawn]
+    if (!card || spin.leaving) return
+    const { change } = card.effect
+    if (change.kind === 'reshuffle') {
+      // A Reshuffle lands only with its film; one still drawing or in its cans waits, and a failed one lands no card.
+      if (!current || current.phase === 'drawing') return
+      if (current.phase === 'ready') {
+        if (!current.cans.taken) return
+        addCardEffect({ ...card.effect, change: { ...change, tmdbId: current.cans.taken.tmdbId } }, current.cans.taken)
+      }
+    } else if (change.kind === 'movie') {
+      // A movie card lands when its film is taken; Back is only for a draw that found nothing.
+      if (current?.phase !== 'failed') return
+    } else {
+      addCardEffect(card.effect)
+    }
+    leave()
+  }
+
+  // The room's film from a movie card: the card lands, and the film's own reveal replaces it.
+  function landFilm(card: DealtCard, nomination: Nomination) {
+    addCardEffect(card.effect)
+    const source = card.source
+    const viewer = source?.kind === 'shortest' ? roster.find((v) => v.id === source.viewerId) : undefined
+    const film: CardFilm = viewer
+      ? { nomination, byline: `Nominated by ${viewer.name} · ${card.title}`, dot: viewer.color, fromWheel: true }
+      : { nomination, byline: card.title, dot: wildcardDot, fromWheel: false }
+    setSpin((s) => s && { ...s, taken: { film, at: new Date() } })
+  }
+
+  // A pick or a take in the cans.
+  function playCans(play: (cans: Cans) => Cans) {
+    const card = spin?.deal?.[spin.drawn]
+    if (!card || current?.phase !== 'ready') return
+    const cans = play(current.cans)
+    if (cans === current.cans) return
+    setDraw({ ...current, cans })
+    if (cans.taken && card.effect.change.kind === 'movie') landFilm(card, cans.taken)
+  }
+
+  // A card that draws films does so as it turns over: a Reshuffle's film is only swapped in when Back lands the
+  // card, and a movie card lands when its film is taken.
+  const kind = shownCard?.effect.change.kind
+  const drawKey = kind === 'reshuffle' || kind === 'movie' ? (spin?.revealedAt ?? null) : null
+  const latest = useRef({ night, holdover, roster, client, watchlist, random, card: shownCard })
   useEffect(() => {
-    latest.current = { night, holdover, roster, client, watchlist, card: shownCard }
+    latest.current = { night, holdover, roster, client, watchlist, random, card: shownCard }
   })
   useEffect(() => {
-    if (!reshuffleKey) return
-    const aborted = { current: false }
-    const { night, holdover, roster, client, watchlist, card } = latest.current
+    if (!drawKey) return
+    const aborted = new AbortController()
+    const { night, holdover, roster, client, watchlist, random, card } = latest.current
     const change = card?.effect.change
-    const viewer = change?.kind === 'reshuffle' ? roster.find((v) => v.id === change.viewerIds[0]) : undefined
-    const settle = (next: Reshuffle) => {
-      if (!aborted.current) setReshuffle(next)
+    const settle = (next: Draw) => {
+      if (!aborted.signal.aborted) setDraw(next)
     }
-    settle({ key: reshuffleKey, phase: 'drawing' })
+    const fail = (message: string) => settle({ key: drawKey, phase: 'failed', message })
+    settle({ key: drawKey, phase: 'drawing' })
     void (async () => {
-      if (!viewer?.letterboxd || !watchlist) {
-        settle({ key: reshuffleKey, phase: 'failed', message: drawMessage('unavailable', viewer?.name ?? '', undefined) })
+      const source = card?.source
+      if (source?.kind === 'shortest') {
+        const film = night.nominations[source.viewerId]
+        if (film) settle({ key: drawKey, phase: 'ready', cans: newCans([film]) })
+        else fail('The film is no longer on the board.')
         return
       }
-      const result = await drawFromWatchlist({
+      if (source?.kind === 'discover') {
+        const films = await drawDiscoverFilms({
+          client,
+          params: source.params,
+          excluded: movieExclusions(night, holdover),
+          random,
+          signal: aborted.signal,
+        })
+        if (typeof films === 'string') fail(filmsMessage(films))
+        else settle({ key: drawKey, phase: 'ready', cans: newCans(films) })
+        return
+      }
+      const viewer = change?.kind === 'reshuffle' ? roster.find((v) => v.id === change.viewerIds[0]) : undefined
+      if (!viewer?.letterboxd || !watchlist) {
+        fail(drawMessage('unavailable', viewer?.name ?? '', undefined))
+        return
+      }
+      const result = await drawFilmsFromWatchlist({
         client: watchlist.client,
         memory: watchlist.memory,
         username: viewer.letterboxd.username,
         excluded: drawExclusions(night, holdover, viewer.id),
         random: watchlist.random,
+        count: maxCanFilms,
       }).catch(() => 'unavailable' as const)
       if (typeof result === 'string') {
-        settle({ key: reshuffleKey, phase: 'failed', message: drawMessage(result, viewer.name, viewer.letterboxd.username) })
+        fail(drawMessage(result, viewer.name, viewer.letterboxd.username))
         return
       }
-      try {
-        settle({ key: reshuffleKey, phase: 'done', film: await client.getMovie(result) })
-      } catch {
-        settle({ key: reshuffleKey, phase: 'failed', message: "The drawn film couldn't be loaded." })
-      }
+      const films = await loadFilms(client, result)
+      if (films.length === 0) fail("The drawn film couldn't be loaded.")
+      else settle({ key: drawKey, phase: 'ready', cans: newCans(films) })
     })()
-    return () => {
-      aborted.current = true
-    }
-  }, [reshuffleKey])
+    return () => aborted.abort()
+  }, [drawKey])
 
-  // What a Reshuffle card says: it is drawing, then the swap, or why not.
-  function reshuffleText(): string | undefined {
+  // What a drawing card says: it is drawing, then its cans, the swap or why not.
+  function cardText(): string | undefined {
     const change = shownCard?.effect.change
-    if (change?.kind !== 'reshuffle') return undefined
-    const viewer = roster.find((v) => v.id === change.viewerIds[0])
-    const name = viewer?.name ?? ''
-    const current = reshuffle?.key === spin?.revealedAt ? reshuffle : null
-    if (!current || current.phase === 'drawing') return `Drawing from ${name}'s watchlist…`
-    if (current.phase === 'failed') return `${current.message} ${name}'s film stays.`
-    const old = night.nominations[change.viewerIds[0]]
-    const added = `${current.film.title}${current.film.year === null ? '' : ` (${current.film.year})`}`
-    return old ? `${old.title} is swapped for ${added}.` : `${name} gets ${added}.`
+    if (change?.kind !== 'reshuffle' && change?.kind !== 'movie') return undefined
+    const reshuffle = change.kind === 'reshuffle'
+    const name = reshuffle ? (roster.find((v) => v.id === change.viewerIds[0])?.name ?? '') : ''
+    if (!current || current.phase === 'drawing') return reshuffle ? `Drawing from ${name}'s watchlist…` : 'Finding films…'
+    if (current.phase === 'failed') return reshuffle ? `${current.message} ${name}'s film stays.` : current.message
+    const { cans } = current
+    if (reshuffle) {
+      if (!cans.taken) return shownCard?.text
+      const old = night.nominations[change.viewerIds[0]]
+      const added = `${cans.taken.title}${cans.taken.year === null ? '' : ` (${cans.taken.year})`}`
+      return old ? `${old.title} is swapped for ${added}.` : `${name} gets ${added}.`
+    }
+    if (cans.films.length === 2) return shownCard?.text.replace(/^Three /, 'Two ')
+    return shownCard?.text
   }
 
-  function reshuffleBusy(): boolean {
-    if (shownCard?.effect.change.kind !== 'reshuffle') return false
-    const current = reshuffle?.key === spin?.revealedAt ? reshuffle : null
-    return !current || current.phase === 'drawing'
+  // Back and Escape wait while films load and while the cans are in play.
+  function cardBusy(): boolean {
+    const change = shownCard?.effect.change
+    if (change?.kind !== 'reshuffle' && change?.kind !== 'movie') return false
+    if (!current || current.phase === 'drawing') return true
+    if (current.phase === 'failed') return false
+    return change.kind === 'movie' || !current.cans.taken
   }
 
   function outcome(nomination: Nomination, result: Outcome, fromWheel: boolean) {
     recordOutcome(nomination, result, fromWheel)
     close()
+  }
+
+  // A movie card's film closes its reveal back to the main wheel, whichever way it closes.
+  function filmOutcome(nomination: Nomination, result: Outcome, fromWheel: boolean) {
+    recordOutcome(nomination, result, fromWheel)
+    leave()
   }
 
   return (
@@ -689,13 +760,31 @@ export default function WheelPanel({
       {reason && reasonSlot && createPortal(<p>{reason}</p>, reasonSlot)}
       {night.ended && !reasonSlot && <NightOver />}
       {night.ended && reasonSlot && createPortal(<NightOver />, reasonSlot)}
-      {spin?.revealedAt && spin.wheel === 'cards' && !spin.leaving && spin.deal?.[spin.drawn] && (
+      {shownCard && spin?.deal?.[spin.drawn] && (
         <CardReveal
           card={spin.deal[spin.drawn]}
           closeCall={spin.closeCall}
-          text={reshuffleText()}
-          busy={reshuffleBusy()}
+          text={cardText()}
+          busy={cardBusy()}
           onBack={back}
+        >
+          {current?.phase === 'ready' && !(current.cans.taken && kind === 'reshuffle') && (
+            <FilmCans
+              cans={current.cans}
+              onPick={(i) => playCans((c) => pickCan(c, i, random))}
+              onTake={(i) => playCans((c) => takeFilm(c, i))}
+            />
+          )}
+        </CardReveal>
+      )}
+      {spin?.taken && spin.wheel === 'cards' && !spin.leaving && (
+        <Reveal
+          film={spin.taken.film}
+          revealedAt={spin.taken.at}
+          client={client}
+          heldFilm={holdover}
+          onOutcome={filmOutcome}
+          onClose={leave}
         />
       )}
       {spin?.revealedAt && spin.wheel === 'main' && (

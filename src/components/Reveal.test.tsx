@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import App from '../App.tsx'
+import Reveal from './Reveal.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
@@ -278,4 +279,27 @@ test('a wildcard search with a failing fetch says film search is unavailable', a
   const dialog = await screen.findByRole('dialog')
   fireEvent.change(within(dialog).getByLabelText('Search for a wildcard film'), { target: { value: 'pick' } })
   expect(await within(dialog).findByText('Film search is unavailable right now')).toBeInTheDocument()
+})
+
+test.each([
+  ['a discover card', false, 'Genre Night: Horror', 'var(--film-steel-light)'],
+  ['Shortest on the Board', true, 'Nominated by Ann · Shortest on the Board', '#e6194b'],
+])('given a card film (%s) it shows the byline and dot and reports Watch and Save with fromWheel %s', (_name, fromWheel, byline, dot) => {
+  const onOutcome = vi.fn()
+  render(
+    <Reveal
+      film={{ nomination: film(7), byline, dot, fromWheel }}
+      revealedAt={new Date(2026, 9, 5, 20, 0)}
+      client={{ searchMovies: vi.fn(), discoverMovies: vi.fn(), getMovie: vi.fn() }}
+      onOutcome={onOutcome}
+      onClose={vi.fn()}
+    />,
+  )
+  expect(screen.getByRole('heading', { name: 'Film 7' })).toBeInTheDocument()
+  expect(screen.getByText(byline)).toBeInTheDocument()
+  expect(document.querySelector<HTMLElement>('.reveal-dot')?.style.getPropertyValue('--dot')).toBe(dot)
+  fireEvent.click(screen.getByRole('button', { name: 'Watch' }))
+  expect(onOutcome).toHaveBeenLastCalledWith(film(7), 'watch', fromWheel)
+  fireEvent.click(screen.getByRole('button', { name: 'Save for Next Week' }))
+  expect(onOutcome).toHaveBeenLastCalledWith(film(7), 'tooLong', fromWheel)
 })

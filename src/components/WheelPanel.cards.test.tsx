@@ -459,7 +459,7 @@ test('Picks Again takes the film off, refuses it, and the Spin waits for the vie
 })
 
 // A worker that answers the Letterboxd and TMDB routes, with the TMDB movie held until released.
-function reshuffleFetch(options: { watchlist?: Response; movie?: Response; hold?: boolean } = {}) {
+function reshuffleFetch(options: { watchlist?: Response; movie?: Response; hold?: boolean; slugs?: string[] } = {}) {
   let release: () => void = () => {}
   const held = new Promise<void>((resolve) => {
     release = resolve
@@ -467,14 +467,24 @@ function reshuffleFetch(options: { watchlist?: Response; movie?: Response; hold?
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
   const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
-    if (url.includes('/watchlist')) return options.watchlist?.clone() ?? json({ slugs: ['x'], hasNext: false })
-    if (url.includes('/lb/film/')) return json({ slug: 'x', tmdbId: 101 })
+    if (url.includes('/watchlist')) return options.watchlist?.clone() ?? json({ slugs: options.slugs ?? ['x'], hasNext: false })
+    if (url.includes('/lb/film/')) {
+      const slug = url.split('/').pop()!
+      return json({ slug, tmdbId: { x: 101, y: 102, z: 103 }[slug] })
+    }
     if (/\/lb\/[a-z]+$/.test(url)) return json({ username: 'ann' })
     if (url.includes('/tmdb/movie/')) {
       if (options.hold) await held
       return (
         options.movie?.clone() ??
-        json({ id: 101, title: 'Drawn', release_date: '2001-01-01', overview: '', runtime: 90, genres: [] })
+        json({
+          id: Number(url.split('/').pop()),
+          title: url.endsWith('/101') ? 'Drawn' : `Drawn ${url.split('/').pop()}`,
+          release_date: '2001-01-01',
+          overview: '',
+          runtime: 90,
+          genres: [],
+        })
       )
     }
     return json({}, 404)
@@ -484,7 +494,7 @@ function reshuffleFetch(options: { watchlist?: Response; movie?: Response; hold?
 
 const linkedRoster = [{ ...roster[0], letterboxd: { username: 'ann', status: 'found' as const } }, roster[1], roster[2]]
 
-test('a Reshuffle draws as it turns over, holds Back and Escape, then swaps and locks the film', async () => {
+test('a Reshuffle with one film draws as it turns over, holds Back and Escape, shows the film on a press, then swaps and locks it', async () => {
   forceCard('reshuffle')
   const { fetchFn, release } = reshuffleFetch({ hold: true })
   const { store } = setup({ fetchFn, people: linkedRoster })
@@ -496,6 +506,12 @@ test('a Reshuffle draws as it turns over, holds Back and Escape, then swaps and 
   expect(screen.getByRole('dialog')).toBeInTheDocument()
   expect(store.getState().night.cardEffects).toEqual([])
   release()
+  const show = await within(dialog).findByRole('button', { name: 'Show the film' })
+  expect(show).toHaveFocus()
+  expect(back).toBeDisabled()
+  fireEvent.keyDown(document, { key: 'Escape' })
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  fireEvent.click(show)
   await waitFor(() => expect(back).toBeEnabled())
   expect(within(dialog).getByText('Film 1 is swapped for Drawn (2001).')).toBeInTheDocument()
   expect(store.getState().night.nominations.a.tmdbId).toBe(1)
@@ -503,6 +519,31 @@ test('a Reshuffle draws as it turns over, holds Back and Escape, then swaps and 
   expect(store.getState().night.nominations.a.title).toBe('Drawn')
   expect(store.getState().night.nominations.a.fromWatchlist).toBeUndefined()
   expect(store.getState().night.cardEffects[0].change).toEqual({ kind: 'reshuffle', viewerIds: ['a'], tmdbId: 101 })
+  expect(isReshuffleLocked(store.getState().night, 'a')).toBe(true)
+})
+
+test('a Reshuffle with three films plays through the cans, then swaps and locks the taken film', async () => {
+  forceCard('reshuffle')
+  const { fetchFn } = reshuffleFetch({ slugs: ['x', 'y', 'z'] })
+  const { store } = setup({ fetchFn, people: linkedRoster })
+  const dialog = await openCard()
+  const pick = await within(dialog).findAllByRole('button', { name: /^Pick can/ })
+  expect(pick).toHaveLength(3)
+  const back = within(dialog).getByRole('button', { name: 'Back to the main wheel' })
+  expect(back).toBeDisabled()
+  fireEvent.click(pick[0])
+  expect(within(dialog).getAllByRole('button', { name: /^Take Drawn/ })).toHaveLength(2)
+  fireEvent.keyDown(document, { key: 'Escape' })
+  expect(store.getState().night.cardEffects).toEqual([])
+  expect(back).toBeDisabled()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Take the sealed can' }))
+  await waitFor(() => expect(back).toBeEnabled())
+  expect(within(dialog).getByText(/^Film 1 is swapped for Drawn/)).toBeInTheDocument()
+  expect(store.getState().night.nominations.a.tmdbId).toBe(1)
+  fireEvent.click(back)
+  const taken = store.getState().night.nominations.a
+  expect(taken.title).toMatch(/^Drawn/)
+  expect(store.getState().night.cardEffects[0].change).toEqual({ kind: 'reshuffle', viewerIds: ['a'], tmdbId: taken.tmdbId })
   expect(isReshuffleLocked(store.getState().night, 'a')).toBe(true)
 })
 
