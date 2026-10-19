@@ -2479,3 +2479,11 @@ dialog.wheel-drawer:focus {
 .credits li {
   margin-bottom: var(--space-1);
 }
+
+/* "+2 from cards" beside a viewer's stepper or slider. */
+.cards-note {
+  display: block;
+  color: var(--muted);
+  text-align: right;
+  font-size: 0.8rem;
+}

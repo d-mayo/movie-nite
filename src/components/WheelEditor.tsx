@@ -79,6 +79,7 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
     setSoundVolume,
     setSoundMuted,
     setShowLabels,
+    setWildcardWheel,
     restoreWheelSettings,
   } = useApp()
   const { wheel } = settings
@@ -243,6 +244,20 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
                 max={20}
                 onChange={setWildcardWeight}
               />
+            </fieldset>
+            <fieldset className="inset-card" disabled={locked} aria-labelledby="cards-heading">
+              <div className="card-head">
+                <h3 id="cards-heading">Wildcard Cards</h3>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={wheel.wildcardWheel}
+                    onChange={(e) => setWildcardWheel(e.target.checked)}
+                  />
+                  Wildcard wheel
+                </label>
+              </div>
             </fieldset>
             <fieldset className="inset-card" disabled={locked} aria-labelledby="spin-heading">
               <div className="card-head">

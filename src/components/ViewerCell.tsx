@@ -41,6 +41,8 @@ interface Props {
   film: Nomination | undefined
   // The slices and weight the wheel uses: the adjustment, else the global default.
   setting: ViewerSetting
+  // What tonight's wildcard cards add to the setting, after clamping; the figures show the sum.
+  bonus?: ViewerSetting
   // Whether the host adjusted this viewer tonight.
   adjusted: boolean
   open: boolean
@@ -133,6 +135,18 @@ function RemoveDialog({
   )
 }
 
+const noBonus: ViewerSetting = { slices: 0, weight: 0 }
+
+// "+2 from cards": beside a control whose viewer the night's wildcard cards change.
+function CardsNote({ amount }: { amount: number }) {
+  return (
+    <small className="cards-note">
+      {amount > 0 ? '+' : '−'}
+      {Math.abs(amount)} from cards
+    </small>
+  )
+}
+
 export default function ViewerCell({
   viewer,
   roster,
@@ -140,6 +154,7 @@ export default function ViewerCell({
   won,
   film,
   setting,
+  bonus = noBonus,
   adjusted,
   open: openRequested,
   client,
@@ -307,11 +322,11 @@ export default function ViewerCell({
           ) : (
             <span className="cell-summary">
               <span className="cell-figure">
-                <b>{setting.slices}</b> <small>{setting.slices === 1 ? 'slice' : 'slices'}</small>
+                <b>{setting.slices + bonus.slices}</b> <small>{setting.slices + bonus.slices === 1 ? 'slice' : 'slices'}</small>
               </span>
               <span className="visually-hidden"> · </span>
               <span className="cell-figure cell-figure-weight">
-                <small>weight</small> <b>{setting.weight}</b>
+                <small>weight</small> <b>{setting.weight + bonus.weight}</b>
               </span>
             </span>
           )}
@@ -399,6 +414,7 @@ export default function ViewerCell({
               max={12}
               onChange={(n) => setViewerSlices(viewer.id, n)}
             />
+            {bonus.slices !== 0 && <CardsNote amount={bonus.slices} />}
             <Slider
               label={`Weight for ${viewer.name}`}
               value={setting.weight}
@@ -407,6 +423,7 @@ export default function ViewerCell({
               max={20}
               onChange={(n) => setViewerWeight(viewer.id, n)}
             />
+            {bonus.weight !== 0 && <CardsNote amount={bonus.weight} />}
           </div>
         </div>
       )}

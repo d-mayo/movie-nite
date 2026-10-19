@@ -778,3 +778,40 @@ test('closing the cell while the slug is looked up aborts it, and a late answer 
   expect(watchlist.memory.slugs.has(11)).toBe(false)
   expect(screen.queryByText(/Also on/)).toBeNull()
 })
+
+test('cards change the figures, the open panel keeps the own value with a note, and no asterisk shows', () => {
+  const effect = (kind: 'weight' | 'slices', amount: number, ...viewerIds: string[]) => ({
+    cardId: 'x',
+    label: 'x',
+    change: { kind, amount, viewerIds },
+  })
+  const { store } = setupWith({
+    presentIds: ['a', 'b'],
+    nominations: { a: film },
+    cardEffects: [effect('weight', 2, 'a')],
+  })
+  const figures = () =>
+    Array.from(cellOf('Ann').querySelectorAll('.cell-figure b')).map((b) => b.textContent)
+  expect(figures()).toEqual(['3', '7'])
+  expect(within(cellOf('Ann')).queryByText('Adjusted tonight')).toBeNull()
+  expect(within(cellOf('Bo')).queryByText(/from cards/)).toBeNull()
+  openCell('Ann')
+  expect(screen.getByLabelText('Weight for Ann')).toHaveValue('5')
+  expect(screen.getByText('+2 from cards')).toBeInTheDocument()
+  expect(screen.getAllByText(/from cards/)).toHaveLength(1)
+  act(() => store.getState().setViewerWeight('a', 6))
+  expect(figures()).toEqual(['3', '8'])
+  expect(screen.getByLabelText('Weight for Ann')).toHaveValue('6')
+  // A clamped effect shows what it actually adds.
+  act(() => store.getState().setViewerWeight('a', 19))
+  act(() => store.getState().addCardEffect(effect('weight', 5, 'a')))
+  expect(figures()[1]).toBe('20')
+  expect(screen.getByText('+1 from cards')).toBeInTheDocument()
+  // A minus on slices.
+  act(() => store.getState().addCardEffect(effect('slices', -1, 'a')))
+  expect(figures()[0]).toBe('2')
+  expect(screen.getByText('−1 from cards')).toBeInTheDocument()
+  // Nothing left to add: no note.
+  act(() => store.getState().setViewerWeight('a', 20))
+  expect(screen.queryByText(/\+\d+ from cards/)).toBeNull()
+})
