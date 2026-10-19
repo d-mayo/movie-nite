@@ -594,6 +594,8 @@ function recordingSound() {
       log.breaks++
       log.events.push('break')
     },
+    drumroll: () => {},
+    drumrollBreak: () => {},
     landed: (seconds, closeCall = false) => {
       log.events.push('landed')
       log.landed.push(seconds)

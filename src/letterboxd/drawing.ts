@@ -22,6 +22,15 @@ export function drawMessage(
   }
 }
 
+// The films a movie card's draw must skip: every nomination, the films won and watched tonight and the held film.
+export function movieExclusions(night: AppState['night'], holdover: Nomination | null): Set<number> {
+  const excluded = new Set<number>(Object.values(night.nominations).map((film) => film.tmdbId))
+  for (const id of night.wonFilms) excluded.add(id)
+  for (const film of night.watched) excluded.add(film.tmdbId)
+  if (holdover) excluded.add(holdover.tmdbId)
+  return excluded
+}
+
 // The films a draw for this viewer must skip: every nomination, the films won tonight, the held film
 // and the films a Picks Again refused them.
 export function drawExclusions(

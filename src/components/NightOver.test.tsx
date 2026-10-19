@@ -30,6 +30,15 @@ test('lists every card that came up, a removed viewer\'s included, after a headi
   expect(items.map((li) => li.textContent)).toEqual(['Gone +2 weight', '+1 wildcard', 'Gone +2 weight'])
 })
 
+test('lists a movie card by its label among the wheel cards, in landing order', () => {
+  mount([
+    { cardId: 'w', label: '+1 wildcard', change: { kind: 'wildcards', amount: 1 } },
+    { cardId: 'genre-night', label: 'Horror night', change: { kind: 'movie' } },
+  ])
+  const items = within(screen.getByRole('list', { name: 'Cards tonight' })).getAllByRole('listitem')
+  expect(items.map((li) => li.textContent)).toEqual(['+1 wildcard', 'Horror night'])
+})
+
 test('with no cards it shows no card list', () => {
   mount([])
   expect(screen.queryByText('Cards tonight:')).toBeNull()

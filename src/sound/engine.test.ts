@@ -421,6 +421,32 @@ describe('the music', () => {
   })
 })
 
+describe('the can drumroll', () => {
+  test('builds a looping drumroll on the effects bus without touching the music, and the break ends it with a cymbal', async () => {
+    const { ctx, sound } = await ready()
+    sound.spinStart()
+    const [loop] = ctx.sourcesOf('loop')
+    const loopGain = loop.out[0] as FakeGain
+    const loopCalls = loopGain.gain.calls.length
+    ctx.currentTime = 3
+    sound.drumroll(2.4)
+    const [roll] = ctx.sourcesOf('drumroll')
+    expect(roll.started?.when).toBe(3)
+    expect(roll.loop).toBe(true)
+    expect(roll.reaches(ctx.effects)).toBe(true)
+    expect(roll.reaches(ctx.music)).toBe(false)
+    const rollGain = roll.out[0] as FakeGain
+    expect(rollGain.gain.calls.at(-1)!.method).toBe('linearRampToValueAtTime')
+    expect(ctx.sourcesOf('gasp')).toHaveLength(0)
+    expect(loopGain.gain.calls).toHaveLength(loopCalls)
+    ctx.currentTime = 5.4
+    sound.drumrollBreak()
+    expect(roll.stoppedAt!).toBeGreaterThan(5.4)
+    expect(roll.stoppedAt!).toBeLessThan(5.6)
+    expect(ctx.sourcesOf('cymbal')).toHaveLength(1)
+  })
+})
+
 describe('the close call', () => {
   test('the cue drops the loop by a ramp without stopping it, and starts the gasp and the drumroll on the effects bus', async () => {
     const { ctx, sound } = await ready()

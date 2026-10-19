@@ -21,9 +21,22 @@ export function canDeal(context: DealContext): boolean {
 export function dealCards(context: DealContext, random: () => number): DealtCard[] {
   const eligible = cards.filter((card) => card.eligible(context))
   if (eligible.length === 0) return []
+  // A card that is guaranteed while eligible takes a slot of its own, at a random place on the wheel.
+  const guaranteed = eligible.filter((card) => card.guaranteed)
+  const slots = Array.from({ length: dealSize }, (_, slot) => slot)
+  const reserved = new Map<number, (typeof cards)[number]>()
+  for (const card of guaranteed.slice(0, dealSize)) {
+    const at = slots.splice(Math.min(slots.length - 1, Math.floor(random() * slots.length)), 1)[0]
+    reserved.set(at, card)
+  }
   const dealt: DealtCard[] = []
   for (let slot = 0; slot < dealSize; slot++) {
     let rolled: RolledCard | null = null
+    const forced = reserved.get(slot)
+    if (forced) {
+      dealt.push({ ...forced.roll(context, random), weight: 1 + Math.floor(random() * maxCardWeight) })
+      continue
+    }
     for (let tries = 0; tries < labelTries; tries++) {
       const card = eligible[Math.min(eligible.length - 1, Math.floor(random() * eligible.length))]
       rolled = card.roll(context, random)

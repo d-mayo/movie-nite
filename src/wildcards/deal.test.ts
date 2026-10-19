@@ -3,9 +3,12 @@ import type { DealContext } from './cards.ts'
 import { canDeal, dealCards } from './deal.ts'
 import { seeded } from './seeded.ts'
 
+// A March day: no seasonal card is eligible.
+const today = new Date(2026, 2, 15)
+
 const context: DealContext = {
   viewers: ['a', 'b', 'c'].map((id) => ({ id, name: id.toUpperCase(), slices: 3, weight: 5, film: null, canReshuffle: false })),
-  wildcardCount: 3,
+  wildcardCount: 3, today,
 }
 
 describe('dealCards', () => {
@@ -25,7 +28,7 @@ describe('dealCards', () => {
       if (change.kind === 'wildcards') {
         expect(change.amount).toBeGreaterThanOrEqual(1)
         expect(change.amount).toBeLessThanOrEqual(3)
-      } else if (change.kind !== 'blindSpin') {
+      } else if (change.kind !== 'blindSpin' && change.kind !== 'movie') {
         expect(change.viewerIds.every((id) => ['a', 'b', 'c'].includes(id))).toBe(true)
       }
     }
@@ -38,7 +41,7 @@ describe('dealCards', () => {
   it('never deals a card the limits forbid', () => {
     const tight: DealContext = {
       viewers: [{ id: 'a', name: 'A', slices: 12, weight: 0.5, film: null, canReshuffle: false }],
-      wildcardCount: 12,
+      wildcardCount: 12, today,
     }
     for (let seed = 1; seed < 40; seed++) {
       for (const card of dealCards(tight, seeded(seed))) {
@@ -50,10 +53,35 @@ describe('dealCards', () => {
     }
   })
 
-  it('still deals, only Blind Spin, when nothing else is eligible', () => {
-    const dealt = dealCards({ viewers: [], wildcardCount: 12 }, seeded(1))
+  it('still deals, only Blind Spin and the movie cards, when no wheel card is eligible', () => {
+    const dealt = dealCards({ viewers: [], wildcardCount: 12, today }, seeded(1))
     expect(dealt.length).toBeGreaterThan(0)
-    expect(dealt.every((c) => c.cardId === 'blind-spin')).toBe(true)
+    expect(dealt.every((c) => c.type === 'movie' || c.cardId === 'blind-spin')).toBe(true)
+  })
+
+  it('always deals the seasonal card while it is eligible, and never one out of season', () => {
+    const on = (month: number, day: number): DealContext => ({ viewers: [], wildcardCount: 12, today: new Date(2026, month - 1, day) })
+    const dealtIds = (context: DealContext, seed: number) => dealCards(context, seeded(seed)).map((c) => c.cardId)
+    for (let seed = 1; seed < 200; seed++) {
+      expect(dealtIds(on(10, 31), seed)).toContain('halloween')
+      expect(dealtIds(on(12, 25), seed)).toContain('christmas')
+      expect(dealtIds(on(2, 1), seed)).toContain('romance')
+      expect(dealtIds(on(8, 31), seed)).toContain('creature-feature')
+      expect(dealtIds(on(10, 31), seed)).toHaveLength(8)
+      expect(dealtIds(on(3, 15), seed)).not.toContain('halloween')
+    }
+  })
+
+  it('deals every non-seasonal movie card and only the seasonal card of the month', () => {
+    const october: DealContext = { viewers: [], wildcardCount: 12, today: new Date(2026, 9, 15) }
+    const ids = new Set<string>()
+    for (let seed = 1; seed < 300; seed++) for (const c of dealCards(october, seeded(seed))) ids.add(c.cardId)
+    for (const id of ['genre-night', 'halloween', 'critics-darlings', 'so-bad-its-good', 'decade-roulette', 'world-cinema']) {
+      expect(ids.has(id)).toBe(true)
+    }
+    for (const id of ['christmas', 'romance', 'creature-feature', 'shortest-on-the-board']) {
+      expect(ids.has(id)).toBe(false)
+    }
   })
 })
 
@@ -67,7 +95,7 @@ describe('dealing the new cards', () => {
       film: { tmdbId: i + 1, title: `Film ${i + 1}` },
       canReshuffle: true,
     })),
-    wildcardCount: 3,
+    wildcardCount: 3, today,
   }
 
   it('all three come up over many deals', () => {
@@ -88,6 +116,6 @@ describe('dealing the new cards', () => {
     for (let seed = 1; seed < 30; seed++) {
       expect(dealCards(none, seeded(seed)).some((c) => c.cardId === 'reshuffle')).toBe(false)
     }
-    expect(canDeal({ viewers: [], wildcardCount: 12 })).toBe(true)
+    expect(canDeal({ viewers: [], wildcardCount: 12, today })).toBe(true)
   })
 })
