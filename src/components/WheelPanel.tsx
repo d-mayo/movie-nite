@@ -115,6 +115,9 @@ type Draw =
 // wheels swap, and it fades back in.
 export const crossfadeMs = 150
 
+// How long a movie or Reshuffle card shows its title and text before its cans or failure, whatever the draw found.
+const announceMs = 3000
+
 // How long the projector flicker plays on the open wheel before the reveal opens.
 export const revealHoldMs = 650
 // A blind wheel that lands on a wildcard is unveiled this much longer before the wildcard wheel.
@@ -570,25 +573,28 @@ export default function WheelPanel({
   // card, and a movie card lands when its film is taken.
   const kind = shownCard?.effect.change.kind
   const drawKey = kind === 'reshuffle' || kind === 'movie' ? (spin?.revealedAt ?? null) : null
-  const latest = useRef({ night, holdover, roster, client, watchlist, random, card: shownCard })
+  const latest = useRef({ night, holdover, roster, client, watchlist, random, scale: cansScale, card: shownCard })
   useEffect(() => {
-    latest.current = { night, holdover, roster, client, watchlist, random, card: shownCard }
+    latest.current = { night, holdover, roster, client, watchlist, random, scale: cansScale, card: shownCard }
   })
   useEffect(() => {
     if (!drawKey) return
     const aborted = new AbortController()
-    const { night, holdover, roster, client, watchlist, random, card } = latest.current
+    const { night, holdover, roster, client, watchlist, random, scale, card } = latest.current
     const change = card?.effect.change
     const settle = (next: Draw) => {
       if (!aborted.signal.aborted) setDraw(next)
     }
-    const fail = (message: string) => settle({ key: drawKey, phase: 'failed', message })
+    // The card is read first: whatever the draw finds waits until its title and text have had their moment.
+    const hold = new Promise<void>((resolve) => setTimeout(resolve, announceMs * scale))
+    const later = (next: Draw) => void hold.then(() => settle(next))
+    const fail = (message: string) => later({ key: drawKey, phase: 'failed', message })
     settle({ key: drawKey, phase: 'drawing' })
     void (async () => {
       const source = card?.source
       if (source?.kind === 'shortest') {
         const film = night.nominations[source.viewerId]
-        if (film) settle({ key: drawKey, phase: 'ready', cans: newCans([film]) })
+        if (film) later({ key: drawKey, phase: 'ready', cans: newCans([film]) })
         else fail('The film is no longer on the board.')
         return
       }
@@ -601,7 +607,7 @@ export default function WheelPanel({
           signal: aborted.signal,
         })
         if (typeof films === 'string') fail(filmsMessage(films))
-        else settle({ key: drawKey, phase: 'ready', cans: newCans(films) })
+        else later({ key: drawKey, phase: 'ready', cans: newCans(films) })
         return
       }
       const viewer = change?.kind === 'reshuffle' ? roster.find((v) => v.id === change.viewerIds[0]) : undefined
@@ -623,7 +629,7 @@ export default function WheelPanel({
       }
       const films = await loadFilms(client, result)
       if (films.length === 0) fail("The drawn film couldn't be loaded.")
-      else settle({ key: drawKey, phase: 'ready', cans: newCans(films) })
+      else later({ key: drawKey, phase: 'ready', cans: newCans(films) })
     })()
     return () => aborted.abort()
   }, [drawKey])
@@ -634,9 +640,8 @@ export default function WheelPanel({
     if (change?.kind !== 'reshuffle' && change?.kind !== 'movie') return undefined
     const reshuffle = change.kind === 'reshuffle'
     const name = reshuffle ? (roster.find((v) => v.id === change.viewerIds[0])?.name ?? '') : ''
-    // Shortest on the Board's film is on the board already: nothing is found.
-    if (shownCard?.source?.kind === 'shortest' && (!current || current.phase === 'drawing')) return shownCard.text
-    if (!current || current.phase === 'drawing') return reshuffle ? `Drawing from ${name}'s watchlist…` : 'Finding films…'
+    // While it draws, the card keeps its own text and a status line under it says what is happening.
+    if (!current || current.phase === 'drawing') return undefined
     if (current.phase === 'failed') return reshuffle ? `${current.message} ${name}'s film stays.` : current.message
     const { cans } = current
     if (reshuffle) {
@@ -647,6 +652,16 @@ export default function WheelPanel({
     }
     if (cans.films.length === 2) return shownCard?.text.replace(/^Three /, 'Two ')
     return shownCard?.text
+  }
+
+  // The line under a drawing card's text: what is being fetched. Shortest on the Board's film is on the board already.
+  function drawingLine(): string | null {
+    const change = shownCard?.effect.change
+    if (current && current.phase !== 'drawing') return null
+    if (change?.kind === 'reshuffle') {
+      return `Drawing from ${roster.find((v) => v.id === change.viewerIds[0])?.name ?? ''}'s watchlist…`
+    }
+    return change?.kind === 'movie' && shownCard?.source?.kind === 'discover' ? 'Finding films…' : null
   }
 
   // Back and Escape wait while films load and while the cans are in play.
@@ -774,6 +789,11 @@ export default function WheelPanel({
           wide={current?.phase === 'ready' && hasCans(current.cans) && !(current.cans.taken && kind === 'reshuffle')}
           onBack={back}
         >
+          {drawingLine() !== null && (
+            <p className="film-cans-status" role="status">
+              {drawingLine()}
+            </p>
+          )}
           {current?.phase === 'ready' && !(current.cans.taken && kind === 'reshuffle') && (
             <FilmCans
               cans={current.cans}

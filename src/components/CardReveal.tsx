@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { prefersReducedMotion } from '../wheel/reducedMotion.ts'
 import type { DealtCard } from '../wildcards/deal.ts'
 import { useStageCenter } from './Reveal.tsx'
@@ -23,7 +23,7 @@ const typeLines = { wheel: 'Wheel card', movie: 'Movie card' } as const
 // A landed wildcard card, turned over from its back to its face (face up at once with
 // reduced motion). Back to the main wheel, or Escape, takes its effect.
 export default function CardReveal({ card, closeCall = false, text, busy = false, children, wide = false, onBack }: Props) {
-  const flip = !prefersReducedMotion()
+  const [flip, setFlip] = useState(() => !prefersReducedMotion())
   const centerX = useStageCenter()
   const back = useRef<HTMLButtonElement>(null)
   const onBackRef = useRef(onBack)
@@ -60,10 +60,14 @@ export default function CardReveal({ card, closeCall = false, text, busy = false
     <div
       role="dialog"
       aria-labelledby="card-heading"
-      className={wide ? 'card-reveal card-reveal-wide' : 'card-reveal'}
+      className={`card-reveal${wide ? ' card-reveal-wide' : ''}${flip ? ' card-reveal-flipping' : ''}`}
       style={centerX === null ? undefined : { left: centerX }}
     >
-      <div className={flip ? 'card-turn card-flip' : 'card-turn'} data-testid="card-turn">
+      <div
+        className={flip ? 'card-turn card-flip' : 'card-turn'}
+        data-testid="card-turn"
+        onAnimationEnd={(e) => e.target === e.currentTarget && setFlip(false)}
+      >
         <div className="card-face">
           <p className="card-type">
             {typeLines[card.type]}

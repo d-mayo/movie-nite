@@ -714,8 +714,12 @@ html:has(.wheel-stage[data-zoom]) {
   inset: 50% auto auto 50%;
   translate: -50% -50%;
   z-index: 10;
-  perspective: 900px;
   width: min(92vw, 360px);
+}
+
+/* The card is only a 3D layer while it turns over: left in 3D, a card this large can show hairline seams. */
+.card-reveal-flipping {
+  perspective: 900px;
 }
 
 /* A movie card with cans in play is wide enough for three large ones. */
@@ -725,10 +729,10 @@ html:has(.wheel-stage[data-zoom]) {
 
 .card-turn {
   position: relative;
-  transform-style: preserve-3d;
 }
 
 .card-flip {
+  transform-style: preserve-3d;
   animation: card-flip 0.7s cubic-bezier(0.3, 1.4, 0.5, 1);
 }
 
@@ -857,6 +861,9 @@ html:has(.wheel-stage[data-zoom]) {
 }
 
 .can:disabled {
+  /* Locked while the choice plays out, not faded: the chosen film stays lit. */
+  opacity: 1;
+  color: inherit;
   cursor: default;
 }
 
