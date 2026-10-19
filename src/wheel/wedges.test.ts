@@ -3,7 +3,9 @@ import { addViewer, defaultState, newNight, setPresent } from '../state/model.ts
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import { presetColors } from './colors.ts'
-import { buildWedges } from './wedges.ts'
+import { cards } from '../wildcards/cards.ts'
+import type { DealtCard } from '../wildcards/deal.ts'
+import { buildCardWedges, buildWedges, cardGlyph } from './wedges.ts'
 
 const two = () => addViewer(addViewer(defaultState, 'Ann', 'a'), 'Bo', 'b')
 const annColors = (s: typeof defaultState) =>
@@ -40,5 +42,30 @@ describe('buildWedges colors', () => {
     expect(s.night.presentIds).toEqual(['b', 'a'])
     const first = buildWedges(s.night, s.roster, s.settings.wheel)[0]
     expect(first.viewerName).toBe('Ann')
+  })
+})
+
+describe('card glyphs', () => {
+  test('wheel cards get the wheel, movie cards the film, seasonal cards their own', () => {
+    const seasonal: Record<string, string> = {
+      halloween: 'pumpkin',
+      christmas: 'tree',
+      romance: 'heart',
+      'creature-feature': 'claw',
+    }
+    for (const card of cards) {
+      const expected = seasonal[card.id] ?? (card.type === 'wheel' ? 'wheel' : 'film')
+      expect(cardGlyph({ cardId: card.id, type: card.type })).toBe(expected)
+    }
+  })
+
+  test('buildCardWedges carries each card type and glyph', () => {
+    const deal = [
+      { cardId: 'blind-spin', type: 'wheel', label: 'Blind spin', weight: 2 },
+      { cardId: 'halloween', type: 'movie', label: 'Halloween', weight: 1 },
+    ] as unknown as DealtCard[]
+    const wedges = buildCardWedges(deal)
+    expect(wedges.map((w) => w.cardType)).toEqual(['wheel', 'movie'])
+    expect(wedges.map((w) => w.cardGlyph)).toEqual(['wheel', 'pumpkin'])
   })
 })

@@ -3,6 +3,7 @@ import {
   capHeight,
   hubRadius,
   labelOuter,
+  layoutCardLabel,
   layoutLabel,
   layoutWatermark,
   layoutWildcard,
@@ -158,5 +159,38 @@ describe('layoutWatermark', () => {
     const small = layoutWatermark(20)!
     expect(small.scale).toBeLessThan(big.scale)
     expect(layoutWatermark(8)).toBeNull()
+  })
+})
+
+describe('layoutCardLabel', () => {
+  it('keeps the glyph on the hub side of the text, clear of the hub', () => {
+    const l = layoutCardLabel('Sam +2 weight', 90)!
+    expect(l.text.text).toBe('SAM +2 WEIGHT')
+    expect(l.glyph.x + l.glyph.size / 2).toBeLessThan(l.text.x - textWidth(l.text.text, l.text.size))
+    expect(l.glyph.x - l.glyph.size / 2).toBeGreaterThan(hubRadius)
+    expect(l.text.x).toBeLessThanOrEqual(labelOuter)
+  })
+
+  it('shrinks, then shortens a long label, and gives up on a thin slice', () => {
+    const long = 'Everyone +3 slices and some more words'
+    const wide = layoutCardLabel(long, 120)!
+    const narrow = layoutCardLabel(long, 25)
+    expect(wide.text.size).toBeGreaterThanOrEqual(narrow?.text.size ?? 0)
+    if (narrow) expect(narrow.text.text.endsWith('…')).toBe(true)
+    expect(layoutCardLabel(long, 2)).toBeNull()
+    expect(layoutCardLabel('', 90)).toBeNull()
+    expect(layoutCardLabel('Blind Spin', 0)).toBeNull()
+  })
+
+  it('keeps the whole label and glyph inside the slice', () => {
+    for (const w of widths) {
+      const l = layoutCardLabel('Blind Spin', w)
+      if (!l) continue
+      const half = (Math.min(w, 360) / 2) * (Math.PI / 180)
+      const x0 = l.glyph.x - l.glyph.size / 2
+      if (half < Math.PI / 2) {
+        expect(x0 * Math.sin(half)).toBeGreaterThan(l.glyph.size / 2 * Math.cos(half) - 1e-6)
+      }
+    }
   })
 })

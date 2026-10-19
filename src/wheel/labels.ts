@@ -183,3 +183,43 @@ export function layoutWatermark(widthDeg: number): { radius: number; scale: numb
   if (markHeight * scale < markMinHeight) return null
   return { radius: watermarkCenter, scale }
 }
+
+// A card wedge's label: black text with a small glyph on the hub side of it, no tag. The text is
+// end-anchored at the rim like a viewer's label; the glyph is a square of side `size` centered at
+// (x, y) in the same turned frame.
+export interface CardLabelLayout {
+  text: TextPlace
+  glyph: { x: number; y: number; size: number }
+}
+
+const glyphGap = 1.4
+
+function buildCardLabel(text: string, size: number): CardLabelLayout {
+  const end = labelOuter - padding
+  const start = end - textWidth(text, size)
+  return {
+    text: { text, size, x: end, y: (capHeight * size) / 2 },
+    glyph: { x: start - glyphGap - size / 2, y: 0, size },
+  }
+}
+
+// Shrinks, then shortens with "…", then gives up (null) when the slice leaves no room for the
+// text and its glyph.
+export function layoutCardLabel(label: string, widthDeg: number): CardLabelLayout | null {
+  if (!(widthDeg > 0) || label === '') return null
+  const half = halfAngleOf(widthDeg)
+  const upper = label.toUpperCase()
+  for (const size of sizeSteps) {
+    const isMin = size === sizeSteps[sizeSteps.length - 1]
+    const limit = innerLimit(size / 2, half, edgeMargin)
+    const maxText = labelOuter - padding - glyphGap - size - limit
+    if (!isMin) {
+      if (textWidth(upper, size) <= maxText) return buildCardLabel(upper, size)
+      continue
+    }
+    const shortText = shorten(upper, size, maxText)
+    if (shortText === null) return null
+    return buildCardLabel(shortText, size)
+  }
+  return null
+}
