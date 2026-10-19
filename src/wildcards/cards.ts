@@ -354,6 +354,8 @@ function discoverCard(
 function seasonal(
   id: string,
   name: string,
+  // What the text calls its films: "Halloween", "romance".
+  noun: string,
   from: [number, number],
   to: [number, number],
   params: DiscoverParams,
@@ -364,7 +366,7 @@ function seasonal(
       const day = (today.getMonth() + 1) * 100 + today.getDate()
       return day >= from[0] * 100 + from[1] && day <= to[0] * 100 + to[1]
     },
-    () => discoverRoll(id, name, name, `Three ${name.toLowerCase()} films in the cans.`, params),
+    () => discoverRoll(id, name, name, `Three ${noun} films in the cans.`, params),
   )
 }
 
@@ -466,10 +468,10 @@ export const cards: CardDef[] = [
   reshuffleCard,
   blindSpinCard,
   genreNightCard,
-  seasonal('halloween', 'Halloween', [10, 1], [10, 31], { with_keywords: '3335' }),
-  seasonal('christmas', 'Christmas', [12, 1], [12, 25], { with_keywords: '207317' }),
-  seasonal('romance', 'Romance', [2, 1], [2, 14], { with_genres: '10749' }),
-  seasonal('creature-feature', 'Creature Feature', [6, 1], [8, 31], {
+  seasonal('halloween', 'Halloween', 'Halloween', [10, 1], [10, 31], { with_keywords: '3335' }),
+  seasonal('christmas', 'Christmas', 'Christmas', [12, 1], [12, 25], { with_keywords: '207317' }),
+  seasonal('romance', 'Romance', 'romance', [2, 1], [2, 14], { with_genres: '10749' }),
+  seasonal('creature-feature', 'Creature Feature', 'creature feature', [6, 1], [8, 31], {
     with_keywords: '158126|11100|161791',
   }),
   criticsCard,

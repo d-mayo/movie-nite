@@ -289,7 +289,7 @@ describe('the movie cards', () => {
     expect([rolled.label, rolled.title, rolled.text]).toEqual([
       'Halloween',
       'Halloween',
-      'Three halloween films in the cans.',
+      'Three Halloween films in the cans.',
     ])
   })
 
