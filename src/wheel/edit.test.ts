@@ -16,7 +16,7 @@ import {
 import type { Slice } from './layout.ts'
 import type { CardEffect } from '../wildcards/cards.ts'
 
-const labels = (slices: Slice[]) => slices.map((s) => (s.kind === 'wildcard' ? 'W' : s.viewerId))
+const labels = (slices: Slice[]) => slices.map((s) => (s.kind === 'nomination' ? s.viewerId : 'W'))
 const wheel = (change: Partial<WheelSettings> = {}): WheelSettings => ({
   ...defaultWheelSettings,
   ...change,

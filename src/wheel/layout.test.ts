@@ -3,7 +3,7 @@ import { sliceArcs, type Slice } from './layout.ts'
 import { defaultWheelSettings, deriveSlices } from './edit.ts'
 
 function labels(slices: Slice[]) {
-  return slices.map((s) => (s.kind === 'wildcard' ? 'W' : s.viewerId))
+  return slices.map((s) => (s.kind === 'nomination' ? s.viewerId : 'W'))
 }
 
 test('three viewers get A B C W three times', () => {

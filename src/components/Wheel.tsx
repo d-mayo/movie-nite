@@ -130,8 +130,13 @@ function WedgeShape({
   const half = (width / 2) * (Math.PI / 180)
   const imageWidth = Math.max(10, 2 * radius * Math.sin(half))
   const isWildcard = slice.kind === 'wildcard'
+  const isCard = slice.kind === 'card'
   const gradient = gradientId(uid, wedge.color)
-  const label = isWildcard || !showLabels ? null : layoutLabel(wedge.viewerName ?? '', nomination?.title ?? null, width)
+  const label = isCard
+    ? layoutLabel(wedge.cardLabel ?? '', null, width)
+    : isWildcard || !showLabels
+      ? null
+      : layoutLabel(wedge.viewerName ?? '', nomination?.title ?? null, width)
   const word = isWildcard ? layoutWildcard(width) : null
 
   return (
@@ -150,6 +155,8 @@ function WedgeShape({
           />
           <Slate wedge={wedge} clipId={`${uid}-clip-${id}`} />
         </>
+      ) : isCard ? (
+        <path d={wedgePath(wedge)} className="film-fill-steel" stroke="#000000" strokeOpacity="0.4" strokeWidth="0.5" />
       ) : (
         <path d={wedgePath(wedge)} fill={`url(#${gradient})`} stroke="#000000" strokeOpacity="0.4" strokeWidth="0.5" />
       )}
@@ -239,7 +246,7 @@ export default function Wheel({ wedges, showLabels = true, groupRef, flapperRef 
       </div>
     )
   }
-  const colors = [...new Set(wedges.filter((w) => w.slice.kind !== 'wildcard').map((w) => w.color))]
+  const colors = [...new Set(wedges.filter((w) => w.slice.kind === 'nomination').map((w) => w.color))]
   return (
     <svg viewBox="-124 -124 248 248" className="wheel" role="img" aria-label="Wheel">
       <Defs uid={uid} colors={colors} />

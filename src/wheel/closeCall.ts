@@ -6,7 +6,9 @@ import { maxBendDegrees, pinAngles, pinPastPointer, pushEnd } from './pins.ts'
 
 // What a slice's outcome is, for telling one across an edge from the same one.
 function outcome(slice: Slice): string {
-  return slice.kind === 'wildcard' ? 'wildcard' : `viewer:${slice.viewerId}`
+  if (slice.kind === 'wildcard') return 'wildcard'
+  if (slice.kind === 'card') return `card:${slice.index}`
+  return `viewer:${slice.viewerId}`
 }
 
 // The share of spins steered into a close call (on top of those that land in a zone by

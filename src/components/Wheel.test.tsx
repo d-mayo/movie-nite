@@ -8,6 +8,9 @@ import { presetColors } from '../wheel/colors.ts'
 import { addViewer, markAway, markHere, removeViewer } from '../test/cells.ts'
 import { defaultWheelSettings } from '../wheel/edit.ts'
 import type { Wedge } from '../wheel/wedges.ts'
+import { buildCardWedges } from '../wheel/wedges.ts'
+import { dealCards } from '../wildcards/deal.ts'
+import { seeded } from '../wildcards/seeded.ts'
 import Wheel from './Wheel.tsx'
 
 function film(id: number, posterPath: string | null): Nomination {
@@ -236,4 +239,24 @@ test('a very narrow wildcard has no watermark and shows a ? instead of the word'
   render(<Wheel wedges={[wedge]} groupRef={null} />)
   expect(screen.queryByTestId('watermark')).toBeNull()
   expect(screen.getByTestId('wildcard-word').textContent).toBe('?')
+})
+
+test('a deal draws one steel wedge per card with its label whatever Show labels says, and a frame each', () => {
+  const deal = dealCards(
+    { viewers: [{ id: 'a', name: 'Ann', slices: 3, weight: 5 }], wildcardCount: 3 },
+    seeded(4),
+  )
+  expect(deal).toHaveLength(8)
+  for (const showLabels of [true, false]) {
+    const { container, unmount } = render(
+      <Wheel wedges={buildCardWedges(deal)} showLabels={showLabels} groupRef={null} />,
+    )
+    const cards = screen.getAllByTestId('wedge')
+    expect(cards).toHaveLength(8)
+    for (const wedge of cards) expect(wedge.getAttribute('data-kind')).toBe('card')
+    expect(screen.getAllByTestId('frame')).toHaveLength(8)
+    expect(screen.getAllByTestId('label-tag').length).toBeGreaterThan(0)
+    expect(container.querySelector('svg.wheel > g')?.querySelector('[data-testid="wedge"]')).not.toBeNull()
+    unmount()
+  }
 })

@@ -96,6 +96,7 @@ function Reel({ wedges }: { wedges: Wedge[] }) {
       <path d={holes} className="film-hole" data-testid="sprocket-holes" />
       {wedges.map((wedge, i) => {
         const wild = wedge.slice.kind === 'wildcard'
+        const card = wedge.slice.kind === 'card'
         const d = framePath(wedge.arc.start, wedge.arc.end)
         const width = wedge.arc.end - wedge.arc.start
         return (
@@ -103,8 +104,8 @@ function Reel({ wedges }: { wedges: Wedge[] }) {
             <path
               data-testid="frame"
               d={d}
-              className={wild ? 'film-fill-stock' : undefined}
-              fill={wild ? undefined : wedge.color}
+              className={wild ? 'film-fill-stock' : card ? 'film-fill-steel' : undefined}
+              fill={wild || card ? undefined : wedge.color}
               opacity="0.95"
             />
             {wild && (

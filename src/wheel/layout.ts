@@ -1,6 +1,8 @@
 export type Slice =
   | { kind: 'nomination'; viewerId: string; weight: number }
   | { kind: 'wildcard'; weight: number }
+  // A dealt wildcard card, by its place in the deal.
+  | { kind: 'card'; index: number; weight: number }
 
 export interface Arc {
   start: number

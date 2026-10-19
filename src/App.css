@@ -338,6 +338,10 @@ html:has(.wheel-stage[data-zoom]) {
   fill: var(--film-stock);
 }
 
+.wheel .film-fill-steel {
+  fill: var(--film-steel);
+}
+
 .wheel .film-fill-cream {
   fill: var(--film-cream);
 }
