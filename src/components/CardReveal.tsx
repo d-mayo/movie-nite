@@ -26,7 +26,8 @@ export default function CardReveal({ card, closeCall = false, onBack }: Props) {
   useEffect(() => {
     back.current?.focus()
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onBackRef.current()
+      // Escape that closes the Wheel settings popover (a <dialog>) is not for the card.
+      if (event.key === 'Escape' && !(event.target as Element | null)?.closest?.('dialog')) onBackRef.current()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
