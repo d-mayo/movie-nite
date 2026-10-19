@@ -913,6 +913,8 @@ body:has(.wheel-stage[data-wheel='cards']) {
   inset: 0;
   display: grid;
   place-items: center;
+  padding-top: 14%;
+  box-sizing: border-box;
   background: var(--film-stock);
   border-radius: 8px;
   animation: clapper-body-in 0.35s both;
@@ -942,13 +944,13 @@ body:has(.wheel-stage[data-wheel='cards']) {
 }
 
 .clapper-stick-top {
-  top: 22%;
+  top: 5%;
   transform-origin: 2% 100%;
   animation: clapper-swing 0.42s cubic-bezier(0.55, 0, 1, 0.45) both;
 }
 
 .clapper-stick-bottom {
-  top: 35%;
+  top: 18%;
 }
 
 .wheel-stage[data-transition='open'] .clapper-stick-top {
