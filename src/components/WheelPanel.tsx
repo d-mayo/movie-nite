@@ -631,6 +631,8 @@ export default function WheelPanel({
     if (change?.kind !== 'reshuffle' && change?.kind !== 'movie') return undefined
     const reshuffle = change.kind === 'reshuffle'
     const name = reshuffle ? (roster.find((v) => v.id === change.viewerIds[0])?.name ?? '') : ''
+    // Shortest on the Board's film is on the board already: nothing is found.
+    if (shownCard?.source?.kind === 'shortest' && (!current || current.phase === 'drawing')) return shownCard.text
     if (!current || current.phase === 'drawing') return reshuffle ? `Drawing from ${name}'s watchlist…` : 'Finding films…'
     if (current.phase === 'failed') return reshuffle ? `${current.message} ${name}'s film stays.` : current.message
     const { cans } = current
