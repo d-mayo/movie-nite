@@ -1665,6 +1665,15 @@ dialog.wheel-drawer:focus {
   cursor: help;
 }
 
+/* A small card after the name and asterisk: a viewer some landed card named. */
+.cell-cards {
+  flex: none;
+  align-self: center;
+  display: inline-flex;
+  color: var(--muted);
+  cursor: help;
+}
+
 /* The poster thumbnail at the left, the name over the film's title beside it. */
 .cell-film {
   flex: 1;
