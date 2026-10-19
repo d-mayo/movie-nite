@@ -154,7 +154,7 @@ main {
       1600px,
       max(
         20rem,
-        calc(100dvh - var(--chrome-height) - 0.75rem - var(--card-chips-height, -0.75rem))
+        calc(100dvh - var(--chrome-height) - var(--panel-gap) - var(--card-chips-height, calc(-1 * var(--panel-gap))))
       )
     );
   }
@@ -180,7 +180,9 @@ main {
   .night.viewers-hidden .wheel-reason-slot,
   .night .wheel-reason-slot:has(.night-over) {
     position: fixed;
-    bottom: var(--space-4);
+    /* Above the card chips at the page's bottom (their published height; unset
+       with no chips, the fallback cancels the gap). */
+    bottom: calc(var(--space-4) + var(--card-chips-height, -1 * var(--space-6)) + var(--space-6));
     left: 50%;
     translate: -50% 0;
     margin: 0;
@@ -617,7 +619,8 @@ html:has(.wheel-stage[data-zoom]) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
+  --panel-gap: 0.75rem;
+  gap: var(--panel-gap);
   width: 100%;
 }
 
