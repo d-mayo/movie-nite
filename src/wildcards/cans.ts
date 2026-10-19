@@ -17,8 +17,8 @@ export interface Cans {
 }
 
 // Where the cans are: waiting for the pick, the arrow ticking between the other two, waiting for the choice, the
-// chosen sealed can about to open, the chosen can open and about to be taken, or the film taken.
-export type CansPhase = 'picking' | 'ticking' | 'choosing' | 'opening' | 'closing' | 'taken'
+// with two cans the picked film is chosen and the other can is about to be unveiled, the chosen sealed can about to open, the chosen can open and about to be taken, or the film taken.
+export type CansPhase = 'picking' | 'ticking' | 'unveiling' | 'choosing' | 'opening' | 'closing' | 'taken'
 
 export function newCans(films: Nomination[]): Cans {
   return { films, picked: null, second: null, opened: [], choice: null, taken: null }
@@ -31,7 +31,10 @@ export function hasCans(cans: Cans): boolean {
 
 export function phaseOf(cans: Cans): CansPhase {
   if (cans.taken) return 'taken'
-  if (cans.choice !== null) return cans.opened.includes(cans.choice) ? 'closing' : 'opening'
+  if (cans.choice !== null) {
+    if (cans.second !== null && !cans.opened.includes(cans.second)) return 'unveiling'
+    return cans.opened.includes(cans.choice) ? 'closing' : 'opening'
+  }
   if (cans.picked === null) return 'picking'
   if (cans.second !== null && !cans.opened.includes(cans.second)) return 'ticking'
   return 'choosing'
@@ -42,22 +45,24 @@ export function phaseOf(cans: Cans): CansPhase {
 // taken. A second pick, a single film and a can that isn't there change nothing.
 export function pickCan(cans: Cans, index: number, random: () => number): Cans {
   if (!hasCans(cans) || cans.picked !== null || !cans.films[index]) return cans
-  if (cans.films.length === 2) return { ...cans, picked: index, opened: [index], choice: index }
+  // With two, the picked film is the choice; the other can is unveiled before it is taken.
+  if (cans.films.length === 2) return { ...cans, picked: index, second: 1 - index, opened: [index], choice: index }
   const others = cans.films.map((_, i) => i).filter((i) => i !== index)
   const second = others[Math.min(others.length - 1, Math.floor(random() * others.length))]
   return { ...cans, picked: index, second, opened: [index] }
 }
 
-// The arrow has landed: the second can opens.
+// The arrow has landed (three cans), or the pause is over (two): the second can opens.
 export function settleTick(cans: Cans): Cans {
-  if (phaseOf(cans) !== 'ticking' || cans.second === null) return cans
+  const phase = phaseOf(cans)
+  if ((phase !== 'ticking' && phase !== 'unveiling') || cans.second === null) return cans
   return { ...cans, opened: [...cans.opened, cans.second] }
 }
 
 // The cans the arrow points at, one after another: it alternates between the two cans that were not picked and
 // ends on the one that opens, after a few more ticks than a single sweep, so the landing is a surprise.
 export function tickPath(cans: Cans, random: () => number): number[] {
-  if (cans.picked === null || cans.second === null) return []
+  if (cans.picked === null || cans.second === null || cans.films.length !== 3) return []
   const others = cans.films.map((_, i) => i).filter((i) => i !== cans.picked)
   const length = 7 + Math.floor(random() * 3)
   const land = others.indexOf(cans.second)

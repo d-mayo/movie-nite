@@ -250,6 +250,9 @@ test('two films give two cans, and the pick is the film', async () => {
   const picks = await within(dialog).findAllByRole('button', { name: /^Pick can/ })
   expect(picks).toHaveLength(2)
   fireEvent.click(picks[0])
+  // The other can is unveiled, with both open, before the chosen film is taken.
+  await waitFor(() => expect(dialog.querySelectorAll('.can-open')).toHaveLength(2))
+  expect(store.getState().night.cardEffects).toEqual([])
   await screen.findByRole('heading', { name: /^Found/ })
   expect(store.getState().night.cardEffects).toHaveLength(1)
 })

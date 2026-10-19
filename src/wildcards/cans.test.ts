@@ -95,12 +95,17 @@ describe('three cans', () => {
 })
 
 describe('two cans', () => {
-  it('chooses the picked film at once, and takes it once it is seen open', () => {
-    const cans = pickCan(newCans([film(1), film(2)]), 1, () => 0)
-    expect(cans.opened).toEqual([1])
-    expect(phaseOf(cans)).toBe('closing')
-    expect(finishTake(cans).taken?.tmdbId).toBe(2)
-    expect(pickCan(cans, 0, () => 0)).toBe(cans)
+  it('chooses the picked film, unveils the other can, then takes the chosen one once both are open', () => {
+    const picked = pickCan(newCans([film(1), film(2)]), 1, () => 0)
+    expect(picked.opened).toEqual([1])
+    expect(picked.choice).toBe(1)
+    expect(phaseOf(picked)).toBe('unveiling')
+    expect(finishTake(picked)).toBe(picked)
+    const unveiled = settleTick(picked)
+    expect(unveiled.opened).toEqual([1, 0])
+    expect(phaseOf(unveiled)).toBe('closing')
+    expect(finishTake(unveiled).taken?.tmdbId).toBe(2)
+    expect(pickCan(picked, 0, () => 0)).toBe(picked)
   })
 
   it('has no separate take', () => {

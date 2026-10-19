@@ -7,6 +7,9 @@ import { hasCans, phaseOf, tickDelayMs, tickPath, type Cans } from '../wildcards
 const arrowSettleMs = 450
 const drumrollMs = 2400
 const sealedHoldMs = 1100
+// With two cans: a pause on the picked film, then a longer one with both open and the chosen one lit.
+const unveilHoldMs = 1100
+const twoCansHoldMs = 1500
 const openHoldMs = 600
 
 interface Props {
@@ -35,6 +38,8 @@ function prompt(cans: Cans): string {
       return 'Pick a can.'
     case 'ticking':
       return 'Which one opens next…'
+    case 'unveiling':
+      return `${cans.films[cans.choice ?? 0].title}. And the other can holds…`
     case 'choosing': {
       const films = cans.opened.map((i) => cans.films[i].title).join(' and ')
       return `Open: ${films}. Take one of the open films, or the sealed can.`
@@ -103,6 +108,13 @@ export default function FilmCans({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, scale])
 
+  // With two cans: the picked film is seen, then the other can opens.
+  useEffect(() => {
+    if (phase !== 'unveiling') return
+    const timer = setTimeout(() => calls.current.onSettle(), unveilHoldMs * scale)
+    return () => clearTimeout(timer)
+  }, [phase, scale])
+
   // The sealed can the room took: a drumroll, then it opens.
   useEffect(() => {
     if (phase !== 'opening') return
@@ -115,9 +127,10 @@ export default function FilmCans({
   useEffect(() => {
     if (phase !== 'closing') return
     const sealed = cans.choice !== null && cans.choice !== cans.picked && cans.choice !== cans.second
-    const timer = setTimeout(() => calls.current.onFinish(), (sealed ? sealedHoldMs : openHoldMs) * scale)
+    const hold = cans.films.length === 2 ? twoCansHoldMs : sealed ? sealedHoldMs : openHoldMs
+    const timer = setTimeout(() => calls.current.onFinish(), hold * scale)
     return () => clearTimeout(timer)
-  }, [phase, scale, cans.choice, cans.picked, cans.second])
+  }, [phase, scale, cans.choice, cans.picked, cans.second, cans.films.length])
 
   if (single) {
     return (
@@ -147,7 +160,8 @@ export default function FilmCans({
               : `Take the sealed can`
           const classes = ['can-slot']
           if (open) classes.push('can-open')
-          if (cans.choice === i) classes.push('can-chosen')
+          // The chosen film is lit once everything it competes with has been seen.
+          if (cans.choice === i && phase === 'closing') classes.push('can-chosen')
           return (
             <li key={film.tmdbId} className={classes.join(' ')}>
               <span className="can-arrow" data-on={pointer === i ? 'true' : undefined} aria-hidden="true" />
