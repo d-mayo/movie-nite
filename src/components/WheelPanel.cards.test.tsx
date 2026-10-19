@@ -581,3 +581,14 @@ test('Blind Spin: the wheel comes back blind, stays blind through the next main 
   expect(wheelText()).toContain('ANN')
   expect(nominationFrameFills()).not.toContain(blindColor)
 })
+
+test('the debug Force card select deals eight of the chosen card, and Random deal deals normally', async () => {
+  window.history.pushState({}, '', '/?debug')
+  const { store } = setup()
+  fireEvent.click(screen.getByLabelText('Force wildcards'))
+  fireEvent.change(screen.getByLabelText('Force card'), { target: { value: 'blind-spin' } })
+  const dialog = await openCard()
+  expect(within(dialog).getByRole('heading')).toHaveTextContent('Blind Spin')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Back to the main wheel' }))
+  await waitFor(() => expect(isBlind(store.getState().night)).toBe(true))
+})

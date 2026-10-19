@@ -27,8 +27,8 @@ import { blindfold, buildCardWedges, buildWedges, type Wedge } from '../wheel/we
 import { effectiveSetting, spinPlan, wildcardTotal } from '../wheel/edit.ts'
 import { drawExclusions, drawMessage } from '../letterboxd/drawing.ts'
 import { canBeReshuffled, drawFromWatchlist, type WatchlistSource } from '../letterboxd/watchlist.ts'
-import type { DealContext } from '../wildcards/cards.ts'
-import { canDeal, dealCards, type DealtCard } from '../wildcards/deal.ts'
+import { cards, type DealContext } from '../wildcards/cards.ts'
+import { canDeal, dealCards, dealSize, type DealtCard } from '../wildcards/deal.ts'
 import {
   buildCatchPath,
   buildCloseCallPath,
@@ -154,6 +154,8 @@ export default function WheelPanel({
   const [forceCatches, setForceCatches] = useState(false)
   const [forceCountdowns, setForceCountdowns] = useState(false)
   const [forceWildcards, setForceWildcards] = useState(false)
+  // The debug select: every dealt card is this one, when it is eligible ('' deals normally).
+  const [forceCard, setForceCard] = useState('')
   // The stage is faded out between the main wheel and the wildcard wheel.
   const [fading, setFading] = useState(false)
   const [reshuffle, setReshuffle] = useState<Reshuffle | null>(null)
@@ -405,7 +407,12 @@ export default function WheelPanel({
 
     // The wildcard wheel: the deal is made now, and the stage fades over to it.
     function enterCards() {
-      const deal = dealCards(dealContext(), random)
+      const context = dealContext()
+      const forced = cards.find((c) => c.id === forceCard)
+      const deal =
+        forced && forced.eligible(context)
+          ? Array.from({ length: dealSize }, () => ({ ...forced.roll(context, random), weight: 1 }))
+          : dealCards(context, random)
       if (deal.length === 0) {
         setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null })
         return
@@ -651,6 +658,19 @@ export default function WheelPanel({
             onChange={(e) => setForceWildcards(e.target.checked)}
           />{' '}
           Force wildcards
+        </label>
+      )}
+      {debug && (
+        <label className="debug-force">
+          Force card{' '}
+          <select value={forceCard} disabled={spin !== null} onChange={(e) => setForceCard(e.target.value)}>
+            <option value="">Random deal</option>
+            {cards.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.id}
+              </option>
+            ))}
+          </select>
         </label>
       )}
       {reason && !reasonSlot && <p>{reason}</p>}
