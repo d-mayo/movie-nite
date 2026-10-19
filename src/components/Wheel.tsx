@@ -1,4 +1,4 @@
-import { useId, type Ref } from 'react'
+import { useId, useState, type Ref } from 'react'
 import { posterUrl } from '../tmdb/client.ts'
 import { mixColor } from '../wheel/colors.ts'
 import { layoutLabel, layoutWatermark, layoutWildcard, markHeight, markWidth, sticksInner } from '../wheel/labels.ts'
@@ -246,9 +246,9 @@ function windowPath(center: number): string {
   return `M ${point(a0, inner)} L ${point(b0, outer)} A ${outer} ${outer} 0 0 1 ${point(b1, outer)} L ${point(a1, inner)} A ${inner} ${inner} 0 0 0 ${point(a0, inner)} Z`
 }
 
-function ReelBack() {
+function ReelBack({ hidden }: { hidden: boolean }) {
   return (
-    <g data-testid="reel-back" pointerEvents="none">
+    <g data-testid="reel-back" className="reel-back" data-hidden={hidden ? 'true' : undefined} pointerEvents="none">
       <circle r={radius} fill={blindColor} />
       <circle r={radius - 2} fill="none" className="reel-back-lip" strokeWidth="1" />
       <circle r={windowInner - 2} fill="none" className="reel-back-lip" strokeWidth="1" />
@@ -284,6 +284,9 @@ interface Props {
 
 export default function Wheel({ wedges, showLabels = true, blind = false, groupRef, flapperRef }: Props) {
   const uid = useId().replace(/:/g, '')
+  // Once the wheel has been blind its reel back stays mounted, so it can dissolve away.
+  const [wasBlind, setWasBlind] = useState(false)
+  if (blind && !wasBlind) setWasBlind(true)
   if (wedges.length === 0) {
     return (
       <div className="wheel-empty">
@@ -299,7 +302,7 @@ export default function Wheel({ wedges, showLabels = true, blind = false, groupR
         {wedges.map((wedge, i) => (
           <WedgeShape key={i} wedge={wedge} id={String(i)} uid={uid} showLabels={showLabels} />
         ))}
-        {blind && <ReelBack />}
+        {(blind || wasBlind) && <ReelBack hidden={!blind} />}
         <Reel wedges={wedges} />
       </g>
       <circle data-testid="gloss" r={radius} fill={`url(#${uid}-gloss)`} pointerEvents="none" />

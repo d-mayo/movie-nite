@@ -358,6 +358,20 @@ html:has(.wheel-stage[data-zoom]) {
   fill: var(--film-stock);
 }
 
+.wheel .reel-back {
+  transition: opacity 0.5s ease-out;
+}
+
+.wheel .reel-back[data-hidden] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel .reel-back {
+    transition: none;
+  }
+}
+
 .wheel .reel-back-lip {
   stroke: color-mix(in srgb, var(--film-steel-light) 55%, transparent);
 }

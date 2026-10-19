@@ -95,6 +95,8 @@ interface Spin {
   leaving: boolean
   // The main wheel was blind at the press, and stays so until the spin lands.
   blind: boolean
+  // The landing is on a wildcard that opens the wildcard wheel.
+  toCards: boolean
 }
 
 // A Reshuffle card's draw: under way, done with the film it found, or failed with why.
@@ -185,7 +187,8 @@ export default function WheelPanel({
 
   const live = buildWedges(night, roster, settings.wheel)
   // The main wheel is blind from the Blind Spin's Back until the reveal of the spin that used it closes.
-  const blind = spin ? spin.wheel === 'main' && spin.blind : isBlind(night)
+  // A landing on a wildcard unveils the wheel, which dissolves back before it crossfades to the cards.
+  const blind = spin ? spin.wheel === 'main' && spin.blind && !(spin.toCards && spin.landed) : isBlind(night)
   const onWheel = viewersOnWheel(night)
   const missing = onWheel
     .filter((id) => !night.nominations[id])
@@ -429,6 +432,7 @@ export default function WheelPanel({
           waiting: true,
           leaving: false,
           blind: false,
+          toCards: false,
         }),
       )
     }
@@ -446,6 +450,7 @@ export default function WheelPanel({
       waiting: false,
       leaving: false,
       blind: !onCards && isBlind(night),
+      toCards,
     })
     onBusyChange(true)
     if (!countdown) {

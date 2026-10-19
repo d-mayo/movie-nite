@@ -549,7 +549,7 @@ test('the viewer key and the reel back stay through the blind spin and its revea
   expect(screen.queryByTestId('reel-back')).not.toBeNull()
   fireEvent.click(screen.getByRole('button', { name: 'Close' }))
   expect(key()).not.toBeNull()
-  expect(screen.queryByTestId('reel-back')).toBeNull()
+  expect(screen.getByTestId('reel-back')).toHaveAttribute('data-hidden', 'true')
 })
 
 test('Blind Spin: the wheel comes back blind, stays blind through the next main spin, and shows at the landing', async () => {
