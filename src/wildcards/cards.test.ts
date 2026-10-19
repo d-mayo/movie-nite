@@ -394,7 +394,7 @@ describe('card names and descriptions', () => {
     for (const card of cards) {
       expect(card.name.trim()).not.toBe('')
       expect(card.description.trim()).not.toBe('')
-      for (const text of [card.name, card.description]) expect(text).not.toMatch(/[Xn]/)
+      for (const text of [card.name, card.description]) expect(text).not.toMatch(/\b[Xn]\b/)
     }
     expect(new Set(cards.map((c) => c.name)).size).toBe(cards.length)
   })

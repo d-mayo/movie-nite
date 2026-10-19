@@ -346,6 +346,15 @@ export function setWildcardWheel(state: AppState, on: boolean): AppState {
   return withWheel(state, { wildcardWheel: on })
 }
 
+// Switches one wildcard card on or off by its id.
+export function setCardEnabled(state: AppState, cardId: string, enabled: boolean): AppState {
+  const disabled = state.settings.wheel.disabledCards
+  if (disabled.includes(cardId) === !enabled) return state
+  return withWheel(state, {
+    disabledCards: enabled ? disabled.filter((id) => id !== cardId) : [...disabled, cardId],
+  })
+}
+
 export function setShowLabels(state: AppState, show: boolean): AppState {
   if (state.settings.wheel.showLabels === show) return state
   return withWheel(state, { showLabels: show })

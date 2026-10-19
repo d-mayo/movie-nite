@@ -21,6 +21,8 @@ export interface WheelSettings {
   showLabels: boolean
   // Whether a wildcard landing opens the wildcard wheel rather than the search.
   wildcardWheel: boolean
+  // The ids of the wildcard cards switched off; a card added later starts on.
+  disabledCards: string[]
 }
 
 // What the host changed for one viewer tonight; a field is present only when set.
@@ -48,6 +50,7 @@ export const defaultWheelSettings: WheelSettings = {
   soundMuted: false,
   showLabels: true,
   wildcardWheel: true,
+  disabledCards: [],
 }
 
 export const minWeight = 0.5
