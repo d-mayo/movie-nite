@@ -992,6 +992,12 @@ html:has(.wheel-stage[data-zoom]) {
   text-align: left;
 }
 
+.can-tip-note {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-style: italic;
+}
+
 .can-tip-runtime {
   display: block;
   margin-bottom: var(--space-1);

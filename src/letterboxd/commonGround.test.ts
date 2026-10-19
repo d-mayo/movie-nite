@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { LetterboxdClient } from './client.ts'
-import { canCommonGround, canHaveBacklog, drawCommonGround, sharedSlugs } from './commonGround.ts'
+import { canCommonGround, canHaveBacklog, commonGroundGroup, drawCommonGround, sharedSlugs } from './commonGround.ts'
 import { createWatchlistMemory, type WatchlistMemory } from './watchlist.ts'
 
 const none = new Set<number>()
@@ -86,5 +86,20 @@ describe('drawCommonGround', () => {
     expect(await drawCommonGround({ client: nulls.client, memory: memoryOf(walks), usernames: users, excluded: none, random: () => 0, count: 3 })).toBe('exhausted')
     const down = fakeClient({})
     expect(await drawCommonGround({ client: down.client, memory: memoryOf(walks), usernames: users, excluded: none, random: () => 0, count: 3 })).toBe('unavailable')
+  })
+})
+
+describe('commonGroundGroup', () => {
+  it('holds the present viewers with a found profile and a settled walk, in roster order', () => {
+    const roster = [
+      { id: 'a', letterboxd: { username: 'Ann', status: 'found' } },
+      { id: 'b', letterboxd: { username: 'bo', status: 'found' } }, // away
+      { id: 'c', letterboxd: { username: 'cy', status: 'found' } }, // not settled
+      { id: 'd', letterboxd: { username: 'di', status: 'missing' } },
+      { id: 'e' },
+      { id: 'f', letterboxd: { username: 'flo', status: 'found' } }, // won tonight, still present
+    ]
+    const memory = memoryOf({ ann: [], bo: ['a'], flo: ['a'], di: ['a'] })
+    expect(commonGroundGroup(roster, ['a', 'c', 'd', 'e', 'f'], memory)).toEqual(['ann', 'flo'])
   })
 })

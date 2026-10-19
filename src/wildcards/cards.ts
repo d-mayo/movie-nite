@@ -42,6 +42,8 @@ export interface DealViewer {
   film: { tmdbId: number; title: string; runtime?: number | null } | null
   // True when a Reshuffle could draw them a film from their Letterboxd watchlist.
   canReshuffle: boolean
+  // True when an X's Backlog could draw three films from their Letterboxd watchlist.
+  canBacklog: boolean
 }
 
 export interface DealContext {
@@ -49,12 +51,16 @@ export interface DealContext {
   wildcardCount: number
   // The local date at the deal, for the seasonal cards.
   today: Date
+  // True when a usable film sits on two or more present viewers' settled watchlists, for Common Ground.
+  commonGround: boolean
 }
 
 // Where a movie card's film comes from: TMDB's discover, or a film already on the board.
 export type CardSource =
   | { kind: 'discover'; params: DiscoverParams }
   | { kind: 'shortest'; viewerId: string; tmdbId: number }
+  | { kind: 'backlog'; viewerId: string }
+  | { kind: 'commonGround' }
 
 export interface RolledCard {
   cardId: string
@@ -461,6 +467,50 @@ const shortestCard: CardDef = {
   },
 }
 
+// Three films from one viewer's Letterboxd watchlist.
+const backlogCard: CardDef = {
+  id: 'backlog',
+  type: 'movie',
+  fff: false,
+  eligible: (context) => context.viewers.some((v) => v.canBacklog),
+  roll(context, random) {
+    const viewer = pick(
+      context.viewers.filter((v) => v.canBacklog),
+      random,
+    )
+    return {
+      cardId: 'backlog',
+      type: 'movie',
+      fff: false,
+      label: `${viewer.name}'s backlog`,
+      title: `${viewer.name}'s Backlog`,
+      text: `Three films from ${viewer.name}'s watchlist in the cans.`,
+      effect: { cardId: 'backlog', label: `${viewer.name}'s backlog`, change: { kind: 'movie' } },
+      source: { kind: 'backlog', viewerId: viewer.id },
+    }
+  },
+}
+
+// Three films from the most present viewers' watchlists.
+const commonGroundCard: CardDef = {
+  id: 'common-ground',
+  type: 'movie',
+  fff: false,
+  eligible: (context) => context.commonGround,
+  roll() {
+    return {
+      cardId: 'common-ground',
+      type: 'movie',
+      fff: false,
+      label: 'Common ground',
+      title: 'Common Ground',
+      text: 'Three films from the most watchlists in the cans.',
+      effect: { cardId: 'common-ground', label: 'Common ground', change: { kind: 'movie' } },
+      source: { kind: 'commonGround' },
+    }
+  },
+}
+
 export const cards: CardDef[] = [
   viewerCard('viewer-weight', 'weight'),
   viewerCard('viewer-slices', 'slices'),
@@ -482,6 +532,8 @@ export const cards: CardDef[] = [
   decadeCard,
   worldCinemaCard,
   shortestCard,
+  backlogCard,
+  commonGroundCard,
 ]
 
 function validChange(value: unknown): value is CardChange {

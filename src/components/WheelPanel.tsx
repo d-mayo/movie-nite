@@ -25,8 +25,9 @@ import { catchChance, forcedCatchRotation, isCatch } from '../wheel/catch.ts'
 import { pinAngles, pinPastPointer, pushStart } from '../wheel/pins.ts'
 import { blindfold, buildCardWedges, buildWedges, type Wedge } from '../wheel/wedges.ts'
 import { effectiveSetting, spinPlan, wildcardTotal } from '../wheel/edit.ts'
-import { drawExclusions, drawMessage, movieExclusions } from '../letterboxd/drawing.ts'
+import { drawExclusions, drawMessage, movieExclusions, possessives } from '../letterboxd/drawing.ts'
 import { canBeReshuffled, drawFilmsFromWatchlist, type WatchlistSource } from '../letterboxd/watchlist.ts'
+import { canCommonGround, canHaveBacklog, commonGroundGroup, drawCommonGround } from '../letterboxd/commonGround.ts'
 import { drawDiscoverFilms, filmsMessage, loadFilms, maxCanFilms } from '../tmdb/discoverDraw.ts'
 import { finishTake, hasCans, newCans, openChoice, pickCan, settleTick, takeFilm, type Cans } from '../wildcards/cans.ts'
 import { cards, type DealContext } from '../wildcards/cards.ts'
@@ -116,7 +117,7 @@ interface Spin {
 // failed with why. The cans and the pick live here, in memory only.
 type Draw =
   | { key: Date; phase: 'drawing' }
-  | { key: Date; phase: 'ready'; cans: Cans }
+  | { key: Date; phase: 'ready'; cans: Cans; notes?: Record<number, string> }
   | { key: Date; phase: 'failed'; message: string }
 
 // Half of a crossfade between the main wheel and the wildcard wheel: the stage fades out, the
@@ -259,10 +260,20 @@ export default function WheelPanel({
         canReshuffle: watchlist
           ? canBeReshuffled(watchlist.memory, v.letterboxd, drawExclusions(night, holdover, v.id))
           : false,
+        canBacklog: watchlist
+          ? canHaveBacklog(watchlist.memory, v.letterboxd, movieExclusions(night, holdover))
+          : false,
         ...effectiveSetting(settings.wheel, night.adjustments, v.id, night.cardEffects),
       })),
       wildcardCount: wildcardTotal(ordered.length, settings.wheel, night.cardEffects),
       today: new Date(),
+      commonGround: watchlist
+        ? canCommonGround(
+            watchlist.memory,
+            commonGroundGroup(roster, night.presentIds, watchlist.memory),
+            movieExclusions(night, holdover),
+          )
+        : false,
     }
   }
 
@@ -618,7 +629,39 @@ export default function WheelPanel({
         else later({ key: drawKey, phase: 'ready', cans: newCans(films) })
         return
       }
-      const viewer = change?.kind === 'reshuffle' ? roster.find((v) => v.id === change.viewerIds[0]) : undefined
+      if (source?.kind === 'commonGround') {
+        if (!watchlist) {
+          fail(drawMessage('unavailable', '', undefined))
+          return
+        }
+        const group = commonGroundGroup(roster, night.presentIds, watchlist.memory)
+        const shared = await drawCommonGround({
+          client: watchlist.client,
+          memory: watchlist.memory,
+          usernames: group,
+          excluded: movieExclusions(night, holdover),
+          random: watchlist.random,
+          count: maxCanFilms,
+        }).catch(() => 'unavailable' as const)
+        if (typeof shared === 'string') {
+          fail(shared === 'unavailable' ? drawMessage('unavailable', '', undefined) : 'No film on the shared watchlists can be used.')
+          return
+        }
+        const films = await loadFilms(client, shared.map((s) => s.tmdbId))
+        if (films.length === 0) {
+          fail("The drawn film couldn't be loaded.")
+          return
+        }
+        const notes: Record<number, string> = {}
+        for (const s of shared) {
+          const names = roster.filter((v) => v.letterboxd && s.holders.includes(v.letterboxd.username.toLowerCase())).map((v) => v.name)
+          notes[s.tmdbId] = `On ${possessives(names)} ${names.length === 1 ? 'watchlist' : 'watchlists'}`
+        }
+        later({ key: drawKey, phase: 'ready', cans: newCans(films), notes })
+        return
+      }
+      const viewerId = source?.kind === 'backlog' ? source.viewerId : change?.kind === 'reshuffle' ? change.viewerIds[0] : undefined
+      const viewer = viewerId ? roster.find((v) => v.id === viewerId) : undefined
       if (!viewer?.letterboxd || !watchlist) {
         fail(drawMessage('unavailable', viewer?.name ?? '', undefined))
         return
@@ -627,7 +670,7 @@ export default function WheelPanel({
         client: watchlist.client,
         memory: watchlist.memory,
         username: viewer.letterboxd.username,
-        excluded: drawExclusions(night, holdover, viewer.id),
+        excluded: source?.kind === 'backlog' ? movieExclusions(night, holdover) : drawExclusions(night, holdover, viewer.id),
         random: watchlist.random,
         count: maxCanFilms,
       }).catch(() => 'unavailable' as const)
@@ -669,7 +712,12 @@ export default function WheelPanel({
     if (change?.kind === 'reshuffle') {
       return `Drawing from ${roster.find((v) => v.id === change.viewerIds[0])?.name ?? ''}'s watchlist…`
     }
-    return change?.kind === 'movie' && shownCard?.source?.kind === 'discover' ? 'Finding films…' : null
+    const source = shownCard?.source
+    if (source?.kind === 'backlog') {
+      return `Drawing from ${roster.find((v) => v.id === source.viewerId)?.name ?? ''}'s watchlist…`
+    }
+    if (source?.kind === 'commonGround') return 'Comparing watchlists…'
+    return change?.kind === 'movie' && source?.kind === 'discover' ? 'Finding films…' : null
   }
 
   // Back and Escape wait while films load and while the cans are in play.
@@ -805,6 +853,7 @@ export default function WheelPanel({
           {current?.phase === 'ready' && !(current.cans.taken && kind === 'reshuffle') && (
             <FilmCans
               cans={current.cans}
+              notes={current.notes}
               scale={cansScale}
               random={random}
               onPick={(i) => playCans((c) => pickCan(c, i, random))}

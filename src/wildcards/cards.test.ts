@@ -12,7 +12,7 @@ const viewer = (id: string, slices = 3, weight = 5): DealViewer => ({
   slices,
   weight,
   film: null,
-  canReshuffle: false,
+  canReshuffle: false, canBacklog: false,
 })
 
 const byId = (id: string) => cards.find((c) => c.id === id)!
@@ -38,13 +38,15 @@ describe('the wheel cards', () => {
       'decade-roulette',
       'world-cinema',
       'shortest-on-the-board',
+      'backlog',
+      'common-ground',
     ])
     expect(cards.slice(0, 8).every((c) => c.type === 'wheel' && !c.fff)).toBe(true)
     expect(cards.slice(8).every((c) => c.type === 'movie' && !c.fff)).toBe(true)
   })
 
   it('rolls a weight card with its label, title, text and effect', () => {
-    const context: DealContext = { viewers: [viewer('sam')], wildcardCount: 3, today }
+    const context: DealContext = { viewers: [viewer('sam')], wildcardCount: 3, today, commonGround: false }
     for (let seed = 1; seed < 40; seed++) {
       const rolled = byId('viewer-weight').roll(context, seeded(seed))
       const { change } = rolled.effect
@@ -64,7 +66,7 @@ describe('the wheel cards', () => {
   })
 
   it('rolls plus and minus in roughly equal numbers when both are allowed', () => {
-    const context: DealContext = { viewers: [viewer('sam')], wildcardCount: 3, today }
+    const context: DealContext = { viewers: [viewer('sam')], wildcardCount: 3, today, commonGround: false }
     const random = seeded(7)
     let plus = 0
     for (let i = 0; i < 400; i++) {
@@ -76,14 +78,14 @@ describe('the wheel cards', () => {
   })
 
   it('names every viewer on the wheel in an Everyone card', () => {
-    const context: DealContext = { viewers: [viewer('a'), viewer('b')], wildcardCount: 2, today }
+    const context: DealContext = { viewers: [viewer('a'), viewer('b')], wildcardCount: 2, today, commonGround: false }
     const rolled = byId('everyone-slices').roll(context, seeded(3))
     expect(rolled.title).toMatch(/^Everyone [+−]\d Slices$/)
     expect(rolled.effect.change).toMatchObject({ kind: 'slices', viewerIds: ['a', 'b'] })
   })
 
   it('rolls a wildcards card trimmed to stay at 12', () => {
-    const context: DealContext = { viewers: [viewer('a')], wildcardCount: 11, today }
+    const context: DealContext = { viewers: [viewer('a')], wildcardCount: 11, today, commonGround: false }
     for (let seed = 1; seed < 20; seed++) {
       const rolled = byId('wildcards').roll(context, seeded(seed))
       expect(rolled.effect.change).toEqual({ kind: 'wildcards', amount: 1 })
@@ -93,13 +95,13 @@ describe('the wheel cards', () => {
 
   it('is never eligible beyond the limits', () => {
     // Weight 0.5 can't go down by 1, but can go up.
-    const low: DealContext = { viewers: [viewer('a', 3, 0.5)], wildcardCount: 3, today }
+    const low: DealContext = { viewers: [viewer('a', 3, 0.5)], wildcardCount: 3, today, commonGround: false }
     for (let seed = 1; seed < 30; seed++) {
       const change = byId('viewer-weight').roll(low, seeded(seed)).effect.change
       expect(change.kind === 'weight' && change.amount > 0).toBe(true)
     }
     // At 12 slices a plus can't be rolled.
-    const high: DealContext = { viewers: [viewer('a', 12, 5)], wildcardCount: 3, today }
+    const high: DealContext = { viewers: [viewer('a', 12, 5)], wildcardCount: 3, today, commonGround: false }
     for (let seed = 1; seed < 30; seed++) {
       const change = byId('viewer-slices').roll(high, seeded(seed)).effect.change
       expect(change.kind === 'slices' && change.amount < 0).toBe(true)
@@ -107,12 +109,12 @@ describe('the wheel cards', () => {
   })
 
   it('is ineligible with no allowed roll', () => {
-    expect(byId('wildcards').eligible({ viewers: [viewer('a')], wildcardCount: 12, today })).toBe(false)
-    expect(byId('everyone-weight').eligible({ viewers: [], wildcardCount: 0, today })).toBe(false)
+    expect(byId('wildcards').eligible({ viewers: [viewer('a')], wildcardCount: 12, today, commonGround: false })).toBe(false)
+    expect(byId('everyone-weight').eligible({ viewers: [], wildcardCount: 0, today, commonGround: false })).toBe(false)
     // One viewer at each end of the weight range: no sign suits both.
     const split: DealContext = {
       viewers: [viewer('a', 3, 0.5), viewer('b', 3, 20)],
-      wildcardCount: 3, today,
+      wildcardCount: 3, today, commonGround: false,
     }
     expect(byId('everyone-weight').eligible(split)).toBe(false)
     expect(byId('viewer-weight').eligible(split)).toBe(true)
@@ -121,7 +123,7 @@ describe('the wheel cards', () => {
   it('keeps an Everyone card within the limits for all of them', () => {
     const context: DealContext = {
       viewers: [viewer('a', 3, 19), viewer('b', 3, 2)],
-      wildcardCount: 3, today,
+      wildcardCount: 3, today, commonGround: false,
     }
     for (let seed = 1; seed < 30; seed++) {
       const change = byId('everyone-weight').roll(context, seeded(seed)).effect.change
@@ -162,9 +164,9 @@ describe('Picks Again, Reshuffle and Blind Spin', () => {
   const reshufflable = (id: string): DealViewer => ({ ...viewer(id), canReshuffle: true })
 
   it('Picks Again is eligible only with a nominated film, and names that viewer and film', () => {
-    const none: DealContext = { viewers: [viewer('a')], wildcardCount: 3, today }
+    const none: DealContext = { viewers: [viewer('a')], wildcardCount: 3, today, commonGround: false }
     expect(byId('picks-again').eligible(none)).toBe(false)
-    const context: DealContext = { viewers: [viewer('a'), withFilm('b', 7)], wildcardCount: 3, today }
+    const context: DealContext = { viewers: [viewer('a'), withFilm('b', 7)], wildcardCount: 3, today, commonGround: false }
     expect(byId('picks-again').eligible(context)).toBe(true)
     const rolled = byId('picks-again').roll(context, seeded(3))
     expect(rolled.label).toBe('B picks again')
@@ -178,9 +180,9 @@ describe('Picks Again, Reshuffle and Blind Spin', () => {
   })
 
   it('Reshuffle is dealt only for a viewer marked reshufflable', () => {
-    const none: DealContext = { viewers: [viewer('a'), withFilm('b', 7)], wildcardCount: 3, today }
+    const none: DealContext = { viewers: [viewer('a'), withFilm('b', 7)], wildcardCount: 3, today, commonGround: false }
     expect(byId('reshuffle').eligible(none)).toBe(false)
-    const context: DealContext = { viewers: [viewer('a'), reshufflable('b')], wildcardCount: 3, today }
+    const context: DealContext = { viewers: [viewer('a'), reshufflable('b')], wildcardCount: 3, today, commonGround: false }
     expect(byId('reshuffle').eligible(context)).toBe(true)
     for (let seed = 1; seed < 20; seed++) {
       const rolled = byId('reshuffle').roll(context, seeded(seed))
@@ -191,7 +193,7 @@ describe('Picks Again, Reshuffle and Blind Spin', () => {
   })
 
   it('Blind Spin is always eligible, even after earlier ones', () => {
-    const context: DealContext = { viewers: [], wildcardCount: 12, today }
+    const context: DealContext = { viewers: [], wildcardCount: 12, today, commonGround: false }
     expect(byId('blind-spin').eligible(context)).toBe(true)
     const rolled = byId('blind-spin').roll(context, seeded(1))
     expect(rolled.label).toBe('Blind spin')
@@ -206,6 +208,7 @@ describe('the movie cards', () => {
     viewers: [],
     wildcardCount: 3,
     today: new Date(2026, month - 1, day),
+    commonGround: false,
   })
   const params = (id: string, random = seeded(3)) => {
     const rolled = byId(id).roll(on(3, 15), random)
@@ -312,7 +315,7 @@ describe('the movie cards', () => {
 
   it('makes Shortest on the Board eligible only with a runtime, and picks the shortest, ties by random', () => {
     const film = (runtime: number | null, tmdbId = runtime ?? 1) => ({ tmdbId, title: `Film ${tmdbId}`, runtime })
-    const none: DealContext = { viewers: [{ ...viewer('a'), film: film(null) }], wildcardCount: 3, today }
+    const none: DealContext = { viewers: [{ ...viewer('a'), film: film(null) }], wildcardCount: 3, today, commonGround: false }
     expect(byId('shortest-on-the-board').eligible(none)).toBe(false)
     const context: DealContext = {
       viewers: [
@@ -321,7 +324,7 @@ describe('the movie cards', () => {
         { ...viewer('c'), name: 'Cy', film: film(null) },
       ],
       wildcardCount: 3,
-      today,
+      today, commonGround: false,
     }
     expect(byId('shortest-on-the-board').eligible(context)).toBe(true)
     const rolled = byId('shortest-on-the-board').roll(context, seeded(1))
@@ -345,5 +348,43 @@ describe('the movie cards', () => {
   it('keeps a well-formed movie effect and drops a malformed one', () => {
     const good = { cardId: 'genre-night', label: 'Horror night', change: { kind: 'movie' } }
     expect(validCardEffects([good, { cardId: 'x', label: 'y', change: { kind: 'movies' } }])).toEqual([good])
+  })
+
+  it("makes X's Backlog eligible only with a viewer marked able, rolling X from those", () => {
+    const none: DealContext = { viewers: [viewer('a'), viewer('b')], wildcardCount: 3, today, commonGround: false }
+    expect(byId('backlog').eligible(none)).toBe(false)
+    const context: DealContext = {
+      viewers: [viewer('a'), { ...viewer('b'), name: 'Bo', canBacklog: true }],
+      wildcardCount: 3,
+      today,
+      commonGround: false,
+    }
+    expect(byId('backlog').eligible(context)).toBe(true)
+    const rolled = byId('backlog').roll(context, seeded(1))
+    expect(rolled).toMatchObject({
+      type: 'movie',
+      fff: false,
+      label: "Bo's backlog",
+      title: "Bo's Backlog",
+      text: "Three films from Bo's watchlist in the cans.",
+      source: { kind: 'backlog', viewerId: 'b' },
+      effect: { cardId: 'backlog', label: "Bo's backlog", change: { kind: 'movie' } },
+    })
+  })
+
+  it('makes Common Ground eligible only while the context marks it, and it rolls no viewer', () => {
+    const base: DealContext = { viewers: [viewer('a')], wildcardCount: 3, today, commonGround: false }
+    expect(byId('common-ground').eligible(base)).toBe(false)
+    const on = { ...base, commonGround: true }
+    expect(byId('common-ground').eligible(on)).toBe(true)
+    expect(byId('common-ground').roll(on, seeded(1))).toMatchObject({
+      type: 'movie',
+      fff: false,
+      label: 'Common ground',
+      title: 'Common Ground',
+      text: 'Three films from the most watchlists in the cans.',
+      source: { kind: 'commonGround' },
+      effect: { cardId: 'common-ground', label: 'Common ground', change: { kind: 'movie' } },
+    })
   })
 })

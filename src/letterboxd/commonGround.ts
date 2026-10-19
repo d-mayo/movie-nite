@@ -87,3 +87,15 @@ export async function drawCommonGround(options: {
   }
   return films.length > 0 ? films : 'exhausted'
 }
+
+/** Common Ground's group: the present viewers (won tonight included, away left out) with a found profile and a settled walk, as usernames in roster order. */
+export function commonGroundGroup(
+  roster: readonly { id: string; letterboxd?: { username: string; status: string } }[],
+  presentIds: readonly string[],
+  memory: WatchlistMemory,
+): string[] {
+  return roster
+    .filter((v) => presentIds.includes(v.id) && v.letterboxd?.status === 'found')
+    .map((v) => v.letterboxd!.username.toLowerCase())
+    .filter((username) => memory.settled.has(username))
+}
