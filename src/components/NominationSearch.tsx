@@ -33,7 +33,6 @@ function Dice() {
   )
 }
 
-// "Jo's", "Jo's and Sam's", "Jo's, Sam's and Alex's".
 // Which other present viewers have the film on their settled Letterboxd watchlist. The film's slug is asked of
 // Letterboxd when the session doesn't know it yet; a failure or an unknown film just leaves the line out.
 function OverlapLabel({

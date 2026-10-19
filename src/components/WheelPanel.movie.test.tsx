@@ -648,3 +648,14 @@ test("an away viewer's watchlist is left out of Common Ground's group", async ()
   await waitFor(() => expect(backButton(dialog)).toBeEnabled())
   expect(within(dialog).getByText('No film on the shared watchlists can be used.')).toBeInTheDocument()
 })
+
+test("a won-tonight viewer's watchlist still counts toward Common Ground's group", async () => {
+  forceCard('common-ground')
+  const fetchFn = lbFetch({ lists: { ann: ['x'], bo: ['x'] }, ids: { x: 101 } })
+  // Bo's film (2) has won, so Bo is off the wheel but still present.
+  setup({ fetchFn, people: linked, wonFilms: [2] })
+  await walksSettled(fetchFn)
+  const dialog = await openCard()
+  fireEvent.click(await within(dialog).findByRole('button', { name: 'Show the film' }))
+  await screen.findByRole('heading', { name: 'Found 101' })
+})
