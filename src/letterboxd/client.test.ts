@@ -96,6 +96,49 @@ describe('watchlistPage', () => {
   })
 })
 
+describe('listPage', () => {
+  it('asks the Worker for the page and reads its slugs and last page', async () => {
+    const { client, mock } = clientWith(reply(200, { slugs: ['a', 'b'], hasNext: true, lastPage: 4 }))
+    expect(await client.listPage('jo', 'fff-movie-night-1', 2)).toEqual({ slugs: ['a', 'b'], hasNext: true, lastPage: 4 })
+    expect(mock.mock.calls[0][0]).toBe('https://api.test/lb/jo/list/fff-movie-night-1?page=2')
+    expect(mock.mock.calls[0][1]?.cache).toBeUndefined()
+  })
+
+  it("reads the Worker's own 404 bodies as private and missing", async () => {
+    expect(await clientWith(reply(404, { error: 'List is private' })).client.listPage('jo', 'x', 1)).toBe('private')
+    expect(await clientWith(reply(404, { error: 'No such list' })).client.listPage('jo', 'x', 1)).toBe('missing')
+  })
+
+  it.each([
+    ['an unknown 404', reply(404, { error: 'No such watchlist' })],
+    ['a 502', reply(502, { error: 'Letterboxd could not be read' })],
+    ['a 200 without lastPage', reply(200, { slugs: ['a'], hasNext: false })],
+    ['a 200 with a non-string slug', reply(200, { slugs: [1], hasNext: false, lastPage: 1 })],
+    ['a body that is not JSON', async () => new Response('<html>', { status: 200 })],
+    [
+      'a thrown fetch',
+      async () => {
+        throw new TypeError('Failed to fetch')
+      },
+    ],
+  ])('reads %s as unavailable', async (_, fetchFn) => {
+    expect(await clientWith(fetchFn).client.listPage('jo', 'x', 1)).toBe('unavailable')
+  })
+
+  it('rethrows an abort', async () => {
+    const controller = new AbortController()
+    const { client } = clientWith(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+        }),
+    )
+    const pending = client.listPage('jo', 'x', 1, controller.signal)
+    controller.abort()
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+  })
+})
+
 describe('filmTmdbId', () => {
   it('reads the id, and null for a film with none', async () => {
     const { client, mock } = clientWith(reply(200, { slug: 'x-1', tmdbId: 7 }))

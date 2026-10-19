@@ -7,9 +7,19 @@ export interface WatchlistPage {
 
 export type WatchlistPageResult = WatchlistPage | 'private' | 'missing' | 'unavailable'
 
+export interface ListPage {
+  slugs: string[]
+  hasNext: boolean
+  lastPage: number
+}
+
+export type ListPageResult = ListPage | 'private' | 'missing' | 'unavailable'
+
 export interface LetterboxdClient {
   checkProfile(username: string, signal?: AbortSignal): Promise<ProfileCheck>
   watchlistPage(username: string, page: number, signal?: AbortSignal): Promise<WatchlistPageResult>
+  /** One page (100 films) of a user's list, with the list's last page. */
+  listPage(username: string, slug: string, page: number, signal?: AbortSignal): Promise<ListPageResult>
   /** The film's TMDB id, null when it is not a film the app can nominate, or unavailable. */
   filmTmdbId(slug: string, signal?: AbortSignal): Promise<number | null | 'unavailable'>
   /** The film's Letterboxd slug for a TMDB id, null when Letterboxd has no such film, or unavailable. */
@@ -60,6 +70,33 @@ export function createLetterboxdClient(
         }
         if (status === 404 && body?.error === 'Watchlist is private') return 'private'
         if (status === 404 && body?.error === 'No such watchlist') return 'missing'
+        return 'unavailable'
+      } catch (error) {
+        if (isAbort(error, signal)) throw error
+        return 'unavailable'
+      }
+    },
+
+    async listPage(username, slug, page, signal) {
+      try {
+        // The browser's normal cache serves it: a list an hour stale loses nothing.
+        const { status, body } = await get(
+          `/lb/${encodeURIComponent(username)}/list/${encodeURIComponent(slug)}?page=${page}`,
+          signal,
+        )
+        if (
+          status === 200 &&
+          Array.isArray(body?.slugs) &&
+          typeof body.hasNext === 'boolean' &&
+          typeof body.lastPage === 'number'
+        ) {
+          const slugs = body.slugs
+          if (slugs.every((s): s is string => typeof s === 'string')) {
+            return { slugs, hasNext: body.hasNext, lastPage: body.lastPage }
+          }
+        }
+        if (status === 404 && body?.error === 'List is private') return 'private'
+        if (status === 404 && body?.error === 'No such list') return 'missing'
         return 'unavailable'
       } catch (error) {
         if (isAbort(error, signal)) throw error

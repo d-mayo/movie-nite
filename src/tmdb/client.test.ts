@@ -26,6 +26,51 @@ describe('tmdb client', () => {
     ])
   })
 
+  test('discoverMovies sends only the given parameters, encoded, and maps the page', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      json({
+        page: 2,
+        total_pages: 812,
+        results: [
+          { id: 1, title: 'A', release_date: '1999-03-31', poster_path: '/a.jpg' },
+          { id: 2, title: 'B' },
+        ],
+      }),
+    )
+    const page = await createTmdbClient('https://w.test', fetchFn).discoverMovies({
+      with_genres: '27|53',
+      'vote_average.gte': 6.5,
+      page: 2,
+    })
+    expect(fetchFn.mock.calls[0][0]).toBe(
+      'https://w.test/tmdb/discover?with_genres=27%7C53&vote_average.gte=6.5&page=2',
+    )
+    expect(page).toEqual({
+      page: 2,
+      totalPages: 500,
+      results: [
+        { tmdbId: 1, title: 'A', year: 1999, posterPath: '/a.jpg' },
+        { tmdbId: 2, title: 'B', year: null, posterPath: null },
+      ],
+    })
+  })
+
+  test('discoverMovies with no parameters asks plain discover and keeps a small total', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(json({ page: 1, total_pages: 3, results: [] }))
+    const page = await createTmdbClient('https://w.test', fetchFn).discoverMovies({})
+    expect(fetchFn.mock.calls[0][0]).toBe('https://w.test/tmdb/discover?')
+    expect(page.totalPages).toBe(3)
+  })
+
+  test('discoverMovies throws on a non-OK answer and a thrown fetch, and rethrows an abort', async () => {
+    const broken = createTmdbClient('https://w.test', vi.fn().mockResolvedValue(json({}, 502)))
+    await expect(broken.discoverMovies({})).rejects.toThrow('502')
+    const down = createTmdbClient('https://w.test', vi.fn().mockRejectedValue(new TypeError('x')))
+    await expect(down.discoverMovies({})).rejects.toThrow('Could not reach the film service')
+    const aborting = createTmdbClient('https://w.test', vi.fn().mockRejectedValue(new DOMException('a', 'AbortError')))
+    await expect(aborting.discoverMovies({})).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
   test('getMovie maps runtime and genre names', async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       json({
