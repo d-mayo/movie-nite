@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type Ref } from 'react'
 import { createPortal } from 'react-dom'
-import { viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts'
+import { isBlind, viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import { useApp } from '../state/store.ts'
 import { CardChips } from './CardChips.tsx'
@@ -23,8 +23,10 @@ import {
 import { countdownNumbers, countdownStepMs, rollsCountdown } from '../wheel/countdown.ts'
 import { catchChance, forcedCatchRotation, isCatch } from '../wheel/catch.ts'
 import { pinAngles, pinPastPointer, pushStart } from '../wheel/pins.ts'
-import { buildCardWedges, buildWedges, type Wedge } from '../wheel/wedges.ts'
+import { blindfold, buildCardWedges, buildWedges, type Wedge } from '../wheel/wedges.ts'
 import { effectiveSetting, spinPlan, wildcardTotal } from '../wheel/edit.ts'
+import { drawExclusions, drawMessage } from '../letterboxd/drawing.ts'
+import { canBeReshuffled, drawFromWatchlist, type WatchlistSource } from '../letterboxd/watchlist.ts'
 import type { DealContext } from '../wildcards/cards.ts'
 import { canDeal, dealCards, type DealtCard } from '../wildcards/deal.ts'
 import {
@@ -91,7 +93,15 @@ interface Spin {
   waiting: boolean
   // The card has been taken back to the main wheel, which is fading in.
   leaving: boolean
+  // The main wheel was blind at the press, and stays so until the spin lands.
+  blind: boolean
 }
+
+// A Reshuffle card's draw: under way, done with the film it found, or failed with why.
+type Reshuffle =
+  | { key: Date; phase: 'drawing' }
+  | { key: Date; phase: 'done'; film: Nomination }
+  | { key: Date; phase: 'failed'; message: string }
 
 // Half of a crossfade between the main wheel and the wildcard wheel: the stage fades out, the
 // wheels swap, and it fades back in.
@@ -112,6 +122,8 @@ interface Props {
   spinMs?: number
   sound?: SoundEngine
   client: TmdbClient
+  // Where a Reshuffle draws from, and which viewers it may be dealt for.
+  watchlist?: WatchlistSource
   onBusyChange: (busy: boolean) => void
   // Where the "waiting for" message goes; under the wheel when there is none.
   reasonSlot?: HTMLElement | null
@@ -125,6 +137,7 @@ export default function WheelPanel({
   spinMs,
   sound = silentSound,
   client,
+  watchlist,
   onBusyChange,
   reasonSlot,
 }: Props) {
@@ -140,6 +153,7 @@ export default function WheelPanel({
   const [forceWildcards, setForceWildcards] = useState(false)
   // The stage is faded out between the main wheel and the wildcard wheel.
   const [fading, setFading] = useState(false)
+  const [reshuffle, setReshuffle] = useState<Reshuffle | null>(null)
   const fadeTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const countdownTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const holdTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -165,12 +179,17 @@ export default function WheelPanel({
   )
 
   const live = buildWedges(night, roster, settings.wheel)
+  // The main wheel is blind from the Blind Spin's Back until the spin it was used by lands.
+  const blind = spin
+    ? spin.wheel === 'main' && spin.blind && !spin.landed && !spin.revealedAt
+    : isBlind(night)
   const onWheel = viewersOnWheel(night)
   const missing = onWheel
     .filter((id) => !night.nominations[id])
     .map((id) => roster.find((v) => v.id === id)?.name ?? '')
   const canSpin = !night.ended && onWheel.length > 0 && missing.length === 0
   const wedges = spin?.wedges ?? live
+  const shownWedges = blind ? blindfold(wedges) : wedges
   const motion = useWheelMotion(
     // The drift runs on under a countdown's dial and eases to a stop only once the spin is under way.
     (spin !== null && !spin.waiting && spin.countdown === null) || night.ended,
@@ -205,7 +224,9 @@ export default function WheelPanel({
         film: night.nominations[v.id]
           ? { tmdbId: night.nominations[v.id].tmdbId, title: night.nominations[v.id].title }
           : null,
-        canReshuffle: false,
+        canReshuffle: watchlist
+          ? canBeReshuffled(watchlist.memory, v.letterboxd, drawExclusions(night, holdover, v.id))
+          : false,
         ...effectiveSetting(settings.wheel, night.adjustments, v.id, night.cardEffects),
       })),
       wildcardCount: wildcardTotal(ordered.length, settings.wheel, night.cardEffects),
@@ -396,6 +417,7 @@ export default function WheelPanel({
           deal,
           waiting: true,
           leaving: false,
+          blind: false,
         }),
       )
     }
@@ -412,6 +434,7 @@ export default function WheelPanel({
       deal: onCards ? spin.deal : null,
       waiting: false,
       leaving: false,
+      blind: !onCards && isBlind(night),
     })
     onBusyChange(true)
     if (!countdown) {
@@ -451,7 +474,19 @@ export default function WheelPanel({
   function back() {
     const card = spin?.deal?.[spin.drawn]
     if (!card || spin.leaving) return
-    addCardEffect(card.effect)
+    const { change } = card.effect
+    if (change.kind === 'reshuffle') {
+      // A Reshuffle lands only with its film; one still drawing waits, and a failed one lands no card.
+      if (reshuffle?.phase === 'drawing') return
+      if (reshuffle?.phase === 'done') {
+        addCardEffect(
+          { ...card.effect, change: { ...change, tmdbId: reshuffle.film.tmdbId } },
+          reshuffle.film,
+        )
+      }
+    } else {
+      addCardEffect(card.effect)
+    }
     clearTimeout(holdTimer.current)
     clearTimeout(easeTimer.current)
     if (musicOn.current) sound.revealClosed()
@@ -461,6 +496,70 @@ export default function WheelPanel({
       setSpin(null)
       onBusyChange(false)
     })
+  }
+
+  // A Reshuffle card draws as it turns over: the film is only swapped in when Back lands the card.
+  const shownCard = spin?.revealedAt && spin.wheel === 'cards' && !spin.leaving ? spin.deal?.[spin.drawn] : null
+  const reshuffleKey = shownCard?.effect.change.kind === 'reshuffle' ? (spin?.revealedAt ?? null) : null
+  const latest = useRef({ night, holdover, roster, client, watchlist, card: shownCard })
+  useEffect(() => {
+    latest.current = { night, holdover, roster, client, watchlist, card: shownCard }
+  })
+  useEffect(() => {
+    if (!reshuffleKey) return
+    const aborted = { current: false }
+    const { night, holdover, roster, client, watchlist, card } = latest.current
+    const change = card?.effect.change
+    const viewer = change?.kind === 'reshuffle' ? roster.find((v) => v.id === change.viewerIds[0]) : undefined
+    const settle = (next: Reshuffle) => {
+      if (!aborted.current) setReshuffle(next)
+    }
+    settle({ key: reshuffleKey, phase: 'drawing' })
+    void (async () => {
+      if (!viewer?.letterboxd || !watchlist) {
+        settle({ key: reshuffleKey, phase: 'failed', message: drawMessage('unavailable', viewer?.name ?? '', undefined) })
+        return
+      }
+      const result = await drawFromWatchlist({
+        client: watchlist.client,
+        memory: watchlist.memory,
+        username: viewer.letterboxd.username,
+        excluded: drawExclusions(night, holdover, viewer.id),
+        random: watchlist.random,
+      }).catch(() => 'unavailable' as const)
+      if (typeof result === 'string') {
+        settle({ key: reshuffleKey, phase: 'failed', message: drawMessage(result, viewer.name, viewer.letterboxd.username) })
+        return
+      }
+      try {
+        settle({ key: reshuffleKey, phase: 'done', film: await client.getMovie(result) })
+      } catch {
+        settle({ key: reshuffleKey, phase: 'failed', message: "The drawn film couldn't be loaded." })
+      }
+    })()
+    return () => {
+      aborted.current = true
+    }
+  }, [reshuffleKey])
+
+  // What a Reshuffle card says: it is drawing, then the swap, or why not.
+  function reshuffleText(): string | undefined {
+    const change = shownCard?.effect.change
+    if (change?.kind !== 'reshuffle') return undefined
+    const viewer = roster.find((v) => v.id === change.viewerIds[0])
+    const name = viewer?.name ?? ''
+    const current = reshuffle?.key === spin?.revealedAt ? reshuffle : null
+    if (!current || current.phase === 'drawing') return `Drawing from ${name}'s watchlist…`
+    if (current.phase === 'failed') return `${current.message} ${name}'s film stays.`
+    const old = night.nominations[change.viewerIds[0]]
+    const added = `${current.film.title}${current.film.year === null ? '' : ` (${current.film.year})`}`
+    return old ? `${old.title} is swapped for ${added}.` : `${name} gets ${added}.`
+  }
+
+  function reshuffleBusy(): boolean {
+    if (shownCard?.effect.change.kind !== 'reshuffle') return false
+    const current = reshuffle?.key === spin?.revealedAt ? reshuffle : null
+    return !current || current.phase === 'drawing'
   }
 
   function outcome(nomination: Nomination, result: Outcome, fromWheel: boolean) {
@@ -478,7 +577,7 @@ export default function WheelPanel({
       >
         {/* A close call's zoom scales this wrapper, not the stage, which the reveal measures and the flicker sits in. */}
         <div className="wheel-zoom">
-          <Wheel wedges={wedges} showLabels={settings.wheel.showLabels} groupRef={motion.groupRef} flapperRef={motion.flapperRef} />
+          <Wheel wedges={shownWedges} showLabels={settings.wheel.showLabels && !blind} groupRef={motion.groupRef} flapperRef={motion.flapperRef} />
           {wedges.length > 0 && (
             <button
               type="button"
@@ -552,7 +651,13 @@ export default function WheelPanel({
       {night.ended && !reasonSlot && <NightOver />}
       {night.ended && reasonSlot && createPortal(<NightOver />, reasonSlot)}
       {spin?.revealedAt && spin.wheel === 'cards' && !spin.leaving && spin.deal?.[spin.drawn] && (
-        <CardReveal card={spin.deal[spin.drawn]} closeCall={spin.closeCall} onBack={back} />
+        <CardReveal
+          card={spin.deal[spin.drawn]}
+          closeCall={spin.closeCall}
+          text={reshuffleText()}
+          busy={reshuffleBusy()}
+          onBack={back}
+        />
       )}
       {spin?.revealedAt && spin.wheel === 'main' && (
         <Reveal

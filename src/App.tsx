@@ -78,6 +78,7 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
             spinMs={spinMs}
             sound={sound}
             client={client}
+            watchlist={watchlist}
             onBusyChange={setLocked}
             reasonSlot={reasonSlot}
           />

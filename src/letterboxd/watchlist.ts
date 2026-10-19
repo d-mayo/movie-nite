@@ -102,6 +102,25 @@ export async function drawFromWatchlist(options: {
   return 'exhausted'
 }
 
+/**
+ * Whether a Reshuffle could draw this viewer a film: their profile is found, their walk has settled, and at least
+ * one slug on it is not known to be unusable (not a movie, or an excluded film). A slug whose TMDB id isn't known
+ * yet counts as usable, since the deal can't look it up.
+ */
+export function canBeReshuffled(
+  memory: WatchlistMemory,
+  letterboxd: { username: string; status: string } | undefined,
+  excluded: ReadonlySet<number>,
+): boolean {
+  if (letterboxd?.status !== 'found') return false
+  const slugs = memory.settled.get(letterboxd.username.toLowerCase())
+  if (!slugs) return false
+  return slugs.some((slug) => {
+    const id = memory.ids.get(slug)
+    return id === undefined || (id !== null && !excluded.has(id))
+  })
+}
+
 /** What the panel needs to draw: the Worker client, the session's memory and the random source. */
 export interface WatchlistSource {
   client: LetterboxdClient

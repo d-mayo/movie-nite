@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { LetterboxdClient, WatchlistPageResult } from './client.ts'
-import { createWatchlistMemory, drawFromWatchlist, ensureWalk, MAX_WATCHLIST_PAGES, subscribeToSettled } from './watchlist.ts'
+import { canBeReshuffled, createWatchlistMemory, drawFromWatchlist, ensureWalk, MAX_WATCHLIST_PAGES, subscribeToSettled } from './watchlist.ts'
 
 function fakeClient(
   pages: WatchlistPageResult[],
@@ -166,5 +166,33 @@ describe('settled walks', () => {
     await draw(client, memory)
     expect(memory.slugs.get(7)).toBe('a')
     expect(client.filmSlug).not.toHaveBeenCalled()
+  })
+})
+
+describe('canBeReshuffled', () => {
+  const found = { username: 'Jo', status: 'found' }
+  const settled = (slugs: string[], ids: Record<string, number | null> = {}) => {
+    const memory = createWatchlistMemory()
+    memory.settled.set('jo', slugs)
+    for (const [slug, id] of Object.entries(ids)) memory.ids.set(slug, id)
+    return memory
+  }
+
+  it('is false without a found profile, a settled walk or any slug', () => {
+    expect(canBeReshuffled(settled(['a']), undefined, none)).toBe(false)
+    expect(canBeReshuffled(settled(['a']), { username: 'jo', status: 'pending' }, none)).toBe(false)
+    expect(canBeReshuffled(settled(['a']), { username: 'jo', status: 'missing' }, none)).toBe(false)
+    expect(canBeReshuffled(createWatchlistMemory(), found, none)).toBe(false)
+    expect(canBeReshuffled(settled([]), found, none)).toBe(false)
+  })
+
+  it('is false when every slug is known to be a non-movie or an excluded film', () => {
+    const memory = settled(['a', 'b', 'c'], { a: null, b: 5, c: 6 })
+    expect(canBeReshuffled(memory, found, new Set([5, 6]))).toBe(false)
+  })
+
+  it('is true when one slug is still unknown or maps to a film that is not excluded', () => {
+    expect(canBeReshuffled(settled(['a', 'b'], { a: null }), found, none)).toBe(true)
+    expect(canBeReshuffled(settled(['a', 'b'], { a: 5, b: 6 }), found, new Set([5]))).toBe(true)
   })
 })

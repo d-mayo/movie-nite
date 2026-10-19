@@ -763,6 +763,11 @@ html:has(.wheel-stage[data-zoom]) {
   cursor: pointer;
 }
 
+.card-back-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .reveal-thread {
   animation: reveal-thread 0.6s ease-out;
 }
