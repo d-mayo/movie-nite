@@ -389,7 +389,7 @@ describe('the movie cards', () => {
   })
 })
 
-describe('the cards' names and descriptions', () => {
+describe('card names and descriptions', () => {
   it('gives every card a plain, unique name and a description with no placeholder', () => {
     for (const card of cards) {
       expect(card.name.trim()).not.toBe('')
