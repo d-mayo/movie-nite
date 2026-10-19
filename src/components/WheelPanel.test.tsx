@@ -86,7 +86,8 @@ function setupCrowd(
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: {        viewersHidden: false,
+      settings: {
+        viewersHidden: false,
         wheel: {
           ...defaultWheelSettings,
           wildcardsPerViewer: false,
@@ -550,6 +551,9 @@ function recordingSound() {
     countdownStarts: 0,
     beeps: 0,
     musicStarts: 0,
+    // The presses that kept the music (counted in starts too), and the music resumes.
+    keepStarts: 0,
+    resumes: 0,
     ends: 0,
     landed: [] as number[],
     // The close-call flag each landing was told, and the seconds each cue was told.
@@ -571,11 +575,13 @@ function recordingSound() {
       return () => log.detached++
     },
     apply: (settings) => void log.applied.push(settings),
-    spinStart: (countdown = false) => {
+    spinStart: (countdown = false, keepMusic = false) => {
       log.starts++
       if (countdown) log.countdownStarts++
+      if (keepMusic) log.keepStarts++
     },
     musicStart: () => void log.musicStarts++,
+    musicResume: () => void log.resumes++,
     beep: () => void log.beeps++,
     spinSpeed: (share) => void log.shares.push(share),
     pinTick: (share) => void log.ticks.push(share),
@@ -774,7 +780,8 @@ test('a close-call spin cues once before the landing, zooms from the cue and cle
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: {        viewersHidden: false,
+      settings: {
+        viewersHidden: false,
         wheel: { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 },
       },
       roster: [

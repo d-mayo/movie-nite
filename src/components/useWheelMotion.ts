@@ -188,10 +188,12 @@ export function useWheelMotion(
     // `done`; `done` runs once, on the frame the path ends. The `cues` each fire once,
     // on the first frame at or after its time, and always before `done`.
     // After a leader countdown the projector is already running, so only the music starts.
-    play(path: SpinPath, done: () => void, cues: Cue[] = [], afterCountdown = false) {
+    // With `keepMusic` the music is neither started nor stopped by the spin (the wildcard wheel's).
+    play(path: SpinPath, done: () => void, cues: Cue[] = [], afterCountdown = false, keepMusic = false) {
       speed.current = 0
-      if (afterCountdown) soundRef.current.musicStart()
-      else soundRef.current.spinStart()
+      if (afterCountdown) {
+        if (!keepMusic) soundRef.current.musicStart()
+      } else soundRef.current.spinStart(false, keepMusic)
       // Held until the next render says otherwise, so no drift frame slips in
       // between the path's end and the commit that shows the reveal.
       stoppedRef.current = true

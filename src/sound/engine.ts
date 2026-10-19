@@ -33,7 +33,10 @@ export interface SoundEngine {
   apply(settings: SoundSettings): void
   // Spin pressed: the projector switches on and its motor starts, and the music loop starts, unless
   // `countdown` says a leader countdown comes first, when the music waits for musicStart.
-  spinStart(countdown?: boolean): void
+  // With `keepMusic` (the wildcard wheel's spin) the music is left as it is: not restarted, not stopped.
+  spinStart(countdown?: boolean, keepMusic?: boolean): void
+  // Brings a loop a close call silenced back to its full level, with no stinger.
+  musicResume(): void
   // The leader countdown ended: the music loop starts, as at an ordinary press.
   musicStart(): void
   // One leader beep, at the start of each number of the countdown.
@@ -72,6 +75,7 @@ export const silentSound: SoundEngine = {
   apply: () => {},
   spinStart: () => {},
   musicStart: () => {},
+  musicResume: () => {},
   beep: () => {},
   spinSpeed: () => {},
   pinTick: () => {},
@@ -327,13 +331,13 @@ export function createSound(deps: SoundDeps): SoundEngine {
       settings = next
       setGains(false)
     },
-    spinStart(countdown = false) {
+    spinStart(countdown = false, keepMusic = false) {
       if (!ctx) return
       stopHum()
       stopRoll()
-      stopMusic()
+      if (!keepMusic) stopMusic()
       play('on')
-      if (!countdown) startLoop()
+      if (!countdown && !keepMusic) startLoop()
       const buffer = buffers.hum
       if (!buffer) return
       const source = ctx.createBufferSource()
@@ -352,6 +356,10 @@ export function createSound(deps: SoundDeps): SoundEngine {
     },
     musicStart() {
       startLoop()
+    },
+    musicResume() {
+      if (!ctx || !loop) return
+      ramp(loop.gain, loopLevel, ctx.currentTime, 0.5)
     },
     beep() {
       if (!ctx) return
