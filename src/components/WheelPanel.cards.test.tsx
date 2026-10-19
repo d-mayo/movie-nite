@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import App from '../App.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
@@ -19,7 +19,14 @@ vi.mock('../wildcards/deal.ts', async (importOriginal) => {
   return { ...actual, dealCards: vi.fn(actual.dealCards) }
 })
 
+// A March day, so no seasonal card is guaranteed onto the deal and these tests do not depend on the date.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 2, 15, 20, 0))
+})
+
 afterEach(async () => {
+  vi.useRealTimers()
   const actual = await vi.importActual<typeof import('../wildcards/deal.ts')>('../wildcards/deal.ts')
   vi.mocked(dealCards).mockImplementation(actual.dealCards)
   cleanup()
