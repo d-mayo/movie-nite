@@ -146,7 +146,7 @@ function everyoneCard(id: string, field: Field): CardDef {
         fff: false,
         label,
         title: `Everyone ${signed(sign, n)} ${capital(field)}`,
-        text: `Everyone's ${field} ${sign === 1 ? 'goes up' : 'goes down'} by ${n} for the rest of the night.`,
+        text: `Everyone's ${field} ${field === 'slices' ? (sign === 1 ? 'go up' : 'go down') : sign === 1 ? 'goes up' : 'goes down'} by ${n} for the rest of the night.`,
         effect: {
           cardId: id,
           label,
