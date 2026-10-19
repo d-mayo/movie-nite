@@ -815,3 +815,42 @@ test('cards change the figures, the open panel keeps the own value with a note, 
   act(() => store.getState().setViewerWeight('a', 20))
   expect(screen.queryByText(/\+\d+ from cards/)).toBeNull()
 })
+
+test('a viewer a card named shows one card icon with every label, on any status, before the Letterboxd slot', () => {
+  const effect = (label: string, kind: 'weight' | 'slices', ...viewerIds: string[]) => ({
+    cardId: 'x',
+    label,
+    change: { kind, amount: 1, viewerIds },
+  })
+  const lb: LetterboxdLink = { username: 'ann', status: 'found' }
+  setupWith(
+    {
+      presentIds: ['a', 'c'],
+      nominations: { a: film, c: { ...film, tmdbId: 3 } },
+      wonFilms: [3],
+      adjustments: { a: { slices: 4 } },
+      cardEffects: [
+        effect('Ann +1 weight', 'weight', 'a', 'b', 'c'),
+        effect('Everyone −1 slices', 'slices', 'a', 'b', 'c'),
+      ],
+    },
+    null,
+    [{ ...people[0], letterboxd: lb }, people[1], people[2], people[3]] as Viewer[],
+  )
+  const label = 'Cards: Ann +1 weight, Everyone −1 slices'
+  for (const name of ['Ann', 'Bo', 'Cy']) {
+    const icons = cellOf(name).querySelectorAll('.cell-cards')
+    expect(icons).toHaveLength(1)
+    expect(icons[0]).toHaveAttribute('title', label)
+    expect(within(cellOf(name)).getByText(label)).toBeInTheDocument()
+  }
+  expect(cellOf('Di').querySelector('.cell-cards')).toBeNull()
+  // After the name and the asterisk, before the Letterboxd slot.
+  const follows = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+  const ann = cellOf('Ann')
+  expect(follows(ann.querySelector('.cell-name')!, ann.querySelector('.cell-adjusted')!)).toBe(true)
+  expect(follows(ann.querySelector('.cell-adjusted')!, ann.querySelector('.cell-cards')!)).toBe(true)
+  expect(follows(ann.querySelector('.cell-cards')!, ann.querySelector('.cell-lb-slot')!)).toBe(true)
+  // Only a card: no asterisk.
+  expect(within(cellOf('Bo')).queryByText('Adjusted tonight')).toBeNull()
+})

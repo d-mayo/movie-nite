@@ -1,3 +1,4 @@
+import { viewerCardLabels } from '../wildcards/tonight.ts'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent, type RefObject } from 'react'
 import { maxNameLength, maxViewers } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
@@ -358,6 +359,7 @@ export default function NightSetup({
               setting={effectiveSetting(settings.wheel, night.adjustments, viewer.id)}
               bonus={cardBonus(settings.wheel, night.adjustments, viewer.id, night.cardEffects)}
               adjusted={night.adjustments[viewer.id] !== undefined}
+              cardLabels={viewerCardLabels(night.cardEffects, viewer.id)}
               open={shownId === viewer.id}
               client={client}
               letterboxdWaiting={letterboxdWaiting.has(viewer.id)}

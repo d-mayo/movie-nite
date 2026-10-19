@@ -45,6 +45,8 @@ interface Props {
   bonus?: ViewerSetting
   // Whether the host adjusted this viewer tonight.
   adjusted: boolean
+  // The labels of tonight's cards that named this viewer, in landing order.
+  cardLabels?: string[]
   open: boolean
   client: TmdbClient
   // Whether this viewer's Letterboxd check is waiting to retry.
@@ -156,6 +158,7 @@ export default function ViewerCell({
   setting,
   bonus = noBonus,
   adjusted,
+  cardLabels = [],
   open: openRequested,
   client,
   letterboxdWaiting,
@@ -307,6 +310,17 @@ export default function ViewerCell({
                     *
                   </span>
                   <span className="visually-hidden">Adjusted tonight</span>
+                </>
+              )}
+              {cardLabels.length > 0 && (
+                <>
+                  <span className="cell-cards" title={`Cards: ${cardLabels.join(', ')}`} aria-hidden="true">
+                    <svg viewBox="0 0 12 16" width="10" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
+                      <rect x="1.5" y="1.5" width="9" height="13" rx="1.5" />
+                      <path d="M6 5l2 3-2 3-2-3z" fill="currentColor" />
+                    </svg>
+                  </span>
+                  <span className="visually-hidden">Cards: {cardLabels.join(', ')}</span>
                 </>
               )}
               {viewer.letterboxd && <span className="cell-lb-slot" ref={lbSlot} aria-hidden="true" />}

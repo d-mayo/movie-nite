@@ -9,6 +9,7 @@ import { filmLabel } from './NightOver.tsx'
 export type FocusRequest = 'chip' | 'dismiss' | null
 
 export const heldFilmHeightProperty = '--held-film-height'
+export const heldFilmWidthProperty = '--held-film-width'
 
 interface Props {
   focusRequest: FocusRequest
@@ -31,18 +32,22 @@ export function HeldFilmCard({ focusRequest, onRequestFocus }: Props) {
       onRequestFocus(null)
     }
   }, [shown, carried, focusRequest, onRequestFocus])
-  // The open card's height goes to the root, for the Night over slot to clear it.
+  // The open card's size goes to the root, for the Night over slot and the card chips to clear it.
   useEffect(() => {
     const root = document.documentElement
     const el = card.current
     if (!shown || !el || typeof ResizeObserver === 'undefined') return
-    const publish = () => root.style.setProperty(heldFilmHeightProperty, `${el.offsetHeight}px`)
+    const publish = () => {
+      root.style.setProperty(heldFilmHeightProperty, `${el.offsetHeight}px`)
+      root.style.setProperty(heldFilmWidthProperty, `${el.offsetWidth}px`)
+    }
     publish()
     const observer = new ResizeObserver(publish)
     observer.observe(el)
     return () => {
       observer.disconnect()
       root.style.removeProperty(heldFilmHeightProperty)
+      root.style.removeProperty(heldFilmWidthProperty)
     }
   }, [shown, holdover])
   if (!holdover || !shown) return null

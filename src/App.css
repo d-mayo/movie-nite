@@ -148,7 +148,15 @@ main {
   /* The wheel is no taller than the window under the banner, so with the pane at
      full height the page has no scrollbar of its own. */
   .night .wheel-stage {
-    max-width: min(1600px, max(20rem, calc(100dvh - var(--chrome-height))));
+    /* The chips' published height (--card-chips-height, unset with no chips; the
+       fallback cancels the gap) comes off the cap, down to the 20rem floor. */
+    max-width: min(
+      1600px,
+      max(
+        20rem,
+        calc(100dvh - var(--chrome-height) - var(--panel-gap) - var(--card-chips-height, calc(-1 * var(--panel-gap))))
+      )
+    );
   }
 
   .night > .setup-column {
@@ -172,7 +180,9 @@ main {
   .night.viewers-hidden .wheel-reason-slot,
   .night .wheel-reason-slot:has(.night-over) {
     position: fixed;
-    bottom: var(--space-4);
+    /* Above the card chips at the page's bottom (their published height; unset
+       with no chips, the fallback cancels the gap). */
+    bottom: calc(var(--space-4) + var(--card-chips-height, -1 * var(--space-6)) + var(--space-6));
     left: 50%;
     translate: -50% 0;
     margin: 0;
@@ -203,6 +213,15 @@ main {
 
   .night.viewers-hidden .wheel-stage {
     margin-inline: auto;
+  }
+
+  /* With the pane hidden the chips run the panel's width, so they keep to the
+     left of the held-film card (its published width plus its corner offset and a
+     gap; unset with no card, the fallback cancels the gap). */
+  .night.viewers-hidden .card-chips {
+    align-self: stretch;
+    box-sizing: border-box;
+    padding-right: calc(var(--held-film-width, -2rem) + 2rem);
   }
 
   .night.viewers-hidden .setup-column {
@@ -600,8 +619,36 @@ html:has(.wheel-stage[data-zoom]) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
+  --panel-gap: 0.75rem;
+  gap: var(--panel-gap);
   width: 100%;
+}
+
+.card-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+/* Below 900 px the held-film card hangs over the page's bottom corner, so the
+   night leaves room for it and the chips can scroll clear. */
+@media (max-width: 899px) {
+  .night {
+    padding-bottom: var(--held-film-height, 0px);
+  }
+}
+
+.card-chip {
+  padding: var(--space-1) var(--space-3);
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  color: var(--muted);
+  font-size: 0.875rem;
 }
 
 .setup {
@@ -1635,6 +1682,15 @@ dialog.wheel-drawer:focus {
 }
 
 .cell-adjusted {
+  cursor: help;
+}
+
+/* A small card after the name and asterisk: a viewer some landed card named. */
+.cell-cards {
+  flex: none;
+  align-self: center;
+  display: inline-flex;
+  color: var(--muted);
   cursor: help;
 }
 

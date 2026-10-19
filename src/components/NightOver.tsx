@@ -38,6 +38,16 @@ export default function NightOver() {
       ) : (
         <p>No films were watched tonight.</p>
       )}
+      {night.cardEffects.length > 0 && (
+        <>
+          <p>Cards tonight:</p>
+          <ul aria-label="Cards tonight">
+            {night.cardEffects.map((effect, i) => (
+              <li key={i}>{effect.label}</li>
+            ))}
+          </ul>
+        </>
+      )}
       {holdover && (
         <p>
           Watch next session: <FilmLink film={holdover} />
