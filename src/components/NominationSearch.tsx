@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SettledWalks } from '../letterboxd/useWatchlistWalks.ts'
-import { drawExclusions, drawMessage as wordsFor } from '../letterboxd/drawing.ts'
+import { drawExclusions, drawMessage as wordsFor, possessives } from '../letterboxd/drawing.ts'
 import { drawFromWatchlist, type WatchlistSource } from '../letterboxd/watchlist.ts'
 import { isReshuffleLocked, refusedFilms, type LetterboxdLink, type Nomination } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
@@ -31,12 +31,6 @@ function Dice() {
       </g>
     </svg>
   )
-}
-
-// "Jo's", "Jo's and Sam's", "Jo's, Sam's and Alex's".
-function possessives(names: string[]): string {
-  const owned = names.map((name) => `${name}'s`)
-  return owned.length === 1 ? owned[0] : `${owned.slice(0, -1).join(', ')} and ${owned[owned.length - 1]}`
 }
 
 // Which other present viewers have the film on their settled Letterboxd watchlist. The film's slug is asked of

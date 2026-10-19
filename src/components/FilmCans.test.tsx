@@ -53,3 +53,20 @@ test('with two cans, at full length, the other can unveils and then the film is 
   act(() => void vi.advanceTimersByTime(1600))
   expect(phase()).toBe('taken')
 })
+
+test('a film with a note shows it in its open can\'s tooltip, above the runtime', () => {
+  render(
+    <FilmCans
+      cans={pickCan(newCans([film(1), film(2), film(3)]), 0, () => 0)}
+      notes={{ 1: "On Jo's and Sam's watchlists" }}
+      random={() => 0}
+      onPick={() => {}}
+      onTake={() => {}}
+      onSettle={() => {}}
+      onOpen={() => {}}
+      onFinish={() => {}}
+    />,
+  )
+  const tip = screen.getByRole('tooltip')
+  expect(tip.textContent).toMatch(/^On Jo's and Sam's watchlists1h 40m/)
+})

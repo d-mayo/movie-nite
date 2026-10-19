@@ -169,11 +169,12 @@ function expectedDeal(store: ReturnType<typeof setup>['store'], random: () => nu
               runtime: night.nominations[v.id].runtime,
             }
           : null,
-        canReshuffle: false,
+        canReshuffle: false, canBacklog: false,
         ...effectiveSetting(settings.wheel, night.adjustments, v.id, night.cardEffects),
       })),
       wildcardCount: wildcardTotal(3, settings.wheel, night.cardEffects),
       today: new Date(),
+      commonGround: false,
     },
     random,
   )

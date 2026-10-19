@@ -74,19 +74,29 @@ function recordingSound() {
   return { engine, log }
 }
 
-function setup(options: { present?: string[]; nominations?: Record<string, Nomination>; fetchFn: typeof fetch }) {
+function setup(options: {
+  present?: string[]
+  nominations?: Record<string, Nomination>
+  people?: typeof roster
+  holdover?: Nomination | null
+  wonFilms?: number[]
+  watched?: Nomination[]
+  fetchFn: typeof fetch
+}) {
   const present = options.present ?? ['a', 'b', 'c']
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
       settings: { viewersHidden: false, wheel: defaultWheelSettings },
-      roster,
+      roster: options.people ?? roster,
       night: {
         ...defaultState.night,
         presentIds: present,
+        wonFilms: options.wonFilms ?? [],
+        watched: options.watched ?? [],
         nominations: options.nominations ?? { a: film(1), b: film(2), c: film(3) },
       },
-      holdover: null,
+      holdover: options.holdover ?? null,
     }),
   )
   const sound = recordingSound()
@@ -94,7 +104,7 @@ function setup(options: { present?: string[]; nominations?: Record<string, Nomin
     <App
       store={store}
       fetchFn={options.fetchFn}
-      random={wildcardRandom(present)}
+      random={wildcardRandom(present.filter((id) => !(options.wonFilms ?? []).includes(Number(options.nominations?.[id]?.tmdbId ?? { a: 1, b: 2, c: 3 }[id]))))}
       spinMs={20}
       sound={sound.engine}
     />,
@@ -104,7 +114,14 @@ function setup(options: { present?: string[]; nominations?: Record<string, Nomin
 
 function forceCard(id: string) {
   vi.mocked(dealCards).mockImplementation((context) =>
-    Array.from({ length: 8 }, () => ({ ...cards.find((c) => c.id === id)!.roll(context, () => 0), weight: 1 })),
+    Array.from({ length: 8 }, () => ({
+      // A forced Letterboxd card rolls whatever the fake memory holds.
+      ...cards.find((c) => c.id === id)!.roll(
+        { ...context, viewers: context.viewers.map((v) => ({ ...v, canBacklog: true })) },
+        () => 0,
+      ),
+      weight: 1,
+    })),
   )
 }
 
@@ -415,4 +432,230 @@ test('an open can has a tooltip with its runtime and a short description', async
   }
   const described = within(dialog).getAllByRole('button', { name: /^Take Found/ })
   for (const can of described) expect(can).toHaveAccessibleDescription(/1h 35m/)
+})
+
+// A Worker whose watchlists and film ids are given: each username's slugs, each slug's TMDB id, and the TMDB details.
+function lbFetch(options: {
+  lists: Record<string, string[]>
+  ids: Record<string, number | null>
+  noDetails?: boolean
+  private?: boolean
+  filmFails?: boolean
+}) {
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
+  const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input)
+    const list = /\/lb\/([a-z]+)\/watchlist/.exec(url)
+    if (list && options.private) return json({ error: 'Watchlist is private' }, 404)
+    if (list) return json({ slugs: options.lists[list[1]] ?? [], hasNext: false })
+    if (url.includes('/lb/film/')) {
+      if (options.filmFails) return json({}, 500)
+      const slug = url.split('/').pop()!
+      return json({ slug, tmdbId: options.ids[slug] ?? null })
+    }
+    if (url.includes('/tmdb/movie/')) {
+      if (options.noDetails) return json({}, 500)
+      const id = Number(url.split('/').pop())
+      return json({
+        id,
+        title: `Found ${id}`,
+        release_date: '1999-01-01',
+        poster_path: '/p.jpg',
+        overview: 'Synopsis.',
+        runtime: 95,
+        genres: [],
+      })
+    }
+    return json({}, 404)
+  }) as unknown as typeof fetch
+  return fetchFn
+}
+
+const linked = [
+  { ...roster[0], letterboxd: { username: 'ann', status: 'found' as const } },
+  { ...roster[1], letterboxd: { username: 'bo', status: 'found' as const } },
+  roster[2],
+]
+
+// Waits until the background walks of both linked viewers have settled.
+async function walksSettled(fetchFn: typeof fetch) {
+  await waitFor(() =>
+    expect(vi.mocked(fetchFn).mock.calls.filter((c) => String(c[0]).includes('/watchlist'))).toHaveLength(2),
+  )
+  await act(async () => {})
+}
+
+test("X's Backlog draws three films from Ann's watchlist, plays the cans and opens the reveal under its own title", async () => {
+  forceCard('backlog')
+  const fetchFn = lbFetch({ lists: { ann: ['x', 'y', 'z'], bo: ['x'] }, ids: { x: 101, y: 102, z: 103 } })
+  const { store } = setup({ fetchFn, people: linked })
+  await walksSettled(fetchFn)
+  const dialog = await openCard()
+  expect(within(dialog).getByRole('heading')).toHaveTextContent("Ann's Backlog")
+  expect(within(dialog).getByText("Drawing from Ann's watchlist…")).toBeInTheDocument()
+  expect(backButton(dialog)).toBeDisabled()
+  const picks = await within(dialog).findAllByRole('button', { name: /^Pick can/ })
+  expect(picks).toHaveLength(3)
+  fireEvent.click(picks[0])
+  await waitFor(() => expect(within(dialog).getAllByRole('tooltip')).toHaveLength(2))
+  for (const tip of within(dialog).getAllByRole('tooltip')) expect(tip).not.toHaveTextContent('watchlist')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Take the sealed can' }))
+  const reveal = await screen.findByRole('heading', { name: /^Found/ })
+  const frame = reveal.closest('[role="dialog"]') as HTMLElement
+  expect(within(frame).getByText("Ann's Backlog")).toBeInTheDocument()
+  expect(store.getState().night.cardEffects).toEqual([
+    { cardId: 'backlog', label: "Ann's backlog", change: { kind: 'movie' } },
+  ])
+  expect(screen.queryByRole('list', { name: "Tonight's cards" })).toBeNull()
+  fireEvent.click(within(frame).getByRole('button', { name: 'Watch' }))
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  const { night } = store.getState()
+  expect(night.watched).toHaveLength(1)
+  expect(night.wonFilms).toEqual([])
+  expect(Object.keys(night.nominations)).toEqual(['a', 'b', 'c'])
+  expect(spinButton()).toBeEnabled()
+  act(() => store.getState().endNight())
+  const items = within(await screen.findByRole('list', { name: 'Cards tonight' })).getAllByRole('listitem')
+  expect(items.map((li) => li.textContent)).toEqual(["Ann's backlog"])
+})
+
+test("X's Backlog skips the board's films, and one usable film gives the Show the film button; × records nothing", async () => {
+  forceCard('backlog')
+  // Slug w is Ann's own nominated film 1, so it can't come up.
+  const fetchFn = lbFetch({ lists: { ann: ['w', 'x'], bo: [] }, ids: { w: 1, x: 101 } })
+  const { store } = setup({ fetchFn, people: linked })
+  await walksSettled(fetchFn)
+  const dialog = await openCard()
+  fireEvent.click(await within(dialog).findByRole('button', { name: 'Show the film' }))
+  expect(within(dialog).queryByRole('button', { name: /^Pick can/ })).toBeNull()
+  const frame = (await screen.findByRole('heading', { name: 'Found 101' })).closest('[role="dialog"]') as HTMLElement
+  fireEvent.click(within(frame).getByRole('button', { name: 'Close' }))
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  expect(store.getState().night.watched).toEqual([])
+  expect(store.getState().night.wonFilms).toEqual([])
+})
+
+test('a Backlog whose films all fail to load shows a message and lands nothing', async () => {
+  forceCard('backlog')
+  const fetchFn = lbFetch({ lists: { ann: ['x'], bo: [] }, ids: { x: 101 }, noDetails: true })
+  const { store } = setup({ fetchFn, people: linked })
+  await walksSettled(fetchFn)
+  const dialog = await openCard()
+  await waitFor(() => expect(backButton(dialog)).toBeEnabled())
+  expect(within(dialog).getByText("The drawn film couldn't be loaded.")).toBeInTheDocument()
+  fireEvent.click(backButton(dialog))
+  expect(store.getState().night.cardEffects).toEqual([])
+})
+
+test('Common Ground compares the settled watchlists, offers two cans of shared films with the holders in the tooltip, and opens the reveal', async () => {
+  forceCard('common-ground')
+  const fetchFn = lbFetch({ lists: { ann: ['x', 'y', 'z'], bo: ['x', 'y', 'q'] }, ids: { x: 101, y: 102, z: 103, q: 104 } })
+  const { store } = setup({ fetchFn, people: linked })
+  await walksSettled(fetchFn)
+  const dialog = await openCard()
+  expect(within(dialog).getByText('Comparing watchlists…')).toBeInTheDocument()
+  const picks = await within(dialog).findAllByRole('button', { name: /^Pick can/ })
+  expect(picks).toHaveLength(2)
+  expect(within(dialog).getByText(/^Two films/)).toBeInTheDocument()
+  fireEvent.click(picks[0])
+  await waitFor(() => expect(within(dialog).getAllByRole('tooltip').length).toBeGreaterThan(0))
+  for (const tip of within(dialog).getAllByRole('tooltip')) {
+    expect(tip.textContent).toMatch(/^On Ann's and Bo's watchlists1h 35m/)
+  }
+  const asked = vi
+    .mocked(fetchFn)
+    .mock.calls.map((c) => String(c[0]))
+    .filter((u) => u.includes('/lb/film/'))
+  expect(asked.every((u) => u.endsWith('/x') || u.endsWith('/y'))).toBe(true)
+  const frame = (await screen.findByRole('heading', { name: /^Found/ })).closest('[role="dialog"]') as HTMLElement
+  expect(within(frame).getByText('Common Ground')).toBeInTheDocument()
+  expect(store.getState().night.cardEffects).toEqual([
+    { cardId: 'common-ground', label: 'Common ground', change: { kind: 'movie' } },
+  ])
+  fireEvent.click(within(frame).getByRole('button', { name: 'Watch' }))
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  expect(store.getState().night.watched).toHaveLength(1)
+  expect(store.getState().night.wonFilms).toEqual([])
+})
+
+test('Common Ground with only excluded shared films shows a message and lands nothing', async () => {
+  forceCard('common-ground')
+  // The one shared film is Cy's nomination.
+  const fetchFn = lbFetch({ lists: { ann: ['x'], bo: ['x'] }, ids: { x: 3 } })
+  const { store } = setup({ fetchFn, people: linked })
+  await walksSettled(fetchFn)
+  const dialog = await openCard()
+  await waitFor(() => expect(backButton(dialog)).toBeEnabled())
+  expect(within(dialog).getByText('No film on the shared watchlists can be used.')).toBeInTheDocument()
+  fireEvent.click(backButton(dialog))
+  expect(store.getState().night.cardEffects).toEqual([])
+})
+
+test("X's Backlog skips the won and watched films", async () => {
+  forceCard('backlog')
+  const fetchFn = lbFetch({
+    lists: { ann: ['w', 'x', 'z'], bo: [] },
+    ids: { w: 201, x: 202, z: 204 },
+  })
+  setup({ fetchFn, people: linked, wonFilms: [201], watched: [film(202)] })
+  await walksSettled(fetchFn)
+  const dialog = await openCard()
+  fireEvent.click(await within(dialog).findByRole('button', { name: 'Show the film' }))
+  await screen.findByRole('heading', { name: 'Found 204' })
+})
+
+test("a two-film Backlog gives two cans and text reading 'Two'", async () => {
+  forceCard('backlog')
+  const fetchFn = lbFetch({ lists: { ann: ['x', 'y'], bo: [] }, ids: { x: 101, y: 102 } })
+  setup({ fetchFn, people: linked })
+  await walksSettled(fetchFn)
+  const dialog = await openCard()
+  expect(await within(dialog).findAllByRole('button', { name: /^Pick can/ })).toHaveLength(2)
+  expect(within(dialog).getByText("Two films from Ann's watchlist in the cans.")).toBeInTheDocument()
+})
+
+test('a Backlog with a private watchlist shows the message and Back lands nothing', async () => {
+  forceCard('backlog')
+  const fetchFn = lbFetch({ lists: {}, ids: {}, private: true })
+  const { store } = setup({ fetchFn, people: linked })
+  await walksSettled(fetchFn)
+  const dialog = await openCard()
+  await waitFor(() => expect(backButton(dialog)).toBeEnabled())
+  expect(within(dialog).getByText("Ann's watchlist is private.")).toBeInTheDocument()
+  fireEvent.click(backButton(dialog))
+  expect(store.getState().night.cardEffects).toEqual([])
+})
+
+test('Common Ground shows a message when Letterboxd fails while mapping the shared films', async () => {
+  forceCard('common-ground')
+  const fetchFn = lbFetch({ lists: { ann: ['x'], bo: ['x'] }, ids: { x: 101 }, filmFails: true })
+  const { store } = setup({ fetchFn, people: linked })
+  await walksSettled(fetchFn)
+  const dialog = await openCard()
+  await waitFor(() => expect(backButton(dialog)).toBeEnabled())
+  expect(within(dialog).getByText("Letterboxd can't be reached right now.")).toBeInTheDocument()
+  fireEvent.click(backButton(dialog))
+  expect(store.getState().night.cardEffects).toEqual([])
+})
+
+test("an away viewer's watchlist is left out of Common Ground's group", async () => {
+  forceCard('common-ground')
+  const fetchFn = lbFetch({ lists: { ann: ['x'], bo: ['x'] }, ids: { x: 101 } })
+  setup({ fetchFn, people: linked, present: ['a', 'c'] })
+  await waitFor(() => expect(vi.mocked(fetchFn).mock.calls.some((c) => String(c[0]).includes('/lb/ann/watchlist'))).toBe(true))
+  await act(async () => {})
+  const dialog = await openCard()
+  await waitFor(() => expect(backButton(dialog)).toBeEnabled())
+  expect(within(dialog).getByText('No film on the shared watchlists can be used.')).toBeInTheDocument()
+})
+
+test("a won-tonight viewer's watchlist still counts toward Common Ground's group", async () => {
+  forceCard('common-ground')
+  const fetchFn = lbFetch({ lists: { ann: ['x'], bo: ['x'] }, ids: { x: 101 } })
+  // Bo's film (2) has won, so Bo is off the wheel but still present.
+  setup({ fetchFn, people: linked, wonFilms: [2] })
+  await walksSettled(fetchFn)
+  const dialog = await openCard()
+  fireEvent.click(await within(dialog).findByRole('button', { name: 'Show the film' }))
+  await screen.findByRole('heading', { name: 'Found 101' })
 })

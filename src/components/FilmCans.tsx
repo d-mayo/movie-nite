@@ -14,6 +14,8 @@ const openHoldMs = 600
 
 interface Props {
   cans: Cans
+  // A line for a film's tooltip, above its runtime and description, by TMDB id.
+  notes?: Record<number, string>
   // 1 for the full show; a test or reduced motion makes every beat nearly instant.
   scale?: number
   random: () => number
@@ -56,6 +58,7 @@ function prompt(cans: Cans): string {
 // drumroll. A single film has no can, only a button.
 export default function FilmCans({
   cans,
+  notes,
   scale = 1,
   random,
   onPick,
@@ -192,6 +195,7 @@ export default function FilmCans({
               </button>
               {open && (
                 <span id={`${tipId}-${i}`} role="tooltip" className="can-tip">
+                  {notes?.[film.tmdbId] && <span className="can-tip-note">{notes[film.tmdbId]}</span>}
                   {film.runtime !== null && <span className="can-tip-runtime">{formatRuntime(film.runtime)}</span>}
                   {film.overview.trim() || 'No description on TMDB.'}
                 </span>

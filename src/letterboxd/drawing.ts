@@ -22,6 +22,12 @@ export function drawMessage(
   }
 }
 
+// "Jo's", "Jo's and Sam's", "Jo's, Sam's and Alex's".
+export function possessives(names: string[]): string {
+  const owned = names.map((name) => `${name}'s`)
+  return owned.length === 1 ? owned[0] : `${owned.slice(0, -1).join(', ')} and ${owned[owned.length - 1]}`
+}
+
 // The films a movie card's draw must skip: every nomination, the films won and watched tonight and the held film.
 export function movieExclusions(night: AppState['night'], holdover: Nomination | null): Set<number> {
   const excluded = new Set<number>(Object.values(night.nominations).map((film) => film.tmdbId))

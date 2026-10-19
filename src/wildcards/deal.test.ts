@@ -7,8 +7,8 @@ import { seeded } from './seeded.ts'
 const today = new Date(2026, 2, 15)
 
 const context: DealContext = {
-  viewers: ['a', 'b', 'c'].map((id) => ({ id, name: id.toUpperCase(), slices: 3, weight: 5, film: null, canReshuffle: false })),
-  wildcardCount: 3, today,
+  viewers: ['a', 'b', 'c'].map((id) => ({ id, name: id.toUpperCase(), slices: 3, weight: 5, film: null, canReshuffle: false, canBacklog: false })),
+  wildcardCount: 3, today, commonGround: false,
 }
 
 describe('dealCards', () => {
@@ -40,8 +40,8 @@ describe('dealCards', () => {
 
   it('never deals a card the limits forbid', () => {
     const tight: DealContext = {
-      viewers: [{ id: 'a', name: 'A', slices: 12, weight: 0.5, film: null, canReshuffle: false }],
-      wildcardCount: 12, today,
+      viewers: [{ id: 'a', name: 'A', slices: 12, weight: 0.5, film: null, canReshuffle: false, canBacklog: false }],
+      wildcardCount: 12, today, commonGround: false,
     }
     for (let seed = 1; seed < 40; seed++) {
       for (const card of dealCards(tight, seeded(seed))) {
@@ -54,13 +54,13 @@ describe('dealCards', () => {
   })
 
   it('still deals, only Blind Spin and the movie cards, when no wheel card is eligible', () => {
-    const dealt = dealCards({ viewers: [], wildcardCount: 12, today }, seeded(1))
+    const dealt = dealCards({ viewers: [], wildcardCount: 12, today, commonGround: false }, seeded(1))
     expect(dealt.length).toBeGreaterThan(0)
     expect(dealt.every((c) => c.type === 'movie' || c.cardId === 'blind-spin')).toBe(true)
   })
 
   it('always deals the seasonal card while it is eligible, and never one out of season', () => {
-    const on = (month: number, day: number): DealContext => ({ viewers: [], wildcardCount: 12, today: new Date(2026, month - 1, day) })
+    const on = (month: number, day: number): DealContext => ({ viewers: [], wildcardCount: 12, today: new Date(2026, month - 1, day), commonGround: false })
     const dealtIds = (context: DealContext, seed: number) => dealCards(context, seeded(seed)).map((c) => c.cardId)
     for (let seed = 1; seed < 200; seed++) {
       expect(dealtIds(on(10, 31), seed)).toContain('halloween')
@@ -73,7 +73,7 @@ describe('dealCards', () => {
   })
 
   it('deals every non-seasonal movie card and only the seasonal card of the month', () => {
-    const october: DealContext = { viewers: [], wildcardCount: 12, today: new Date(2026, 9, 15) }
+    const october: DealContext = { viewers: [], wildcardCount: 12, today: new Date(2026, 9, 15), commonGround: false }
     const ids = new Set<string>()
     for (let seed = 1; seed < 300; seed++) for (const c of dealCards(october, seeded(seed))) ids.add(c.cardId)
     for (const id of ['genre-night', 'halloween', 'critics-darlings', 'so-bad-its-good', 'decade-roulette', 'world-cinema']) {
@@ -93,9 +93,9 @@ describe('dealing the new cards', () => {
       slices: 3,
       weight: 5,
       film: { tmdbId: i + 1, title: `Film ${i + 1}` },
-      canReshuffle: true,
+      canReshuffle: true, canBacklog: false,
     })),
-    wildcardCount: 3, today,
+    wildcardCount: 3, today, commonGround: false,
   }
 
   it('all three come up over many deals', () => {
@@ -116,6 +116,23 @@ describe('dealing the new cards', () => {
     for (let seed = 1; seed < 30; seed++) {
       expect(dealCards(none, seeded(seed)).some((c) => c.cardId === 'reshuffle')).toBe(false)
     }
-    expect(canDeal({ viewers: [], wildcardCount: 12, today })).toBe(true)
+    expect(canDeal({ viewers: [], wildcardCount: 12, today, commonGround: false })).toBe(true)
+  })
+
+  it('deals the Letterboxd cards when marked eligible and not otherwise', () => {
+    const open: DealContext = {
+      ...context,
+      viewers: context.viewers.map((v) => ({ ...v, canBacklog: true })),
+      commonGround: true,
+    }
+    const seen = new Set<string>()
+    for (let seed = 1; seed < 80; seed++) {
+      for (const card of dealCards(open, seeded(seed))) seen.add(card.cardId)
+      for (const card of dealCards(context, seeded(seed))) {
+        expect(['backlog', 'common-ground']).not.toContain(card.cardId)
+      }
+    }
+    expect(seen.has('backlog')).toBe(true)
+    expect(seen.has('common-ground')).toBe(true)
   })
 })
