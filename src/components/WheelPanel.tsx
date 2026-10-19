@@ -76,6 +76,14 @@ function Hub({ hubRef }: { hubRef: Ref<SVGGElement> }) {
   )
 }
 
+// The projector flicker over the whole screen. It leaves the page when it has played: a full-screen blend layer
+// left behind, however clear, can draw hairline seams over what lies under it.
+function Flicker() {
+  const [played, setPlayed] = useState(false)
+  if (played) return null
+  return <div className="flicker" data-testid="flicker" aria-hidden="true" onAnimationEnd={() => setPlayed(true)} />
+}
+
 interface Spin {
   wedges: Wedge[]
   drawn: number
@@ -710,7 +718,7 @@ export default function WheelPanel({
           {spin?.countdown != null && <Countdown number={spin.countdown} />}
         </div>
         <div className="zoom-vignette" ref={vignetteRef} aria-hidden="true" />
-        {spin?.landed && <div className="flicker" data-testid="flicker" aria-hidden="true" />}
+        {spin?.landed && <Flicker key={spin.wheel} />}
         {waiting && (
           <p id="spin-waiting" className="spin-waiting">
             {waiting}

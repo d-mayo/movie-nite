@@ -59,6 +59,19 @@ describe('dealCards', () => {
     expect(dealt.every((c) => c.type === 'movie' || c.cardId === 'blind-spin')).toBe(true)
   })
 
+  it('always deals the seasonal card while it is eligible, and never one out of season', () => {
+    const on = (month: number, day: number): DealContext => ({ viewers: [], wildcardCount: 12, today: new Date(2026, month - 1, day) })
+    const dealtIds = (context: DealContext, seed: number) => dealCards(context, seeded(seed)).map((c) => c.cardId)
+    for (let seed = 1; seed < 200; seed++) {
+      expect(dealtIds(on(10, 31), seed)).toContain('halloween')
+      expect(dealtIds(on(12, 25), seed)).toContain('christmas')
+      expect(dealtIds(on(2, 1), seed)).toContain('romance')
+      expect(dealtIds(on(8, 31), seed)).toContain('creature-feature')
+      expect(dealtIds(on(10, 31), seed)).toHaveLength(8)
+      expect(dealtIds(on(3, 15), seed)).not.toContain('halloween')
+    }
+  })
+
   it('deals every non-seasonal movie card and only the seasonal card of the month', () => {
     const october: DealContext = { viewers: [], wildcardCount: 12, today: new Date(2026, 9, 15) }
     const ids = new Set<string>()

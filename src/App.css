@@ -626,7 +626,7 @@ html:has(.wheel-stage[data-zoom]) {
   );
   mix-blend-mode: screen;
   opacity: 0;
-  animation: projector 1.4s linear;
+  animation: projector 1.4s linear forwards;
 }
 
 @keyframes projector {
@@ -639,7 +639,8 @@ html:has(.wheel-stage[data-zoom]) {
   62% { opacity: 0.38; }
   78% { opacity: 0.1; }
   90% { opacity: 0.16; }
-  100% { opacity: 0; }
+  /* Hidden, not just clear: a full-screen blend layer left on the page can draw hairline seams over what is under it. */
+  100% { opacity: 0; visibility: hidden; }
 }
 
 .wheel-panel {

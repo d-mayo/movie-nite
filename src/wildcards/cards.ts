@@ -74,6 +74,8 @@ export interface CardDef {
   id: string
   type: CardType
   fff: boolean
+  // Dealt onto every wildcard wheel while it is eligible: the seasonal cards.
+  guaranteed?: boolean
   eligible(context: DealContext): boolean
   roll(context: DealContext, random: () => number): RolledCard
 }
@@ -360,7 +362,7 @@ function seasonal(
   to: [number, number],
   params: DiscoverParams,
 ): CardDef {
-  return discoverCard(
+  const card = discoverCard(
     id,
     ({ today }) => {
       const day = (today.getMonth() + 1) * 100 + today.getDate()
@@ -368,6 +370,7 @@ function seasonal(
     },
     () => discoverRoll(id, name, name, `Three ${noun} films in the cans.`, params),
   )
+  return { ...card, guaranteed: true }
 }
 
 // Whole tenths from `min` to `max`, as a number with one decimal.
