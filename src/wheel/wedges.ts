@@ -47,6 +47,23 @@ export function buildWedges(
   })
 }
 
+// The color of every nomination wedge and reel frame on a blind wheel. A hex value, since the
+// wheel's gradient ids are built from it.
+export const blindColor = '#7c8087'
+
+// The main wheel under a Blind Spin: every wedge, wildcards included, becomes a plain
+// steel nomination wedge with no name, title, poster, viewer color or clapperboard. Only
+// the look changes: the spin keeps the real wedges, so the drawn index and the arcs hold.
+export function blindfold(wedges: Wedge[]): Wedge[] {
+  return wedges.map((wedge) => ({
+    ...wedge,
+    slice: { kind: 'nomination', viewerId: '', weight: wedge.slice.weight },
+    color: blindColor,
+    viewerName: null,
+    nomination: null,
+  }))
+}
+
 // The wildcard wheel: one wedge per dealt card, its size the card's weight.
 export function buildCardWedges(deal: DealtCard[]): Wedge[] {
   const slices: Slice[] = deal.map((card, index) => ({ kind: 'card', index, weight: card.weight }))

@@ -358,6 +358,33 @@ html:has(.wheel-stage[data-zoom]) {
   fill: var(--film-stock);
 }
 
+.wheel .reel-back {
+  transition: opacity 0.5s ease-out;
+}
+
+.wheel .reel-back[data-hidden] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel .reel-back {
+    transition: none;
+  }
+}
+
+.wheel .reel-back-lip {
+  stroke: color-mix(in srgb, var(--film-steel-light) 55%, transparent);
+}
+
+.wheel .reel-back-window {
+  fill: var(--film-stock);
+  stroke: var(--film-stock);
+}
+
+.wheel .reel-back-wind {
+  stroke: color-mix(in srgb, var(--film-steel-light) 22%, transparent);
+}
+
 .wheel .film-fill-steel {
   fill: var(--film-steel);
 }
@@ -763,6 +790,11 @@ html:has(.wheel-stage[data-zoom]) {
   cursor: pointer;
 }
 
+.card-back-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .reveal-thread {
   animation: reveal-thread 0.6s ease-out;
 }
@@ -771,6 +803,17 @@ html:has(.wheel-stage[data-zoom]) {
   from {
     opacity: 0;
     transform: translateY(32px);
+  }
+}
+
+/* The whole film print, frame and details, comes into focus. */
+.reveal-blind {
+  animation: reveal-focus 1.8s ease-out 0.5s backwards;
+}
+
+@keyframes reveal-focus {
+  from {
+    filter: blur(18px);
   }
 }
 

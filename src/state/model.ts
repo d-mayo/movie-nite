@@ -204,9 +204,34 @@ export function setPresent(state: AppState, id: string, present: boolean): AppSt
   }
 }
 
-// Takes a viewer's film back off the wheel. A film that has won is not taken back.
+// The films a Picks Again card has refused this viewer tonight.
+export function refusedFilms(night: AppState['night'], viewerId: string): number[] {
+  const ids: number[] = []
+  for (const { change } of night.cardEffects) {
+    if (change.kind === 'picksAgain' && change.viewerIds[0] === viewerId) ids.push(change.tmdbId)
+  }
+  return ids
+}
+
+// True while the viewer's film is one a Reshuffle gave them; only a later card replaces it.
+export function isReshuffleLocked(night: AppState['night'], viewerId: string): boolean {
+  const film = night.nominations[viewerId]
+  if (!film) return false
+  return night.cardEffects.some(
+    ({ change }) =>
+      change.kind === 'reshuffle' && change.viewerIds[0] === viewerId && change.tmdbId === film.tmdbId,
+  )
+}
+
+// True while a Blind Spin is waiting for the next main spin to land.
+export function isBlind(night: AppState['night']): boolean {
+  return night.cardEffects.some(({ change }) => change.kind === 'blindSpin' && !change.used)
+}
+
+// Takes a viewer's film back off the wheel. A film that has won, or that a Reshuffle gave them, is not taken back.
 export function removeNomination(state: AppState, viewerId: string): AppState {
   if (!state.night.nominations[viewerId] || hasWon(state.night, viewerId)) return state
+  if (isReshuffleLocked(state.night, viewerId)) return state
   return {
     ...state,
     night: { ...state.night, nominations: withoutNomination(state.night.nominations, viewerId) },
@@ -217,6 +242,8 @@ export function nominate(state: AppState, viewerId: string, nomination: Nominati
   if (!state.night.presentIds.includes(viewerId)) return state
   if (hasWon(state.night, viewerId)) return state
   if (state.night.wonFilms.includes(nomination.tmdbId)) return state
+  if (refusedFilms(state.night, viewerId).includes(nomination.tmdbId)) return state
+  if (isReshuffleLocked(state.night, viewerId)) return state
   return {
     ...state,
     night: {
@@ -397,8 +424,25 @@ export function recordOutcome(
   }
 }
 
-export function addCardEffect(state: AppState, effect: CardEffect): AppState {
-  return { ...state, night: { ...state.night, cardEffects: [...state.night.cardEffects, effect] } }
+// Lands a card. A Picks Again takes the viewer's film off the wheel and a
+// Reshuffle puts `nomination` in its place, in the same update as the effect.
+export function addCardEffect(
+  state: AppState,
+  effect: CardEffect,
+  nomination?: Nomination,
+): AppState {
+  const { change } = effect
+  let nominations = state.night.nominations
+  if (change.kind === 'picksAgain') {
+    nominations = withoutNomination(nominations, change.viewerIds[0])
+  } else if (change.kind === 'reshuffle') {
+    if (!nomination || nomination.tmdbId !== change.tmdbId) return state
+    nominations = { ...nominations, [change.viewerIds[0]]: nomination }
+  }
+  return {
+    ...state,
+    night: { ...state.night, nominations, cardEffects: [...state.night.cardEffects, effect] },
+  }
 }
 
 export function endNight(state: AppState): AppState {
@@ -409,10 +453,21 @@ export function clearHoldover(state: AppState): AppState {
   return { ...state, holdover: null }
 }
 
-// The first spin of a night uses up the film held from an earlier one.
+// The first spin of a night uses up the film held from an earlier one, and any
+// spin uses up a pending Blind Spin.
 export function startSpin(state: AppState): AppState {
-  if (state.night.spun) return state
-  return { ...state, night: { ...state.night, spun: true }, holdover: null }
+  const blind = isBlind(state.night)
+  if (state.night.spun && !blind) return state
+  const cardEffects = blind
+    ? state.night.cardEffects.map((e) =>
+        e.change.kind === 'blindSpin' ? { ...e, change: { ...e.change, used: true } } : e,
+      )
+    : state.night.cardEffects
+  return {
+    ...state,
+    night: { ...state.night, spun: true, cardEffects },
+    holdover: state.night.spun ? state.holdover : null,
+  }
 }
 
 export function setHoldoverDismissed(state: AppState, dismissed: boolean): AppState {

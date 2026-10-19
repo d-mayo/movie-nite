@@ -7,6 +7,10 @@ interface Props {
   card: DealtCard
   // The spin was a close call: the card carries a tag.
   closeCall?: boolean
+  // The card's text when it is not the rolled one (a Reshuffle's draw, its swap or its failure).
+  text?: string
+  // Back and Escape wait: a Reshuffle's draw is under way.
+  busy?: boolean
   onBack: () => void
 }
 
@@ -14,14 +18,21 @@ const typeLines = { wheel: 'Wheel card', movie: 'Movie card' } as const
 
 // A landed wildcard card, turned over from its back to its face (face up at once with
 // reduced motion). Back to the main wheel, or Escape, takes its effect.
-export default function CardReveal({ card, closeCall = false, onBack }: Props) {
+export default function CardReveal({ card, closeCall = false, text, busy = false, onBack }: Props) {
   const flip = !prefersReducedMotion()
   const centerX = useStageCenter()
   const back = useRef<HTMLButtonElement>(null)
   const onBackRef = useRef(onBack)
+  const busyRef = useRef(busy)
   useEffect(() => {
     onBackRef.current = onBack
+    busyRef.current = busy
   })
+
+  // Back takes focus once a draw that held it is done.
+  useEffect(() => {
+    if (!busy) back.current?.focus()
+  }, [busy])
 
   useEffect(() => {
     back.current?.focus()
@@ -35,7 +46,7 @@ export default function CardReveal({ card, closeCall = false, onBack }: Props) {
       } catch {
         // No popover support: nothing is open.
       }
-      if (!popover) onBackRef.current()
+      if (!popover && !busyRef.current) onBackRef.current()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
@@ -55,8 +66,14 @@ export default function CardReveal({ card, closeCall = false, onBack }: Props) {
             {closeCall && <span className="reveal-tag">Close call</span>}
           </p>
           <h2 id="card-heading">{card.title}</h2>
-          <p className="card-text">{card.text}</p>
-          <button ref={back} type="button" className="card-back-button" onClick={onBack}>
+          {text === undefined ? (
+            <p className="card-text">{card.text}</p>
+          ) : (
+            <p className="card-text" role="status">
+              {text}
+            </p>
+          )}
+          <button ref={back} type="button" className="card-back-button" disabled={busy} onClick={onBack}>
             Back to the main wheel
           </button>
         </div>

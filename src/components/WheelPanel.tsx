@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type Ref } from 'react'
 import { createPortal } from 'react-dom'
-import { viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts'
+import { isBlind, viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import { useApp } from '../state/store.ts'
 import { CardChips } from './CardChips.tsx'
@@ -23,10 +23,12 @@ import {
 import { countdownNumbers, countdownStepMs, rollsCountdown } from '../wheel/countdown.ts'
 import { catchChance, forcedCatchRotation, isCatch } from '../wheel/catch.ts'
 import { pinAngles, pinPastPointer, pushStart } from '../wheel/pins.ts'
-import { buildCardWedges, buildWedges, type Wedge } from '../wheel/wedges.ts'
+import { blindfold, buildCardWedges, buildWedges, type Wedge } from '../wheel/wedges.ts'
 import { effectiveSetting, spinPlan, wildcardTotal } from '../wheel/edit.ts'
-import type { DealContext } from '../wildcards/cards.ts'
-import { canDeal, dealCards, type DealtCard } from '../wildcards/deal.ts'
+import { drawExclusions, drawMessage } from '../letterboxd/drawing.ts'
+import { canBeReshuffled, drawFromWatchlist, type WatchlistSource } from '../letterboxd/watchlist.ts'
+import { cards, type DealContext } from '../wildcards/cards.ts'
+import { canDeal, dealCards, dealSize, type DealtCard } from '../wildcards/deal.ts'
 import {
   buildCatchPath,
   buildCloseCallPath,
@@ -91,7 +93,17 @@ interface Spin {
   waiting: boolean
   // The card has been taken back to the main wheel, which is fading in.
   leaving: boolean
+  // The main wheel was blind at the press, and stays so until the spin lands.
+  blind: boolean
+  // The landing is on a wildcard that opens the wildcard wheel.
+  toCards: boolean
 }
+
+// A Reshuffle card's draw: under way, done with the film it found, or failed with why.
+type Reshuffle =
+  | { key: Date; phase: 'drawing' }
+  | { key: Date; phase: 'done'; film: Nomination }
+  | { key: Date; phase: 'failed'; message: string }
 
 // Half of a crossfade between the main wheel and the wildcard wheel: the stage fades out, the
 // wheels swap, and it fades back in.
@@ -99,6 +111,8 @@ export const crossfadeMs = 150
 
 // How long the projector flicker plays on the open wheel before the reveal opens.
 export const revealHoldMs = 650
+// A blind wheel that lands on a wildcard is unveiled this much longer before the wildcard wheel.
+export const blindWildcardHoldMs = 3000
 
 // The pointer's height as a share of the wheel's width, which is the zoom's origin (8.5% down the wheel).
 const pointerShare = 0.085
@@ -112,6 +126,10 @@ interface Props {
   spinMs?: number
   sound?: SoundEngine
   client: TmdbClient
+  // Where a Reshuffle draws from, and which viewers it may be dealt for.
+  watchlist?: WatchlistSource
+  // Whether the main wheel is blind right now, for the viewer key, which hides with it.
+  onBlindChange?: (blind: boolean) => void
   onBusyChange: (busy: boolean) => void
   // Where the "waiting for" message goes; under the wheel when there is none.
   reasonSlot?: HTMLElement | null
@@ -125,6 +143,8 @@ export default function WheelPanel({
   spinMs,
   sound = silentSound,
   client,
+  watchlist,
+  onBlindChange,
   onBusyChange,
   reasonSlot,
 }: Props) {
@@ -138,8 +158,11 @@ export default function WheelPanel({
   const [forceCatches, setForceCatches] = useState(false)
   const [forceCountdowns, setForceCountdowns] = useState(false)
   const [forceWildcards, setForceWildcards] = useState(false)
+  // The debug select: every dealt card is this one, when it is eligible ('' deals normally).
+  const [forceCard, setForceCard] = useState('')
   // The stage is faded out between the main wheel and the wildcard wheel.
   const [fading, setFading] = useState(false)
+  const [reshuffle, setReshuffle] = useState<Reshuffle | null>(null)
   const fadeTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const countdownTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const holdTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -165,12 +188,19 @@ export default function WheelPanel({
   )
 
   const live = buildWedges(night, roster, settings.wheel)
+  // The main wheel is blind from the Blind Spin's Back until the reveal of the spin that used it closes.
+  // A landing on a wildcard unveils the wheel, which dissolves back before it crossfades to the cards.
+  const blind = spin ? spin.wheel === 'main' && spin.blind && !(spin.toCards && spin.landed) : isBlind(night)
   const onWheel = viewersOnWheel(night)
   const missing = onWheel
     .filter((id) => !night.nominations[id])
     .map((id) => roster.find((v) => v.id === id)?.name ?? '')
   const canSpin = !night.ended && onWheel.length > 0 && missing.length === 0
   const wedges = spin?.wedges ?? live
+  useEffect(() => {
+    onBlindChange?.(blind)
+  }, [blind, onBlindChange])
+  const shownWedges = blind ? blindfold(wedges) : wedges
   const motion = useWheelMotion(
     // The drift runs on under a countdown's dial and eases to a stop only once the spin is under way.
     (spin !== null && !spin.waiting && spin.countdown === null) || night.ended,
@@ -202,6 +232,12 @@ export default function WheelPanel({
       viewers: ordered.map((v) => ({
         id: v.id,
         name: v.name,
+        film: night.nominations[v.id]
+          ? { tmdbId: night.nominations[v.id].tmdbId, title: night.nominations[v.id].title }
+          : null,
+        canReshuffle: watchlist
+          ? canBeReshuffled(watchlist.memory, v.letterboxd, drawExclusions(night, holdover, v.id))
+          : false,
         ...effectiveSetting(settings.wheel, night.adjustments, v.id, night.cardEffects),
       })),
       wildcardCount: wildcardTotal(ordered.length, settings.wheel, night.cardEffects),
@@ -228,6 +264,7 @@ export default function WheelPanel({
     // A wildcard drawn on the main wheel opens the wildcard wheel, when it is on and has a card to deal.
     const toCards =
       !onCards && slices[drawn].kind === 'wildcard' && settings.wheel.wildcardWheel && canDeal(dealContext())
+    const blindPress = !onCards && isBlind(night)
     const reduced = prefersReducedMotion()
     const plan = spinPlan(settings.wheel, reduced)
     const { angle: from, speed } = motion.current()
@@ -343,10 +380,11 @@ export default function WheelPanel({
             holdMs - closeCallEaseOutMs,
           )
         }
+        const wait = toCards && blindPress ? holdMs + blindWildcardHoldMs : holdMs
         holdTimer.current = setTimeout(() => {
           if (toCards) enterCards()
           else setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null })
-        }, holdMs)
+        }, wait)
       }
       motion.play(
         path,
@@ -374,7 +412,12 @@ export default function WheelPanel({
 
     // The wildcard wheel: the deal is made now, and the stage fades over to it.
     function enterCards() {
-      const deal = dealCards(dealContext(), random)
+      const context = dealContext()
+      const forced = cards.find((c) => c.id === forceCard)
+      const deal =
+        forced && forced.eligible(context)
+          ? Array.from({ length: dealSize }, () => ({ ...forced.roll(context, random), weight: 1 }))
+          : dealCards(context, random)
       if (deal.length === 0) {
         setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null })
         return
@@ -392,6 +435,8 @@ export default function WheelPanel({
           deal,
           waiting: true,
           leaving: false,
+          blind: false,
+          toCards: false,
         }),
       )
     }
@@ -408,6 +453,8 @@ export default function WheelPanel({
       deal: onCards ? spin.deal : null,
       waiting: false,
       leaving: false,
+      blind: blindPress,
+      toCards,
     })
     onBusyChange(true)
     if (!countdown) {
@@ -447,7 +494,20 @@ export default function WheelPanel({
   function back() {
     const card = spin?.deal?.[spin.drawn]
     if (!card || spin.leaving) return
-    addCardEffect(card.effect)
+    const { change } = card.effect
+    if (change.kind === 'reshuffle') {
+      // A Reshuffle lands only with its film; one still drawing waits, and a failed one lands no card.
+      const current = reshuffle?.key === spin.revealedAt ? reshuffle : null
+      if (!current || current.phase === 'drawing') return
+      if (current.phase === 'done') {
+        addCardEffect(
+          { ...card.effect, change: { ...change, tmdbId: current.film.tmdbId } },
+          current.film,
+        )
+      }
+    } else {
+      addCardEffect(card.effect)
+    }
     clearTimeout(holdTimer.current)
     clearTimeout(easeTimer.current)
     if (musicOn.current) sound.revealClosed()
@@ -457,6 +517,70 @@ export default function WheelPanel({
       setSpin(null)
       onBusyChange(false)
     })
+  }
+
+  // A Reshuffle card draws as it turns over: the film is only swapped in when Back lands the card.
+  const shownCard = spin?.revealedAt && spin.wheel === 'cards' && !spin.leaving ? spin.deal?.[spin.drawn] : null
+  const reshuffleKey = shownCard?.effect.change.kind === 'reshuffle' ? (spin?.revealedAt ?? null) : null
+  const latest = useRef({ night, holdover, roster, client, watchlist, card: shownCard })
+  useEffect(() => {
+    latest.current = { night, holdover, roster, client, watchlist, card: shownCard }
+  })
+  useEffect(() => {
+    if (!reshuffleKey) return
+    const aborted = { current: false }
+    const { night, holdover, roster, client, watchlist, card } = latest.current
+    const change = card?.effect.change
+    const viewer = change?.kind === 'reshuffle' ? roster.find((v) => v.id === change.viewerIds[0]) : undefined
+    const settle = (next: Reshuffle) => {
+      if (!aborted.current) setReshuffle(next)
+    }
+    settle({ key: reshuffleKey, phase: 'drawing' })
+    void (async () => {
+      if (!viewer?.letterboxd || !watchlist) {
+        settle({ key: reshuffleKey, phase: 'failed', message: drawMessage('unavailable', viewer?.name ?? '', undefined) })
+        return
+      }
+      const result = await drawFromWatchlist({
+        client: watchlist.client,
+        memory: watchlist.memory,
+        username: viewer.letterboxd.username,
+        excluded: drawExclusions(night, holdover, viewer.id),
+        random: watchlist.random,
+      }).catch(() => 'unavailable' as const)
+      if (typeof result === 'string') {
+        settle({ key: reshuffleKey, phase: 'failed', message: drawMessage(result, viewer.name, viewer.letterboxd.username) })
+        return
+      }
+      try {
+        settle({ key: reshuffleKey, phase: 'done', film: await client.getMovie(result) })
+      } catch {
+        settle({ key: reshuffleKey, phase: 'failed', message: "The drawn film couldn't be loaded." })
+      }
+    })()
+    return () => {
+      aborted.current = true
+    }
+  }, [reshuffleKey])
+
+  // What a Reshuffle card says: it is drawing, then the swap, or why not.
+  function reshuffleText(): string | undefined {
+    const change = shownCard?.effect.change
+    if (change?.kind !== 'reshuffle') return undefined
+    const viewer = roster.find((v) => v.id === change.viewerIds[0])
+    const name = viewer?.name ?? ''
+    const current = reshuffle?.key === spin?.revealedAt ? reshuffle : null
+    if (!current || current.phase === 'drawing') return `Drawing from ${name}'s watchlist…`
+    if (current.phase === 'failed') return `${current.message} ${name}'s film stays.`
+    const old = night.nominations[change.viewerIds[0]]
+    const added = `${current.film.title}${current.film.year === null ? '' : ` (${current.film.year})`}`
+    return old ? `${old.title} is swapped for ${added}.` : `${name} gets ${added}.`
+  }
+
+  function reshuffleBusy(): boolean {
+    if (shownCard?.effect.change.kind !== 'reshuffle') return false
+    const current = reshuffle?.key === spin?.revealedAt ? reshuffle : null
+    return !current || current.phase === 'drawing'
   }
 
   function outcome(nomination: Nomination, result: Outcome, fromWheel: boolean) {
@@ -474,7 +598,7 @@ export default function WheelPanel({
       >
         {/* A close call's zoom scales this wrapper, not the stage, which the reveal measures and the flicker sits in. */}
         <div className="wheel-zoom">
-          <Wheel wedges={wedges} showLabels={settings.wheel.showLabels} groupRef={motion.groupRef} flapperRef={motion.flapperRef} />
+          <Wheel wedges={shownWedges} showLabels={settings.wheel.showLabels && !blind} blind={blind} groupRef={motion.groupRef} flapperRef={motion.flapperRef} />
           {wedges.length > 0 && (
             <button
               type="button"
@@ -543,12 +667,31 @@ export default function WheelPanel({
           Force wildcards
         </label>
       )}
+      {debug && (
+        <label className="debug-force">
+          Force card{' '}
+          <select value={forceCard} disabled={spin !== null} onChange={(e) => setForceCard(e.target.value)}>
+            <option value="">Random deal</option>
+            {cards.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.id}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {reason && !reasonSlot && <p>{reason}</p>}
       {reason && reasonSlot && createPortal(<p>{reason}</p>, reasonSlot)}
       {night.ended && !reasonSlot && <NightOver />}
       {night.ended && reasonSlot && createPortal(<NightOver />, reasonSlot)}
       {spin?.revealedAt && spin.wheel === 'cards' && !spin.leaving && spin.deal?.[spin.drawn] && (
-        <CardReveal card={spin.deal[spin.drawn]} closeCall={spin.closeCall} onBack={back} />
+        <CardReveal
+          card={spin.deal[spin.drawn]}
+          closeCall={spin.closeCall}
+          text={reshuffleText()}
+          busy={reshuffleBusy()}
+          onBack={back}
+        />
       )}
       {spin?.revealedAt && spin.wheel === 'main' && (
         <Reveal
@@ -557,6 +700,7 @@ export default function WheelPanel({
           client={client}
           heldFilm={holdover}
           closeCall={spin.closeCall}
+          blind={spin.blind}
           onOutcome={outcome}
           onClose={close}
         />

@@ -7,10 +7,21 @@ import { createAppStore } from '../state/store.ts'
 import type { SoundEngine } from '../sound/engine.ts'
 import { defaultWheelSettings, deriveSlices, effectiveSetting, wildcardTotal, type WheelSettings } from '../wheel/edit.ts'
 import { drawSlice } from '../wheel/draw.ts'
+import { cards, type CardEffect } from '../wildcards/cards.ts'
 import { dealCards } from '../wildcards/deal.ts'
+import { blindColor } from '../wheel/wedges.ts'
+import { isBlind, isReshuffleLocked } from '../state/model.ts'
 import { catchTickShare } from './WheelPanel.tsx'
 
-afterEach(() => {
+// The deal is the real one unless a test forces a card with `forceCard`.
+vi.mock('../wildcards/deal.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../wildcards/deal.ts')>()
+  return { ...actual, dealCards: vi.fn(actual.dealCards) }
+})
+
+afterEach(async () => {
+  const actual = await vi.importActual<typeof import('../wildcards/deal.ts')>('../wildcards/deal.ts')
+  vi.mocked(dealCards).mockImplementation(actual.dealCards)
   cleanup()
   window.history.pushState({}, '', '/')
   vi.unstubAllGlobals()
@@ -106,6 +117,10 @@ function setup(
     sound?: SoundEngine
     holdover?: Nomination | null
     random?: () => number
+    fetchFn?: typeof fetch
+    people?: typeof roster
+    nominations?: Record<string, Nomination>
+    cardEffects?: CardEffect[]
   } = {},
 ) {
   const wheel = { ...defaultWheelSettings, ...options.wheel }
@@ -113,18 +128,21 @@ function setup(
     createMemoryPersistence({
       ...defaultState,
       settings: { viewersHidden: false, wheel },
-      roster,
+      roster: options.people ?? roster,
       night: {
         ...defaultState.night,
         presentIds: ['a', 'b', 'c'],
-        nominations: { a: film(1), b: film(2), c: film(3) },
+        nominations: options.nominations ?? { a: film(1), b: film(2), c: film(3) },
+        cardEffects: options.cardEffects ?? [],
       },
       holdover: options.holdover ?? null,
     }),
   )
   const random = options.random ?? wildcardRandom(wheel)
-  render(<App store={store} fetchFn={vi.fn()} random={random} spinMs={20} sound={options.sound} />)
-  return { store, random }
+  const view = render(
+    <App store={store} fetchFn={options.fetchFn ?? vi.fn()} random={random} spinMs={20} sound={options.sound} />,
+  )
+  return { store, random, view }
 }
 
 // The deal the panel makes with a constant `random`, to know which card the dialog shows.
@@ -135,6 +153,10 @@ function expectedDeal(store: ReturnType<typeof setup>['store'], random: () => nu
       viewers: roster.map((v) => ({
         id: v.id,
         name: v.name,
+        film: night.nominations[v.id]
+          ? { tmdbId: night.nominations[v.id].tmdbId, title: night.nominations[v.id].title }
+          : null,
+        canReshuffle: false,
         ...effectiveSetting(settings.wheel, night.adjustments, v.id, night.cardEffects),
       })),
       wildcardCount: wildcardTotal(3, settings.wheel, night.cardEffects),
@@ -386,4 +408,207 @@ test("the wildcard wheel's Back adds the new card's chip", async () => {
   fireEvent.click(within(dialog).getByRole('button', { name: 'Back to the main wheel' }))
   await waitFor(() => expect(chips()).not.toBeNull())
   expect(chipTexts()).toHaveLength(1)
+})
+
+
+// Forces every dealt card to be this one, rolled for the first viewer it suits.
+function forceCard(id: string) {
+  vi.mocked(dealCards).mockImplementation((context) => {
+    const open = { ...context, viewers: context.viewers.map((v) => ({ ...v, canReshuffle: true })) }
+    return Array.from({ length: 8 }, () => ({ ...cards.find((c) => c.id === id)!.roll(open, () => 0), weight: 1 }))
+  })
+}
+
+async function openCard() {
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
+  fireEvent.click(spinButton())
+  return screen.findByRole('dialog')
+}
+
+const posterFilm = (id: number): Nomination => ({ ...film(id), posterPath: '/p.jpg' })
+const wheelText = () => (document.querySelector('svg.wheel')!.textContent ?? '').toUpperCase()
+const wheelImages = () => document.querySelectorAll('svg.wheel image').length
+const frameFills = () =>
+  Array.from(document.querySelectorAll('[data-testid="frame"]')).map((f) => f.getAttribute('fill'))
+const nominationFrameFills = () =>
+  Array.from(document.querySelectorAll('[data-testid="frame"]'))
+    .map((f) => f.getAttribute('fill'))
+    .filter((fill) => fill !== null)
+
+test('Picks Again takes the film off, refuses it, and the Spin waits for the viewer', async () => {
+  forceCard('picks-again')
+  const { store } = setup()
+  const dialog = await openCard()
+  expect(within(dialog).getByRole('heading')).toHaveTextContent('Ann Picks Again')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Back to the main wheel' }))
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  expect(store.getState().night.nominations.a).toBeUndefined()
+  expect(store.getState().night.cardEffects[0].change).toEqual({ kind: 'picksAgain', viewerIds: ['a'], tmdbId: 1 })
+  expect(spinButton()).toBeDisabled()
+  expect(screen.getByText('Waiting for Ann to nominate.')).toBeInTheDocument()
+  act(() => store.getState().nominate('a', film(1)))
+  expect(store.getState().night.nominations.a).toBeUndefined()
+  act(() => store.getState().nominate('a', film(5)))
+  expect(spinButton()).toBeEnabled()
+})
+
+// A worker that answers the Letterboxd and TMDB routes, with the TMDB movie held until released.
+function reshuffleFetch(options: { watchlist?: Response; movie?: Response; hold?: boolean } = {}) {
+  let release: () => void = () => {}
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
+  const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input)
+    if (url.includes('/watchlist')) return options.watchlist?.clone() ?? json({ slugs: ['x'], hasNext: false })
+    if (url.includes('/lb/film/')) return json({ slug: 'x', tmdbId: 101 })
+    if (/\/lb\/[a-z]+$/.test(url)) return json({ username: 'ann' })
+    if (url.includes('/tmdb/movie/')) {
+      if (options.hold) await held
+      return (
+        options.movie?.clone() ??
+        json({ id: 101, title: 'Drawn', release_date: '2001-01-01', overview: '', runtime: 90, genres: [] })
+      )
+    }
+    return json({}, 404)
+  }) as unknown as typeof fetch
+  return { fetchFn, release }
+}
+
+const linkedRoster = [{ ...roster[0], letterboxd: { username: 'ann', status: 'found' as const } }, roster[1], roster[2]]
+
+test('a Reshuffle draws as it turns over, holds Back and Escape, then swaps and locks the film', async () => {
+  forceCard('reshuffle')
+  const { fetchFn, release } = reshuffleFetch({ hold: true })
+  const { store } = setup({ fetchFn, people: linkedRoster })
+  const dialog = await openCard()
+  expect(within(dialog).getByText("Drawing from Ann's watchlist…")).toBeInTheDocument()
+  const back = within(dialog).getByRole('button', { name: 'Back to the main wheel' })
+  expect(back).toBeDisabled()
+  fireEvent.keyDown(document, { key: 'Escape' })
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  expect(store.getState().night.cardEffects).toEqual([])
+  release()
+  await waitFor(() => expect(back).toBeEnabled())
+  expect(within(dialog).getByText('Film 1 is swapped for Drawn (2001).')).toBeInTheDocument()
+  expect(store.getState().night.nominations.a.tmdbId).toBe(1)
+  fireEvent.click(back)
+  expect(store.getState().night.nominations.a.title).toBe('Drawn')
+  expect(store.getState().night.nominations.a.fromWatchlist).toBeUndefined()
+  expect(store.getState().night.cardEffects[0].change).toEqual({ kind: 'reshuffle', viewerIds: ['a'], tmdbId: 101 })
+  expect(isReshuffleLocked(store.getState().night, 'a')).toBe(true)
+})
+
+test.each([
+  ['a private watchlist', { watchlist: new Response(JSON.stringify({ error: 'Watchlist is private' }), { status: 404 }) }, "Ann's watchlist is private."],
+  ['a TMDB details failure', { movie: new Response('{}', { status: 500 }) }, "The drawn film couldn't be loaded."],
+])('a failed Reshuffle draw (%s) says why, and Back leaves the film and lands no card', async (_name, responses, message) => {
+  forceCard('reshuffle')
+  const { fetchFn } = reshuffleFetch(responses)
+  const { store } = setup({ fetchFn, people: linkedRoster })
+  const dialog = await openCard()
+  await waitFor(() => expect(within(dialog).getByText(new RegExp(message))).toBeInTheDocument())
+  const back = within(dialog).getByRole('button', { name: 'Back to the main wheel' })
+  expect(back).toBeEnabled()
+  fireEvent.click(back)
+  expect(store.getState().night.cardEffects).toEqual([])
+  expect(store.getState().night.nominations.a.tmdbId).toBe(1)
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  expect(screen.queryByRole('list', { name: "Tonight's cards" })).toBeNull()
+})
+
+test('unmounting the panel during a Reshuffle draw nominates nothing', async () => {
+  forceCard('reshuffle')
+  const { fetchFn, release } = reshuffleFetch({ hold: true })
+  const { store, view } = setup({ fetchFn, people: linkedRoster })
+  await openCard()
+  view.unmount()
+  release()
+  await sleep(50)
+  expect(store.getState().night.nominations.a.tmdbId).toBe(1)
+  expect(store.getState().night.cardEffects).toEqual([])
+})
+
+test('the viewer key and the reel back stay through the blind spin and its reveal, and go when it closes', async () => {
+  const pending: CardEffect = { cardId: 'blind-spin', label: 'Blind spin', change: { kind: 'blindSpin', used: false } }
+  const { store } = setup({
+    cardEffects: [pending],
+    random: () => 0.01,
+    wheel: { showLabels: false },
+  })
+  store.setState((s) => ({ settings: { ...s.settings, viewersHidden: true } }))
+  const key = () => screen.queryByRole('list', { name: "Tonight's viewers" })
+  expect(key()).toBeNull()
+  fireEvent.click(spinButton())
+  expect(isBlind(store.getState().night)).toBe(false)
+  expect(key()).toBeNull()
+  await screen.findByRole('dialog')
+  expect(key()).toBeNull()
+  expect(screen.queryByTestId('reel-back')).not.toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+  expect(key()).not.toBeNull()
+  expect(screen.getByTestId('reel-back')).toHaveAttribute('data-hidden', 'true')
+})
+
+test('Blind Spin: the wheel comes back blind, stays blind through the next main spin, and shows at the landing', async () => {
+  forceCard('blind-spin')
+  const { store } = setup({
+    nominations: { a: posterFilm(1), b: posterFilm(2), c: posterFilm(3) },
+  })
+  expect(wheelImages()).toBe(3 * 3)
+  expect(wheelText()).toContain('ANN')
+  await openCard()
+  fireEvent.click(screen.getByRole('button', { name: 'Back to the main wheel' }))
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  expect(isBlind(store.getState().night)).toBe(true)
+  expect(wheelImages()).toBe(0)
+  expect(wheelText()).not.toContain('ANN')
+  expect(wheelText()).not.toContain('FILM')
+  expect(new Set(nominationFrameFills())).toEqual(new Set([blindColor]))
+  expect(new Set(wedgeKinds())).toEqual(new Set(['nomination']))
+  expect(screen.queryAllByTestId('wildcard-word')).toHaveLength(0)
+  expect(new Set(frameFills())).toEqual(new Set([blindColor]))
+  // The main press uses it up, but the wheel stays blind until the landing.
+  forceCard('wildcards')
+  fireEvent.click(spinButton())
+  expect(isBlind(store.getState().night)).toBe(false)
+  expect(wheelImages()).toBe(0)
+  expect(wheelText()).not.toContain('ANN')
+  // The spin lands on a wildcard: the wildcard wheel, whose own press leaves the effects alone.
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
+  const effects = store.getState().night.cardEffects
+  fireEvent.click(spinButton())
+  expect(store.getState().night.cardEffects).toBe(effects)
+  await screen.findByRole('dialog')
+  fireEvent.click(screen.getByRole('button', { name: 'Back to the main wheel' }))
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  expect(wheelImages()).toBe(3 * 3)
+  expect(wheelText()).toContain('ANN')
+  expect(nominationFrameFills()).not.toContain(blindColor)
+})
+
+test('the debug Force card select deals eight of the chosen card, and Random deal deals normally', async () => {
+  window.history.pushState({}, '', '/?debug')
+  const { store } = setup()
+  fireEvent.click(screen.getByLabelText('Force wildcards'))
+  fireEvent.change(screen.getByLabelText('Force card'), { target: { value: 'blind-spin' } })
+  const dialog = await openCard()
+  expect(within(dialog).getByRole('heading')).toHaveTextContent('Blind Spin')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Back to the main wheel' }))
+  await waitFor(() => expect(isBlind(store.getState().night)).toBe(true))
+})
+
+test('the reveal after a blind spin comes into focus from a blur, and an ordinary one does not', async () => {
+  const pending: CardEffect = { cardId: 'blind-spin', label: 'Blind spin', change: { kind: 'blindSpin', used: false } }
+  setup({ cardEffects: [pending], random: () => 0.01 })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(document.querySelector('.reveal-blind')).not.toBeNull()
+  cleanup()
+  setup({ random: () => 0.01 })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(document.querySelector('.reveal-blind')).toBeNull()
 })

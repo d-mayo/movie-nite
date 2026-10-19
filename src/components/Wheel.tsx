@@ -1,9 +1,9 @@
-import { useId, type Ref } from 'react'
+import { useId, useState, type Ref } from 'react'
 import { posterUrl } from '../tmdb/client.ts'
 import { mixColor } from '../wheel/colors.ts'
 import { layoutLabel, layoutWatermark, layoutWildcard, markHeight, markWidth, sticksInner } from '../wheel/labels.ts'
 import { pivotY } from '../wheel/pins.ts'
-import type { Wedge } from '../wheel/wedges.ts'
+import { blindColor, type Wedge } from '../wheel/wedges.ts'
 import Reel, { barsPath } from './Reel.tsx'
 
 // The flapper's tongue hangs from the pivot screw at `pivotY`; its tip reaches inside the pins.
@@ -227,8 +227,53 @@ function WedgeShape({
   )
 }
 
+// The wheel under a Blind Spin: the other side of a film reel, a grey disc of six spokes round
+// six windows onto the black film. It turns with the wheel, over the wedges.
+const spokeHalf = 4.5
+const windowInner = 34
+const windowOuter = 85
+const windowRound = 4
+
+function windowPath(center: number): string {
+  // Each corner pulled in by the corner's rounding, which a round-joined stroke gives back.
+  const edge = (r: number) => 30 - (Math.asin((spokeHalf + windowRound) / r) * 180) / Math.PI
+  const inner = windowInner + windowRound
+  const outer = windowOuter - windowRound
+  const a0 = center - edge(inner)
+  const a1 = center + edge(inner)
+  const b0 = center - edge(outer)
+  const b1 = center + edge(outer)
+  return `M ${point(a0, inner)} L ${point(b0, outer)} A ${outer} ${outer} 0 0 1 ${point(b1, outer)} L ${point(a1, inner)} A ${inner} ${inner} 0 0 0 ${point(a0, inner)} Z`
+}
+
+function ReelBack({ hidden }: { hidden: boolean }) {
+  return (
+    <g data-testid="reel-back" className="reel-back" data-hidden={hidden ? 'true' : undefined} pointerEvents="none">
+      <circle r={radius} fill={blindColor} />
+      <circle r={radius - 2} fill="none" className="reel-back-lip" strokeWidth="1" />
+      <circle r={windowInner - 2} fill="none" className="reel-back-lip" strokeWidth="1" />
+      {[0, 60, 120, 180, 240, 300].map((angle) => (
+        <path key={angle} d={windowPath(angle + 30)} className="reel-back-window" strokeWidth={windowRound * 2} strokeLinejoin="round" />
+      ))}
+      {[0, 60, 120, 180, 240, 300].map((angle) =>
+        [52, 64, 76].map((r) => (
+          <path
+            key={`${angle}-${r}`}
+            d={`M ${point(angle + 30 - 22, r)} A ${r} ${r} 0 0 1 ${point(angle + 30 + 22, r)}`}
+            className="reel-back-wind"
+            fill="none"
+            strokeWidth="0.4"
+          />
+        )),
+      )}
+    </g>
+  )
+}
+
 interface Props {
   wedges: Wedge[]
+  // Draw the back of a film reel over the wedges (a Blind Spin's wheel).
+  blind?: boolean
   // False leaves the viewers' names and titles off; a wildcard's word stays.
   showLabels?: boolean
   // The rotating group; its transform is written by the wheel's motion loop.
@@ -237,8 +282,11 @@ interface Props {
   flapperRef?: Ref<SVGGElement>
 }
 
-export default function Wheel({ wedges, showLabels = true, groupRef, flapperRef }: Props) {
+export default function Wheel({ wedges, showLabels = true, blind = false, groupRef, flapperRef }: Props) {
   const uid = useId().replace(/:/g, '')
+  // Once the wheel has been blind its reel back stays mounted, so it can dissolve away.
+  const [wasBlind, setWasBlind] = useState(false)
+  if (blind && !wasBlind) setWasBlind(true)
   if (wedges.length === 0) {
     return (
       <div className="wheel-empty">
@@ -254,6 +302,7 @@ export default function Wheel({ wedges, showLabels = true, groupRef, flapperRef 
         {wedges.map((wedge, i) => (
           <WedgeShape key={i} wedge={wedge} id={String(i)} uid={uid} showLabels={showLabels} />
         ))}
+        {(blind || wasBlind) && <ReelBack hidden={!blind} />}
         <Reel wedges={wedges} />
       </g>
       <circle data-testid="gloss" r={radius} fill={`url(#${uid}-gloss)`} pointerEvents="none" />
