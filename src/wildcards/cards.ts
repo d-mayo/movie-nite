@@ -80,6 +80,10 @@ export interface CardDef {
   id: string
   type: CardType
   fff: boolean
+  // What the settings call the card: plain, fixed, and independent of any roll.
+  name: string
+  // One line on what the card does, shown under its name in the settings.
+  description: string
   // Dealt onto every wildcard wheel while it is eligible: the seasonal cards.
   guaranteed?: boolean
   eligible(context: DealContext): boolean
@@ -129,13 +133,15 @@ function capital(word: string): string {
 }
 
 // A card that changes one viewer's slices or weight.
-function viewerCard(id: string, field: Field): CardDef {
+function viewerCard(id: string, field: Field, name: string, description: string): CardDef {
   const usable = (context: DealContext) =>
     context.viewers.filter((v) => signsFor([v], field).length > 0)
   return {
     id,
     type: 'wheel',
     fff: false,
+    name,
+    description,
     eligible: (context) => usable(context).length > 0,
     roll(context, random) {
       const viewer = pick(usable(context), random)
@@ -161,11 +167,13 @@ function viewerCard(id: string, field: Field): CardDef {
 }
 
 // A card that changes every viewer on the wheel by the same amount.
-function everyoneCard(id: string, field: Field): CardDef {
+function everyoneCard(id: string, field: Field, name: string, description: string): CardDef {
   return {
     id,
     type: 'wheel',
     fff: false,
+    name,
+    description,
     eligible: (context) => context.viewers.length > 0 && signsFor(context.viewers, field).length > 0,
     roll(context, random) {
       const sign = pick(signsFor(context.viewers, field), random)
@@ -196,6 +204,8 @@ const wildcardsCard: CardDef = {
   id: 'wildcards',
   type: 'wheel',
   fff: false,
+  name: 'Extra wildcards',
+  description: 'Adds one to three wildcards to the main wheel for the rest of the night.',
   eligible: (context) => context.wildcardCount < maxWildcards,
   roll(context, random) {
     const n = 1 + Math.floor(random() * Math.min(maxAmount, maxWildcards - context.wildcardCount))
@@ -217,6 +227,8 @@ const picksAgainCard: CardDef = {
   id: 'picks-again',
   type: 'wheel',
   fff: false,
+  name: 'Picks again',
+  description: "Takes a viewer's film off the wheel; they pick a different one.",
   eligible: (context) => context.viewers.some((v) => v.film),
   roll(context, random) {
     const viewer = pick(
@@ -247,6 +259,8 @@ const reshuffleCard: CardDef = {
   id: 'reshuffle',
   type: 'wheel',
   fff: false,
+  name: 'Reshuffle from watchlist',
+  description: "Swaps a viewer's film for a random one from their Letterboxd watchlist.",
   eligible: (context) => context.viewers.some((v) => v.canReshuffle),
   roll(context, random) {
     const viewer = pick(
@@ -275,6 +289,8 @@ const blindSpinCard: CardDef = {
   id: 'blind-spin',
   type: 'wheel',
   fff: false,
+  name: 'Blind spin',
+  description: 'Hides the names, titles and posters on the next spin until it lands.',
   eligible: () => true,
   roll() {
     return {
@@ -352,15 +368,20 @@ function discoverRoll(
 
 function discoverCard(
   id: string,
+  name: string,
+  description: string,
   eligible: (context: DealContext) => boolean,
   roll: (random: () => number) => RolledCard,
 ): CardDef {
-  return { id, type: 'movie', fff: false, eligible, roll: (_context, random) => roll(random) }
+  return { id, type: 'movie', fff: false, name, description, eligible, roll: (_context, random) => roll(random) }
 }
 
 // A seasonal card: eligible from a month and day to a month and day (1-based months), inclusive.
 function seasonal(
   id: string,
+  // The card's name in the settings, with its dates.
+  settingsName: string,
+  description: string,
   name: string,
   // What the text calls its films: "Halloween", "romance".
   noun: string,
@@ -370,6 +391,8 @@ function seasonal(
 ): CardDef {
   const card = discoverCard(
     id,
+    settingsName,
+    description,
     ({ today }) => {
       const day = (today.getMonth() + 1) * 100 + today.getDate()
       return day >= from[0] * 100 + from[1] && day <= to[0] * 100 + to[1]
@@ -384,7 +407,7 @@ function tenths(min: number, max: number, random: () => number): number {
   return (min * 10 + Math.floor(random() * (max * 10 - min * 10 + 1))) / 10
 }
 
-const genreNightCard = discoverCard('genre-night', () => true, (random) => {
+const genreNightCard = discoverCard('genre-night', 'Genre night', 'Three films of one genre.', () => true, (random) => {
   const [genre, name] = pick(genres, random)
   return discoverRoll(
     'genre-night',
@@ -395,7 +418,7 @@ const genreNightCard = discoverCard('genre-night', () => true, (random) => {
   )
 })
 
-const criticsCard = discoverCard('critics-darlings', () => true, (random) => {
+const criticsCard = discoverCard('critics-darlings', "Critics' darlings", 'Three films rated 7 or above.', () => true, (random) => {
   const n = tenths(7, 8, random).toFixed(1)
   return discoverRoll(
     'critics-darlings',
@@ -406,7 +429,7 @@ const criticsCard = discoverCard('critics-darlings', () => true, (random) => {
   )
 })
 
-const soBadCard = discoverCard('so-bad-its-good', () => true, (random) => {
+const soBadCard = discoverCard('so-bad-its-good', "So bad it's good", 'Three films rated 5.5 or below.', () => true, (random) => {
   const n = tenths(4, 5.5, random).toFixed(1)
   return discoverRoll(
     'so-bad-its-good',
@@ -417,7 +440,7 @@ const soBadCard = discoverCard('so-bad-its-good', () => true, (random) => {
   )
 })
 
-const decadeCard = discoverCard('decade-roulette', () => true, (random) => {
+const decadeCard = discoverCard('decade-roulette', 'Decade roulette', 'Three films from one decade, the 1950s to the 2010s.', () => true, (random) => {
   const first = pick(decades, random)
   const name = `${first}s`
   return discoverRoll('decade-roulette', name, `Decade Roulette: the ${name}`, `Three films from the ${name}.`, {
@@ -426,7 +449,7 @@ const decadeCard = discoverCard('decade-roulette', () => true, (random) => {
   })
 })
 
-const worldCinemaCard = discoverCard('world-cinema', () => true, (random) => {
+const worldCinemaCard = discoverCard('world-cinema', 'World cinema', 'Three films in one language other than English.', () => true, (random) => {
   const [code, name] = pick(languages, random)
   return discoverRoll(
     'world-cinema',
@@ -449,6 +472,8 @@ const shortestCard: CardDef = {
   id: 'shortest-on-the-board',
   type: 'movie',
   fff: false,
+  name: 'Shortest on the board',
+  description: 'The shortest nominated film on the board wins.',
   eligible: (context) => context.viewers.some((v) => v.film?.runtime),
   roll(context, random) {
     const viewer = pick(shortestViewers(context), random)
@@ -472,6 +497,8 @@ const backlogCard: CardDef = {
   id: 'backlog',
   type: 'movie',
   fff: false,
+  name: 'Backlog',
+  description: "Three films from one viewer's Letterboxd watchlist.",
   eligible: (context) => context.viewers.some((v) => v.canBacklog),
   roll(context, random) {
     const viewer = pick(
@@ -496,6 +523,8 @@ const commonGroundCard: CardDef = {
   id: 'common-ground',
   type: 'movie',
   fff: false,
+  name: 'Common ground',
+  description: 'Three films from the most Letterboxd watchlists.',
   eligible: (context) => context.commonGround,
   roll() {
     return {
@@ -512,19 +541,19 @@ const commonGroundCard: CardDef = {
 }
 
 export const cards: CardDef[] = [
-  viewerCard('viewer-weight', 'weight'),
-  viewerCard('viewer-slices', 'slices'),
-  everyoneCard('everyone-weight', 'weight'),
-  everyoneCard('everyone-slices', 'slices'),
+  viewerCard('viewer-weight', 'weight', "One viewer's weight", "Raises or lowers one viewer's weight for the night."),
+  viewerCard('viewer-slices', 'slices', "One viewer's slices", "Adds or removes slices for one viewer for the night."),
+  everyoneCard('everyone-weight', 'weight', "Everyone's weight", "Raises or lowers every viewer's weight for the night."),
+  everyoneCard('everyone-slices', 'slices', "Everyone's slices", "Adds or removes slices for every viewer for the night."),
   wildcardsCard,
   picksAgainCard,
   reshuffleCard,
   blindSpinCard,
   genreNightCard,
-  seasonal('halloween', 'Halloween', 'Halloween', [10, 1], [10, 31], { with_keywords: '3335' }),
-  seasonal('christmas', 'Christmas', 'Christmas', [12, 1], [12, 25], { with_keywords: '207317' }),
-  seasonal('romance', 'Romance', 'romance', [2, 1], [2, 14], { with_genres: '10749' }),
-  seasonal('creature-feature', 'Creature Feature', 'creature feature', [6, 1], [8, 31], {
+  seasonal('halloween', 'Halloween (Oct)', 'Three Halloween films, dealt every time in October.', 'Halloween', 'Halloween', [10, 1], [10, 31], { with_keywords: '3335' }),
+  seasonal('christmas', 'Christmas (Dec 1–25)', 'Three Christmas films, dealt every time from December 1 to 25.', 'Christmas', 'Christmas', [12, 1], [12, 25], { with_keywords: '207317' }),
+  seasonal('romance', 'Romance (Feb 1–14)', 'Three romance films, dealt every time from February 1 to 14.', 'Romance', 'romance', [2, 1], [2, 14], { with_genres: '10749' }),
+  seasonal('creature-feature', 'Creature feature (Jun–Aug)', 'Three creature-feature films, dealt every time from June to August.', 'Creature Feature', 'creature feature', [6, 1], [8, 31], {
     with_keywords: '158126|11100|161791',
   }),
   criticsCard,

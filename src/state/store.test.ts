@@ -152,6 +152,7 @@ test('wheel settings and adjustments survive a reload', () => {
     soundMuted: true,
     showLabels: false,
     wildcardWheel: true,
+    disabledCards: [],
   })
 })
 
@@ -461,4 +462,28 @@ test('a stored night with a pending Blind Spin loads blind, and a malformed one 
   expect(isBlind(store.getState().night)).toBe(true)
   store.getState().startSpin()
   expect(isBlind(createAppStore(persistence).getState().night)).toBe(false)
+})
+
+test('the disabled cards load empty unless stored as an array, keep only unique strings, and Restore empties them', () => {
+  const load = (disabledCards: unknown) => {
+    const persistence = createMemoryPersistence()
+    const wheel = { ...defaultWheelSettings, disabledCards: disabledCards as never }
+    persistence.save({ ...defaultState, settings: { ...defaultState.settings, wheel } })
+    return createAppStore(persistence)
+  }
+  expect(load('blind-spin').getState().settings.wheel.disabledCards).toEqual([])
+  expect(load(undefined).getState().settings.wheel.disabledCards).toEqual([])
+  const store = load(['blind-spin', 3, 'blind-spin', 'gone-card', null])
+  expect(store.getState().settings.wheel.disabledCards).toEqual(['blind-spin', 'gone-card'])
+  store.getState().setCardEnabled('reshuffle', false)
+  store.getState().setCardEnabled('blind-spin', true)
+  expect(store.getState().settings.wheel.disabledCards).toEqual(['gone-card', 'reshuffle'])
+  const before = store.getState().settings.wheel
+  store.getState().setCardEnabled('reshuffle', false)
+  store.getState().setCardEnabled('blind-spin', true)
+  expect(store.getState().settings.wheel).toBe(before)
+  store.getState().setWildcardWheel(false)
+  store.getState().restoreWheelSettings()
+  expect(store.getState().settings.wheel.disabledCards).toEqual([])
+  expect(store.getState().settings.wheel.wildcardWheel).toBe(true)
 })

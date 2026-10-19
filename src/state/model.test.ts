@@ -20,6 +20,8 @@ import {
   setSoundEffects,
   setSoundVolume,
   restoreWheelSettings,
+  setCardEnabled,
+  setCardsEnabled,
   setWildcardCount,
   setWildcardsPerViewer,
   setWildcardWeight,
@@ -246,6 +248,7 @@ describe('global wheel settings', () => {
       soundMuted: false,
       showLabels: true,
       wildcardWheel: true,
+      disabledCards: [],
     })
   })
 
@@ -631,5 +634,27 @@ describe('Picks Again, Reshuffle and Blind Spin', () => {
     expect(spun.holdover).toBeNull()
     const again = startSpin(addCardEffect({ ...spun, holdover: film(8) }, blind))
     expect(again.holdover?.tmdbId).toBe(8)
+  })
+})
+
+describe('setCardEnabled', () => {
+  test('adds an id to turn a card off, removes it to turn it on, and is a no-op when unchanged', () => {
+    const off = setCardEnabled(defaultState, 'blind-spin', false)
+    expect(off.settings.wheel.disabledCards).toEqual(['blind-spin'])
+    expect(setCardEnabled(off, 'blind-spin', false)).toBe(off)
+    expect(setCardEnabled(defaultState, 'blind-spin', true)).toBe(defaultState)
+    expect(setCardEnabled(off, 'blind-spin', true).settings.wheel.disabledCards).toEqual([])
+    expect(restoreWheelSettings(off).settings.wheel.disabledCards).toEqual([])
+  })
+})
+
+describe('setCardsEnabled', () => {
+  test('turns a group off without duplicates, back on, and is a no-op when unchanged', () => {
+    const half = setCardEnabled(defaultState, 'a', false)
+    const off = setCardsEnabled(half, ['a', 'b'], false)
+    expect(off.settings.wheel.disabledCards).toEqual(['a', 'b'])
+    expect(setCardsEnabled(off, ['a', 'b'], false)).toBe(off)
+    expect(setCardsEnabled(defaultState, ['a', 'b'], true)).toBe(defaultState)
+    expect(setCardsEnabled(off, ['a'], true).settings.wheel.disabledCards).toEqual(['b'])
   })
 })

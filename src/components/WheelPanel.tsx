@@ -287,6 +287,11 @@ export default function WheelPanel({
     }, crossfadeMs)
   }
 
+  function forcedCardEligible(): boolean {
+    const forced = cards.find((c) => c.id === forceCard)
+    return !!forced && forced.eligible(dealContext())
+  }
+
   function start() {
     // The wildcard wheel's own press spins it; it does not clear the held film again.
     const onCards = spin !== null && spin.wheel === 'cards' && spin.waiting
@@ -295,8 +300,12 @@ export default function WheelPanel({
     const slices = wedges.map((w) => w.slice)
     const drawn = (forceWildcards && !onCards ? drawWildcardSlice(slices, random) : null) ?? drawSlice(slices, random)
     // A wildcard drawn on the main wheel opens the wildcard wheel, when it is on and has a card to deal.
+    // The debug Force card ignores the card switches, so it opens the wheel whenever its card is eligible.
     const toCards =
-      !onCards && slices[drawn].kind === 'wildcard' && settings.wheel.wildcardWheel && canDeal(dealContext())
+      !onCards &&
+      slices[drawn].kind === 'wildcard' &&
+      settings.wheel.wildcardWheel &&
+      (canDeal(dealContext(), settings.wheel.disabledCards) || forcedCardEligible())
     const blindPress = !onCards && isBlind(night)
     const reduced = prefersReducedMotion()
     const plan = spinPlan(settings.wheel, reduced)
@@ -450,7 +459,7 @@ export default function WheelPanel({
       const deal =
         forced && forced.eligible(context)
           ? Array.from({ length: dealSize }, () => ({ ...forced.roll(context, random), weight: 1 }))
-          : dealCards(context, random)
+          : dealCards(context, random, settings.wheel.disabledCards)
       if (deal.length === 0) {
         setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null })
         return

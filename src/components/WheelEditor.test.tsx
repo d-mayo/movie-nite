@@ -6,6 +6,7 @@ import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { AppStoreContext, createAppStore } from '../state/store.ts'
 import { defaultWheelSettings } from '../wheel/edit.ts'
+import { cards } from '../wildcards/cards.ts'
 import { header } from '../test/cells.ts'
 
 function film(id: number): Nomination {
@@ -657,4 +658,154 @@ test('the Wildcard Cards card holds the Wildcard wheel switch, on by default', (
   expect(toggle).not.toBeChecked()
   fireEvent.click(toggle)
   expect(store.getState().settings.wheel.wildcardWheel).toBe(true)
+})
+
+describe('choosing cards', () => {
+  const choose = () => screen.getByRole('button', { name: 'Choose cards' })
+  const overlay = () => screen.queryByRole('dialog', { name: 'Choose cards' })
+  const listed = cards.filter((c) => !c.fff)
+
+  test('the button shows how many listed cards are on, and an unknown id lowers nothing', () => {
+    const store = setup()
+    openEditor()
+    expect(screen.getByText(`${listed.length} of ${listed.length} on`)).toBeInTheDocument()
+    act(() => store.getState().setCardEnabled('gone-card', false))
+    expect(screen.getByText(`${listed.length} of ${listed.length} on`)).toBeInTheDocument()
+    act(() => store.getState().setCardEnabled('blind-spin', false))
+    expect(screen.getByText(`${listed.length - 1} of ${listed.length} on`)).toBeInTheDocument()
+  })
+
+  test('the button is disabled while locked and while the Wildcard wheel switch is off', () => {
+    const store = setup()
+    openEditor()
+    expect(choose()).toBeEnabled()
+    fireEvent.click(screen.getByRole('switch', { name: 'Wildcard wheel' }))
+    expect(choose()).toBeDisabled()
+    cleanup()
+    render(
+      <AppStoreContext.Provider value={store}>
+        <WheelEditor locked onClosed={vi.fn()} />
+      </AppStoreContext.Provider>,
+    )
+    act(() => store.getState().setWildcardWheel(true))
+    expect(choose()).toBeDisabled()
+  })
+
+  test('it lists a switch per card under Wheel cards and Movie cards, each with its description, and toggling applies at once', () => {
+    const store = setup()
+    openEditor()
+    fireEvent.click(choose())
+    const box = within(overlay()!)
+    expect(box.getByRole('heading', { name: 'Wheel cards' })).toBeInTheDocument()
+    expect(box.getByRole('heading', { name: 'Movie cards' })).toBeInTheDocument()
+    expect(box.getAllByRole('switch')).toHaveLength(listed.length + 2)
+    for (const card of listed) {
+      expect(box.getByRole('switch', { name: card.name })).toHaveAccessibleDescription(card.description)
+    }
+    const blind = box.getByRole('switch', { name: 'Blind spin' })
+    expect(blind).toBeChecked()
+    fireEvent.click(blind)
+    expect(store.getState().settings.wheel.disabledCards).toEqual(['blind-spin'])
+    expect(blind).not.toBeChecked()
+    expect(screen.getByText(`${listed.length - 1} of ${listed.length} on`)).toBeInTheDocument()
+    fireEvent.click(blind)
+    expect(store.getState().settings.wheel.disabledCards).toEqual([])
+  })
+
+  test('each group has a switch that turns all its cards on or off, and shows a dash when mixed', () => {
+    const store = setup()
+    openEditor()
+    fireEvent.click(choose())
+    const box = within(overlay()!)
+    const wheelIds = listed.filter((c) => c.type === 'wheel').map((c) => c.id)
+    const movieIds = listed.filter((c) => c.type === 'movie').map((c) => c.id)
+    const wheelAll = box.getByRole('switch', { name: 'All wheel cards' }) as HTMLInputElement
+    const movieAll = box.getByRole('switch', { name: 'All movie cards' }) as HTMLInputElement
+    expect(wheelAll).toBeChecked()
+    fireEvent.click(wheelAll)
+    expect(store.getState().settings.wheel.disabledCards).toEqual(wheelIds)
+    expect(wheelAll).not.toBeChecked()
+    expect(movieAll).toBeChecked()
+    expect(box.getByText(`0 of ${wheelIds.length} on`)).toBeInTheDocument()
+    fireEvent.click(box.getByRole('switch', { name: 'Blind spin' }))
+    expect(wheelAll.indeterminate).toBe(true)
+    fireEvent.click(wheelAll)
+    expect(store.getState().settings.wheel.disabledCards).toEqual([])
+    fireEvent.click(movieAll)
+    expect(store.getState().settings.wheel.disabledCards).toEqual(movieIds)
+    expect(screen.getByText(`${wheelIds.length} of ${listed.length} on`)).toBeInTheDocument()
+  })
+
+  test('Done, Escape and a press outside close it, focus returns to the button, and a press inside does not', () => {
+    setup()
+    openEditor()
+    fireEvent.click(choose())
+    fireEvent.click(within(overlay()!).getByRole('button', { name: 'Done' }))
+    expect(overlay()).toBeNull()
+    expect(choose()).toHaveFocus()
+
+    fireEvent.click(choose())
+    act(() => (overlay() as unknown as HTMLDialogElement).close())
+    expect(overlay()).toBeNull()
+    expect(choose()).toHaveFocus()
+
+    fireEvent.click(choose())
+    const box = overlay()!
+    stubRect(box)
+    fireEvent.pointerDown(box, at(200, 200))
+    fireEvent.click(box)
+    expect(overlay()).not.toBeNull()
+    fireEvent.pointerDown(box, at(10, 10))
+    fireEvent.click(box)
+    expect(overlay()).toBeNull()
+    expect(choose()).toHaveFocus()
+    expect(screen.getByRole('dialog', { name: 'Wheel settings' })).toBeInTheDocument()
+  })
+
+  test('with the overlay open the popover stays open when the pointer leaves it or a press lands outside', () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query }))
+    try {
+      setup()
+      openEditor()
+      const drawer = screen.getByRole('dialog', { name: 'Wheel settings' })
+      stubRect(drawer)
+      fireEvent.pointerMove(document, at(200, 200))
+      fireEvent.click(choose())
+      fireEvent.pointerMove(document, at(10, 10))
+      fireEvent.pointerLeave(document.documentElement)
+      act(() => vi.advanceTimersByTime(1000))
+      expect(screen.queryByRole('dialog', { name: 'Wheel settings' })).not.toBeNull()
+      const box = overlay()!
+      stubRect(box)
+      fireEvent.pointerDown(box, at(10, 10))
+      fireEvent.click(box)
+      expect(overlay()).toBeNull()
+      expect(screen.queryByRole('dialog', { name: 'Wheel settings' })).not.toBeNull()
+      // Back in the popover, the pointer must come in again before leaving counts.
+      fireEvent.pointerMove(document, at(10, 10))
+      act(() => vi.advanceTimersByTime(1000))
+      expect(screen.queryByRole('dialog', { name: 'Wheel settings' })).not.toBeNull()
+    } finally {
+      vi.useRealTimers()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  test('Restore All Defaults stays disabled until a card is off, and its confirmation names the cards', () => {
+    const store = setup()
+    openEditor()
+    const restore = () => screen.getByRole('button', { name: 'Restore All Defaults' })
+    expect(restore()).toBeDisabled()
+    act(() => store.getState().setCardEnabled('blind-spin', false))
+    expect(restore()).toBeEnabled()
+    act(() => store.getState().setCardEnabled('blind-spin', true))
+    expect(restore()).toBeDisabled()
+    act(() => store.getState().setCardEnabled('blind-spin', false))
+    fireEvent.click(restore())
+    const confirm = screen.getByRole('dialog', { name: 'Restore all wheel settings?' })
+    expect(confirm).toHaveTextContent(/card switch/)
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Restore' }))
+    expect(store.getState().settings.wheel.disabledCards).toEqual([])
+  })
 })

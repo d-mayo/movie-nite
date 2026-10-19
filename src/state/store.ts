@@ -29,6 +29,8 @@ import {
   setSoundMuted,
   setShowLabels,
   setWildcardWheel,
+  setCardEnabled,
+  setCardsEnabled,
   restoreWheelSettings,
   setViewersHidden,
   setViewerColor,
@@ -96,6 +98,8 @@ export interface AppActions {
   setSoundMuted(muted: boolean): void
   setShowLabels(show: boolean): void
   setWildcardWheel(on: boolean): void
+  setCardEnabled(cardId: string, enabled: boolean): void
+  setCardsEnabled(cardIds: string[], enabled: boolean): void
   addCardEffect(effect: CardEffect, nomination?: Nomination): void
   restoreWheelSettings(): void
 }
@@ -148,6 +152,9 @@ function mergeWheel(stored: Partial<WheelSettings> | undefined): WheelSettings {
     soundMuted: typeof w.soundMuted === 'boolean' ? w.soundMuted : d.soundMuted,
     showLabels: typeof w.showLabels === 'boolean' ? w.showLabels : d.showLabels,
     wildcardWheel: typeof w.wildcardWheel === 'boolean' ? w.wildcardWheel : d.wildcardWheel,
+    disabledCards: Array.isArray(w.disabledCards)
+      ? [...new Set(w.disabledCards.filter((id): id is string => typeof id === 'string'))]
+      : d.disabledCards,
   }
 }
 
@@ -264,6 +271,8 @@ export function createAppStore(persistence: Persistence): AppStore {
       setSoundMuted: (muted) => update((s) => setSoundMuted(s, muted)),
       setShowLabels: (show) => update((s) => setShowLabels(s, show)),
       setWildcardWheel: (on) => update((s) => setWildcardWheel(s, on)),
+      setCardEnabled: (cardId, enabled) => update((s) => setCardEnabled(s, cardId, enabled)),
+      setCardsEnabled: (cardIds, enabled) => update((s) => setCardsEnabled(s, cardIds, enabled)),
       addCardEffect: (effect, nomination) => update((s) => addCardEffect(s, effect, nomination)),
       restoreWheelSettings: () => update(restoreWheelSettings),
     }
