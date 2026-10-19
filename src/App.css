@@ -301,8 +301,8 @@ html:has(.wheel-stage[data-zoom]) {
 }
 
 .wheel-stage[data-zoom='out'] .wheel-zoom {
-  transition-duration: 1s, 1s;
-  transition-timing-function: ease-in-out;
+  transition-duration: 1s, 1s, 0.15s;
+  transition-timing-function: ease-in-out, ease-in-out, linear;
 }
 
 .zoom-vignette {

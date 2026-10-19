@@ -27,7 +27,15 @@ export default function CardReveal({ card, closeCall = false, onBack }: Props) {
     back.current?.focus()
     const onKey = (event: KeyboardEvent) => {
       // Escape that closes the Wheel settings popover (a <dialog>) is not for the card.
-      if (event.key === 'Escape' && !(event.target as Element | null)?.closest?.('dialog')) onBackRef.current()
+      if (event.key !== 'Escape' || (event.target as Element | null)?.closest?.('dialog')) return
+      // Nor is the Escape that closes the ⚙ menu, a popover.
+      let popover = false
+      try {
+        popover = document.querySelector(':popover-open') !== null
+      } catch {
+        // No popover support: nothing is open.
+      }
+      if (!popover) onBackRef.current()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
