@@ -3,9 +3,9 @@ import { useApp } from '../state/store.ts'
 
 // A thin, dimmed key at the screen's left edge of the viewers still on the wheel, with their
 // colors and films, for when the wheel carries no names and the viewer pane is slid away.
-export default function ViewerKey() {
+export default function ViewerKey({ blind = false }: { blind?: boolean }) {
   const { settings, roster, night } = useApp()
-  if (!settings.viewersHidden || settings.wheel.showLabels || isBlind(night)) return null
+  if (!settings.viewersHidden || settings.wheel.showLabels || blind || isBlind(night)) return null
   const onWheel = viewersOnWheel(night)
   const viewers = roster.filter((v) => onWheel.includes(v.id))
   if (viewers.length === 0) return null

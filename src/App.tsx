@@ -41,6 +41,7 @@ function Banner({ children }: { children?: ReactNode }) {
 function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
   const { settings, setViewersHidden } = useApp()
   const [locked, setLocked] = useState(false)
+  const [blind, setBlind] = useState(false)
   const [focusRequest, setFocusRequest] = useState<FocusRequest>(null)
   // Set by a Hide or Show press and consumed once, so reloading hidden takes no focus.
   const pendingFocus = useRef<'show' | 'hide' | null>(null)
@@ -79,6 +80,7 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
             sound={sound}
             client={client}
             watchlist={watchlist}
+            onBlindChange={setBlind}
             onBusyChange={setLocked}
             reasonSlot={reasonSlot}
           />
@@ -98,7 +100,7 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
             />
           </div>
         </div>
-        <ViewerKey />
+        <ViewerKey blind={blind} />
         {hidden && (
           <button
             type="button"

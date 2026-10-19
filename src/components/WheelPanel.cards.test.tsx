@@ -529,6 +529,23 @@ test('unmounting the panel during a Reshuffle draw nominates nothing', async () 
   expect(store.getState().night.cardEffects).toEqual([])
 })
 
+test('the viewer key stays hidden through the blind spin and returns at the landing', async () => {
+  const pending: CardEffect = { cardId: 'blind-spin', label: 'Blind spin', change: { kind: 'blindSpin', used: false } }
+  const { store } = setup({
+    cardEffects: [pending],
+    random: () => 0.01,
+    wheel: { showLabels: false },
+  })
+  store.setState((s) => ({ settings: { ...s.settings, viewersHidden: true } }))
+  const key = () => screen.queryByRole('list', { name: "Tonight's viewers" })
+  expect(key()).toBeNull()
+  fireEvent.click(spinButton())
+  expect(isBlind(store.getState().night)).toBe(false)
+  expect(key()).toBeNull()
+  await screen.findByRole('dialog')
+  expect(key()).not.toBeNull()
+})
+
 test('Blind Spin: the wheel comes back blind, stays blind through the next main spin, and shows at the landing', async () => {
   forceCard('blind-spin')
   const { store } = setup({

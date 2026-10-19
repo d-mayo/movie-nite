@@ -124,6 +124,8 @@ interface Props {
   client: TmdbClient
   // Where a Reshuffle draws from, and which viewers it may be dealt for.
   watchlist?: WatchlistSource
+  // Whether the main wheel is blind right now, for the viewer key, which hides with it.
+  onBlindChange?: (blind: boolean) => void
   onBusyChange: (busy: boolean) => void
   // Where the "waiting for" message goes; under the wheel when there is none.
   reasonSlot?: HTMLElement | null
@@ -138,6 +140,7 @@ export default function WheelPanel({
   sound = silentSound,
   client,
   watchlist,
+  onBlindChange,
   onBusyChange,
   reasonSlot,
 }: Props) {
@@ -189,6 +192,9 @@ export default function WheelPanel({
     .map((id) => roster.find((v) => v.id === id)?.name ?? '')
   const canSpin = !night.ended && onWheel.length > 0 && missing.length === 0
   const wedges = spin?.wedges ?? live
+  useEffect(() => {
+    onBlindChange?.(blind)
+  }, [blind, onBlindChange])
   const shownWedges = blind ? blindfold(wedges) : wedges
   const motion = useWheelMotion(
     // The drift runs on under a countdown's dial and eases to a stop only once the spin is under way.
@@ -477,11 +483,12 @@ export default function WheelPanel({
     const { change } = card.effect
     if (change.kind === 'reshuffle') {
       // A Reshuffle lands only with its film; one still drawing waits, and a failed one lands no card.
-      if (reshuffle?.phase === 'drawing') return
-      if (reshuffle?.phase === 'done') {
+      const current = reshuffle?.key === spin.revealedAt ? reshuffle : null
+      if (!current || current.phase === 'drawing') return
+      if (current.phase === 'done') {
         addCardEffect(
-          { ...card.effect, change: { ...change, tmdbId: reshuffle.film.tmdbId } },
-          reshuffle.film,
+          { ...card.effect, change: { ...change, tmdbId: current.film.tmdbId } },
+          current.film,
         )
       }
     } else {
