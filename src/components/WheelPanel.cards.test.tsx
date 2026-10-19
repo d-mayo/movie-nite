@@ -531,7 +531,7 @@ test('unmounting the panel during a Reshuffle draw nominates nothing', async () 
   expect(store.getState().night.cardEffects).toEqual([])
 })
 
-test('the viewer key stays hidden through the blind spin and returns at the landing', async () => {
+test('the viewer key and the reel back stay through the blind spin and its reveal, and go when it closes', async () => {
   const pending: CardEffect = { cardId: 'blind-spin', label: 'Blind spin', change: { kind: 'blindSpin', used: false } }
   const { store } = setup({
     cardEffects: [pending],
@@ -545,7 +545,11 @@ test('the viewer key stays hidden through the blind spin and returns at the land
   expect(isBlind(store.getState().night)).toBe(false)
   expect(key()).toBeNull()
   await screen.findByRole('dialog')
+  expect(key()).toBeNull()
+  expect(screen.queryByTestId('reel-back')).not.toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }))
   expect(key()).not.toBeNull()
+  expect(screen.queryByTestId('reel-back')).toBeNull()
 })
 
 test('Blind Spin: the wheel comes back blind, stays blind through the next main spin, and shows at the landing', async () => {

@@ -358,6 +358,19 @@ html:has(.wheel-stage[data-zoom]) {
   fill: var(--film-stock);
 }
 
+.wheel .reel-back-lip {
+  stroke: color-mix(in srgb, var(--film-steel-light) 55%, transparent);
+}
+
+.wheel .reel-back-window {
+  fill: var(--film-stock);
+  stroke: var(--film-stock);
+}
+
+.wheel .reel-back-wind {
+  stroke: color-mix(in srgb, var(--film-steel-light) 22%, transparent);
+}
+
 .wheel .film-fill-steel {
   fill: var(--film-steel);
 }

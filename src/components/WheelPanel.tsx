@@ -184,10 +184,8 @@ export default function WheelPanel({
   )
 
   const live = buildWedges(night, roster, settings.wheel)
-  // The main wheel is blind from the Blind Spin's Back until the spin it was used by lands.
-  const blind = spin
-    ? spin.wheel === 'main' && spin.blind && !spin.landed && !spin.revealedAt
-    : isBlind(night)
+  // The main wheel is blind from the Blind Spin's Back until the reveal of the spin that used it closes.
+  const blind = spin ? spin.wheel === 'main' && spin.blind : isBlind(night)
   const onWheel = viewersOnWheel(night)
   const missing = onWheel
     .filter((id) => !night.nominations[id])
@@ -591,7 +589,7 @@ export default function WheelPanel({
       >
         {/* A close call's zoom scales this wrapper, not the stage, which the reveal measures and the flicker sits in. */}
         <div className="wheel-zoom">
-          <Wheel wedges={shownWedges} showLabels={settings.wheel.showLabels && !blind} groupRef={motion.groupRef} flapperRef={motion.flapperRef} />
+          <Wheel wedges={shownWedges} showLabels={settings.wheel.showLabels && !blind} blind={blind} groupRef={motion.groupRef} flapperRef={motion.flapperRef} />
           {wedges.length > 0 && (
             <button
               type="button"
