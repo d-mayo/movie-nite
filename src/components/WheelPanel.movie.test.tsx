@@ -8,6 +8,7 @@ import type { SoundEngine } from '../sound/engine.ts'
 import { defaultWheelSettings, deriveSlices } from '../wheel/edit.ts'
 import { cards } from '../wildcards/cards.ts'
 import { dealCards } from '../wildcards/deal.ts'
+import { recordStage } from '../test/phases.ts'
 
 // The deal is the real one unless a test forces a card with `forceCard`.
 vi.mock('../wildcards/deal.ts', async (importOriginal) => {
@@ -126,6 +127,8 @@ function forceCard(id: string) {
 }
 
 async function openCard() {
+  // After an earlier card the clapper may still be opening, and the Spin waits for it.
+  await waitFor(() => expect(spinButton()).toBeEnabled())
   fireEvent.click(spinButton())
   await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
   fireEvent.click(spinButton())
@@ -345,6 +348,29 @@ test('Shortest on the Board names the film and its runtime, takes it on a press,
   expect(wedgeKinds().filter((k) => k === 'wildcard')).toHaveLength(2)
 })
 
+test('a movie card has the movie face', async () => {
+  forceCard('shortest-on-the-board')
+  setup({ fetchFn: tmdbFetch().fetchFn })
+  const dialog = await openCard()
+  expect(dialog.querySelector('.card-face')).toHaveClass('card-face-movie')
+  expect(dialog.querySelector('.card-face')).not.toHaveClass('card-face-wheel')
+})
+
+test("Watch on a movie card's film slams the clapperboard, and the lock ends when it has opened", async () => {
+  forceCard('shortest-on-the-board')
+  setup({ fetchFn: tmdbFetch().fetchFn })
+  const dialog = await openCard()
+  fireEvent.click(await within(dialog).findByRole('button', { name: 'Show the film' }))
+  const frame = (await screen.findByRole('heading', { name: 'Film 1' })).closest('[role="dialog"]') as HTMLElement
+  const stage = recordStage()
+  fireEvent.click(within(frame).getByRole('button', { name: 'Watch' }))
+  await waitFor(() => expect(document.querySelector('.wheel-stage')).not.toHaveAttribute('data-transition'))
+  stage.stop()
+  expect(stage.phases()).toEqual(['slam', 'open'])
+  expect(stage.records.filter((r) => r.phase === 'open').every((r) => r.clapper && r.locked && !r.cards)).toBe(true)
+  expect(stage.records[stage.records.length - 1]).toMatchObject({ phase: null, clapper: false, locked: false })
+})
+
 test("Shortest on the Board's win ends the night when its viewer was the last on the wheel", async () => {
   forceCard('shortest-on-the-board')
   const { store } = setup({
@@ -513,7 +539,7 @@ test("X's Backlog draws three films from Ann's watchlist, plays the cans and ope
   expect(night.watched).toHaveLength(1)
   expect(night.wonFilms).toEqual([])
   expect(Object.keys(night.nominations)).toEqual(['a', 'b', 'c'])
-  expect(spinButton()).toBeEnabled()
+  await waitFor(() => expect(spinButton()).toBeEnabled())
   act(() => store.getState().endNight())
   const items = within(await screen.findByRole('list', { name: 'Cards tonight' })).getAllByRole('listitem')
   expect(items.map((li) => li.textContent)).toEqual(["Ann's backlog"])

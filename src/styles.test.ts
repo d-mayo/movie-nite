@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import css from './index.css?raw'
+import appCss from './App.css?raw'
 
 const GREYS = ['#262626', '#4a4c43', '#8f9186', '#b7b9a8', '#eeeee2', '#f6f6ee']
 
@@ -139,5 +140,83 @@ describe('reveal frame', () => {
     for (const color of [reveal['--text'], reveal['--muted'], reveal['--danger'], light['--film-cream']]) {
       expect(contrast(color, light['--film-stock']), color).toBeGreaterThanOrEqual(4.5)
     }
+  })
+})
+
+describe('the wildcard wheel stylesheet', () => {
+  const rules = (source: string) =>
+    [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }))
+
+  test('reduced motion stops the grain', () => {
+    expect(appCss).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{\s*\.stage-grain\s*\{\s*animation:\s*none/,
+    )
+  })
+
+  test('reduced motion turns the cans flip off', () => {
+    expect(appCss).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.can-turn\s*\{\s*transition:\s*none/)
+  })
+
+  test('the stage itself never gets a transform or filter (it holds fixed descendants)', () => {
+    for (const { selector, body } of rules(appCss)) {
+      const parts = selector.split(',').map((part) => part.trim())
+      if (!parts.some((part) => /(^|\s)\.wheel-stage(\[[^\]]*\])*$/.test(part))) continue
+      expect(body, selector).not.toMatch(/(^|[\s;])(transform|filter|scale|translate|rotate|perspective|backdrop-filter):/)
+    }
+  })
+})
+
+describe('card faces', () => {
+  // The first film token a property of the exact selector's rule is set to, as its hex value.
+  const color = (selector: string, prop: string): string => {
+    for (const m of appCss.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (!m[1].split(',').some((part) => part.trim() === selector)) continue
+      const value = m[2].match(new RegExp(String.raw`(?:^|[\s;])${prop}:\s*([^;]+);`))?.[1]
+      const token = value?.match(/var\((--film-[\w-]+)\)/)?.[1]
+      if (token) return light[token]
+    }
+    throw new Error(`no ${prop} on ${selector}`)
+  }
+
+  const cream = light['--film-cream']
+  const stock = light['--film-stock']
+
+  test('a wheel card reads on its cream face, text at AA and outlines at 3:1', () => {
+    const face = color('.card-face-wheel', 'background')
+    expect(face).toBe(cream)
+    const text: [string, string][] = [
+      ['.card-face-wheel', 'color'],
+      ['.card-face-wheel .card-type', 'color'],
+      ['.card-face-wheel .reveal-tag', 'color'],
+      ['.card-face-wheel .film-cans-status', 'color'],
+    ]
+    for (const [selector, prop] of text) expect(contrast(color(selector, prop), face), selector).toBeGreaterThanOrEqual(4.5)
+    const lines: [string, string][] = [
+      ['.card-face-wheel', 'border-color'],
+      ['.card-face-wheel .reveal-tag', 'border-color'],
+      ['.card-face-wheel .card-back-button:focus-visible', 'outline'],
+      ['.card-face-wheel .can-arrow', 'border-top-color'],
+      ['.card-face-wheel .can:focus-visible', 'outline-color'],
+      ['.card-face-wheel .can-chosen .can-film', 'outline-color'],
+      ['.card-face-wheel .can-film', 'border'],
+    ]
+    for (const [selector, prop] of lines) expect(contrast(color(selector, prop), face), selector).toBeGreaterThanOrEqual(3)
+    const button = color('.card-face-wheel .card-back-button', 'background')
+    expect(button).toBe(stock)
+    expect(contrast(color('.card-face-wheel .card-back-button', 'color'), button)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  test('a movie card reads on its stock face', () => {
+    const face = color('.card-face', 'background')
+    expect(face).toBe(stock)
+    for (const selector of ['.card-face', '.card-type', '.film-cans-status']) {
+      expect(contrast(color(selector, 'color'), face), selector).toBeGreaterThanOrEqual(4.5)
+    }
+    expect(color('.card-face-movie', 'border-color')).toBe(light['--film-steel-light'])
+    expect(contrast(color('.card-face-movie', 'border-color'), face)).toBeGreaterThanOrEqual(3)
+    expect(contrast(color('.card-face-movie .card-back-button:focus-visible', 'outline'), face)).toBeGreaterThanOrEqual(3)
+    const button = color('.card-back-button', 'background')
+    expect(button).toBe(cream)
+    expect(contrast(color('.card-back-button', 'color'), button)).toBeGreaterThanOrEqual(4.5)
   })
 })

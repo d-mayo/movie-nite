@@ -104,7 +104,11 @@ function Reel({ wedges }: { wedges: Wedge[] }) {
             <path
               data-testid="frame"
               d={d}
-              className={wild ? 'film-fill-stock' : card ? 'film-fill-steel' : undefined}
+              className={
+                wild ? 'film-fill-stock' : card ? (wedge.cardType === 'movie' ? 'card-fill-movie' : 'card-fill-wheel') : undefined
+              }
+              stroke={card ? '#000000' : undefined}
+              strokeWidth={card ? 0.4 : undefined}
               fill={wild || card ? undefined : wedge.color}
               opacity="0.95"
             />

@@ -12,6 +12,7 @@ import { dealCards } from '../wildcards/deal.ts'
 import { blindColor } from '../wheel/wedges.ts'
 import { isBlind, isReshuffleLocked } from '../state/model.ts'
 import { catchTickShare } from './WheelPanel.tsx'
+import { recordStage } from '../test/phases.ts'
 
 // The deal is the real one unless a test forces a card with `forceCard`.
 vi.mock('../wildcards/deal.ts', async (importOriginal) => {
@@ -214,7 +215,8 @@ test('a wildcard landing swaps in the wildcard wheel, which drifts until pressed
   fireEvent.click(back)
   expect(store.getState().night.cardEffects).toEqual([deal[drawn].effect])
   await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
-  expect(screen.getByRole('button', { name: 'Ann is here' })).toBeEnabled()
+  // The lock ends when the clapperboard has opened.
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Ann is here' })).toBeEnabled())
 })
 
 test('Escape takes the card like Back to the main wheel, and the wheel is derived with its effect', async () => {
@@ -255,6 +257,99 @@ test('the card opens face up with no flip under reduced motion, and the wheel st
   await screen.findByRole('dialog', undefined, { timeout: 3000 })
   expect(screen.getByTestId('card-turn')).not.toHaveClass('card-flip')
   expect(screen.queryByTestId('flicker')).toBeNull()
+}, 9000)
+
+test('the stage carries the cards marker and the negative face only while the wildcard wheel shows', async () => {
+  setup()
+  const stage = document.querySelector('.wheel-stage')!
+  expect(stage).not.toHaveAttribute('data-wheel')
+  expect(screen.queryByTestId('negative-face')).toBeNull()
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
+  expect(stage).toHaveAttribute('data-wheel', 'cards')
+  expect(screen.getByTestId('negative-face')).toBeTruthy()
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  fireEvent.click(screen.getByRole('button', { name: 'Back to the main wheel' }))
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  expect(stage).not.toHaveAttribute('data-wheel')
+  expect(screen.queryByTestId('negative-face')).toBeNull()
+})
+
+test('entering the wildcard wheel blinks the cue mark, then rolls, and the cards are drawn once the roll began', async () => {
+  setup()
+  vi.mocked(dealCards).mockClear()
+  const stage = recordStage()
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
+  await waitFor(() => expect(document.querySelector('.wheel-stage')).not.toHaveAttribute('data-transition'))
+  stage.stop()
+  expect(stage.phases()).toEqual(['cue', 'roll'])
+  expect(stage.records.some((r) => r.phase === 'cue' && r.cueMark)).toBe(true)
+  expect(stage.records.every((r) => r.fade === null)).toBe(true)
+  expect(stage.records.find((r) => r.cards)?.phase).toBe('roll')
+  expect(dealCards).toHaveBeenCalledTimes(1)
+  expect(screen.queryByTestId('cue-mark')).toBeNull()
+})
+
+test('Back on a wheel card slams the WILDCARD clapperboard, swaps under it, and the lock ends only when it has opened', async () => {
+  const { store } = setup()
+  await openCard()
+  const stage = recordStage()
+  fireEvent.click(screen.getByRole('button', { name: 'Back to the main wheel' }))
+  await waitFor(() => expect(document.querySelector('.wheel-stage')).not.toHaveAttribute('data-transition'))
+  stage.stop()
+  expect(stage.phases()).toEqual(['slam', 'open'])
+  expect(stage.records.every((r) => r.fade === null)).toBe(true)
+  expect(stage.records.filter((r) => r.phase === 'slam').every((r) => r.clapper && r.locked)).toBe(true)
+  const open = stage.records.filter((r) => r.phase === 'open')
+  expect(open.length).toBeGreaterThan(0)
+  expect(open.every((r) => r.clapper && r.locked && r.spinDisabled && r.wheel === null && !r.cards)).toBe(true)
+  const end = stage.records[stage.records.length - 1]
+  expect(end).toMatchObject({ phase: null, clapper: false, locked: false, spinDisabled: false })
+  expect(store.getState().night.cardEffects).toHaveLength(1)
+})
+
+test('a wheel card has the wheel face, not the movie face', async () => {
+  setup()
+  const dialog = await openCard()
+  const face = dialog.querySelector('.card-face')!
+  expect(face).toHaveClass('card-face-wheel')
+  expect(face).not.toHaveClass('card-face-movie')
+})
+
+test('a Reshuffle card has the wheel face too', async () => {
+  forceCard('reshuffle')
+  setup({ fetchFn: reshuffleFetch().fetchFn, people: linkedRoster })
+  const dialog = await openCard()
+  expect(dialog.querySelector('.card-face')).toHaveClass('card-face-wheel')
+})
+
+function stubReducedMotion() {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('prefers-reduced-motion'),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+}
+
+test('with reduced motion entering and leaving are crossfades with no cue mark, roll, slate or shake', async () => {
+  stubReducedMotion()
+  setup()
+  const stage = recordStage()
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')), { timeout: 3000 })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog', undefined, { timeout: 3000 })
+  expect(screen.getByTestId('card-turn')).not.toHaveClass('card-flip')
+  fireEvent.click(screen.getByRole('button', { name: 'Back to the main wheel' }))
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'), { timeout: 3000 })
+  await waitFor(() => expect(spinButton()).toBeEnabled())
+  stage.stop()
+  expect(stage.phases()).toEqual([])
+  expect(stage.records.some((r) => r.fade === 'out')).toBe(true)
+  expect(stage.records.some((r) => r.clapper || r.cueMark)).toBe(false)
 }, 9000)
 
 test('the music plays on through the wildcard wheel: no landing sounds at the wildcard, keep-music spin, landing at the card, fade at Back', async () => {
@@ -435,6 +530,8 @@ function forceCard(id: string) {
 }
 
 async function openCard() {
+  // After an earlier card the clapper may still be opening, and the Spin waits for it.
+  await waitFor(() => expect(spinButton()).toBeEnabled())
   fireEvent.click(spinButton())
   await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
   fireEvent.click(spinButton())
@@ -465,7 +562,7 @@ test('Picks Again takes the film off, refuses it, and the Spin waits for the vie
   act(() => store.getState().nominate('a', film(1)))
   expect(store.getState().night.nominations.a).toBeUndefined()
   act(() => store.getState().nominate('a', film(5)))
-  expect(spinButton()).toBeEnabled()
+  await waitFor(() => expect(spinButton()).toBeEnabled())
 })
 
 // A worker that answers the Letterboxd and TMDB routes, with the TMDB movie held until released.
@@ -618,6 +715,7 @@ test('Blind Spin: the wheel comes back blind, stays blind through the next main 
   await openCard()
   fireEvent.click(screen.getByRole('button', { name: 'Back to the main wheel' }))
   await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  await waitFor(() => expect(spinButton()).toBeEnabled())
   expect(isBlind(store.getState().night)).toBe(true)
   expect(wheelImages()).toBe(0)
   expect(wheelText()).not.toContain('ANN')

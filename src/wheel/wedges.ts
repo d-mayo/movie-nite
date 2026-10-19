@@ -11,6 +11,23 @@ export interface Wedge {
   nomination: Nomination | null
   // A card wedge's label, always shown.
   cardLabel?: string
+  // A card wedge's type (the negative's fill) and the glyph drawn beside its label.
+  cardType?: 'wheel' | 'movie'
+  cardGlyph?: CardGlyph
+}
+
+export type CardGlyph = 'wheel' | 'film' | 'pumpkin' | 'tree' | 'heart' | 'claw'
+
+const seasonalGlyphs: Record<string, CardGlyph> = {
+  halloween: 'pumpkin',
+  christmas: 'tree',
+  romance: 'heart',
+  'creature-feature': 'claw',
+}
+
+// The glyph a dealt card draws: its own for a seasonal card, else its type's.
+export function cardGlyph(card: { cardId: string; type: 'wheel' | 'movie' }): CardGlyph {
+  return seasonalGlyphs[card.cardId] ?? (card.type === 'wheel' ? 'wheel' : 'film')
 }
 
 const wildcardColor = 'hsl(0 0% 25%)'
@@ -75,5 +92,7 @@ export function buildCardWedges(deal: DealtCard[]): Wedge[] {
     viewerName: null,
     nomination: null,
     cardLabel: deal[i].label,
+    cardType: deal[i].type,
+    cardGlyph: cardGlyph(deal[i]),
   }))
 }

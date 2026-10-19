@@ -447,6 +447,138 @@ html:has(.wheel-stage[data-zoom]) {
   fill: var(--film-steel-dark);
 }
 
+/* The wildcard wheel is the film's negative: cream and steel-light wedges with black type on a cream
+   strip with black holes. Only the stage marked data-wheel="cards" turns; the main wheel, the banner
+   and the page around it keep the positive. The same film tokens are used, swapped between parts. */
+.wheel .card-fill-wheel {
+  fill: var(--film-cream);
+}
+
+.wheel .card-fill-movie {
+  fill: var(--film-steel-light);
+}
+
+.wheel .wheel-label-card {
+  fill: #000;
+}
+
+.wheel .card-glyph {
+  fill: #000;
+  stroke: #000;
+}
+
+.wheel .card-glyph-cut {
+  fill: var(--film-cream);
+}
+
+.wheel-stage[data-wheel='cards'] .wheel {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The page's ground is film cream while the wildcard wheel shows; the banner and the viewer pane keep
+   their own look. What sits on the ground (the chips, the debug controls) takes the light-scheme tokens
+   in both modes so it reads on cream. */
+body:has(.wheel-stage[data-wheel='cards']) {
+  background-color: var(--film-cream);
+}
+
+.wheel-panel:has(.wheel-stage[data-wheel='cards']) {
+  color-scheme: light;
+  --card: #eeeee2;
+  --text: #262626;
+  --muted: #4a4c43;
+  --border: #4a4c43;
+  --card-border: #b7b9a8;
+  --accent: #4a4c43;
+  --accent-text: #f6f6ee;
+  color: var(--text);
+}
+
+/* Grain and a vignette over the page's ground and the wheel, under the banner and the viewer pane (no
+   blend mode: a full-size blend layer can draw hairline seams). The grain steps about by CSS alone. */
+.stage-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse at center, transparent 50%, rgb(74 74 68 / 0.4) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 0.95'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.22'/%3E%3C/svg%3E");
+  animation: wheel-grain 0.6s steps(1, end) infinite;
+}
+
+/* The hub and the pointer are part of the negative too: stock with cream lines. */
+.wheel-stage[data-wheel='cards'] .hub-disc {
+  fill: var(--film-stock);
+  stroke: var(--film-cream);
+}
+
+.wheel-stage[data-wheel='cards'] .hub-window {
+  fill: var(--film-steel);
+}
+
+.wheel-stage[data-wheel='cards'] .hub-rivet {
+  fill: var(--film-steel-light);
+}
+
+.wheel-stage[data-wheel='cards'] .hub-label {
+  background: var(--film-stock);
+  box-shadow:
+    inset 0 0 0 2px var(--film-cream),
+    inset 0 4px 8px rgb(0 0 0 / 0.6);
+}
+
+.wheel-stage[data-wheel='cards'] .wheel .film-tongue {
+  fill: var(--film-stock);
+  stroke: var(--film-cream);
+}
+
+.wheel-stage[data-wheel='cards'] .wheel .film-cap {
+  fill: var(--film-cream);
+  stroke: var(--film-stock);
+}
+
+.wheel-stage[data-wheel='cards'] .wheel .film-slot {
+  fill: var(--film-stock);
+}
+
+.wheel-stage[data-wheel='cards'] .wheel .film-stock {
+  stroke: var(--film-cream);
+}
+
+.wheel-stage[data-wheel='cards'] .wheel .film-edge {
+  stroke: #000;
+}
+
+.wheel-stage[data-wheel='cards'] .wheel .film-hole {
+  fill: #000;
+}
+
+@keyframes wheel-grain {
+  0% {
+    background-position: 0 0, 0 0;
+  }
+  20% {
+    background-position: 0 0, -70px 40px;
+  }
+  40% {
+    background-position: 0 0, 50px -90px;
+  }
+  60% {
+    background-position: 0 0, -30px -60px;
+  }
+  80% {
+    background-position: 0 0, 80px 70px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-grain {
+    animation: none;
+  }
+}
+
 .wheel-empty {
   display: grid;
   place-items: center;
@@ -709,7 +841,190 @@ html:has(.wheel-stage[data-zoom]) {
   opacity: 0;
 }
 
-/* A landed wildcard card (interim look, the film tokens): it turns over from its back to its face. */
+/* The reel change into the wildcard wheel: a cue mark blinks twice in the stage's corner, then the
+   wheel rolls in the gate (a stepped vertical jolt with blur and a brightness flare). It moves the zoom
+   wrapper, never the stage, which must stay free of any transform or filter that would trap its fixed
+   descendants (the flicker, the close-call vignette). */
+.cue-mark {
+  position: absolute;
+  top: 2%;
+  right: 2%;
+  z-index: 2;
+  width: 3.4%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--film-cream);
+  box-shadow: 0 0 0 0.25em #000;
+  pointer-events: none;
+  animation: cue-blink 0.88s steps(1, end) forwards;
+}
+
+@keyframes cue-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  12.5% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  62.5% {
+    opacity: 0;
+  }
+}
+
+.wheel-stage[data-transition='roll'] .wheel-zoom {
+  animation: gate-roll 0.55s steps(9) both;
+}
+
+@keyframes gate-roll {
+  0% {
+    transform: translateY(0);
+    filter: blur(0) brightness(1);
+  }
+  30% {
+    transform: translateY(-14%);
+    filter: blur(3px) brightness(1.8);
+  }
+  60% {
+    transform: translateY(9%);
+    filter: blur(4px) brightness(0.4);
+  }
+  100% {
+    transform: translateY(0);
+    filter: none;
+  }
+}
+
+/* Leaving it: a WILDCARD clapperboard covers the stage, its top stick swings shut as the slate fades in,
+   the wheel shakes on the slam, and the sticks part (the top one up, the bottom one down, off the stage)
+   as the slate fades out over the main wheel. */
+.clapper {
+  position: absolute;
+  inset: -3%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.clapper-body {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding-top: 14%;
+  box-sizing: border-box;
+  background: var(--film-stock);
+  border-radius: 8px;
+  animation: clapper-body-in 0.35s both;
+}
+
+.wheel-stage[data-transition='open'] .clapper-body {
+  animation: clapper-body-out 0.35s both;
+}
+
+.clapper-word {
+  color: var(--film-cream);
+  font-family: 'Bebas Neue', Impact, sans-serif;
+  font-size: clamp(2.25rem, 16cqw, 5.25rem);
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.clapper-stick {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 13%;
+  box-sizing: border-box;
+  background: repeating-linear-gradient(-55deg, var(--film-cream) 0 28px, var(--film-stock) 28px 56px);
+  border: 3px solid var(--film-stock);
+  border-radius: 4px;
+}
+
+.clapper-stick-top {
+  top: 5%;
+  transform-origin: 2% 100%;
+  animation: clapper-swing 0.42s cubic-bezier(0.55, 0, 1, 0.45) both;
+}
+
+.clapper-stick-bottom {
+  top: 18%;
+}
+
+.wheel-stage[data-transition='open'] .clapper-stick-top {
+  animation: clapper-top-out 0.4s both;
+}
+
+.wheel-stage[data-transition='open'] .clapper-stick-bottom {
+  animation: clapper-bottom-out 0.4s both;
+}
+
+@keyframes clapper-body-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes clapper-body-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes clapper-swing {
+  from {
+    transform: rotate(-32deg);
+  }
+}
+
+@keyframes clapper-top-out {
+  to {
+    top: -30%;
+  }
+}
+
+@keyframes clapper-bottom-out {
+  to {
+    top: 120%;
+  }
+}
+
+.wheel-stage[data-transition='slam'] .wheel-zoom {
+  animation: slam-shake 0.32s 0.42s linear both;
+}
+
+@keyframes slam-shake {
+  0%,
+  100% {
+    transform: none;
+  }
+  20% {
+    transform: translate(-6px, 4px) rotate(-0.6deg);
+  }
+  40% {
+    transform: translate(5px, -3px);
+  }
+  60% {
+    transform: translate(-3px, 2px);
+  }
+  80% {
+    transform: translate(2px, -1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cue-mark,
+  .clapper,
+  .clapper-stick-top,
+  .wheel-stage[data-transition] .wheel-zoom {
+    animation: none;
+  }
+}
+
+/* A landed wildcard card, on the film tokens: it turns over from its back to its face. A wheel card's face is
+   film cream with film-stock type; a movie card's is film stock with cream type and a steel-light border. */
 .card-reveal {
   position: fixed;
   inset: 50% auto auto 50%;
@@ -803,6 +1118,62 @@ html:has(.wheel-stage[data-zoom]) {
 .card-back-button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* The wheel card's cream face: everything drawn in cream or steel-light on the stock face is recolored to
+   read on cream. */
+.card-face-wheel {
+  background: var(--film-cream);
+  color: var(--film-stock);
+  border-color: var(--film-stock);
+}
+
+.card-face-wheel .card-type {
+  color: var(--film-steel);
+}
+
+.card-face-wheel .reveal-tag {
+  border-color: var(--film-stock);
+  color: var(--film-stock);
+}
+
+.card-face-wheel .card-back-button {
+  background: var(--film-stock);
+  color: var(--film-cream);
+}
+
+.card-face-wheel .card-back-button:focus-visible {
+  outline: 3px solid var(--film-stock);
+  outline-offset: 2px;
+}
+
+.card-face-wheel .film-cans-status {
+  color: var(--film-steel);
+}
+
+.card-face-wheel .can-arrow {
+  border-top-color: var(--film-stock);
+}
+
+.card-face-wheel .can:focus-visible {
+  outline-color: var(--film-stock);
+}
+
+.card-face-wheel .can-film {
+  border: 2px solid var(--film-stock);
+}
+
+.card-face-wheel .can-chosen .can-film {
+  outline-color: var(--film-steel);
+}
+
+.card-face-movie {
+  border-color: var(--film-steel-light);
+}
+
+.card-face-movie .card-back-button:focus-visible {
+  outline: 3px solid var(--film-cream);
+  outline-offset: 2px;
 }
 
 /* A movie card's film cans: round steel cans that flip over to the film's poster, an arrow that ticks between the
