@@ -104,7 +104,7 @@ function setup(options: {
     <App
       store={store}
       fetchFn={options.fetchFn}
-      random={wildcardRandom(present)}
+      random={wildcardRandom(present.filter((id) => !(options.wonFilms ?? []).includes(Number(options.nominations?.[id]?.tmdbId ?? { a: 1, b: 2, c: 3 }[id]))))}
       spinMs={20}
       sound={sound.engine}
     />,
