@@ -53,7 +53,7 @@ function wildcardRandom(ids: string[]): () => number {
 }
 
 function recordingSound() {
-  const log = { closed: 0 }
+  const log = { closed: 0, ticks: 0, rolls: [] as number[], breaks: 0 }
   const engine: SoundEngine = {
     attach: () => () => {},
     apply: () => {},
@@ -62,10 +62,12 @@ function recordingSound() {
     musicResume: () => {},
     beep: () => {},
     spinSpeed: () => {},
-    pinTick: () => {},
+    pinTick: () => void log.ticks++,
     spinEnd: () => {},
     closeCall: () => {},
     closeCallBreak: () => {},
+    drumroll: (seconds) => void log.rolls.push(seconds),
+    drumrollBreak: () => void log.breaks++,
     landed: () => {},
     revealClosed: () => void log.closed++,
   }
@@ -160,7 +162,7 @@ const backButton = (dialog: HTMLElement) => within(dialog).getByRole('button', {
 async function takeSealed(dialog: HTMLElement) {
   const cans = await within(dialog).findAllByRole('button', { name: /^Pick can/ })
   fireEvent.click(cans[0])
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Take the sealed can' }))
+  fireEvent.click(await within(dialog).findByRole('button', { name: 'Take the sealed can' }))
   return screen.findByRole('heading', { name: /^Found/ })
 }
 
@@ -182,9 +184,9 @@ test('a movie card finds films while Back is held, shows three cans, and the tak
   expect(screen.getByRole('dialog')).toBeInTheDocument()
   expect(store.getState().night.cardEffects).toEqual([])
   fireEvent.click(picks[1])
-  // The picked can opens and so does exactly one other, each showing its film.
-  expect(within(dialog).getAllByRole('button', { name: /^Take Found/ })).toHaveLength(2)
-  expect(within(dialog).getAllByText(/^Found/)).toHaveLength(2)
+  // The picked can opens, the arrow ticks between the other two, and exactly one of them opens too.
+  await waitFor(() => expect(within(dialog).getAllByRole('button', { name: /^Take Found/ })).toHaveLength(2))
+  expect(within(dialog).getAllByRole('tooltip')).toHaveLength(2)
   expect(backButton(dialog)).toBeDisabled()
   fireEvent.click(within(dialog).getByRole('button', { name: 'Take the sealed can' }))
   const reveal = await screen.findByRole('heading', { name: /^Found/ })
@@ -348,4 +350,66 @@ test('closing the reveal of Shortest on the Board with × leaves the nomination 
   expect(store.getState().night.wonFilms).toEqual([])
   expect(viewersOnWheel(store.getState().night)).toEqual(['a', 'b', 'c'])
   expect(store.getState().night.nominations.a.tmdbId).toBe(1)
+})
+
+test('after the pick an arrow ticks between the other two cans and lands on the one that opens', async () => {
+  forceCard('genre-night')
+  const { fetchFn } = tmdbFetch({ ids: [11, 12, 13] })
+  const { sound } = setup({ fetchFn })
+  const dialog = await openCard()
+  const picks = await within(dialog).findAllByRole('button', { name: /^Pick can/ })
+  // The wheels' own pin ticks come first; the arrow's are counted from the pick.
+  const before = sound.log.ticks
+  fireEvent.click(picks[0])
+  expect(within(dialog).getByText('Which one opens next…')).toBeInTheDocument()
+  // The room can't take a film while the arrow ticks.
+  for (const can of within(dialog).getAllByRole('button', { name: /^(Take|Pick)/ })) expect(can).toBeDisabled()
+  await waitFor(() => expect(within(dialog).getAllByRole('button', { name: /^Take Found/ })).toHaveLength(2))
+  expect(sound.log.ticks - before).toBeGreaterThanOrEqual(7)
+  expect(dialog.querySelectorAll('.can-open')).toHaveLength(2)
+  expect(dialog.querySelector('.can-arrow[data-on="true"]')).toBeNull()
+})
+
+test('taking the sealed can plays a drumroll that ends as it opens, and an open one plays none', async () => {
+  forceCard('genre-night')
+  const { fetchFn } = tmdbFetch({ ids: [11, 12, 13, 14, 15, 16] })
+  const { sound } = setup({ fetchFn })
+  let dialog = await openCard()
+  let picks = await within(dialog).findAllByRole('button', { name: /^Pick can/ })
+  fireEvent.click(picks[0])
+  const open = await waitFor(() => {
+    const buttons = within(dialog).getAllByRole('button', { name: /^Take Found/ })
+    expect(buttons).toHaveLength(2)
+    return buttons[1]
+  })
+  fireEvent.click(open)
+  const frame = (await screen.findByRole('heading', { name: /^Found/ })).closest('[role="dialog"]') as HTMLElement
+  expect(sound.log.rolls).toEqual([])
+  expect(sound.log.breaks).toBe(0)
+  fireEvent.click(within(frame).getByRole('button', { name: 'Close' }))
+  await waitFor(() => expect(spinButton()).toBeEnabled())
+
+  dialog = await openCard()
+  picks = await within(dialog).findAllByRole('button', { name: /^Pick can/ })
+  fireEvent.click(picks[0])
+  fireEvent.click(await within(dialog).findByRole('button', { name: 'Take the sealed can' }))
+  await screen.findByRole('heading', { name: /^Found/ })
+  expect(sound.log.rolls).toHaveLength(1)
+  expect(sound.log.rolls[0]).toBeGreaterThan(0)
+  expect(sound.log.breaks).toBe(1)
+})
+
+test('an open can has a tooltip with its runtime and a short description', async () => {
+  forceCard('genre-night')
+  const { fetchFn } = tmdbFetch({ ids: [11, 12, 13] })
+  setup({ fetchFn })
+  const dialog = await openCard()
+  fireEvent.click((await within(dialog).findAllByRole('button', { name: /^Pick can/ }))[0])
+  await waitFor(() => expect(within(dialog).getAllByRole('tooltip')).toHaveLength(2))
+  for (const tip of within(dialog).getAllByRole('tooltip')) {
+    expect(tip).toHaveTextContent('1h 35m')
+    expect(tip).toHaveTextContent('Synopsis.')
+  }
+  const described = within(dialog).getAllByRole('button', { name: /^Take Found/ })
+  for (const can of described) expect(can).toHaveAccessibleDescription(/1h 35m/)
 })

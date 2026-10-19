@@ -28,7 +28,7 @@ import { effectiveSetting, spinPlan, wildcardTotal } from '../wheel/edit.ts'
 import { drawExclusions, drawMessage, movieExclusions } from '../letterboxd/drawing.ts'
 import { canBeReshuffled, drawFilmsFromWatchlist, type WatchlistSource } from '../letterboxd/watchlist.ts'
 import { drawDiscoverFilms, filmsMessage, loadFilms, maxCanFilms } from '../tmdb/discoverDraw.ts'
-import { newCans, pickCan, takeFilm, type Cans } from '../wildcards/cans.ts'
+import { finishTake, hasCans, newCans, openChoice, pickCan, settleTick, takeFilm, type Cans } from '../wildcards/cans.ts'
 import { cards, type DealContext } from '../wildcards/cards.ts'
 import { canDeal, dealCards, dealSize, type DealtCard } from '../wildcards/deal.ts'
 import FilmCans from './FilmCans.tsx'
@@ -553,6 +553,9 @@ export default function WheelPanel({
     setSpin((s) => s && { ...s, taken: { film, at: new Date() } })
   }
 
+  // Every beat of the cans runs at full length, except in a test-length spin or with reduced motion.
+  const cansScale = spinMs !== undefined || prefersReducedMotion() ? 0.02 : 1
+
   // A pick or a take in the cans.
   function playCans(play: (cans: Cans) => Cans) {
     const card = spin?.deal?.[spin.drawn]
@@ -768,13 +771,24 @@ export default function WheelPanel({
           closeCall={spin.closeCall}
           text={cardText()}
           busy={cardBusy()}
+          wide={current?.phase === 'ready' && hasCans(current.cans) && !(current.cans.taken && kind === 'reshuffle')}
           onBack={back}
         >
           {current?.phase === 'ready' && !(current.cans.taken && kind === 'reshuffle') && (
             <FilmCans
               cans={current.cans}
+              scale={cansScale}
+              random={random}
               onPick={(i) => playCans((c) => pickCan(c, i, random))}
               onTake={(i) => playCans((c) => takeFilm(c, i))}
+              onSettle={() => playCans(settleTick)}
+              onOpen={() => {
+                sound.drumrollBreak()
+                playCans(openChoice)
+              }}
+              onFinish={() => playCans(finishTake)}
+              onTick={() => sound.pinTick(0.35)}
+              onRoll={(ms) => sound.drumroll(ms / 1000)}
             />
           )}
         </CardReveal>

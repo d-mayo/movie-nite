@@ -54,6 +54,10 @@ export interface SoundEngine {
   // A close call's release: the drumroll ends and a cymbal crashes. At the flapper slipping
   // off the peg for a slip, at the stop for a bend.
   closeCallBreak(): void
+  // A drumroll that builds over `seconds` while a can is about to open, on its own: the music plays on.
+  drumroll(seconds: number): void
+  // The drumroll's release: it ends and a cymbal crashes, as the can opens.
+  drumrollBreak(): void
   // The wheel stopped and the reveal opens `revealInSeconds` later (0 for
   // none): the loop dips under the stinger, whose hit lands as the reveal
   // opens with the applause, and the loop settles to a quieter bed. After a
@@ -82,6 +86,8 @@ export const silentSound: SoundEngine = {
   spinEnd: () => {},
   closeCall: () => {},
   closeCallBreak: () => {},
+  drumroll: () => {},
+  drumrollBreak: () => {},
   landed: () => {},
   revealClosed: () => {},
 }
@@ -243,6 +249,27 @@ export function createSound(deps: SoundDeps): SoundEngine {
     roll = null
     ramp(gain, 0, ctx.currentTime, drumrollStopSeconds)
     source.stop(ctx.currentTime + drumrollStopSeconds + 0.02)
+  }
+
+  // The drumroll: it loops for `seconds` and builds by a ramp, fading in over its first moments.
+  function startRoll(seconds: number) {
+    const buffer = buffers.drumroll
+    if (!ctx || !buffer) return
+    const now = ctx.currentTime
+    const source = ctx.createBufferSource()
+    source.buffer = buffer
+    source.loop = true
+    source.loopStart = drumrollLoopStart
+    source.loopEnd = Math.min(drumrollLoopEnd, buffer.duration)
+    const gain = ctx.createGain()
+    gain.gain.value = 0
+    source.connect(gain)
+    gain.connect(effects)
+    source.start(now, 0)
+    const fadeIn = Math.min(drumrollFadeInSeconds, seconds)
+    ramp(gain, drumrollStartLevel, now, fadeIn)
+    gain.gain.linearRampToValueAtTime(drumrollEndLevel, now + Math.max(seconds, fadeIn + 0.1))
+    roll = { source, gain }
   }
 
   function startLoop() {
@@ -424,26 +451,21 @@ export function createSound(deps: SoundDeps): SoundEngine {
       const now = ctx.currentTime
       if (loop) ramp(loop.gain, 0, now, loopDropSeconds)
       play('gasp', gaspLevel)
-      const buffer = buffers.drumroll
-      if (!buffer) return
       // The roll loops for the whole approach and fades in as the music fades out, then
       // builds by a ramp to the stop.
-      const source = ctx.createBufferSource()
-      source.buffer = buffer
-      source.loop = true
-      source.loopStart = drumrollLoopStart
-      source.loopEnd = Math.min(drumrollLoopEnd, buffer.duration)
-      const gain = ctx.createGain()
-      gain.gain.value = 0
-      source.connect(gain)
-      gain.connect(effects)
-      source.start(now, 0)
-      const fadeIn = Math.min(drumrollFadeInSeconds, secondsToStop)
-      ramp(gain, drumrollStartLevel, now, fadeIn)
-      gain.gain.linearRampToValueAtTime(drumrollEndLevel, now + Math.max(secondsToStop, fadeIn + 0.1))
-      roll = { source, gain }
+      startRoll(secondsToStop)
     },
     closeCallBreak() {
+      if (!ctx) return
+      stopRoll()
+      play('cymbal', cymbalLevel)
+    },
+    drumroll(seconds) {
+      if (!ctx) return
+      stopRoll()
+      startRoll(seconds)
+    },
+    drumrollBreak() {
       if (!ctx) return
       stopRoll()
       play('cymbal', cymbalLevel)

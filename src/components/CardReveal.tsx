@@ -13,6 +13,8 @@ interface Props {
   busy?: boolean
   // What sits under the text: a movie card's sealed cans.
   children?: ReactNode
+  // The card is wide, to hold three large cans.
+  wide?: boolean
   onBack: () => void
 }
 
@@ -20,7 +22,7 @@ const typeLines = { wheel: 'Wheel card', movie: 'Movie card' } as const
 
 // A landed wildcard card, turned over from its back to its face (face up at once with
 // reduced motion). Back to the main wheel, or Escape, takes its effect.
-export default function CardReveal({ card, closeCall = false, text, busy = false, children, onBack }: Props) {
+export default function CardReveal({ card, closeCall = false, text, busy = false, children, wide = false, onBack }: Props) {
   const flip = !prefersReducedMotion()
   const centerX = useStageCenter()
   const back = useRef<HTMLButtonElement>(null)
@@ -58,7 +60,7 @@ export default function CardReveal({ card, closeCall = false, text, busy = false
     <div
       role="dialog"
       aria-labelledby="card-heading"
-      className="card-reveal"
+      className={wide ? 'card-reveal card-reveal-wide' : 'card-reveal'}
       style={centerX === null ? undefined : { left: centerX }}
     >
       <div className={flip ? 'card-turn card-flip' : 'card-turn'} data-testid="card-turn">

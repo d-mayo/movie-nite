@@ -98,6 +98,8 @@ function recordingSound() {
     spinEnd: () => {},
     closeCall: () => void log.cues++,
     closeCallBreak: () => {},
+    drumroll: () => {},
+    drumrollBreak: () => {},
     landed: (_s, close = false) => {
       log.landed++
       log.landedClose.push(close)
@@ -532,7 +534,7 @@ test('a Reshuffle with three films plays through the cans, then swaps and locks 
   const back = within(dialog).getByRole('button', { name: 'Back to the main wheel' })
   expect(back).toBeDisabled()
   fireEvent.click(pick[0])
-  expect(within(dialog).getAllByRole('button', { name: /^Take Drawn/ })).toHaveLength(2)
+  await waitFor(() => expect(within(dialog).getAllByRole('button', { name: /^Take Drawn/ })).toHaveLength(2))
   fireEvent.keyDown(document, { key: 'Escape' })
   expect(store.getState().night.cardEffects).toEqual([])
   expect(back).toBeDisabled()
