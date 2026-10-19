@@ -156,3 +156,12 @@ test('the forced rest rotation reports no zone where none qualifies', () => {
 test('the plain restRotation is untouched by the close-call rule', () => {
   expect(restRotation(0, altArcs, 3, () => 0.5, 5)).toBeCloseTo(1800 + 360 - (45 + (edgeMargins(altArcs[3]).start + 15 - edgeMargins(altArcs[3]).end) / 2), 9)
 })
+
+test('card slices are each their own outcome across an edge', () => {
+  const card = (index: number): Slice => ({ kind: 'card', index, weight: 1 })
+  const slices = Array.from({ length: 8 }, (_, i) => card(i))
+  const arcs = sliceArcs(slices)
+  for (let i = 0; i < slices.length; i++) {
+    expect(closeCallZones(slices, arcs, i)).toHaveLength(2)
+  }
+})

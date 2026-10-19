@@ -285,7 +285,8 @@ main {
   transform-origin: 50% 8.5%;
   transition:
     scale 4s cubic-bezier(0.3, 0, 0.5, 1),
-    translate 4s cubic-bezier(0.3, 0, 0.5, 1);
+    translate 4s cubic-bezier(0.3, 0, 0.5, 1),
+    opacity 0.15s linear;
 }
 
 html:has(.wheel-stage[data-zoom]) {
@@ -300,8 +301,8 @@ html:has(.wheel-stage[data-zoom]) {
 }
 
 .wheel-stage[data-zoom='out'] .wheel-zoom {
-  transition-duration: 1s, 1s;
-  transition-timing-function: ease-in-out;
+  transition-duration: 1s, 1s, 0.15s;
+  transition-timing-function: ease-in-out, ease-in-out, linear;
 }
 
 .zoom-vignette {
@@ -336,6 +337,10 @@ html:has(.wheel-stage[data-zoom]) {
 /* The reel's fixed film colors (see the film tokens in index.css). */
 .wheel .film-fill-stock {
   fill: var(--film-stock);
+}
+
+.wheel .film-fill-steel {
+  fill: var(--film-steel);
 }
 
 .wheel .film-fill-cream {
@@ -622,6 +627,93 @@ html:has(.wheel-stage[data-zoom]) {
   color: var(--film-cream);
   border-radius: 6px;
   box-shadow: 0 12px 40px rgb(0 0 0 / 0.5);
+}
+
+/* The wildcard wheel's crossfade: the stage fades out, the wheels swap, and it fades back in. */
+.wheel-stage[data-fade='out'] .wheel-zoom {
+  opacity: 0;
+}
+
+/* A landed wildcard card (interim look, the film tokens): it turns over from its back to its face. */
+.card-reveal {
+  position: fixed;
+  inset: 50% auto auto 50%;
+  translate: -50% -50%;
+  z-index: 10;
+  perspective: 900px;
+  width: min(92vw, 360px);
+}
+
+.card-turn {
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.card-flip {
+  animation: card-flip 0.6s ease-out;
+}
+
+@keyframes card-flip {
+  from {
+    transform: rotateY(180deg);
+  }
+}
+
+.card-face,
+.card-back {
+  box-sizing: border-box;
+  background: var(--film-stock);
+  color: var(--film-cream);
+  border: 2px solid var(--film-steel);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.5);
+  backface-visibility: hidden;
+}
+
+.card-face {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  text-align: center;
+}
+
+.card-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  background:
+    repeating-linear-gradient(45deg, var(--film-steel-dark) 0 6px, var(--film-stock) 6px 12px);
+}
+
+.card-type {
+  margin: 0;
+  color: var(--film-steel-light);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.card-face h2 {
+  margin: 0;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.card-text {
+  margin: 0;
+}
+
+.card-back-button {
+  justify-self: center;
+  background: var(--film-cream);
+  color: var(--film-stock);
+  border: 0;
+  border-radius: 6px;
+  padding: var(--space-2) var(--space-4);
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .reveal-thread {
@@ -2386,4 +2478,12 @@ dialog.wheel-drawer:focus {
 
 .credits li {
   margin-bottom: var(--space-1);
+}
+
+/* "+2 from cards" beside a viewer's stepper or slider. */
+.cards-note {
+  display: block;
+  color: var(--muted);
+  text-align: right;
+  font-size: 0.8rem;
 }

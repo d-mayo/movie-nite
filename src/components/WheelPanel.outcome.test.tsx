@@ -49,7 +49,7 @@ function setupNight(
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: { ...defaultWheelSettings, wildcardWheel: false } },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },

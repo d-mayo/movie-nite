@@ -4,7 +4,7 @@ import { useApp } from '../state/store.ts'
 import type { SettledWalks } from '../letterboxd/useWatchlistWalks.ts'
 import type { WatchlistSource } from '../letterboxd/watchlist.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
-import { effectiveSetting } from '../wheel/edit.ts'
+import { cardBonus, effectiveSetting } from '../wheel/edit.ts'
 import { canHover, closeDelayMs } from './canHover.ts'
 import ViewerCell, { type CellStatus } from './ViewerCell.tsx'
 
@@ -356,6 +356,7 @@ export default function NightSetup({
               won={hasWon(viewer.id)}
               film={night.nominations[viewer.id]}
               setting={effectiveSetting(settings.wheel, night.adjustments, viewer.id)}
+              bonus={cardBonus(settings.wheel, night.adjustments, viewer.id, night.cardEffects)}
               adjusted={night.adjustments[viewer.id] !== undefined}
               open={shownId === viewer.id}
               client={client}

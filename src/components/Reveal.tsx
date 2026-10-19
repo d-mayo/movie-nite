@@ -42,7 +42,7 @@ interface Pick {
 
 // The frame sits over the wheel, so it centers on the wheel's stage rather than the
 // viewport, which the viewer pane skews. Null (centered in the viewport) until measured.
-function useStageCenter(): number | null {
+export function useStageCenter(): number | null {
   const [x, setX] = useState<number | null>(null)
   useLayoutEffect(() => {
     const measure = () => {

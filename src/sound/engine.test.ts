@@ -539,3 +539,45 @@ describe('the close call', () => {
     }).not.toThrow()
   })
 })
+
+describe('the wildcard wheel keeps the music', () => {
+  test('a keep-music spin leaves the running loop alone and still runs the projector and hum', async () => {
+    const { ctx, sound } = await ready()
+    sound.spinStart()
+    const [loop] = ctx.sourcesOf('loop')
+    sound.spinEnd()
+    sound.spinStart(false, true)
+    expect(ctx.sourcesOf('loop')).toHaveLength(1)
+    expect(loop.stoppedAt).toBeNull()
+    expect(ctx.sourcesOf('on')).toHaveLength(2)
+    expect(ctx.sourcesOf('hum')).toHaveLength(2)
+    // With a countdown the same: nothing starts the music but the caller, which does not.
+    sound.spinStart(true, true)
+    expect(ctx.sourcesOf('loop')).toHaveLength(1)
+  })
+
+  test('a keep-music spin with no music playing starts none', async () => {
+    const { ctx, sound } = await ready()
+    sound.spinStart(false, true)
+    expect(ctx.sourcesOf('loop')).toHaveLength(0)
+    expect(ctx.sourcesOf('hum')).toHaveLength(1)
+  })
+
+  test('musicResume ramps a close-call-silenced loop back to its level with no stinger', async () => {
+    const { ctx, sound } = await ready()
+    sound.spinStart()
+    const loopGain = ctx.sourcesOf('loop')[0].out[0] as FakeGain
+    sound.closeCall(3)
+    sound.closeCallBreak()
+    ctx.currentTime = 4
+    sound.musicResume()
+    const ramps = loopGain.gain.calls.filter((c) => c.method === 'linearRampToValueAtTime')
+    expect(ramps[ramps.length - 1].value).toBe(loopLevel)
+    expect(ctx.sourcesOf('stinger')).toHaveLength(0)
+    // A later landing and close behave as ever.
+    sound.landed(0.65)
+    expect(ctx.sourcesOf('stinger')).toHaveLength(1)
+    sound.revealClosed()
+    expect(ctx.sourcesOf('loop')[0].stoppedAt).not.toBeNull()
+  })
+})

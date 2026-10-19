@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react'
 import { useStore } from 'zustand'
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import {
+  addCardEffect,
   addViewer,
   clearHoldover,
   defaultState,
@@ -27,6 +28,7 @@ import {
   setSoundVolume,
   setSoundMuted,
   setShowLabels,
+  setWildcardWheel,
   restoreWheelSettings,
   setViewersHidden,
   setViewerColor,
@@ -57,6 +59,7 @@ import {
   type Adjustment,
   type WheelSettings,
 } from '../wheel/edit.ts'
+import { validCardEffects, type CardEffect } from '../wildcards/cards.ts'
 import { assignColors } from '../wheel/colors.ts'
 
 export interface AppActions {
@@ -92,6 +95,8 @@ export interface AppActions {
   setSoundVolume(volume: number): void
   setSoundMuted(muted: boolean): void
   setShowLabels(show: boolean): void
+  setWildcardWheel(on: boolean): void
+  addCardEffect(effect: CardEffect): void
   restoreWheelSettings(): void
 }
 
@@ -142,6 +147,7 @@ function mergeWheel(stored: Partial<WheelSettings> | undefined): WheelSettings {
         : d.soundVolume,
     soundMuted: typeof w.soundMuted === 'boolean' ? w.soundMuted : d.soundMuted,
     showLabels: typeof w.showLabels === 'boolean' ? w.showLabels : d.showLabels,
+    wildcardWheel: typeof w.wildcardWheel === 'boolean' ? w.wildcardWheel : d.wildcardWheel,
   }
 }
 
@@ -193,6 +199,7 @@ function mergeOverDefaults(stored: AppState | null): AppState {
   if (!storedNight.adjustments || typeof storedNight.adjustments !== 'object') {
     night.adjustments = layout && typeof layout === 'object' ? adjustmentsFromLayout(layout) : {}
   }
+  night.cardEffects = validCardEffects(storedNight.cardEffects)
   // A token stored by an older version is dropped: the Worker holds it now.
   const { tmdbToken: _dropped, ...storedSettings } = (stored.settings ?? {}) as AppState['settings'] & {
     tmdbToken?: unknown
@@ -256,6 +263,8 @@ export function createAppStore(persistence: Persistence): AppStore {
       setSoundVolume: (volume) => update((s) => setSoundVolume(s, volume)),
       setSoundMuted: (muted) => update((s) => setSoundMuted(s, muted)),
       setShowLabels: (show) => update((s) => setShowLabels(s, show)),
+      setWildcardWheel: (on) => update((s) => setWildcardWheel(s, on)),
+      addCardEffect: (effect) => update((s) => addCardEffect(s, effect)),
       restoreWheelSettings: () => update(restoreWheelSettings),
     }
   })

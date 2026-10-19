@@ -240,6 +240,7 @@ describe('global wheel settings', () => {
       soundVolume: 70,
       soundMuted: false,
       showLabels: true,
+      wildcardWheel: true,
     })
   })
 

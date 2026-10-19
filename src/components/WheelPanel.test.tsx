@@ -86,7 +86,8 @@ function setupCrowd(
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: {        viewersHidden: false,
+      settings: {
+        viewersHidden: false,
         wheel: {
           ...defaultWheelSettings,
           wildcardsPerViewer: false,
@@ -550,6 +551,9 @@ function recordingSound() {
     countdownStarts: 0,
     beeps: 0,
     musicStarts: 0,
+    // The presses that kept the music (counted in starts too), and the music resumes.
+    keepStarts: 0,
+    resumes: 0,
     ends: 0,
     landed: [] as number[],
     // The close-call flag each landing was told, and the seconds each cue was told.
@@ -571,11 +575,13 @@ function recordingSound() {
       return () => log.detached++
     },
     apply: (settings) => void log.applied.push(settings),
-    spinStart: (countdown = false) => {
+    spinStart: (countdown = false, keepMusic = false) => {
       log.starts++
       if (countdown) log.countdownStarts++
+      if (keepMusic) log.keepStarts++
     },
     musicStart: () => void log.musicStarts++,
+    musicResume: () => void log.resumes++,
     beep: () => void log.beeps++,
     spinSpeed: (share) => void log.shares.push(share),
     pinTick: (share) => void log.ticks.push(share),
@@ -701,7 +707,7 @@ test('a wildcard landing cues the same way, and Back to the wheel fades the musi
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: { ...defaultWheelSettings, wildcardWheel: false } },
       roster: [{ id: 'a', name: 'Ann', color: '#e6194b' }],
       night: { ...defaultState.night, presentIds: ['a'], nominations: { a: film(1) } },
     }),
@@ -774,7 +780,8 @@ test('a close-call spin cues once before the landing, zooms from the cue and cle
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: {        viewersHidden: false,
+      settings: {
+        viewersHidden: false,
         wheel: { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 },
       },
       roster: [
@@ -1165,7 +1172,7 @@ test('with the debug flag Force countdowns shows beside the others, starts unche
   try {
     setupCrowd({ random: () => 0.5, spinMs: 20 }, 6)
     const boxes = screen.getAllByRole('checkbox').map((b) => b.parentElement!.textContent!.trim())
-    expect(boxes.slice(-3).map((t) => t.replace(/ \(.*/, ''))).toEqual(['Force close calls', 'Force catches', 'Force countdowns'])
+    expect(boxes.slice(-4).map((t) => t.replace(/ \(.*/, ''))).toEqual(['Force close calls', 'Force catches', 'Force countdowns', 'Force wildcards'])
     const box = screen.getByLabelText('Force countdowns')
     expect(box).not.toBeChecked()
     expect(box).toBeEnabled()
