@@ -388,3 +388,14 @@ describe('the movie cards', () => {
     })
   })
 })
+
+describe('the cards' names and descriptions', () => {
+  it('gives every card a plain, unique name and a description with no placeholder', () => {
+    for (const card of cards) {
+      expect(card.name.trim()).not.toBe('')
+      expect(card.description.trim()).not.toBe('')
+      for (const text of [card.name, card.description]) expect(text).not.toMatch(/[Xn]/)
+    }
+    expect(new Set(cards.map((c) => c.name)).size).toBe(cards.length)
+  })
+})

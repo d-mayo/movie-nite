@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { DealContext } from './cards.ts'
+import { cards, type DealContext } from './cards.ts'
 import { canDeal, dealCards } from './deal.ts'
 import { seeded } from './seeded.ts'
 
@@ -134,5 +134,36 @@ describe('dealing the new cards', () => {
     }
     expect(seen.has('backlog')).toBe(true)
     expect(seen.has('common-ground')).toBe(true)
+  })
+})
+
+describe('disabled cards', () => {
+  it('never deals a disabled card', () => {
+    const disabled = ['viewer-weight', 'blind-spin', 'genre-night']
+    for (let seed = 1; seed < 60; seed++) {
+      const ids = dealCards(context, seeded(seed), disabled).map((c) => c.cardId)
+      expect(ids).toHaveLength(8)
+      for (const id of disabled) expect(ids).not.toContain(id)
+    }
+  })
+
+  it('gives no reserved slot to a disabled seasonal card in season', () => {
+    const october: DealContext = { ...context, today: new Date(2026, 9, 15) }
+    for (let seed = 1; seed < 60; seed++) {
+      expect(dealCards(october, seeded(seed), ['halloween']).map((c) => c.cardId)).not.toContain('halloween')
+    }
+  })
+
+  it('deals nothing, and cannot deal, when every eligible card is disabled', () => {
+    const empty: DealContext = { viewers: [], wildcardCount: 12, today, commonGround: false }
+    const eligibleIds = cards.filter((c) => c.eligible(empty)).map((c) => c.id)
+    expect(eligibleIds).toContain('blind-spin')
+    expect(canDeal(empty, eligibleIds)).toBe(false)
+    expect(dealCards(empty, seeded(1), eligibleIds)).toEqual([])
+    expect(canDeal(empty, eligibleIds.slice(1))).toBe(true)
+  })
+
+  it('deals the same with nothing disabled as without the argument', () => {
+    expect(dealCards(context, seeded(5), [])).toEqual(dealCards(context, seeded(5)))
   })
 })
