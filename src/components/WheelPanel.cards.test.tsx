@@ -668,3 +668,34 @@ test('the reveal after a blind spin comes into focus from a blur, and an ordinar
   await screen.findByRole('dialog')
   expect(document.querySelector('.reveal-blind')).toBeNull()
 })
+
+const allCardIds = cards.map((c) => c.id)
+
+test('with every card switched off a wildcard landing opens the wildcard search', async () => {
+  const { store } = setup({ wheel: { disabledCards: allCardIds } })
+  fireEvent.click(spinButton())
+  const dialog = await screen.findByRole('dialog')
+  expect(within(dialog).getByRole('heading')).toHaveTextContent('Wildcard!')
+  expect(wedgeKinds()).not.toContain('card')
+  expect(store.getState().night.cardEffects).toEqual([])
+})
+
+test('the wildcard wheel is dealt only from the cards that are on, and keeps its wedges when one is switched off', async () => {
+  const { store } = setup({ wheel: { disabledCards: allCardIds.filter((id) => id !== 'blind-spin') } })
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
+  expect(wheelText()).toContain('BLIND SPIN')
+  const dealt = wheelText()
+  act(() => store.getState().setCardEnabled('blind-spin', false))
+  expect(wheelText()).toBe(dealt)
+  expect(wedgeKinds()).toEqual(Array(8).fill('card'))
+})
+
+test('the debug Force card ignores the switches, even with every card switched off', async () => {
+  window.history.pushState({}, '', '/?debug')
+  setup({ wheel: { disabledCards: allCardIds } })
+  fireEvent.click(screen.getByLabelText('Force wildcards'))
+  fireEvent.change(screen.getByLabelText('Force card'), { target: { value: 'blind-spin' } })
+  const dialog = await openCard()
+  expect(within(dialog).getByRole('heading')).toHaveTextContent('Blind Spin')
+})
