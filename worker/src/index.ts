@@ -105,21 +105,50 @@ async function checkProfile(user: string, cors: Record<string, string>): Promise
 
 export type WatchlistRead = { slugs: string[]; hasNext: boolean } | 'private' | 'missing' | 'unavailable'
 
+/** The film slugs of a Letterboxd page in page order without duplicates, and whether a live next link is present. */
+function readFilmItems(html: string): { slugs: string[]; hasNext: boolean } {
+  const slugs: string[] = []
+  for (const m of html.matchAll(/data-item-slug="([^"]+)"/g)) {
+    if (!slugs.includes(m[1])) slugs.push(m[1])
+  }
+  return { slugs, hasNext: /<a class="next"/.test(html) }
+}
+
+/** Sorts a Letterboxd page's status into private (a 403 that is not a bot challenge), missing (a 404) and unavailable. */
+function readPageStatus(status: number | null, html: string): 'private' | 'missing' | 'unavailable' | null {
+  if (status === null || /just a moment|cf-chl/i.test(html)) return 'unavailable'
+  if (status === 403) return 'private'
+  if (status === 404) return 'missing'
+  if (status !== 200) return 'unavailable'
+  return null
+}
+
 /**
  * Reads one Letterboxd watchlist page: its film slugs in page order and whether a next page is linked.
  * A 403 that is not a bot challenge is a private watchlist (Letterboxd sends the same "classified" page as for a block),
  * an unchallenged 404 is a missing one, and anything else is unavailable.
  */
 export function readWatchlistPage(status: number | null, html: string): WatchlistRead {
-  if (status === null || /just a moment|cf-chl/i.test(html)) return 'unavailable'
-  if (status === 403) return 'private'
-  if (status === 404) return 'missing'
-  if (status !== 200) return 'unavailable'
-  const slugs: string[] = []
-  for (const m of html.matchAll(/data-item-slug="([^"]+)"/g)) {
-    if (!slugs.includes(m[1])) slugs.push(m[1])
+  return readPageStatus(status, html) ?? readFilmItems(html)
+}
+
+export type ListRead = { slugs: string[]; hasNext: boolean; lastPage: number } | 'private' | 'missing' | 'unavailable'
+
+/**
+ * Reads one Letterboxd list page like a watchlist page, plus the list's last page: the highest number in the page's
+ * paginate-pages block (Letterboxd keeps it on a page past the end), or 1 when the page has none.
+ */
+export function readListPage(status: number | null, html: string): ListRead {
+  const failed = readPageStatus(status, html)
+  if (failed) return failed
+  const block = /<div class="paginate-pages">([\s\S]*?)<\/ul>/.exec(html)
+  let lastPage = 1
+  if (block) {
+    for (const m of block[1].matchAll(/<li class="paginate-page[^"]*">\s*<(?:a [^>]*|span)>(\d+)</g)) {
+      lastPage = Math.max(lastPage, Number(m[1]))
+    }
   }
-  return { slugs, hasNext: /<a class="next"/.test(html) }
+  return { ...readFilmItems(html), lastPage }
 }
 
 /** The TMDB id of a Letterboxd film page, only when the page says it is a movie. */
@@ -137,6 +166,18 @@ async function watchlistPage(user: string, page: number, cors: Record<string, st
   const read = readWatchlistPage(status, body)
   if (read === 'private') return failure(404, 'Watchlist is private', cors)
   if (read === 'missing') return failure(404, 'No such watchlist', cors)
+  if (read === 'unavailable') return failure(502, 'Letterboxd could not be read', cors)
+  return json(read, 200, { ...cors, 'Cache-Control': 'public, max-age=3600' })
+}
+
+/** One page of a Letterboxd list: 200 with slugs and the last page, 404 for a private or missing one, 502 when unreadable. */
+async function listPage(user: string, slug: string, page: number, cors: Record<string, string>): Promise<Response> {
+  const username = user.toLowerCase()
+  const path = page === 1 ? '' : `page/${page}/`
+  const { status, body } = await fetchLetterboxd(`https://letterboxd.com/${username}/list/${slug}/${path}`)
+  const read = readListPage(status, body)
+  if (read === 'private') return failure(404, 'List is private', cors)
+  if (read === 'missing') return failure(404, 'No such list', cors)
   if (read === 'unavailable') return failure(502, 'Letterboxd could not be read', cors)
   return json(read, 200, { ...cors, 'Cache-Control': 'public, max-age=3600' })
 }
@@ -242,6 +283,15 @@ export default {
       const page = /^\d{1,2}$/.test(raw) ? Number(raw) : 0
       if (page < 1 || page > 99) return failure(400, 'A page from 1 to 99 is needed', cors)
       return watchlistPage(watchlist[1], page, cors)
+    }
+    const list = /^\/lb\/([^/]+)\/list\/([^/]+)$/.exec(path)
+    if (list) {
+      if (!/^[A-Za-z0-9_]{1,15}$/.test(list[1])) return failure(400, 'A Letterboxd username is needed', cors)
+      if (list[2].length > 200 || !FILM_SLUG.test(list[2])) return failure(400, 'A Letterboxd list slug is needed', cors)
+      const raw = url.searchParams.get('page') ?? '1'
+      const page = /^\d{1,3}$/.test(raw) ? Number(raw) : 0
+      if (page < 1 || page > 999) return failure(400, 'A page from 1 to 999 is needed', cors)
+      return listPage(list[1], list[2], page, cors)
     }
     const profile = /^\/lb\/([^/]+)$/.exec(path)
     if (profile) {

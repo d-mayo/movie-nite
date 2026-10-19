@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
-import worker, { isAllowedOrigin, parseFilmTmdbId, readTmdbRedirect, readWatchlistPage, type Env } from './index.ts'
+import worker, { isAllowedOrigin, parseFilmTmdbId, readListPage, readTmdbRedirect, readWatchlistPage, type Env } from './index.ts'
 
 const TOKEN = 'secret-token-123'
 const ORIGIN = 'https://d-mayo.github.io'
@@ -335,6 +335,40 @@ describe('reading a watchlist page', () => {
   })
 })
 
+describe('reading a list page', () => {
+  it('reads page 1 with its next page and the last page', () => {
+    const read = readListPage(200, fixture('list-next.200.html'))
+    expect(read).toMatchObject({ hasNext: true, lastPage: 4 })
+    const slugs = (read as { slugs: string[] }).slugs
+    expect(slugs).toHaveLength(100)
+    expect(new Set(slugs).size).toBe(100)
+  })
+
+  it('sees no next page on the last page', () => {
+    const read = readListPage(200, fixture('list-last.200.html'))
+    expect(read).toMatchObject({ hasNext: false, lastPage: 4 })
+    expect((read as { slugs: string[] }).slugs).toHaveLength(73)
+  })
+
+  it('gives no slugs past the end but still the last page', () => {
+    expect(readListPage(200, fixture('list-past-end.200.html'))).toEqual({ slugs: [], hasNext: false, lastPage: 4 })
+  })
+
+  it('reads the last page past an ellipsis and gives 1 without pagination', () => {
+    expect(readListPage(200, fixture('watchlist-next.200.html'))).toMatchObject({ lastPage: 8 })
+    expect(readListPage(200, '<a data-item-slug="a"></a>')).toEqual({ slugs: ['a'], hasNext: false, lastPage: 1 })
+  })
+
+  it('tells private, missing and unavailable apart', () => {
+    expect(readListPage(404, fixture('list-missing.404.html'))).toBe('missing')
+    expect(readListPage(403, fixture('watchlist-private.403.html'))).toBe('private')
+    expect(readListPage(403, BLOCK)).toBe('unavailable')
+    expect(readListPage(200, 'Just a moment...')).toBe('unavailable')
+    expect(readListPage(500, '')).toBe('unavailable')
+    expect(readListPage(null, '')).toBe('unavailable')
+  })
+})
+
 describe('reading a film page', () => {
   it('gives the movie id', () => {
     expect(parseFilmTmdbId(fixture('film.200.html'))).toBe(496243)
@@ -406,6 +440,82 @@ describe('the Letterboxd watchlist route', () => {
     lb.mockResolvedValue({ success: false })
     expect((await call('/lb/joe/watchlist', { env })).status).toBe(429)
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('the Letterboxd list route', () => {
+  const html = (name: string, status: number) => new Response(fixture(name), { status })
+  const base = 'https://letterboxd.com/loreno/list/fff-movie-night-1/'
+
+  it('fetches the right page, lowercases the user and caches a good answer for an hour', async () => {
+    fetchMock.mockResolvedValueOnce(html('list-next.200.html', 200))
+    const res = await call('/lb/LoReNo/list/fff-movie-night-1')
+    expect(fetchMock.mock.calls[0][0]).toBe(base)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=3600')
+    expect(await res.json()).toMatchObject({ hasNext: true, lastPage: 4 })
+    for (const [query, suffix] of [
+      ['?page=1', ''],
+      ['?page=3', 'page/3/'],
+      ['?page=999', 'page/999/'],
+    ]) {
+      fetchMock.mockResolvedValueOnce(html('list-last.200.html', 200))
+      await call(`/lb/loreno/list/fff-movie-night-1${query}`)
+      expect(fetchMock.mock.calls.at(-1)![0]).toBe(base + suffix)
+    }
+  })
+
+  it('answers the two 404s with no-store', async () => {
+    fetchMock.mockResolvedValueOnce(html('watchlist-private.403.html', 403))
+    let res = await call('/lb/loreno/list/fff-movie-night-1')
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'List is private' })
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
+    fetchMock.mockResolvedValueOnce(html('list-missing.404.html', 404))
+    res = await call('/lb/loreno/list/fff-movie-night-1')
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'No such list' })
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
+  })
+
+  it('answers 502 with no-store for a challenge, a 500 and a thrown fetch', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(BLOCK, { status: 403 }))
+    fetchMock.mockResolvedValueOnce(new Response('oops', { status: 500 }))
+    fetchMock.mockRejectedValueOnce(new Error('network'))
+    for (let i = 0; i < 3; i++) {
+      const res = await call('/lb/loreno/list/fff-movie-night-1')
+      expect(res.status).toBe(502)
+      expect(res.headers.get('Cache-Control')).toBe('no-store')
+      expect(await res.json()).toEqual({ error: 'Letterboxd could not be read' })
+    }
+  })
+
+  it('answers 400 for a bad user, slug or page without fetching', async () => {
+    for (const path of [
+      '/lb/a.b/list/x',
+      `/lb/${'a'.repeat(16)}/list/x`,
+      '/lb/joe/list/Upper',
+      '/lb/joe/list/a.b',
+      `/lb/joe/list/${'a'.repeat(201)}`,
+      '/lb/joe/list/x?page=0',
+      '/lb/joe/list/x?page=1000',
+      '/lb/joe/list/x?page=x',
+    ]) {
+      expect((await call(path)).status, path).toBe(400)
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('counts against the Letterboxd budget and leaves the other routes alone', async () => {
+    const { env, lb } = makeEnv()
+    lb.mockResolvedValue({ success: false })
+    expect((await call('/lb/joe/list/x', { env })).status).toBe(429)
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect((await call('/lb/a/list/b/c')).status).toBe(404)
+    await call('/lb/joe/watchlist')
+    expect(fetchMock.mock.calls[0][0]).toBe('https://letterboxd.com/joe/watchlist/')
+    await call('/lb/joe')
+    expect(fetchMock.mock.calls[1][0]).toBe('https://letterboxd.com/joe/')
   })
 })
 
