@@ -154,12 +154,17 @@ function expectedDeal(store: ReturnType<typeof setup>['store'], random: () => nu
         id: v.id,
         name: v.name,
         film: night.nominations[v.id]
-          ? { tmdbId: night.nominations[v.id].tmdbId, title: night.nominations[v.id].title }
+          ? {
+              tmdbId: night.nominations[v.id].tmdbId,
+              title: night.nominations[v.id].title,
+              runtime: night.nominations[v.id].runtime,
+            }
           : null,
         canReshuffle: false,
         ...effectiveSetting(settings.wheel, night.adjustments, v.id, night.cardEffects),
       })),
       wildcardCount: wildcardTotal(3, settings.wheel, night.cardEffects),
+      today: new Date(),
     },
     random,
   )

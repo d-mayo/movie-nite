@@ -45,6 +45,15 @@ describe('the Picks Again, Reshuffle and Blind Spin cards', () => {
   })
 })
 
+const movie: CardEffect = { cardId: 'genre-night', label: 'Horror night', change: { kind: 'movie' } }
+
+describe('the movie cards', () => {
+  it('never shows a movie card as a chip or lists it for a viewer', () => {
+    expect(chipEffects([movie, wildcards], ['s'])).toEqual([wildcards])
+    expect(viewerCardLabels([movie, picks], 's')).toEqual(['Sam picks again'])
+  })
+})
+
 describe('chipEffects', () => {
   it('keeps landing order and two equal labels as two entries', () => {
     const a = weight('Sam +2 weight', 's')

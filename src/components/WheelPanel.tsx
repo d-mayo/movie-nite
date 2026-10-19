@@ -233,7 +233,11 @@ export default function WheelPanel({
         id: v.id,
         name: v.name,
         film: night.nominations[v.id]
-          ? { tmdbId: night.nominations[v.id].tmdbId, title: night.nominations[v.id].title }
+          ? {
+              tmdbId: night.nominations[v.id].tmdbId,
+              title: night.nominations[v.id].title,
+              runtime: night.nominations[v.id].runtime,
+            }
           : null,
         canReshuffle: watchlist
           ? canBeReshuffled(watchlist.memory, v.letterboxd, drawExclusions(night, holdover, v.id))
@@ -241,6 +245,7 @@ export default function WheelPanel({
         ...effectiveSetting(settings.wheel, night.adjustments, v.id, night.cardEffects),
       })),
       wildcardCount: wildcardTotal(ordered.length, settings.wheel, night.cardEffects),
+      today: new Date(),
     }
   }
 

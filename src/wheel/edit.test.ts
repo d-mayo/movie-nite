@@ -181,12 +181,14 @@ describe('the wheel with card effects', () => {
     expect(effectiveSetting(wheel(), {}, 'B', fx)).toEqual({ slices: 3, weight: 5 })
   })
 
-  test('Picks Again, Reshuffle and Blind Spin change nothing on the wheel', () => {
+  test('Picks Again, Reshuffle, Blind Spin and a movie card change nothing on the wheel', () => {
     const extra: CardEffect[] = [
       { cardId: 'picks-again', label: 'x', change: { kind: 'picksAgain', viewerIds: ['A'], tmdbId: 1 } },
       { cardId: 'reshuffle', label: 'x', change: { kind: 'reshuffle', viewerIds: ['A'], tmdbId: 2 } },
       { cardId: 'blind-spin', label: 'x', change: { kind: 'blindSpin', used: false } },
+      { cardId: 'genre-night', label: 'x', change: { kind: 'movie' } },
     ]
+    expect(cardBonus(wheel(), {}, 'A', extra)).toEqual({ slices: 0, weight: 0 })
     expect(effectiveSetting(wheel(), {}, 'A', extra)).toEqual(effectiveSetting(wheel(), {}, 'A'))
     expect(wildcardTotal(2, wheel(), extra)).toBe(wildcardTotal(2, wheel()))
     expect(deriveSlices(['A', 'B'], wheel(), {}, extra)).toEqual(deriveSlices(['A', 'B'], wheel(), {}))

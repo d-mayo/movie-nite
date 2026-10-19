@@ -243,7 +243,7 @@ test('a very narrow wildcard has no watermark and shows a ? instead of the word'
 
 test('a deal draws one steel wedge per card with its label whatever Show labels says, and a frame each', () => {
   const deal = dealCards(
-    { viewers: [{ id: 'a', name: 'Ann', slices: 3, weight: 5, film: null, canReshuffle: false }], wildcardCount: 3 },
+    { viewers: [{ id: 'a', name: 'Ann', slices: 3, weight: 5, film: null, canReshuffle: false }], wildcardCount: 3, today: new Date(2026, 2, 15) },
     seeded(4),
   )
   expect(deal).toHaveLength(8)

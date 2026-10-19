@@ -1,3 +1,5 @@
+import type { DiscoverParams } from '../tmdb/client.ts'
+import { formatRuntime } from '../wheel/reveal.ts'
 import {
   maxSlices,
   maxWeight,
@@ -17,6 +19,8 @@ export type CardChange =
   | { kind: 'reshuffle'; viewerIds: [string]; tmdbId: number }
   // The main wheel is blind until the next main spin lands; `used` once that spin has begun.
   | { kind: 'blindSpin'; used: boolean }
+  // A movie card's film was taken: it changes nothing on the wheel and only shows in the summary.
+  | { kind: 'movie' }
 
 // A card's landed effect, kept in the night.
 export interface CardEffect {
@@ -35,7 +39,7 @@ export interface DealViewer {
   slices: number
   weight: number
   // Their nominated film, if they have one.
-  film: { tmdbId: number; title: string } | null
+  film: { tmdbId: number; title: string; runtime?: number | null } | null
   // True when a Reshuffle could draw them a film from their Letterboxd watchlist.
   canReshuffle: boolean
 }
@@ -43,7 +47,14 @@ export interface DealViewer {
 export interface DealContext {
   viewers: DealViewer[]
   wildcardCount: number
+  // The local date at the deal, for the seasonal cards.
+  today: Date
 }
+
+// Where a movie card's film comes from: TMDB's discover, or a film already on the board.
+export type CardSource =
+  | { kind: 'discover'; params: DiscoverParams }
+  | { kind: 'shortest'; viewerId: string; tmdbId: number }
 
 export interface RolledCard {
   cardId: string
@@ -55,6 +66,8 @@ export interface RolledCard {
   title: string
   text: string
   effect: CardEffect
+  // Only a movie card has one.
+  source?: CardSource
 }
 
 export interface CardDef {
@@ -268,6 +281,181 @@ const blindSpinCard: CardDef = {
   },
 }
 
+const voteFloor = 200
+
+// TMDB's movie genres but TV Movie, by id.
+const genres: [number, string][] = [
+  [28, 'Action'],
+  [12, 'Adventure'],
+  [16, 'Animation'],
+  [35, 'Comedy'],
+  [80, 'Crime'],
+  [99, 'Documentary'],
+  [18, 'Drama'],
+  [10751, 'Family'],
+  [14, 'Fantasy'],
+  [36, 'History'],
+  [27, 'Horror'],
+  [10402, 'Music'],
+  [9648, 'Mystery'],
+  [10749, 'Romance'],
+  [878, 'Science Fiction'],
+  [53, 'Thriller'],
+  [10752, 'War'],
+  [37, 'Western'],
+]
+
+const languages: [string, string][] = [
+  ['fr', 'French'],
+  ['it', 'Italian'],
+  ['es', 'Spanish'],
+  ['de', 'German'],
+  ['ja', 'Japanese'],
+  ['ko', 'Korean'],
+  ['zh', 'Chinese'],
+  ['hi', 'Hindi'],
+  ['sv', 'Swedish'],
+  ['da', 'Danish'],
+  ['pt', 'Portuguese'],
+  ['ru', 'Russian'],
+]
+
+const decades = [1950, 1960, 1970, 1980, 1990, 2000, 2010]
+
+// A rolled movie card of the discover kind: the parameters it asks with carry the vote floor.
+function discoverRoll(
+  id: string,
+  label: string,
+  title: string,
+  text: string,
+  params: DiscoverParams,
+): RolledCard {
+  return {
+    cardId: id,
+    type: 'movie',
+    fff: false,
+    label,
+    title,
+    text,
+    effect: { cardId: id, label, change: { kind: 'movie' } },
+    source: { kind: 'discover', params: { ...params, 'vote_count.gte': voteFloor } },
+  }
+}
+
+function discoverCard(
+  id: string,
+  eligible: (context: DealContext) => boolean,
+  roll: (random: () => number) => RolledCard,
+): CardDef {
+  return { id, type: 'movie', fff: false, eligible, roll: (_context, random) => roll(random) }
+}
+
+// A seasonal card: eligible from a month and day to a month and day (1-based months), inclusive.
+function seasonal(
+  id: string,
+  name: string,
+  from: [number, number],
+  to: [number, number],
+  params: DiscoverParams,
+): CardDef {
+  return discoverCard(
+    id,
+    ({ today }) => {
+      const day = (today.getMonth() + 1) * 100 + today.getDate()
+      return day >= from[0] * 100 + from[1] && day <= to[0] * 100 + to[1]
+    },
+    () => discoverRoll(id, name, name, `Three ${name.toLowerCase()} films in the cans.`, params),
+  )
+}
+
+// Whole tenths from `min` to `max`, as a number with one decimal.
+function tenths(min: number, max: number, random: () => number): number {
+  return (min * 10 + Math.floor(random() * (max * 10 - min * 10 + 1))) / 10
+}
+
+const genreNightCard = discoverCard('genre-night', () => true, (random) => {
+  const [genre, name] = pick(genres, random)
+  return discoverRoll(
+    'genre-night',
+    `${name} night`,
+    `Genre Night: ${name}`,
+    `Three ${name.toLowerCase()} films in the cans.`,
+    { with_genres: String(genre) },
+  )
+})
+
+const criticsCard = discoverCard('critics-darlings', () => true, (random) => {
+  const n = tenths(7, 8, random).toFixed(1)
+  return discoverRoll(
+    'critics-darlings',
+    `Critics' darlings ${n}`,
+    "Critics' Darlings",
+    `Three films rated ${n} or above.`,
+    { 'vote_average.gte': Number(n) },
+  )
+})
+
+const soBadCard = discoverCard('so-bad-its-good', () => true, (random) => {
+  const n = tenths(4, 5.5, random).toFixed(1)
+  return discoverRoll(
+    'so-bad-its-good',
+    `So bad it's good ${n}`,
+    "So Bad It's Good",
+    `Three films rated ${n} or below.`,
+    { 'vote_average.lte': Number(n) },
+  )
+})
+
+const decadeCard = discoverCard('decade-roulette', () => true, (random) => {
+  const first = pick(decades, random)
+  const name = `${first}s`
+  return discoverRoll('decade-roulette', name, `Decade Roulette: the ${name}`, `Three films from the ${name}.`, {
+    'primary_release_date.gte': `${first}-01-01`,
+    'primary_release_date.lte': `${first + 9}-12-31`,
+  })
+})
+
+const worldCinemaCard = discoverCard('world-cinema', () => true, (random) => {
+  const [code, name] = pick(languages, random)
+  return discoverRoll(
+    'world-cinema',
+    `${name} cinema`,
+    `World Cinema: ${name}`,
+    `Three ${name}-language films in the cans.`,
+    { with_original_language: code },
+  )
+})
+
+// The viewers whose film has the shortest runtime on the board.
+function shortestViewers(context: DealContext): DealViewer[] {
+  const timed = context.viewers.filter((v) => v.film?.runtime)
+  const shortest = Math.min(...timed.map((v) => v.film!.runtime!))
+  return timed.filter((v) => v.film!.runtime === shortest)
+}
+
+// The shortest film on the board wins; a tie is broken by `random`.
+const shortestCard: CardDef = {
+  id: 'shortest-on-the-board',
+  type: 'movie',
+  fff: false,
+  eligible: (context) => context.viewers.some((v) => v.film?.runtime),
+  roll(context, random) {
+    const viewer = pick(shortestViewers(context), random)
+    const film = viewer.film!
+    const label = 'Shortest on the board'
+    return {
+      cardId: 'shortest-on-the-board',
+      type: 'movie',
+      fff: false,
+      label,
+      title: 'Shortest on the Board',
+      text: `${film.title} (${formatRuntime(film.runtime!)}), ${viewer.name}'s film, is the shortest on the board and wins.`,
+      effect: { cardId: 'shortest-on-the-board', label, change: { kind: 'movie' } },
+      source: { kind: 'shortest', viewerId: viewer.id, tmdbId: film.tmdbId },
+    }
+  },
+}
+
 export const cards: CardDef[] = [
   viewerCard('viewer-weight', 'weight'),
   viewerCard('viewer-slices', 'slices'),
@@ -277,6 +465,18 @@ export const cards: CardDef[] = [
   picksAgainCard,
   reshuffleCard,
   blindSpinCard,
+  genreNightCard,
+  seasonal('halloween', 'Halloween', [10, 1], [10, 31], { with_keywords: '3335' }),
+  seasonal('christmas', 'Christmas', [12, 1], [12, 25], { with_keywords: '207317' }),
+  seasonal('romance', 'Romance', [2, 1], [2, 14], { with_genres: '10749' }),
+  seasonal('creature-feature', 'Creature Feature', [6, 1], [8, 31], {
+    with_keywords: '158126|11100|161791',
+  }),
+  criticsCard,
+  soBadCard,
+  decadeCard,
+  worldCinemaCard,
+  shortestCard,
 ]
 
 function validChange(value: unknown): value is CardChange {
@@ -288,6 +488,7 @@ function validChange(value: unknown): value is CardChange {
     tmdbId?: unknown
     used?: unknown
   }
+  if (change.kind === 'movie') return true
   if (change.kind === 'blindSpin') return typeof change.used === 'boolean'
   if (change.kind === 'picksAgain' || change.kind === 'reshuffle') {
     return (
