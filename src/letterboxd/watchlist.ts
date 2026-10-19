@@ -103,6 +103,25 @@ export async function drawFromWatchlist(options: {
 }
 
 /**
+ * Up to `count` distinct films from the viewer's watchlist, as TMDB ids, each drawn as `drawFromWatchlist` does with
+ * the earlier ones excluded too. A draw that fails after some films were found keeps them; one that fails first is
+ * the result.
+ */
+export async function drawFilmsFromWatchlist(
+  options: Parameters<typeof drawFromWatchlist>[0] & { count: number },
+): Promise<number[] | Exclude<DrawResult, number>> {
+  const films: number[] = []
+  const excluded = new Set(options.excluded)
+  while (films.length < options.count) {
+    const result = await drawFromWatchlist({ ...options, excluded })
+    if (typeof result === 'string') return films.length > 0 ? films : result
+    films.push(result)
+    excluded.add(result)
+  }
+  return films
+}
+
+/**
  * Whether a Reshuffle could draw this viewer a film: their profile is found, their walk has settled, and at least
  * one slug on it is not known to be unusable (not a movie, or an excluded film). A slug whose TMDB id isn't known
  * yet counts as usable, since the deal can't look it up.

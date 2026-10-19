@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { LetterboxdClient, WatchlistPageResult } from './client.ts'
-import { canBeReshuffled, createWatchlistMemory, drawFromWatchlist, ensureWalk, MAX_WATCHLIST_PAGES, subscribeToSettled } from './watchlist.ts'
+import { canBeReshuffled, createWatchlistMemory, drawFilmsFromWatchlist, drawFromWatchlist, ensureWalk, MAX_WATCHLIST_PAGES, subscribeToSettled } from './watchlist.ts'
 
 function fakeClient(
   pages: WatchlistPageResult[],
@@ -195,5 +195,32 @@ describe('canBeReshuffled', () => {
   it('is true when one slug is still unknown or maps to a film that is not excluded', () => {
     expect(canBeReshuffled(settled(['a', 'b'], { a: null }), found, none)).toBe(true)
     expect(canBeReshuffled(settled(['a', 'b'], { a: 5, b: 6 }), found, new Set([5]))).toBe(true)
+  })
+})
+
+describe('drawFilmsFromWatchlist', () => {
+  const films = (client: LetterboxdClient, excluded = none, count = 3) =>
+    drawFilmsFromWatchlist({ client, memory: createWatchlistMemory(), username: 'Jo', excluded, random: () => 0, count })
+
+  it('draws three distinct films, skipping the excluded and the refused', async () => {
+    const client = fakeClient([{ slugs: ['a', 'b', 'c', 'd', 'e'], hasNext: false }], { a: 1, b: 2, c: 3, d: 4, e: 5 })
+    expect(await films(client, new Set([1, 3]))).toEqual([2, 4, 5])
+  })
+
+  it('gives fewer when the watchlist runs out, and the failure when none were found', async () => {
+    const client = fakeClient([{ slugs: ['a', 'b'], hasNext: false }], { a: 1, b: 2 })
+    expect(await films(client)).toEqual([1, 2])
+    expect(await films(client, new Set([1, 2]))).toBe('exhausted')
+  })
+
+  it("gives the draw's failure results when the walk fails", async () => {
+    expect(await films(fakeClient(['private']))).toBe('private')
+    expect(await films(fakeClient(['unavailable']))).toBe('unavailable')
+    expect(await films(fakeClient([{ slugs: [], hasNext: false }]))).toBe('empty')
+  })
+
+  it('keeps the films already found when a later draw fails', async () => {
+    const client = fakeClient([{ slugs: ['a', 'b'], hasNext: false }], { a: 1, b: 'unavailable' })
+    expect(await films(client)).toEqual([1])
   })
 })
