@@ -308,3 +308,82 @@ test('on the wildcard wheel, Force countdowns shows the dial and starts no music
   expect(dial()).toBeNull()
   expect(log.musicStarts).toBe(1)
 }, 15000)
+
+const weightEffect = (label: string, ...viewerIds: string[]) => ({
+  cardId: 'x-weight',
+  label,
+  change: { kind: 'weight' as const, amount: 2, viewerIds },
+})
+const chips = () => screen.queryByRole('list', { name: "Tonight's cards" })
+const chipTexts = () => within(chips()!).getAllByRole('listitem').map((li) => li.textContent)
+
+test("Tonight's cards list one chip per landed card, in order, repeats included", () => {
+  const { store } = setup()
+  expect(chips()).toBeNull()
+  act(() =>
+    store.setState({
+      night: {
+        ...store.getState().night,
+        cardEffects: [
+          weightEffect('Ann +2 weight', 'a'),
+          { cardId: 'wc', label: '+1 wildcard', change: { kind: 'wildcards', amount: 1 } },
+          weightEffect('Ann +2 weight', 'a'),
+        ],
+      },
+    }),
+  )
+  expect(chipTexts()).toEqual(['Ann +2 weight', '+1 wildcard', 'Ann +2 weight'])
+  // After the wheel stage, before the debug checkboxes.
+  const stage = document.querySelector('.wheel-stage')!
+  expect(stage.compareDocumentPosition(chips()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+})
+
+test('a chip stays for an away or won viewer, and leaves with its removed viewers', () => {
+  const { store } = setup()
+  act(() =>
+    store.setState({
+      night: {
+        ...store.getState().night,
+        presentIds: ['a', 'c'],
+        wonFilms: [3],
+        cardEffects: [
+          weightEffect('Bo +2 weight', 'b'),
+          weightEffect('Cy +2 weight', 'c'),
+          { cardId: 'wc', label: '+1 wildcard', change: { kind: 'wildcards', amount: 1 } },
+        ],
+      },
+    }),
+  )
+  expect(chipTexts()).toEqual(['Bo +2 weight', 'Cy +2 weight', '+1 wildcard'])
+  act(() => store.getState().removeViewer('b'))
+  expect(chipTexts()).toEqual(['Cy +2 weight', '+1 wildcard'])
+  act(() => store.getState().removeViewer('c'))
+  expect(chipTexts()).toEqual(['+1 wildcard'])
+})
+
+test("with only removed viewers' cards, or once the night has ended, there is no list", () => {
+  const { store } = setup()
+  act(() =>
+    store.setState({
+      night: { ...store.getState().night, cardEffects: [weightEffect('Bo +2 weight', 'b')] },
+    }),
+  )
+  expect(chips()).not.toBeNull()
+  act(() => store.setState({ night: { ...store.getState().night, ended: true } }))
+  expect(chips()).toBeNull()
+  act(() => store.setState({ night: { ...store.getState().night, ended: false } }))
+  act(() => store.getState().removeViewer('b'))
+  expect(chips()).toBeNull()
+})
+
+test("the wildcard wheel's Back adds the new card's chip", async () => {
+  setup()
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
+  fireEvent.click(spinButton())
+  const dialog = await screen.findByRole('dialog')
+  expect(chips()).toBeNull()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Back to the main wheel' }))
+  await waitFor(() => expect(chips()).not.toBeNull())
+  expect(chipTexts()).toHaveLength(1)
+})

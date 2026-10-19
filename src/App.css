@@ -148,7 +148,15 @@ main {
   /* The wheel is no taller than the window under the banner, so with the pane at
      full height the page has no scrollbar of its own. */
   .night .wheel-stage {
-    max-width: min(1600px, max(20rem, calc(100dvh - var(--chrome-height))));
+    /* The chips' published height (--card-chips-height, unset with no chips; the
+       fallback cancels the gap) comes off the cap, down to the 20rem floor. */
+    max-width: min(
+      1600px,
+      max(
+        20rem,
+        calc(100dvh - var(--chrome-height) - 0.75rem - var(--card-chips-height, -0.75rem))
+      )
+    );
   }
 
   .night > .setup-column {
@@ -602,6 +610,25 @@ html:has(.wheel-stage[data-zoom]) {
   align-items: center;
   gap: 0.75rem;
   width: 100%;
+}
+
+.card-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.card-chip {
+  padding: var(--space-1) var(--space-3);
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  color: var(--muted);
+  font-size: 0.875rem;
 }
 
 .setup {

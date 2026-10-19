@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import { useApp } from '../state/store.ts'
+import { CardChips } from './CardChips.tsx'
 import {
   angleUnderPointer,
   cryptoRandom,
@@ -496,6 +497,7 @@ export default function WheelPanel({
           </p>
         )}
       </div>
+      <CardChips />
       {debug && (
         <label className="debug-force">
           <input
