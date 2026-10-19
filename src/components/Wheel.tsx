@@ -183,12 +183,12 @@ function Negative({ uid }: { uid: string }) {
           <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.4 0.95" />
         </filter>
         <radialGradient id={`${uid}-vignette`} cx="0" cy="0" r={radius} gradientUnits="userSpaceOnUse">
-          <stop offset="0.5" stopColor="#000000" stopOpacity="0" />
-          <stop offset="1" stopColor="#000000" stopOpacity="0.45" />
+          <stop offset="0.6" stopColor="#000000" stopOpacity="0" />
+          <stop offset="1" stopColor="#000000" stopOpacity="0.26" />
         </radialGradient>
       </defs>
       <g className="wheel-grain" data-testid="grain">
-        <rect x="-140" y="-140" width="280" height="280" filter={`url(#${uid}-grain)`} opacity="0.35" />
+        <rect x="-140" y="-140" width="280" height="280" filter={`url(#${uid}-grain)`} opacity="0.16" />
       </g>
       <circle r={radius} fill={`url(#${uid}-vignette)`} data-testid="vignette" />
     </g>

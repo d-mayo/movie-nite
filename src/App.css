@@ -471,10 +471,6 @@ html:has(.wheel-stage[data-zoom]) {
   fill: var(--film-cream);
 }
 
-.wheel-stage[data-wheel='cards'] .wheel {
-  background: var(--film-cream);
-}
-
 .wheel-stage[data-wheel='cards'] .wheel .film-stock {
   stroke: var(--film-cream);
 }
