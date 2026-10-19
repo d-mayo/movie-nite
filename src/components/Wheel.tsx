@@ -168,29 +168,27 @@ function Glyph({ kind }: { kind: CardGlyph }) {
   }
 }
 
-// The wildcard wheel's film grain and vignette over the face of the disc, clipped to it (never the
-// stage's box). The grain is a noise filter on a still rectangle that CSS steps about, so no script
-// runs per frame and reduced motion only has to stop the animation.
+// The wildcard wheel's film grain and vignette over the whole stage (the wheel svg's box, the
+// negative's cream ground included, hub and pointer under them). The grain is a noise filter on a
+// still rectangle that CSS steps about, so no script runs per frame and reduced motion only has to
+// stop the animation. No blend mode: a full-size blend layer can draw hairline seams.
 function Negative({ uid }: { uid: string }) {
   return (
-    <g data-testid="negative-face" clipPath={`url(#${uid}-disc)`} pointerEvents="none">
+    <g data-testid="negative-face" pointerEvents="none">
       <defs>
-        <clipPath id={`${uid}-disc`}>
-          <circle r={radius} />
-        </clipPath>
         <filter id={`${uid}-grain`} x="0" y="0" width="100%" height="100%">
           <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="7" stitchTiles="stitch" />
           <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.4 0.95" />
         </filter>
-        <radialGradient id={`${uid}-vignette`} cx="0" cy="0" r={radius} gradientUnits="userSpaceOnUse">
-          <stop offset="0.6" stopColor="#000000" stopOpacity="0" />
-          <stop offset="1" stopColor="#000000" stopOpacity="0.26" />
+        <radialGradient id={`${uid}-vignette`} cx="0" cy="0" r="175" gradientUnits="userSpaceOnUse">
+          <stop offset="0.45" stopColor="#4a4a44" stopOpacity="0" />
+          <stop offset="1" stopColor="#4a4a44" stopOpacity="0.45" />
         </radialGradient>
       </defs>
       <g className="wheel-grain" data-testid="grain">
-        <rect x="-140" y="-140" width="280" height="280" filter={`url(#${uid}-grain)`} opacity="0.16" />
+        <rect x="-160" y="-160" width="320" height="320" filter={`url(#${uid}-grain)`} opacity="0.2" />
       </g>
-      <circle r={radius} fill={`url(#${uid}-vignette)`} data-testid="vignette" />
+      <rect x="-124" y="-124" width="248" height="248" fill={`url(#${uid}-vignette)`} data-testid="vignette" />
     </g>
   )
 }

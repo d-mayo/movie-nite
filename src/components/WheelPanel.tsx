@@ -89,13 +89,11 @@ function Flicker() {
 function Clapper() {
   return (
     <div className="clapper" data-testid="clapper" aria-hidden="true">
-      <div className="clapper-sticks">
-        <div className="clapper-stick clapper-stick-top" />
-        <div className="clapper-stick clapper-stick-bottom" />
-      </div>
       <div className="clapper-body">
         <span className="clapper-word">WILDCARD</span>
       </div>
+      <div className="clapper-stick clapper-stick-bottom" />
+      <div className="clapper-stick clapper-stick-top" />
     </div>
   )
 }
@@ -144,7 +142,9 @@ export const crossfadeMs = 150
 // slam), the wheels swap under it and its sticks part. All in ms; a test-length spin shrinks them.
 export const cueMs = 880
 export const rollMs = 550
-export const slamMs = 740
+export const slamMs = 420
+// The slate stays closed this long after the wheels swap, the wheel shaking on the slam.
+export const slamHoldMs = 520
 export const openMs = 420
 const testTransitionScale = 0.02
 
@@ -609,10 +609,12 @@ export default function WheelPanel({
     const k = transitionScale()
     phase('slam', slamMs * k, () => {
       setSpin(null)
-      phase('open', openMs * k, () => {
-        phase(null, 0, () => {})
-        onBusyChange(false)
-      })
+      phase('slam', slamHoldMs * k, () =>
+        phase('open', openMs * k, () => {
+          phase(null, 0, () => {})
+          onBusyChange(false)
+        }),
+      )
     })
   }
 

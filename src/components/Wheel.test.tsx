@@ -263,7 +263,7 @@ test('a deal draws one negative wedge per card with its label whatever Show labe
   }
 })
 
-test('card wedges carry their type and glyph kind, and the grain and vignette show only when negative', () => {
+test('card wedges carry their type and glyph kind, and the grain and vignette (over the whole stage) show only when negative', () => {
   const deal = [
     { cardId: 'everyone-weight', type: 'wheel', label: 'Everyone +1 weight', weight: 3 },
     { cardId: 'halloween', type: 'movie', label: 'Halloween', weight: 3 },
@@ -275,7 +275,6 @@ test('card wedges carry their type and glyph kind, and the grain and vignette sh
   expect(screen.queryByTestId('negative-face')).toBeNull()
   rerender(<Wheel wedges={buildCardWedges(deal)} negative groupRef={null} />)
   const face = screen.getByTestId('negative-face')
-  expect(face.getAttribute('clip-path')).toMatch(/^url\(#.+-disc\)$/)
   expect(within(face).getByTestId('grain')).toBeTruthy()
   expect(within(face).getByTestId('vignette')).toBeTruthy()
 })

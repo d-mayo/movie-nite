@@ -215,7 +215,8 @@ test('a wildcard landing swaps in the wildcard wheel, which drifts until pressed
   fireEvent.click(back)
   expect(store.getState().night.cardEffects).toEqual([deal[drawn].effect])
   await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
-  expect(screen.getByRole('button', { name: 'Ann is here' })).toBeEnabled()
+  // The lock ends when the clapperboard has opened.
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Ann is here' })).toBeEnabled())
 })
 
 test('Escape takes the card like Back to the main wheel, and the wheel is derived with its effect', async () => {

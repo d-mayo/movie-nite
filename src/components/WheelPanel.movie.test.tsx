@@ -539,7 +539,7 @@ test("X's Backlog draws three films from Ann's watchlist, plays the cans and ope
   expect(night.watched).toHaveLength(1)
   expect(night.wonFilms).toEqual([])
   expect(Object.keys(night.nominations)).toEqual(['a', 'b', 'c'])
-  expect(spinButton()).toBeEnabled()
+  await waitFor(() => expect(spinButton()).toBeEnabled())
   act(() => store.getState().endNight())
   const items = within(await screen.findByRole('list', { name: 'Cards tonight' })).getAllByRole('listitem')
   expect(items.map((li) => li.textContent)).toEqual(["Ann's backlog"])

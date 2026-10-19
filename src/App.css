@@ -471,6 +471,45 @@ html:has(.wheel-stage[data-zoom]) {
   fill: var(--film-cream);
 }
 
+.wheel-stage[data-wheel='cards'] .wheel {
+  background: var(--film-cream);
+}
+
+/* The hub and the pointer are part of the negative too: stock with cream lines. */
+.wheel-stage[data-wheel='cards'] .hub-disc {
+  fill: var(--film-stock);
+  stroke: var(--film-cream);
+}
+
+.wheel-stage[data-wheel='cards'] .hub-window {
+  fill: var(--film-steel);
+}
+
+.wheel-stage[data-wheel='cards'] .hub-rivet {
+  fill: var(--film-steel-light);
+}
+
+.wheel-stage[data-wheel='cards'] .hub-label {
+  background: var(--film-stock);
+  box-shadow:
+    inset 0 0 0 2px var(--film-cream),
+    inset 0 4px 8px rgb(0 0 0 / 0.6);
+}
+
+.wheel-stage[data-wheel='cards'] .wheel .film-tongue {
+  fill: var(--film-stock);
+  stroke: var(--film-cream);
+}
+
+.wheel-stage[data-wheel='cards'] .wheel .film-cap {
+  fill: var(--film-cream);
+  stroke: var(--film-stock);
+}
+
+.wheel-stage[data-wheel='cards'] .wheel .film-slot {
+  fill: var(--film-stock);
+}
+
 .wheel-stage[data-wheel='cards'] .wheel .film-stock {
   stroke: var(--film-cream);
 }
@@ -483,7 +522,7 @@ html:has(.wheel-stage[data-zoom]) {
   fill: #000;
 }
 
-/* The grain steps about under the disc's clip; reduced motion leaves it still. */
+/* The grain steps about under the svg's own box; reduced motion leaves it still. */
 .wheel .wheel-grain {
   animation: wheel-grain 0.6s steps(1, end) infinite;
 }
@@ -809,7 +848,7 @@ html:has(.wheel-stage[data-zoom]) {
 }
 
 .wheel-stage[data-transition='roll'] .wheel-zoom {
-  animation: gate-roll 0.55s steps(1, end);
+  animation: gate-roll 0.55s steps(9) both;
 }
 
 @keyframes gate-roll {
@@ -817,143 +856,131 @@ html:has(.wheel-stage[data-zoom]) {
     transform: translateY(0);
     filter: blur(0) brightness(1);
   }
-  15% {
+  30% {
     transform: translateY(-14%);
-    filter: blur(3px) brightness(1.6);
+    filter: blur(3px) brightness(1.8);
   }
-  35% {
+  60% {
     transform: translateY(9%);
-    filter: blur(2px) brightness(1.3);
-  }
-  55% {
-    transform: translateY(-4%);
-    filter: blur(1px) brightness(1.15);
-  }
-  75% {
-    transform: translateY(2%);
-    filter: blur(0) brightness(1.05);
+    filter: blur(4px) brightness(0.4);
   }
   100% {
     transform: translateY(0);
-    filter: blur(0) brightness(1);
+    filter: none;
   }
 }
 
-/* Leaving it: a WILDCARD clapperboard covers the stage, its top stick swings shut, the wheel shakes
-   on the slam, and the sticks part over the main wheel as the slate fades. */
+/* Leaving it: a WILDCARD clapperboard covers the stage, its top stick swings shut as the slate fades in,
+   the wheel shakes on the slam, and the sticks part (the top one up, the bottom one down, off the stage)
+   as the slate fades out over the main wheel. */
 .clapper {
   position: absolute;
-  inset: 0;
+  inset: -3%;
   z-index: 2;
-  display: flex;
-  flex-direction: column;
-  padding: 4% 0;
   pointer-events: none;
-  animation: clapper-in 0.1s linear both;
-}
-
-.wheel-stage[data-transition='open'] .clapper {
-  animation: clapper-out 0.42s ease-in forwards;
-}
-
-@keyframes clapper-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes clapper-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
-.clapper-sticks {
-  position: relative;
-  height: 14%;
-  margin: 0 4%;
-}
-
-.clapper-stick {
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(115deg, var(--film-cream) 0 8%, var(--film-stock) 8% 16%);
-  border: 0.15em solid var(--film-cream);
-}
-
-.clapper-stick-top {
-  transform-origin: 0 100%;
-  transform: rotate(-24deg);
-  animation: clapper-swing 0.42s cubic-bezier(0.6, 0, 0.9, 0.6) forwards;
-}
-
-.clapper-stick-bottom {
-  top: auto;
-  bottom: 0;
-  height: 80%;
-}
-
-.wheel-stage[data-transition='open'] .clapper-stick-top {
-  animation: clapper-part 0.42s ease-out forwards;
-}
-
-@keyframes clapper-swing {
-  from {
-    transform: rotate(-24deg);
-  }
-  to {
-    transform: rotate(0deg);
-  }
-}
-
-@keyframes clapper-part {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(-24deg);
-  }
 }
 
 .clapper-body {
-  flex: 1;
-  margin: 0 4%;
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
   background: var(--film-stock);
-  border: 0.15em solid var(--film-cream);
+  border-radius: 8px;
+  animation: clapper-body-in 0.35s both;
+}
+
+.wheel-stage[data-transition='open'] .clapper-body {
+  animation: clapper-body-out 0.35s both;
 }
 
 .clapper-word {
   color: var(--film-cream);
   font-family: 'Bebas Neue', Impact, sans-serif;
-  font-size: clamp(2rem, 14cqw, 8rem);
+  font-size: clamp(2.25rem, 16cqw, 5.25rem);
   letter-spacing: 0.06em;
   line-height: 1;
 }
 
+.clapper-stick {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 13%;
+  box-sizing: border-box;
+  background: repeating-linear-gradient(-55deg, var(--film-cream) 0 28px, var(--film-stock) 28px 56px);
+  border: 3px solid var(--film-stock);
+  border-radius: 4px;
+}
+
+.clapper-stick-top {
+  top: 22%;
+  transform-origin: 2% 100%;
+  animation: clapper-swing 0.42s cubic-bezier(0.55, 0, 1, 0.45) both;
+}
+
+.clapper-stick-bottom {
+  top: 35%;
+}
+
+.wheel-stage[data-transition='open'] .clapper-stick-top {
+  animation: clapper-top-out 0.4s both;
+}
+
+.wheel-stage[data-transition='open'] .clapper-stick-bottom {
+  animation: clapper-bottom-out 0.4s both;
+}
+
+@keyframes clapper-body-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes clapper-body-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes clapper-swing {
+  from {
+    transform: rotate(-32deg);
+  }
+}
+
+@keyframes clapper-top-out {
+  to {
+    top: -30%;
+  }
+}
+
+@keyframes clapper-bottom-out {
+  to {
+    top: 120%;
+  }
+}
+
 .wheel-stage[data-transition='slam'] .wheel-zoom {
-  animation: slam-shake 0.32s 0.42s steps(1, end);
+  animation: slam-shake 0.32s 0.42s linear both;
 }
 
 @keyframes slam-shake {
-  0% {
-    transform: translate(-1.2%, 0.8%);
+  0%,
+  100% {
+    transform: none;
   }
-  25% {
-    transform: translate(1.2%, -0.8%);
+  20% {
+    transform: translate(-6px, 4px) rotate(-0.6deg);
   }
-  50% {
-    transform: translate(-0.8%, -0.5%);
+  40% {
+    transform: translate(5px, -3px);
   }
-  75% {
-    transform: translate(0.6%, 0.4%);
+  60% {
+    transform: translate(-3px, 2px);
+  }
+  80% {
+    transform: translate(2px, -1px);
   }
 }
 
