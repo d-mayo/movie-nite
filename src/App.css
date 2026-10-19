@@ -778,6 +778,198 @@ html:has(.wheel-stage[data-zoom]) {
   opacity: 0;
 }
 
+/* The reel change into the wildcard wheel: a cue mark blinks twice in the stage's corner, then the
+   wheel rolls in the gate (a stepped vertical jolt with blur and a brightness flare). It moves the zoom
+   wrapper, never the stage, which must stay free of any transform or filter that would trap its fixed
+   descendants (the flicker, the close-call vignette). */
+.cue-mark {
+  position: absolute;
+  top: 2%;
+  right: 2%;
+  z-index: 2;
+  width: 3.4%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--film-cream);
+  box-shadow: 0 0 0 0.25em #000;
+  pointer-events: none;
+  animation: cue-blink 0.88s steps(1, end) forwards;
+}
+
+@keyframes cue-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  12.5% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  62.5% {
+    opacity: 0;
+  }
+}
+
+.wheel-stage[data-transition='roll'] .wheel-zoom {
+  animation: gate-roll 0.55s steps(1, end);
+}
+
+@keyframes gate-roll {
+  0% {
+    transform: translateY(0);
+    filter: blur(0) brightness(1);
+  }
+  15% {
+    transform: translateY(-14%);
+    filter: blur(3px) brightness(1.6);
+  }
+  35% {
+    transform: translateY(9%);
+    filter: blur(2px) brightness(1.3);
+  }
+  55% {
+    transform: translateY(-4%);
+    filter: blur(1px) brightness(1.15);
+  }
+  75% {
+    transform: translateY(2%);
+    filter: blur(0) brightness(1.05);
+  }
+  100% {
+    transform: translateY(0);
+    filter: blur(0) brightness(1);
+  }
+}
+
+/* Leaving it: a WILDCARD clapperboard covers the stage, its top stick swings shut, the wheel shakes
+   on the slam, and the sticks part over the main wheel as the slate fades. */
+.clapper {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  padding: 4% 0;
+  pointer-events: none;
+  animation: clapper-in 0.1s linear both;
+}
+
+.wheel-stage[data-transition='open'] .clapper {
+  animation: clapper-out 0.42s ease-in forwards;
+}
+
+@keyframes clapper-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes clapper-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.clapper-sticks {
+  position: relative;
+  height: 14%;
+  margin: 0 4%;
+}
+
+.clapper-stick {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(115deg, var(--film-cream) 0 8%, var(--film-stock) 8% 16%);
+  border: 0.15em solid var(--film-cream);
+}
+
+.clapper-stick-top {
+  transform-origin: 0 100%;
+  transform: rotate(-24deg);
+  animation: clapper-swing 0.42s cubic-bezier(0.6, 0, 0.9, 0.6) forwards;
+}
+
+.clapper-stick-bottom {
+  top: auto;
+  bottom: 0;
+  height: 80%;
+}
+
+.wheel-stage[data-transition='open'] .clapper-stick-top {
+  animation: clapper-part 0.42s ease-out forwards;
+}
+
+@keyframes clapper-swing {
+  from {
+    transform: rotate(-24deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes clapper-part {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-24deg);
+  }
+}
+
+.clapper-body {
+  flex: 1;
+  margin: 0 4%;
+  display: grid;
+  place-items: center;
+  background: var(--film-stock);
+  border: 0.15em solid var(--film-cream);
+}
+
+.clapper-word {
+  color: var(--film-cream);
+  font-family: 'Bebas Neue', Impact, sans-serif;
+  font-size: clamp(2rem, 14cqw, 8rem);
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.wheel-stage[data-transition='slam'] .wheel-zoom {
+  animation: slam-shake 0.32s 0.42s steps(1, end);
+}
+
+@keyframes slam-shake {
+  0% {
+    transform: translate(-1.2%, 0.8%);
+  }
+  25% {
+    transform: translate(1.2%, -0.8%);
+  }
+  50% {
+    transform: translate(-0.8%, -0.5%);
+  }
+  75% {
+    transform: translate(0.6%, 0.4%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cue-mark,
+  .clapper,
+  .clapper-stick-top,
+  .wheel-stage[data-transition] .wheel-zoom {
+    animation: none;
+  }
+}
+
 /* A landed wildcard card (interim look, the film tokens): it turns over from its back to its face. */
 .card-reveal {
   position: fixed;

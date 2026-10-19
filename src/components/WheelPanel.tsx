@@ -85,6 +85,21 @@ function Flicker() {
   return <div className="flicker" data-testid="flicker" aria-hidden="true" onAnimationEnd={() => setPlayed(true)} />
 }
 
+// The WILDCARD clapperboard that covers the stage when the wildcard wheel is left.
+function Clapper() {
+  return (
+    <div className="clapper" data-testid="clapper" aria-hidden="true">
+      <div className="clapper-sticks">
+        <div className="clapper-stick clapper-stick-top" />
+        <div className="clapper-stick clapper-stick-bottom" />
+      </div>
+      <div className="clapper-body">
+        <span className="clapper-word">WILDCARD</span>
+      </div>
+    </div>
+  )
+}
+
 interface Spin {
   wedges: Wedge[]
   drawn: number
@@ -123,6 +138,18 @@ type Draw =
 // Half of a crossfade between the main wheel and the wildcard wheel: the stage fades out, the
 // wheels swap, and it fades back in.
 export const crossfadeMs = 150
+
+// The reel change into the wildcard wheel: the cue mark blinks twice, then the wheel rolls in the gate
+// and the wheels swap mid-roll. Leaving, a WILDCARD clapperboard slams shut (the wheel shakes on the
+// slam), the wheels swap under it and its sticks part. All in ms; a test-length spin shrinks them.
+export const cueMs = 880
+export const rollMs = 550
+export const slamMs = 740
+export const openMs = 420
+const testTransitionScale = 0.02
+
+// Which part of a reel change or clapper slam the stage is in.
+type Transition = 'cue' | 'roll' | 'slam' | 'open'
 
 // How long a movie or Reshuffle card shows its title and text before its cans or failure, whatever the draw found.
 const announceMs = 3000
@@ -180,6 +207,10 @@ export default function WheelPanel({
   const [forceCard, setForceCard] = useState('')
   // The stage is faded out between the main wheel and the wildcard wheel.
   const [fading, setFading] = useState(false)
+  // The reel change or clapper slam in progress; the lock and the main Spin wait for it to end.
+  const [transition, setTransition] = useState<Transition | null>(null)
+  const transitionTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const transitionRef = useRef<Transition | null>(null)
   const [draw, setDraw] = useState<Draw | null>(null)
   const fadeTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const countdownTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -199,6 +230,7 @@ export default function WheelPanel({
       clearTimeout(easeTimer.current)
       clearTimeout(countdownTimer.current)
       clearTimeout(fadeTimer.current)
+      clearTimeout(transitionTimer.current)
       // Unmounted with the reveal open (a cleared token): the music still fades.
       if (musicOn.current) soundRef.current.revealClosed()
     },
@@ -285,6 +317,19 @@ export default function WheelPanel({
       swap()
       setFading(false)
     }, crossfadeMs)
+  }
+
+  // Moves the stage to the next part of a transition, which `after` ms later runs `next`.
+  function phase(next: Transition | null, after: number, then: () => void) {
+    transitionRef.current = next
+    setTransition(next)
+    clearTimeout(transitionTimer.current)
+    transitionTimer.current = setTimeout(then, after)
+  }
+
+  // Every beat of a reel change or slam runs at full length, except in a test-length spin.
+  function transitionScale(): number {
+    return spinMs !== undefined ? testTransitionScale : 1
   }
 
   function forcedCardEligible(): boolean {
@@ -464,7 +509,7 @@ export default function WheelPanel({
         setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null })
         return
       }
-      crossfade(() =>
+      const swap = () =>
         setSpin({
           wedges: buildCardWedges(deal),
           drawn: 0,
@@ -480,6 +525,17 @@ export default function WheelPanel({
           blind: false,
           toCards: false,
           taken: null,
+        })
+      if (prefersReducedMotion()) {
+        crossfade(swap)
+        return
+      }
+      // The cue mark blinks, the wheel rolls in the gate, and the wheels swap halfway through the roll.
+      const k = transitionScale()
+      phase('cue', cueMs * k, () =>
+        phase('roll', (rollMs / 2) * k, () => {
+          swap()
+          phase('roll', (rollMs / 2) * k, () => phase(null, 0, () => {}))
         }),
       )
     }
@@ -540,10 +596,23 @@ export default function WheelPanel({
     clearTimeout(easeTimer.current)
     if (musicOn.current) sound.revealClosed()
     musicOn.current = false
+    if (transitionRef.current === 'slam' || transitionRef.current === 'open') return
     setSpin((s) => s && { ...s, leaving: true })
-    crossfade(() => {
+    if (prefersReducedMotion()) {
+      crossfade(() => {
+        setSpin(null)
+        onBusyChange(false)
+      })
+      return
+    }
+    // The clapperboard slams shut over the stage, the wheels swap under it, its sticks part, and the lock ends.
+    const k = transitionScale()
+    phase('slam', slamMs * k, () => {
       setSpin(null)
-      onBusyChange(false)
+      phase('open', openMs * k, () => {
+        phase(null, 0, () => {})
+        onBusyChange(false)
+      })
     })
   }
 
@@ -757,6 +826,7 @@ export default function WheelPanel({
         data-zoom={spin?.zoom ?? undefined}
         data-fade={fading ? 'out' : undefined}
         data-wheel={spin?.wheel === 'cards' ? 'cards' : undefined}
+        data-transition={transition ?? undefined}
       >
         {/* A close call's zoom scales this wrapper, not the stage, which the reveal measures and the flicker sits in. */}
         <div className="wheel-zoom">
@@ -766,7 +836,7 @@ export default function WheelPanel({
               type="button"
               className="spin-button"
               onClick={start}
-              disabled={!canSpin || (spin !== null && !spin.waiting)}
+              disabled={!canSpin || (spin !== null && !spin.waiting) || transition === 'slam' || transition === 'open'}
               aria-describedby={waiting ? 'spin-waiting' : undefined}
             >
               <Hub hubRef={motion.hubRef} />
@@ -775,6 +845,8 @@ export default function WheelPanel({
           )}
           {spin?.countdown != null && <Countdown number={spin.countdown} />}
         </div>
+        {transition === 'cue' && <div className="cue-mark" data-testid="cue-mark" aria-hidden="true" />}
+        {(transition === 'slam' || transition === 'open') && <Clapper />}
         <div className="zoom-vignette" ref={vignetteRef} aria-hidden="true" />
         {spin?.landed && <Flicker key={spin.wheel} />}
         {waiting && (
