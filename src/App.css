@@ -978,6 +978,8 @@ html:has(.wheel-stage[data-zoom]) {
   box-sizing: border-box;
   display: none;
   width: max(100%, 14rem);
+  max-height: 60vh;
+  overflow-y: auto;
   padding: var(--space-2) var(--space-3);
   background: var(--film-stock);
   color: var(--film-cream);
@@ -987,7 +989,6 @@ html:has(.wheel-stage[data-zoom]) {
   font-size: 0.85rem;
   line-height: 1.35;
   text-align: left;
-  pointer-events: none;
 }
 
 .can-tip-runtime {

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { posterUrl } from '../tmdb/client.ts'
-import { formatRuntime, synopsisSnippet } from '../wheel/reveal.ts'
+import { formatRuntime } from '../wheel/reveal.ts'
 import { hasCans, phaseOf, tickDelayMs, tickPath, type Cans } from '../wildcards/cans.ts'
 
 // How long each beat lasts, in milliseconds, before a test or reduced motion shrinks them.
@@ -8,7 +8,6 @@ const arrowSettleMs = 450
 const drumrollMs = 2400
 const sealedHoldMs = 1100
 const openHoldMs = 600
-const snippetChars = 140
 
 interface Props {
   cans: Cans
@@ -180,7 +179,7 @@ export default function FilmCans({
               {open && (
                 <span id={`${tipId}-${i}`} role="tooltip" className="can-tip">
                   {film.runtime !== null && <span className="can-tip-runtime">{formatRuntime(film.runtime)}</span>}
-                  {film.overview ? synopsisSnippet(film.overview, snippetChars) : 'No description on TMDB.'}
+                  {film.overview.trim() || 'No description on TMDB.'}
                 </span>
               )}
             </li>
