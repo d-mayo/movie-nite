@@ -682,6 +682,7 @@ function drawingSetup(fetchFn: typeof fetch, nominations: AppState['night']['nom
   const lb: LetterboxdClient = {
     checkProfile: vi.fn(),
     watchlistPage: vi.fn(async () => ({ slugs: ['a', 'b'], hasNext: false })),
+    listPage: vi.fn(),
     filmTmdbId: vi.fn(async (slug: string) => (slug === 'a' ? 11 : 22)),
     filmSlug: vi.fn(async () => 'unavailable' as const),
   }
@@ -736,6 +737,7 @@ function overlapSetup(filmSlug: LetterboxdClient['filmSlug'], walks: SettledWalk
   const lb: LetterboxdClient = {
     checkProfile: vi.fn(),
     watchlistPage: vi.fn(),
+    listPage: vi.fn(),
     filmTmdbId: vi.fn(),
     filmSlug,
   }

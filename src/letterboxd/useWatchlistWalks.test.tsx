@@ -25,6 +25,7 @@ function fakeClient() {
           pending.push({ username, page, resolve })
         }),
     ),
+    listPage: vi.fn(),
     filmTmdbId: vi.fn(),
     filmSlug: vi.fn(),
   }
