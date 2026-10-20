@@ -1,7 +1,7 @@
 import letterboxdLogo from '../assets/letterboxd-logo.png'
 import { letterboxdFilmUrl } from '../letterboxd/links.ts'
 import { useLayoutEffect, useState, type CSSProperties } from 'react'
-import type { Nomination, Outcome } from '../state/model.ts'
+import type { GameEntry, Nomination, Outcome } from '../state/model.ts'
 import { posterUrl, type TmdbClient } from '../tmdb/client.ts'
 import { prefersReducedMotion } from '../wheel/reducedMotion.ts'
 import { finishWindow, formatRuntime, synopsisSnippet } from '../wheel/reveal.ts'
@@ -80,6 +80,64 @@ export function useStageCenter(): number | null {
     }
   }, [])
   return x
+}
+
+// The game Play Rento names: a pawn where the poster would be, linking to the game, in the film reveal's frame.
+// Play lands the card and saves the game; the × leaves with nothing.
+export function GameReveal({
+  game,
+  byline,
+  onPlay,
+  onClose,
+}: {
+  game: GameEntry
+  byline: string
+  onPlay: () => void
+  onClose: () => void
+}) {
+  const reduced = prefersReducedMotion()
+  const centerX = useStageCenter()
+  return (
+    <div
+      role="dialog"
+      aria-labelledby="reveal-heading"
+      className={reduced ? 'reveal' : 'reveal reveal-thread'}
+      style={centerX === null ? undefined : { left: centerX }}
+    >
+      <div className="reveal-film">
+        <button type="button" className="reveal-close" aria-label="Close" onClick={onClose}>
+          ×
+        </button>
+        <div className="reveal-poster">
+          <a
+            className="reveal-poster-link reveal-game-link"
+            href={game.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${game.name}`}
+          >
+            <svg className="reveal-pawn" viewBox="-6 -6 12 12" aria-hidden="true">
+              <circle cx="0" cy="-2.6" r="1.8" />
+              <path d="M-1.2 -0.8 H1.2 C1.4 1 2.2 2.2 3 3 H-3 C-2.2 2.2 -1.4 1 -1.2 -0.8 Z" />
+              <rect x="-3.6" y="3.4" width="7.2" height="1.4" rx="0.4" />
+            </svg>
+          </a>
+        </div>
+        <div className="reveal-info">
+          <Eyebrow color={wildcardDot} closeCall={false}>
+            Now playing
+          </Eyebrow>
+          <h2 id="reveal-heading">{game.name}</h2>
+          <p className="reveal-byline">{byline}</p>
+          <div className="reveal-actions">
+            <button type="button" className="primary reveal-watch" onClick={onPlay}>
+              Play
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function Reveal({

@@ -1,6 +1,7 @@
 import type { AppState, Nomination } from '../state/model.ts'
 import { refusedFilms, watchedFilms } from '../state/model.ts'
 import type { DrawResult } from './watchlist.ts'
+import type { ListDrawResult } from './listDraw.ts'
 
 // The words for a draw that found no film, as the viewer's cell and a Reshuffle card both show them.
 export function drawMessage(
@@ -17,6 +18,20 @@ export function drawMessage(
       return `${viewerName}'s watchlist is private.`
     case 'missing':
       return `Letterboxd has no watchlist for ${username ?? viewerName}.`
+    case 'unavailable':
+      return "Letterboxd can't be reached right now."
+  }
+}
+
+// The words for a Movie Night Rewind draw that found no film.
+export function listMessage(result: Exclude<ListDrawResult, number[]>): string {
+  switch (result) {
+    case 'private':
+      return 'The FFF movie night list is private.'
+    case 'missing':
+      return "Letterboxd can't find the FFF movie night list."
+    case 'exhausted':
+      return 'No film on the FFF movie night list can be used.'
     case 'unavailable':
       return "Letterboxd can't be reached right now."
   }
