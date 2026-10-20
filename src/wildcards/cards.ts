@@ -53,6 +53,8 @@ export interface DealContext {
   today: Date
   // True when a usable film sits on two or more present viewers' settled watchlists, for Common Ground.
   commonGround: boolean
+  // True when tonight's watched list already holds a game entry, for Play Rento.
+  gamePlayed?: boolean
 }
 
 // Where a movie card's film comes from: TMDB's discover, or a film already on the board.
@@ -61,6 +63,8 @@ export type CardSource =
   | { kind: 'shortest'; viewerId: string; tmdbId: number }
   | { kind: 'backlog'; viewerId: string }
   | { kind: 'commonGround' }
+  | { kind: 'list'; username: string; slug: string }
+  | { kind: 'game'; name: string; url: string }
 
 export interface RolledCard {
   cardId: string
@@ -540,6 +544,50 @@ const commonGroundCard: CardDef = {
   },
 }
 
+// Three films from the FFF group's movie night list on Letterboxd.
+const rewindCard: CardDef = {
+  id: 'movie-night-rewind',
+  type: 'movie',
+  fff: true,
+  name: 'Movie Night Rewind',
+  description: "Three films from the FFF movie night list.",
+  eligible: () => true,
+  roll() {
+    return {
+      cardId: 'movie-night-rewind',
+      type: 'movie',
+      fff: true,
+      label: 'Movie Night Rewind',
+      title: 'Movie Night Rewind',
+      text: 'Three films from the FFF movie night list in the cans.',
+      effect: { cardId: 'movie-night-rewind', label: 'Movie Night Rewind', change: { kind: 'movie' } },
+      source: { kind: 'list', username: 'loreno', slug: 'fff-movie-night-1' },
+    }
+  },
+}
+
+// A game instead of a film: once a night.
+const rentoCard: CardDef = {
+  id: 'play-rento',
+  type: 'movie',
+  fff: true,
+  name: 'Play Rento',
+  description: 'Play Rento instead of watching a film, once a night.',
+  eligible: (context) => !context.gamePlayed,
+  roll() {
+    return {
+      cardId: 'play-rento',
+      type: 'movie',
+      fff: true,
+      label: 'Play Rento',
+      title: 'Play Rento',
+      text: 'Tonight the room plays Rento.',
+      effect: { cardId: 'play-rento', label: 'Play Rento', change: { kind: 'movie' } },
+      source: { kind: 'game', name: 'Rento', url: 'https://rento.com/' },
+    }
+  },
+}
+
 export const cards: CardDef[] = [
   viewerCard('viewer-weight', 'weight', "One viewer's weight", "Raises or lowers one viewer's weight for the night."),
   viewerCard('viewer-slices', 'slices', "One viewer's slices", "Adds or removes slices for one viewer for the night."),
@@ -563,6 +611,8 @@ export const cards: CardDef[] = [
   shortestCard,
   backlogCard,
   commonGroundCard,
+  rewindCard,
+  rentoCard,
 ]
 
 function validChange(value: unknown): value is CardChange {

@@ -16,16 +16,17 @@ export interface Wedge {
   cardGlyph?: CardGlyph
 }
 
-export type CardGlyph = 'wheel' | 'film' | 'pumpkin' | 'tree' | 'heart' | 'claw'
+export type CardGlyph = 'wheel' | 'film' | 'pumpkin' | 'tree' | 'heart' | 'claw' | 'pawn'
 
 const seasonalGlyphs: Record<string, CardGlyph> = {
   halloween: 'pumpkin',
   christmas: 'tree',
   romance: 'heart',
   'creature-feature': 'claw',
+  'play-rento': 'pawn',
 }
 
-// The glyph a dealt card draws: its own for a seasonal card, else its type's.
+// The glyph a dealt card draws: its own for a seasonal card or the game, else its type's.
 export function cardGlyph(card: { cardId: string; type: 'wheel' | 'movie' }): CardGlyph {
   return seasonalGlyphs[card.cardId] ?? (card.type === 'wheel' ? 'wheel' : 'film')
 }

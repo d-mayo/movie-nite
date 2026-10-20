@@ -18,7 +18,7 @@ const viewer = (id: string, slices = 3, weight = 5): DealViewer => ({
 const byId = (id: string) => cards.find((c) => c.id === id)!
 
 describe('the wheel cards', () => {
-  it('has the wheel cards and the movie cards, none flagged FFF', () => {
+  it('has the wheel cards, the movie cards and the two FFF cards last', () => {
     expect(cards.map((c) => c.id)).toEqual([
       'viewer-weight',
       'viewer-slices',
@@ -40,9 +40,12 @@ describe('the wheel cards', () => {
       'shortest-on-the-board',
       'backlog',
       'common-ground',
+      'movie-night-rewind',
+      'play-rento',
     ])
     expect(cards.slice(0, 8).every((c) => c.type === 'wheel' && !c.fff)).toBe(true)
-    expect(cards.slice(8).every((c) => c.type === 'movie' && !c.fff)).toBe(true)
+    expect(cards.slice(8, 20).every((c) => c.type === 'movie' && !c.fff)).toBe(true)
+    expect(cards.slice(20).every((c) => c.type === 'movie' && c.fff)).toBe(true)
   })
 
   it('rolls a weight card with its label, title, text and effect', () => {
@@ -386,6 +389,39 @@ describe('the movie cards', () => {
       source: { kind: 'commonGround' },
       effect: { cardId: 'common-ground', label: 'Common ground', change: { kind: 'movie' } },
     })
+  })
+})
+
+describe('the FFF cards', () => {
+  const context: DealContext = { viewers: [viewer('a')], wildcardCount: 3, today, commonGround: false }
+
+  it('are FFF movie cards with a name and a description that roll their source and a movie effect', () => {
+    for (const id of ['movie-night-rewind', 'play-rento']) {
+      const card = byId(id)
+      expect(card.fff).toBe(true)
+      expect(card.type).toBe('movie')
+      expect(card.name.trim()).not.toBe('')
+      expect(card.description.trim()).not.toBe('')
+      const rolled = card.roll(context, seeded(1))
+      expect(rolled.fff).toBe(true)
+      expect(rolled.effect.change).toEqual({ kind: 'movie' })
+    }
+    expect(byId('movie-night-rewind').roll(context, seeded(1))).toMatchObject({
+      title: 'Movie Night Rewind',
+      source: { kind: 'list', username: 'loreno', slug: 'fff-movie-night-1' },
+    })
+    expect(byId('play-rento').roll(context, seeded(1))).toMatchObject({
+      title: 'Play Rento',
+      source: { kind: 'game', name: 'Rento', url: 'https://rento.com/' },
+    })
+  })
+
+  it('has Rewind always eligible and Rento eligible only while no game was played tonight', () => {
+    expect(byId('movie-night-rewind').eligible(context)).toBe(true)
+    expect(byId('play-rento').eligible(context)).toBe(true)
+    expect(byId('play-rento').eligible({ ...context, gamePlayed: false })).toBe(true)
+    expect(byId('play-rento').eligible({ ...context, gamePlayed: true })).toBe(false)
+    expect(byId('movie-night-rewind').eligible({ ...context, gamePlayed: true })).toBe(true)
   })
 })
 

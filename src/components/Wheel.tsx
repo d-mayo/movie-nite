@@ -157,6 +157,14 @@ function Glyph({ kind }: { kind: CardGlyph }) {
           stroke="none"
         />
       )
+    case 'pawn':
+      return (
+        <>
+          <circle cx="0" cy="-2.6" r="1.8" stroke="none" />
+          <path d="M-1.2 -0.8 H1.2 C1.4 1 2.2 2.2 3 3 H-3 C-2.2 2.2 -1.4 1 -1.2 -0.8 Z" stroke="none" />
+          <rect x="-3.6" y="3.4" width="7.2" height="1.4" rx="0.4" stroke="none" />
+        </>
+      )
     case 'claw':
       return (
         <>

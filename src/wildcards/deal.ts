@@ -11,14 +11,14 @@ export const maxCardWeight = 5
 // A few tries per slot to avoid a wedge that repeats one already dealt.
 const labelTries = 3
 
-// The cards that can be dealt: eligible and not switched off.
-function dealable(context: DealContext, disabled: readonly string[]) {
-  return cards.filter((card) => !disabled.includes(card.id) && card.eligible(context))
+// The cards that can be dealt: eligible and not switched off; the FFF cards only once unlocked.
+function dealable(context: DealContext, disabled: readonly string[], fffUnlocked: boolean) {
+  return cards.filter((card) => (fffUnlocked || !card.fff) && !disabled.includes(card.id) && card.eligible(context))
 }
 
 // Whether any card can be dealt.
-export function canDeal(context: DealContext, disabled: readonly string[] = []): boolean {
-  return dealable(context, disabled).length > 0
+export function canDeal(context: DealContext, disabled: readonly string[] = [], fffUnlocked = false): boolean {
+  return dealable(context, disabled, fffUnlocked).length > 0
 }
 
 // Eight cards, each drawn uniformly from the eligible ones and rolled (the same
@@ -27,8 +27,9 @@ export function dealCards(
   context: DealContext,
   random: () => number,
   disabled: readonly string[] = [],
+  fffUnlocked = false,
 ): DealtCard[] {
-  const eligible = dealable(context, disabled)
+  const eligible = dealable(context, disabled, fffUnlocked)
   if (eligible.length === 0) return []
   // A card that is guaranteed while eligible takes a slot of its own, at a random place on the wheel.
   const guaranteed = eligible.filter((card) => card.guaranteed)
