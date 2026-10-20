@@ -8,9 +8,9 @@ import NightOver from './NightOver.tsx'
 
 afterEach(cleanup)
 
-function mount(cardEffects: CardEffect[]) {
+function mount(cardEffects: CardEffect[], watched: unknown[] = []) {
   const store = createAppStore(
-    createMemoryPersistence({ ...defaultState, night: { ...defaultState.night, ended: true, cardEffects } }),
+    createMemoryPersistence({ ...defaultState, night: { ...defaultState.night, ended: true, cardEffects, watched: watched as never } }),
   )
   render(
     <AppStoreContext.Provider value={store}>
@@ -43,4 +43,29 @@ test('with no cards it shows no card list', () => {
   mount([])
   expect(screen.queryByText('Cards tonight:')).toBeNull()
   expect(screen.queryByRole('list', { name: 'Cards tonight' })).toBeNull()
+})
+
+const watchedFilm = { tmdbId: 7, title: 'Seven', year: 1995, posterPath: null, overview: '', runtime: null, genres: [] }
+const game = { kind: 'game', name: 'Rento', url: 'https://rento.com/' }
+
+test('a game entry reads "Rento (game)", linked in a new tab, under "Watched tonight:"', () => {
+  mount([], [watchedFilm, game])
+  expect(screen.getByText('Watched tonight:')).toBeInTheDocument()
+  expect(screen.queryByText('Films watched tonight:')).toBeNull()
+  const link = screen.getByRole('link', { name: 'Rento (game)' })
+  expect(link).toHaveAttribute('href', 'https://rento.com/')
+  expect(link).toHaveAttribute('target', '_blank')
+  expect(link.getAttribute('rel')).toContain('noopener')
+  expect(screen.getByRole('link', { name: 'Seven (1995)' })).toBeInTheDocument()
+})
+
+test('with films only the heading stays "Films watched tonight:"', () => {
+  mount([], [watchedFilm])
+  expect(screen.getByText('Films watched tonight:')).toBeInTheDocument()
+})
+
+test('a game alone is still a watched list', () => {
+  mount([], [game])
+  expect(screen.getByText('Watched tonight:')).toBeInTheDocument()
+  expect(screen.queryByText('No films were watched tonight.')).toBeNull()
 })

@@ -216,7 +216,8 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
     return now === factory
   })
   // Counted over the listed cards, so an unknown id in the saved list lowers nothing.
-  const cardsOn = listedCards.filter((card) => !wheel.disabledCards.includes(card.id)).length
+  const listed = listedCards(!!settings.fffUnlocked)
+  const cardsOn = listed.filter((card) => !wheel.disabledCards.includes(card.id)).length
   const onWheel = viewersOnWheel(night)
   return (
     <>
@@ -293,7 +294,7 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
                   Choose cards
                 </button>
                 <span>
-                  {cardsOn} of {listedCards.length} on
+                  {cardsOn} of {listed.length} on
                 </span>
               </div>
             </fieldset>
