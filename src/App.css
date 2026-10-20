@@ -1497,6 +1497,24 @@ body:has(.wheel-stage[data-wheel='cards']) {
   border: 1px solid var(--film-steel);
 }
 
+.reveal-game-link {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 2 / 3;
+  background: var(--film-steel-dark);
+  border: 1px solid var(--film-steel);
+}
+
+.reveal-pawn {
+  width: 70%;
+  fill: var(--film-steel-light);
+}
+
+.reveal-game-link:hover .reveal-pawn,
+.reveal-game-link:focus-visible .reveal-pawn {
+  fill: var(--film-cream);
+}
+
 .reveal-unknown {
   display: grid;
   place-items: center;

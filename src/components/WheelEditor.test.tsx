@@ -21,11 +21,11 @@ function film(id: number): Nomination {
   }
 }
 
-function setup(extra: { random?: () => number; spinMs?: number } = { spinMs: 20 }) {
+function setup(extra: { random?: () => number; spinMs?: number } = { spinMs: 20 }, fffUnlocked = false) {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, fffUnlocked, wheel: defaultWheelSettings },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
@@ -734,6 +734,36 @@ describe('choosing cards', () => {
     fireEvent.click(movieAll)
     expect(store.getState().settings.wheel.disabledCards).toEqual(movieIds)
     expect(screen.getByText(`${wheelIds.length} of ${listed.length} on`)).toBeInTheDocument()
+  })
+
+  test('locked, there are two groups and no FFF cards; unlocked, a third group switches both FFF cards and the count covers them', () => {
+    setup()
+    openEditor()
+    fireEvent.click(choose())
+    expect(within(overlay()!).queryByRole('heading', { name: 'FFF cards' })).toBeNull()
+    expect(within(overlay()!).queryByRole('switch', { name: 'Play Rento' })).toBeNull()
+    expect(screen.getByText(`${listed.length} of ${listed.length} on`)).toBeInTheDocument()
+    cleanup()
+
+    const store = setup({ spinMs: 20 }, true)
+    openEditor()
+    const total = cards.length
+    expect(screen.getByText(`${total} of ${total} on`)).toBeInTheDocument()
+    fireEvent.click(choose())
+    const box = within(overlay()!)
+    expect(box.getByRole('heading', { name: 'FFF cards' })).toBeInTheDocument()
+    const fffIds = cards.filter((c) => c.fff).map((c) => c.id)
+    for (const card of cards.filter((c) => c.fff)) {
+      expect(box.getByRole('switch', { name: card.name })).toHaveAccessibleDescription(card.description)
+    }
+    const all = box.getByRole('switch', { name: 'All FFF cards' })
+    expect(all).toBeChecked()
+    fireEvent.click(all)
+    expect(store.getState().settings.wheel.disabledCards).toEqual(fffIds)
+    expect(box.getByText(`0 of ${fffIds.length} on`)).toBeInTheDocument()
+    expect(screen.getByText(`${total - fffIds.length} of ${total} on`)).toBeInTheDocument()
+    fireEvent.click(all)
+    expect(store.getState().settings.wheel.disabledCards).toEqual([])
   })
 
   test('Done, Escape and a press outside close it, focus returns to the button, and a press inside does not', () => {

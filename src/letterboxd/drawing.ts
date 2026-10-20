@@ -1,6 +1,7 @@
 import type { AppState, Nomination } from '../state/model.ts'
-import { refusedFilms } from '../state/model.ts'
+import { refusedFilms, watchedFilms } from '../state/model.ts'
 import type { DrawResult } from './watchlist.ts'
+import type { ListDrawResult } from './listDraw.ts'
 
 // The words for a draw that found no film, as the viewer's cell and a Reshuffle card both show them.
 export function drawMessage(
@@ -22,6 +23,20 @@ export function drawMessage(
   }
 }
 
+// The words for a Movie Night Rewind draw that found no film.
+export function listMessage(result: Exclude<ListDrawResult, number[]>): string {
+  switch (result) {
+    case 'private':
+      return 'The FFF movie night list is private.'
+    case 'missing':
+      return "Letterboxd can't find the FFF movie night list."
+    case 'exhausted':
+      return 'No film on the FFF movie night list can be used.'
+    case 'unavailable':
+      return "Letterboxd can't be reached right now."
+  }
+}
+
 // "Jo's", "Jo's and Sam's", "Jo's, Sam's and Alex's".
 export function possessives(names: string[]): string {
   const owned = names.map((name) => `${name}'s`)
@@ -32,9 +47,15 @@ export function possessives(names: string[]): string {
 export function movieExclusions(night: AppState['night'], holdover: Nomination | null): Set<number> {
   const excluded = new Set<number>(Object.values(night.nominations).map((film) => film.tmdbId))
   for (const id of night.wonFilms) excluded.add(id)
-  for (const film of night.watched) excluded.add(film.tmdbId)
+  for (const film of watchedFilms(night)) excluded.add(film.tmdbId)
   if (holdover) excluded.add(holdover.tmdbId)
   return excluded
+}
+
+// The films Movie Night Rewind must skip: tonight's only, so every nomination and the films won and
+// watched tonight, but not the held film.
+export function rewindExclusions(night: AppState['night']): Set<number> {
+  return movieExclusions(night, null)
 }
 
 // The films a draw for this viewer must skip: every nomination, the films won tonight, the held film

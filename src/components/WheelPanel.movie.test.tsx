@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import App from '../App.tsx'
-import { defaultState, viewersOnWheel, type Nomination } from '../state/model.ts'
+import { defaultState, viewersOnWheel, watchedFilms, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import type { SoundEngine } from '../sound/engine.ts'
@@ -230,7 +230,7 @@ test('Watch records the film as a wildcard pick does and returns to the unlocked
   fireEvent.click(within(frame).getByRole('button', { name: 'Watch' }))
   await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
   const { night } = store.getState()
-  expect(night.watched.map((f) => f.title)).toEqual([title])
+  expect(watchedFilms(night).map((f) => f.title)).toEqual([title])
   expect(night.wonFilms).toEqual([])
   expect(night.nominations).toEqual(before.nominations)
   expect(sound.log.closed).toBe(1)
@@ -467,10 +467,18 @@ function lbFetch(options: {
   noDetails?: boolean
   private?: boolean
   filmFails?: boolean
+  // The FFF movie night list: its pages, or the status of its failure.
+  listPages?: Record<number, { slugs: string[]; hasNext: boolean; lastPage: number }>
+  listError?: { status: number; error?: string }
 }) {
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
   const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
+    if (url.includes('/lb/loreno/list/fff-movie-night-1')) {
+      if (options.listError) return json({ error: options.listError.error }, options.listError.status)
+      const page = Number(/page=(\d+)/.exec(url)?.[1] ?? 1)
+      return json(options.listPages?.[page] ?? { slugs: [], hasNext: false, lastPage: 1 })
+    }
     const list = /\/lb\/([a-z]+)\/watchlist/.exec(url)
     if (list && options.private) return json({ error: 'Watchlist is private' }, 404)
     if (list) return json({ slugs: options.lists[list[1]] ?? [], hasNext: false })
@@ -684,4 +692,117 @@ test("a won-tonight viewer's watchlist still counts toward Common Ground's group
   const dialog = await openCard()
   fireEvent.click(await within(dialog).findByRole('button', { name: 'Show the film' }))
   await screen.findByRole('heading', { name: 'Found 101' })
+})
+
+test('Movie Night Rewind draws from the FFF list, plays the cans and opens the reveal under its name', async () => {
+  forceCard('movie-night-rewind')
+  const fetchFn = lbFetch({
+    lists: {},
+    ids: { x: 101, y: 102, z: 103 },
+    listPages: { 1: { slugs: ['x', 'y', 'z'], hasNext: false, lastPage: 1 } },
+  })
+  const { store } = setup({ fetchFn, people: linked })
+  const dialog = await openCard()
+  expect(within(dialog).getByRole('heading')).toHaveTextContent('Movie Night Rewind')
+  expect(within(dialog).getByText('Rewinding the FFF movie night list…')).toBeInTheDocument()
+  expect(backButton(dialog)).toBeDisabled()
+  const picks = await within(dialog).findAllByRole('button', { name: /^Pick can/ })
+  expect(picks).toHaveLength(3)
+  fireEvent.click(picks[0])
+  await waitFor(() => expect(within(dialog).getAllByRole('tooltip')).toHaveLength(2))
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Take the sealed can' }))
+  const reveal = await screen.findByRole('heading', { name: /^Found/ })
+  const frame = reveal.closest('[role="dialog"]') as HTMLElement
+  expect(within(frame).getByText('Movie Night Rewind')).toBeInTheDocument()
+  expect(store.getState().night.cardEffects).toEqual([
+    { cardId: 'movie-night-rewind', label: 'Movie Night Rewind', change: { kind: 'movie' } },
+  ])
+  fireEvent.click(within(frame).getByRole('button', { name: 'Watch' }))
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  const { night } = store.getState()
+  expect(watchedFilms(night)).toHaveLength(1)
+  expect(night.wonFilms).toEqual([])
+})
+
+test('Movie Night Rewind still offers the held film when it is the only one not on the board', async () => {
+  forceCard('movie-night-rewind')
+  const fetchFn = lbFetch({
+    lists: {},
+    ids: { p: 1, q: 2, r: 101 },
+    listPages: { 1: { slugs: ['p', 'q', 'r'], hasNext: false, lastPage: 1 } },
+  })
+  setup({ fetchFn, holdover: film(101) })
+  const dialog = await openCard()
+  fireEvent.click(await within(dialog).findByRole('button', { name: 'Show the film' }))
+  expect(await screen.findByRole('heading', { name: 'Found 101' })).toBeInTheDocument()
+})
+
+test.each([
+  ['a private list', { status: 404, error: 'List is private' }, 'The FFF movie night list is private.'],
+  ['a missing list', { status: 404, error: 'No such list' }, "Letterboxd can't find the FFF movie night list."],
+  ['an unreachable Letterboxd', { status: 500 }, "Letterboxd can't be reached right now."],
+])('Movie Night Rewind with %s shows a message, and Back lands nothing', async (_name, listError, message) => {
+  forceCard('movie-night-rewind')
+  const { store } = setup({ fetchFn: lbFetch({ lists: {}, ids: {}, listError }) })
+  const dialog = await openCard()
+  expect(await within(dialog).findByText(message)).toBeInTheDocument()
+  fireEvent.click(backButton(dialog))
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  expect(store.getState().night.cardEffects).toEqual([])
+  expect(store.getState().night.watched).toEqual([])
+})
+
+test('Movie Night Rewind with no usable film on the list says so', async () => {
+  forceCard('movie-night-rewind')
+  const fetchFn = lbFetch({ lists: {}, ids: { p: 1 }, listPages: { 1: { slugs: ['p'], hasNext: false, lastPage: 1 } } })
+  setup({ fetchFn })
+  const dialog = await openCard()
+  expect(await within(dialog).findByText('No film on the FFF movie night list can be used.')).toBeInTheDocument()
+})
+
+test('Play Rento holds its card, then shows the game reveal; Play lands the card and saves the game', async () => {
+  forceCard('play-rento')
+  const { store } = setup({ fetchFn: tmdbFetch().fetchFn })
+  const dialog = await openCard()
+  expect(within(dialog).getByRole('heading')).toHaveTextContent('Play Rento')
+  expect(backButton(dialog)).toBeDisabled()
+  expect(screen.queryByText('Now playing')).toBeNull()
+  const play = await screen.findByRole('button', { name: 'Play' })
+  const frame = play.closest('[role="dialog"]') as HTMLElement
+  expect(within(frame).getByText('Now playing')).toBeInTheDocument()
+  expect(within(frame).getByRole('heading', { name: 'Rento' })).toBeInTheDocument()
+  expect(within(frame).getByText('Play Rento')).toBeInTheDocument()
+  const link = within(frame).getByRole('link', { name: 'Open Rento' })
+  expect(link).toHaveAttribute('href', 'https://rento.com/')
+  expect(link).toHaveAttribute('target', '_blank')
+  expect(link.getAttribute('rel')).toContain('noopener')
+  expect(within(frame).queryByRole('button', { name: 'Save for Next Week' })).toBeNull()
+  expect(frame.querySelector('.reveal-meta, .reveal-synopsis')).toBeNull()
+  expect(store.getState().night.cardEffects).toEqual([])
+  fireEvent.click(play)
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  const { night } = store.getState()
+  expect(night.cardEffects).toEqual([{ cardId: 'play-rento', label: 'Play Rento', change: { kind: 'movie' } }])
+  expect(night.watched).toEqual([{ kind: 'game', name: 'Rento', url: 'https://rento.com/' }])
+  expect(night.wonFilms).toEqual([])
+  expect(night.ended).toBe(false)
+})
+
+test('× on the game reveal saves nothing and lands no card', async () => {
+  forceCard('play-rento')
+  const { store } = setup({ fetchFn: tmdbFetch().fetchFn })
+  await openCard()
+  const play = await screen.findByRole('button', { name: 'Play' })
+  fireEvent.click(within(play.closest('[role="dialog"]') as HTMLElement).getByRole('button', { name: 'Close' }))
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  expect(store.getState().night.cardEffects).toEqual([])
+  expect(store.getState().night.watched).toEqual([])
+})
+
+test('a wedge for Play Rento draws the pawn glyph', async () => {
+  forceCard('play-rento')
+  setup({ fetchFn: tmdbFetch().fetchFn })
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
+  expect(screen.getAllByTestId('card-glyph')[0]).toHaveAttribute('data-glyph', 'pawn')
 })

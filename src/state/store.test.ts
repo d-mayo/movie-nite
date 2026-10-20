@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest'
-import { defaultState, isBlind, type Nomination } from './model.ts'
+import { defaultState, isBlind, watchedFilms, type Nomination } from './model.ts'
 import { createMemoryPersistence } from './persistence.ts'
 import { createAppStore } from './store.ts'
 import { presetColors } from '../wheel/colors.ts'
@@ -108,7 +108,7 @@ test('night progress and the holdover survive a reload, and clearing is saved', 
 
   const b = createAppStore(persistence)
   expect(b.getState().night.wonFilms).toEqual([1])
-  expect(b.getState().night.watched.map((f) => f.tmdbId)).toEqual([2])
+  expect(watchedFilms(b.getState().night).map((f) => f.tmdbId)).toEqual([2])
   expect(b.getState().night.ended).toBe(true)
   expect(b.getState().holdover).toEqual(film)
 
@@ -486,4 +486,33 @@ test('the disabled cards load empty unless stored as an array, keep only unique 
   store.getState().restoreWheelSettings()
   expect(store.getState().settings.wheel.disabledCards).toEqual([])
   expect(store.getState().settings.wheel.wildcardWheel).toBe(true)
+})
+
+test('fffUnlocked loads false unless stored as true, and Restore All Defaults leaves it on', () => {
+  for (const stored of [undefined, 'yes', 1, false]) {
+    const persistence = createMemoryPersistence({
+      ...defaultState,
+      settings: { ...defaultState.settings, fffUnlocked: stored as never },
+    })
+    expect(createAppStore(persistence).getState().settings.fffUnlocked).toBe(false)
+  }
+  const persistence = createMemoryPersistence({ ...defaultState, settings: { ...defaultState.settings, fffUnlocked: true } })
+  const store = createAppStore(persistence)
+  expect(store.getState().settings.fffUnlocked).toBe(true)
+  store.getState().restoreWheelSettings()
+  expect(store.getState().settings.fffUnlocked).toBe(true)
+  const off = createAppStore(createMemoryPersistence())
+  off.getState().setFffUnlocked(true)
+  expect(off.getState().settings.fffUnlocked).toBe(true)
+})
+
+test('a stored watched list loads its films and games and drops the malformed', () => {
+  const game = { kind: 'game', name: 'Rento', url: 'https://rento.com/' }
+  const persistence = createMemoryPersistence({
+    ...defaultState,
+    night: { ...defaultState.night, watched: [{ tmdbId: 1, title: 'A', year: null, posterPath: null, overview: '', runtime: null, genres: [] }, game, { kind: 'game', name: 3 }, { kind: 'other' }] as never },
+  })
+  const watched = createAppStore(persistence).getState().night.watched
+  expect(watched).toHaveLength(2)
+  expect(watched[1]).toEqual(game)
 })

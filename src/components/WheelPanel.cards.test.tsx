@@ -131,13 +131,14 @@ function setup(
     people?: typeof roster
     nominations?: Record<string, Nomination>
     cardEffects?: CardEffect[]
+    fffUnlocked?: boolean
   } = {},
 ) {
   const wheel = { ...defaultWheelSettings, ...options.wheel }
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { viewersHidden: false, wheel },
+      settings: { viewersHidden: false, fffUnlocked: options.fffUnlocked ?? false, wheel },
       roster: options.people ?? roster,
       night: {
         ...defaultState.night,
@@ -796,4 +797,33 @@ test('the debug Force card ignores the switches, even with every card switched o
   fireEvent.change(screen.getByLabelText('Force card'), { target: { value: 'blind-spin' } })
   const dialog = await openCard()
   expect(within(dialog).getByRole('heading')).toHaveTextContent('Blind Spin')
+})
+
+const nonFffIds = cards.filter((c) => !c.fff).map((c) => c.id)
+
+test('the debug Force card select lists the FFF cards only while they are unlocked', () => {
+  window.history.pushState({}, '', '/?debug')
+  setup()
+  const options = () => within(screen.getByLabelText('Force card')).getAllByRole('option').map((o) => o.textContent)
+  expect(options()).not.toContain('movie-night-rewind')
+  expect(options()).not.toContain('play-rento')
+  expect(options()).toContain('blind-spin')
+  cleanup()
+  setup({ fffUnlocked: true })
+  expect(options()).toContain('movie-night-rewind')
+  expect(options()).toContain('play-rento')
+})
+
+test('with FFF locked and every other card off a wildcard landing opens the search; unlocked, it deals FFF cards only', async () => {
+  setup({ wheel: { disabledCards: nonFffIds } })
+  fireEvent.click(spinButton())
+  const dialog = await screen.findByRole('dialog')
+  expect(within(dialog).getByRole('heading')).toHaveTextContent('Wildcard!')
+  expect(wedgeKinds()).not.toContain('card')
+  cleanup()
+  setup({ wheel: { disabledCards: nonFffIds }, fffUnlocked: true })
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
+  expect(wheelText()).toMatch(/MOVIE NIGHT REWIND|PLAY RENTO/)
+  expect(wheelText()).not.toMatch(/BLIND SPIN|HALLOWEEN|GENRE/)
 })

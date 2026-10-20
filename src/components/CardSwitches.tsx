@@ -2,12 +2,15 @@ import { useEffect, useRef, type RefCallback } from 'react'
 import { useApp } from '../state/store.ts'
 import { cards, type CardType } from '../wildcards/cards.ts'
 
-// The cards the overlay lists: the registry's, but not the FFF ones.
-export const listedCards = cards.filter((card) => !card.fff)
+// The cards the overlay lists: the registry's, the FFF ones only once they are unlocked.
+export function listedCards(fffUnlocked: boolean) {
+  return cards.filter((card) => fffUnlocked || !card.fff)
+}
 
-const groups: { type: CardType; heading: string }[] = [
-  { type: 'wheel', heading: 'Wheel cards' },
-  { type: 'movie', heading: 'Movie cards' },
+const groups: { id: string; type: CardType; fff: boolean; heading: string }[] = [
+  { id: 'wheel', type: 'wheel', fff: false, heading: 'Wheel cards' },
+  { id: 'movie', type: 'movie', fff: false, heading: 'Movie cards' },
+  { id: 'fff', type: 'movie', fff: true, heading: 'FFF cards' },
 ]
 
 // Mounted only while shown, like Credits: Done unmounts it directly and Escape does so
@@ -55,23 +58,23 @@ export default function CardSwitches({ onClosed }: { onClosed: () => void }) {
         </button>
       </div>
       <div className="card-switches-body">
-        {groups.map(({ type, heading }) => {
-          const group = listedCards.filter((card) => card.type === type)
+        {groups.filter((g) => !g.fff || settings.fffUnlocked).map(({ id, type, fff, heading }) => {
+          const group = cards.filter((card) => card.type === type && card.fff === fff)
           const on = group.filter((card) => !disabledCards.includes(card.id)).length
           // Neither all on nor all off: the group switch shows the dash.
           const mixed: RefCallback<HTMLInputElement> = (el) => {
             if (el) el.indeterminate = on > 0 && on < group.length
           }
           return (
-          <section key={type} className="card-group" aria-labelledby={`card-group-${type}`}>
+          <section key={id} className="card-group" aria-labelledby={`card-group-${id}`}>
             <div className="card-head">
-              <h3 id={`card-group-${type}`}>{heading}</h3>
+              <h3 id={`card-group-${id}`}>{heading}</h3>
               <label className="switch">
                 <input
                   ref={mixed}
                   type="checkbox"
                   role="switch"
-                  aria-label={`All ${heading.toLowerCase()}`}
+                  aria-label={fff ? `All ${heading}` : `All ${heading.toLowerCase()}`}
                   checked={on === group.length}
                   onChange={(e) =>
                     setCardsEnabled(

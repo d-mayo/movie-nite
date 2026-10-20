@@ -33,6 +33,10 @@ import {
   setCardsEnabled,
   restoreWheelSettings,
   setViewersHidden,
+  setFffUnlocked,
+  playGame,
+  validWatched,
+  type GameEntry,
   setViewerColor,
   setViewerSliceCount,
   linkLetterboxd,
@@ -66,6 +70,8 @@ import { assignColors } from '../wheel/colors.ts'
 
 export interface AppActions {
   setViewersHidden(hidden: boolean): void
+  setFffUnlocked(unlocked: boolean): void
+  playGame(effect: CardEffect, game: GameEntry): void
   addViewer(name: string): void
   removeViewer(id: string): void
   setViewerColor(id: string, color: string): void
@@ -207,6 +213,7 @@ function mergeOverDefaults(stored: AppState | null): AppState {
     night.adjustments = layout && typeof layout === 'object' ? adjustmentsFromLayout(layout) : {}
   }
   night.cardEffects = validCardEffects(storedNight.cardEffects)
+  night.watched = validWatched(storedNight.watched)
   // A token stored by an older version is dropped: the Worker holds it now.
   const { tmdbToken: _dropped, ...storedSettings } = (stored.settings ?? {}) as AppState['settings'] & {
     tmdbToken?: unknown
@@ -216,7 +223,12 @@ function mergeOverDefaults(stored: AppState | null): AppState {
     ...defaultState,
     ...stored,
     roster: Array.isArray(stored.roster) ? withValidLetterboxd(assignColors(stored.roster)) : defaultState.roster,
-    settings: { ...defaultState.settings, ...storedSettings, wheel: mergeWheel(stored.settings?.wheel) },
+    settings: {
+      ...defaultState.settings,
+      ...storedSettings,
+      fffUnlocked: storedSettings.fffUnlocked === true,
+      wheel: mergeWheel(stored.settings?.wheel),
+    },
     night,
   }
 }
@@ -237,6 +249,8 @@ export function createAppStore(persistence: Persistence): AppStore {
     return {
       ...mergeOverDefaults(persistence.load()),
       setViewersHidden: (hidden) => update((s) => setViewersHidden(s, hidden)),
+      setFffUnlocked: (unlocked) => update((s) => setFffUnlocked(s, unlocked)),
+      playGame: (effect, game) => update((s) => playGame(s, effect, game)),
       addViewer: (name) => update((s) => addViewer(s, name, newId())),
       removeViewer: (id) => update((s) => removeViewer(s, id)),
       setViewerColor: (id, color) => update((s) => setViewerColor(s, id, color)),

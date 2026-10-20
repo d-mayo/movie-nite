@@ -52,11 +52,17 @@ describe('card glyphs', () => {
       christmas: 'tree',
       romance: 'heart',
       'creature-feature': 'claw',
+      'play-rento': 'pawn',
     }
     for (const card of cards) {
       const expected = seasonal[card.id] ?? (card.type === 'wheel' ? 'wheel' : 'film')
       expect(cardGlyph({ cardId: card.id, type: card.type })).toBe(expected)
     }
+  })
+
+  test('the game card gets the pawn and Movie Night Rewind keeps the film frame', () => {
+    expect(cardGlyph({ cardId: 'play-rento', type: 'movie' })).toBe('pawn')
+    expect(cardGlyph({ cardId: 'movie-night-rewind', type: 'movie' })).toBe('film')
   })
 
   test('buildCardWedges carries each card type and glyph', () => {

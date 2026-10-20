@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import App from '../App.tsx'
-import { defaultState, type AppState, type Nomination } from '../state/model.ts'
+import { defaultState, watchedFilms, type AppState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import { type Slice } from '../wheel/layout.ts'
@@ -86,7 +86,7 @@ test('Watch takes the winner and the duplicate off the wheel and unlocks setup',
   fireEvent.click(within(dialog).getByRole('button', { name: 'Watch' }))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(store.getState().night.wonFilms).toEqual([1])
-  expect(store.getState().night.watched.map((f) => f.tmdbId)).toEqual([1])
+  expect(watchedFilms(store.getState().night).map((f) => f.tmdbId)).toEqual([1])
   // Only Cy's 3 slices and wildcard remain.
   expect(screen.getAllByTestId('wedge')).toHaveLength(4)
   expect(screen.getByRole('button', { name: 'Cy is here' })).toBeEnabled()
@@ -173,7 +173,7 @@ test('a wildcard pick is revealed from the pick time and Watch leaves the wheel 
   expect(within(dialog).getByText('Ends around 11:00 PM–11:15 PM')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Ann is here' })).toBeDisabled()
   fireEvent.click(within(dialog).getByRole('button', { name: 'Watch' }))
-  expect(store.getState().night.watched.map((f) => f.tmdbId)).toEqual([9])
+  expect(watchedFilms(store.getState().night).map((f) => f.tmdbId)).toEqual([9])
   expect(store.getState().night.wonFilms).toEqual([])
   expect(screen.getAllByTestId('wedge')).toHaveLength(12)
   expect(screen.getByRole('button', { name: 'Ann is here' })).toBeEnabled()

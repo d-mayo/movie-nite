@@ -43,6 +43,10 @@ import {
   isBlind,
   isReshuffleLocked,
   refusedFilms,
+  playGame,
+  setFffUnlocked,
+  validWatched,
+  watchedFilms,
 } from './model.ts'
 import type { CardEffect } from '../wildcards/cards.ts'
 import { presetColors } from '../wheel/colors.ts'
@@ -165,7 +169,7 @@ describe('recordOutcome', () => {
   test('watch from the wheel records the win and the film', () => {
     const s = recordOutcome(three(), film(1), 'watch', true)
     expect(s.night.wonFilms).toEqual([1])
-    expect(s.night.watched.map((f) => f.tmdbId)).toEqual([1])
+    expect(watchedFilms(s.night).map((f) => f.tmdbId)).toEqual([1])
     expect(s.night.ended).toBe(false)
   })
 
@@ -180,7 +184,7 @@ describe('recordOutcome', () => {
   test('a wildcard pick never touches wonFilms or ends the night', () => {
     const s = recordOutcome(three(), film(9), 'watch', false)
     expect(s.night.wonFilms).toEqual([])
-    expect(s.night.watched.map((f) => f.tmdbId)).toEqual([9])
+    expect(watchedFilms(s.night).map((f) => f.tmdbId)).toEqual([9])
     expect(s.night.ended).toBe(false)
     expect(recordOutcome(three(), film(9), 'tooLong', false).holdover?.tmdbId).toBe(9)
   })
@@ -507,6 +511,7 @@ describe('setViewersHidden', () => {
     const hidden = setViewersHidden(s, true)
     expect(hidden.settings).toEqual({
       viewersHidden: true,
+      fffUnlocked: false,
       wheel: defaultWheelSettings,
     })
     expect(hidden.roster).toBe(s.roster)
@@ -656,5 +661,30 @@ describe('setCardsEnabled', () => {
     expect(setCardsEnabled(off, ['a', 'b'], false)).toBe(off)
     expect(setCardsEnabled(defaultState, ['a', 'b'], true)).toBe(defaultState)
     expect(setCardsEnabled(off, ['a'], true).settings.wheel.disabledCards).toEqual(['b'])
+  })
+})
+
+describe('the FFF unlock and game entries', () => {
+  const game = { kind: 'game' as const, name: 'Rento', url: 'https://rento.com/' }
+  const effect: CardEffect = { cardId: 'play-rento', label: 'Play Rento', change: { kind: 'movie' } }
+
+  test('the unlock is off by default and the setter turns it on', () => {
+    expect(defaultState.settings.fffUnlocked).toBe(false)
+    expect(setFffUnlocked(defaultState, true).settings.fffUnlocked).toBe(true)
+  })
+
+  test('playing a game lands the card and saves the entry without touching wins or the night', () => {
+    const s = playGame(defaultState, effect, game)
+    expect(s.night.watched).toEqual([game])
+    expect(s.night.cardEffects).toEqual([effect])
+    expect(s.night.wonFilms).toEqual([])
+    expect(s.night.ended).toBe(false)
+    expect(watchedFilms(s.night)).toEqual([])
+  })
+
+  test('a stored watched list keeps a kind-less film and a game, and drops a malformed game and an unknown kind', () => {
+    const stored = [film(1), game, { kind: 'game', name: 5, url: 'x' }, { kind: 'show', name: 'a', url: 'b' }]
+    expect(validWatched(stored)).toEqual([film(1), game])
+    expect(validWatched('nope')).toEqual([])
   })
 })

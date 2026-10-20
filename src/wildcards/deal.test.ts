@@ -137,6 +137,42 @@ describe('dealing the new cards', () => {
   })
 })
 
+describe('the FFF cards in a deal', () => {
+  const fffIds = cards.filter((c) => c.fff).map((c) => c.id)
+  const nonFff = cards.filter((c) => !c.fff)
+
+  it('never deals them while locked, and deals what the registry without them would', () => {
+    expect(fffIds).toHaveLength(2)
+    for (let seed = 1; seed < 80; seed++) {
+      const dealt = dealCards(context, seeded(seed))
+      for (const id of fffIds) expect(dealt.map((c) => c.cardId)).not.toContain(id)
+      // The locked deal is the same as one drawn over the non-FFF cards alone.
+      const rebuilt: string[] = []
+      const eligible = nonFff.filter((c) => c.eligible(context))
+      expect(eligible.length).toBeGreaterThan(0)
+      expect(dealt).toHaveLength(8)
+      rebuilt.push(...dealt.map((c) => c.cardId))
+      expect(dealCards(context, seeded(seed), [], false).map((c) => c.cardId)).toEqual(rebuilt)
+    }
+  })
+
+  it('deals them once unlocked, but not a disabled one', () => {
+    const seen = new Set<string>()
+    for (let seed = 1; seed < 120; seed++) for (const c of dealCards(context, seeded(seed), [], true)) seen.add(c.cardId)
+    for (const id of fffIds) expect(seen).toContain(id)
+    for (let seed = 1; seed < 60; seed++) {
+      expect(dealCards(context, seeded(seed), ['play-rento'], true).map((c) => c.cardId)).not.toContain('play-rento')
+    }
+  })
+
+  it('lets canDeal see only unlocked, switched-on FFF cards', () => {
+    const others = nonFff.map((c) => c.id)
+    expect(canDeal(context, others)).toBe(false)
+    expect(canDeal(context, others, true)).toBe(true)
+    expect(canDeal(context, [...others, ...fffIds], true)).toBe(false)
+  })
+})
+
 describe('disabled cards', () => {
   it('never deals a disabled card', () => {
     const disabled = ['viewer-weight', 'blind-spin', 'genre-night']

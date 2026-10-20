@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type Ref } from 'react'
 import { createPortal } from 'react-dom'
-import { isBlind, viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts'
+import { isBlind, isGame, viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
 import { useApp } from '../state/store.ts'
 import { CardChips } from './CardChips.tsx'
@@ -25,8 +25,9 @@ import { catchChance, forcedCatchRotation, isCatch } from '../wheel/catch.ts'
 import { pinAngles, pinPastPointer, pushStart } from '../wheel/pins.ts'
 import { blindfold, buildCardWedges, buildWedges, type Wedge } from '../wheel/wedges.ts'
 import { effectiveSetting, spinPlan, wildcardTotal } from '../wheel/edit.ts'
-import { drawExclusions, drawMessage, movieExclusions, possessives } from '../letterboxd/drawing.ts'
+import { drawExclusions, drawMessage, listMessage, movieExclusions, possessives, rewindExclusions } from '../letterboxd/drawing.ts'
 import { canBeReshuffled, drawFilmsFromWatchlist, type WatchlistSource } from '../letterboxd/watchlist.ts'
+import { drawFilmsFromList } from '../letterboxd/listDraw.ts'
 import { canCommonGround, canHaveBacklog, commonGroundGroup, drawCommonGround } from '../letterboxd/commonGround.ts'
 import { drawDiscoverFilms, filmsMessage, loadFilms, maxCanFilms } from '../tmdb/discoverDraw.ts'
 import { finishTake, hasCans, newCans, openChoice, pickCan, settleTick, takeFilm, type Cans } from '../wildcards/cans.ts'
@@ -49,7 +50,7 @@ import { silentSound, type SoundEngine } from '../sound/engine.ts'
 import CardReveal from './CardReveal.tsx'
 import Countdown from './Countdown.tsx'
 import NightOver from './NightOver.tsx'
-import Reveal, { wildcardDot, type CardFilm } from './Reveal.tsx'
+import Reveal, { GameReveal, wildcardDot, type CardFilm } from './Reveal.tsx'
 import Wheel from './Wheel.tsx'
 import { useWheelMotion, type Cue } from './useWheelMotion.ts'
 
@@ -132,6 +133,8 @@ type Draw =
   | { key: Date; phase: 'drawing' }
   | { key: Date; phase: 'ready'; cans: Cans; notes?: Record<number, string> }
   | { key: Date; phase: 'failed'; message: string }
+  // Play Rento's card has held its text: the game reveal takes its place.
+  | { key: Date; phase: 'game' }
 
 // Half of a crossfade between the main wheel and the wildcard wheel: the stage fades out, the
 // wheels swap, and it fades back in.
@@ -193,7 +196,7 @@ export default function WheelPanel({
   onBusyChange,
   reasonSlot,
 }: Props) {
-  const { night, roster, settings, holdover, recordOutcome, startSpin, addCardEffect } = useApp()
+  const { night, roster, settings, holdover, recordOutcome, startSpin, addCardEffect, playGame } = useApp()
   // Fixed when Spin is pressed and dropped on Close, so the wheel, the draw
   // and the reveal agree even if the store changes meanwhile.
   const [spin, setSpin] = useState<Spin | null>(null)
@@ -299,6 +302,7 @@ export default function WheelPanel({
       })),
       wildcardCount: wildcardTotal(ordered.length, settings.wheel, night.cardEffects),
       today: new Date(),
+      gamePlayed: night.watched.some(isGame),
       commonGround: watchlist
         ? canCommonGround(
             watchlist.memory,
@@ -334,7 +338,7 @@ export default function WheelPanel({
 
   function forcedCardEligible(): boolean {
     const forced = cards.find((c) => c.id === forceCard)
-    return !!forced && forced.eligible(dealContext())
+    return !!forced && (!forced.fff || !!settings.fffUnlocked) && forced.eligible(dealContext())
   }
 
   function start() {
@@ -350,7 +354,7 @@ export default function WheelPanel({
       !onCards &&
       slices[drawn].kind === 'wildcard' &&
       settings.wheel.wildcardWheel &&
-      (canDeal(dealContext(), settings.wheel.disabledCards) || forcedCardEligible())
+      (canDeal(dealContext(), settings.wheel.disabledCards, settings.fffUnlocked) || forcedCardEligible())
     const blindPress = !onCards && isBlind(night)
     const reduced = prefersReducedMotion()
     const plan = spinPlan(settings.wheel, reduced)
@@ -502,9 +506,9 @@ export default function WheelPanel({
       const context = dealContext()
       const forced = cards.find((c) => c.id === forceCard)
       const deal =
-        forced && forced.eligible(context)
+        forced && (!forced.fff || settings.fffUnlocked) && forced.eligible(context)
           ? Array.from({ length: dealSize }, () => ({ ...forced.roll(context, random), weight: 1 }))
-          : dealCards(context, random, settings.wheel.disabledCards)
+          : dealCards(context, random, settings.wheel.disabledCards, !!settings.fffUnlocked)
       if (deal.length === 0) {
         setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null })
         return
@@ -644,6 +648,14 @@ export default function WheelPanel({
     leave()
   }
 
+  // Play Rento's Play press: the card lands and the game joins tonight's watched list in one update.
+  function playRento() {
+    const card = spin?.deal?.[spin.drawn]
+    if (!card || spin.leaving || card.source?.kind !== 'game') return
+    playGame(card.effect, { kind: 'game', name: card.source.name, url: card.source.url })
+    leave()
+  }
+
   // The room's film from a movie card: the card lands, and the film's own reveal replaces it.
   function landFilm(card: DealtCard, nomination: Nomination) {
     addCardEffect(card.effect)
@@ -706,6 +718,34 @@ export default function WheelPanel({
           signal: aborted.signal,
         })
         if (typeof films === 'string') fail(filmsMessage(films))
+        else later({ key: drawKey, phase: 'ready', cans: newCans(films) })
+        return
+      }
+      if (source?.kind === 'game') {
+        // No draw: the card holds its text, then the game reveal replaces it.
+        later({ key: drawKey, phase: 'game' })
+        return
+      }
+      if (source?.kind === 'list') {
+        if (!watchlist) {
+          fail(listMessage('unavailable'))
+          return
+        }
+        const drawn = await drawFilmsFromList({
+          client: watchlist.client,
+          memory: watchlist.memory,
+          username: source.username,
+          slug: source.slug,
+          excluded: rewindExclusions(night),
+          random: watchlist.random,
+          count: maxCanFilms,
+        }).catch(() => 'unavailable' as const)
+        if (typeof drawn === 'string') {
+          fail(listMessage(drawn))
+          return
+        }
+        const films = await loadFilms(client, drawn)
+        if (films.length === 0) fail("The drawn film couldn't be loaded.")
         else later({ key: drawKey, phase: 'ready', cans: newCans(films) })
         return
       }
@@ -772,7 +812,7 @@ export default function WheelPanel({
     const reshuffle = change.kind === 'reshuffle'
     const name = reshuffle ? (roster.find((v) => v.id === change.viewerIds[0])?.name ?? '') : ''
     // While it draws, the card keeps its own text and a status line under it says what is happening.
-    if (!current || current.phase === 'drawing') return undefined
+    if (!current || current.phase === 'drawing' || current.phase === 'game') return undefined
     if (current.phase === 'failed') return reshuffle ? `${current.message} ${name}'s film stays.` : current.message
     const { cans } = current
     if (reshuffle) {
@@ -797,6 +837,7 @@ export default function WheelPanel({
       return `Drawing from ${roster.find((v) => v.id === source.viewerId)?.name ?? ''}'s watchlist…`
     }
     if (source?.kind === 'commonGround') return 'Comparing watchlists…'
+    if (source?.kind === 'list') return 'Rewinding the FFF movie night list…'
     return change?.kind === 'movie' && source?.kind === 'discover' ? 'Finding films…' : null
   }
 
@@ -804,7 +845,7 @@ export default function WheelPanel({
   function cardBusy(): boolean {
     const change = shownCard?.effect.change
     if (change?.kind !== 'reshuffle' && change?.kind !== 'movie') return false
-    if (!current || current.phase === 'drawing') return true
+    if (!current || current.phase === 'drawing' || current.phase === 'game') return true
     if (current.phase === 'failed') return false
     return change.kind === 'movie' || !current.cans.taken
   }
@@ -909,7 +950,7 @@ export default function WheelPanel({
           Force card{' '}
           <select value={forceCard} disabled={spin !== null} onChange={(e) => setForceCard(e.target.value)}>
             <option value="">Random deal</option>
-            {cards.map((c) => (
+            {cards.filter((c) => !c.fff || settings.fffUnlocked).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.id}
               </option>
@@ -921,7 +962,7 @@ export default function WheelPanel({
       {reason && reasonSlot && createPortal(<p>{reason}</p>, reasonSlot)}
       {night.ended && !reasonSlot && <NightOver />}
       {night.ended && reasonSlot && createPortal(<NightOver />, reasonSlot)}
-      {shownCard && spin?.deal?.[spin.drawn] && (
+      {shownCard && spin?.deal?.[spin.drawn] && current?.phase !== 'game' && (
         <CardReveal
           card={spin.deal[spin.drawn]}
           closeCall={spin.closeCall}
@@ -954,6 +995,14 @@ export default function WheelPanel({
             />
           )}
         </CardReveal>
+      )}
+      {shownCard?.source?.kind === 'game' && current?.phase === 'game' && (
+        <GameReveal
+          game={{ kind: 'game', name: shownCard.source.name, url: shownCard.source.url }}
+          byline={shownCard.title}
+          onPlay={playRento}
+          onClose={leave}
+        />
       )}
       {spin?.taken && spin.wheel === 'cards' && !spin.leaving && (
         <Reveal
