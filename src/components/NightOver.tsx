@@ -1,4 +1,5 @@
 import { letterboxdFilmUrl } from '../letterboxd/links.ts'
+import { watchedFilms } from '../state/model.ts'
 import { useApp } from '../state/store.ts'
 
 export function filmLabel(film: { title: string; year: number | null }): string {
@@ -21,14 +22,15 @@ function FilmLink({ film }: { film: { tmdbId: number; title: string; year: numbe
 
 export default function NightOver() {
   const { night, holdover } = useApp()
+  const films = watchedFilms(night)
   return (
     <section className="night-over" aria-labelledby="night-over-heading">
       <h2 id="night-over-heading">Night over</h2>
-      {night.watched.length > 0 ? (
+      {films.length > 0 ? (
         <>
           <p>Films watched tonight:</p>
           <ul>
-            {night.watched.map((film) => (
+            {films.map((film) => (
               <li key={film.tmdbId}>
                 <FilmLink film={film} />
               </li>

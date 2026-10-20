@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { defaultState, type Nomination } from '../state/model.ts'
-import { movieExclusions } from './drawing.ts'
+import { movieExclusions, rewindExclusions } from './drawing.ts'
 
 const film = (tmdbId: number): Nomination => ({
   tmdbId,
@@ -21,4 +21,14 @@ test('a movie card skips every nomination, the films won and watched tonight and
   }
   expect([...movieExclusions(night, film(5))].sort()).toEqual([1, 2, 3, 4, 5])
   expect([...movieExclusions(night, null)].sort()).toEqual([1, 2, 3, 4])
+})
+
+test('a game entry in the watched list is skipped by the exclusions', () => {
+  const night = { ...defaultState.night, watched: [{ kind: 'game' as const, name: 'Rento', url: 'https://rento.com/' }, film(4)] }
+  expect([...movieExclusions(night, null)]).toEqual([4])
+})
+
+test("Rewind skips tonight's films but not the held film", () => {
+  const night = { ...defaultState.night, nominations: { a: film(1) }, wonFilms: [3], watched: [film(4)] }
+  expect([...rewindExclusions(night)].sort()).toEqual([1, 3, 4])
 })

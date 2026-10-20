@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import App from '../App.tsx'
-import { defaultState, viewersOnWheel, type Nomination } from '../state/model.ts'
+import { defaultState, viewersOnWheel, watchedFilms, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import type { SoundEngine } from '../sound/engine.ts'
@@ -230,7 +230,7 @@ test('Watch records the film as a wildcard pick does and returns to the unlocked
   fireEvent.click(within(frame).getByRole('button', { name: 'Watch' }))
   await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
   const { night } = store.getState()
-  expect(night.watched.map((f) => f.title)).toEqual([title])
+  expect(watchedFilms(night).map((f) => f.title)).toEqual([title])
   expect(night.wonFilms).toEqual([])
   expect(night.nominations).toEqual(before.nominations)
   expect(sound.log.closed).toBe(1)

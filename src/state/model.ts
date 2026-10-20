@@ -26,6 +26,36 @@ export interface Nomination {
   fromWatchlist?: boolean
 }
 
+// A game played instead of a film; it sits in tonight's watched list beside the films.
+export interface GameEntry {
+  kind: 'game'
+  name: string
+  url: string
+}
+
+export type WatchedEntry = Nomination | GameEntry
+
+export function isGame(entry: WatchedEntry): entry is GameEntry {
+  return (entry as GameEntry).kind === 'game'
+}
+
+// Tonight's watched films, the game entries left out.
+export function watchedFilms(night: { watched: WatchedEntry[] }): Nomination[] {
+  return night.watched.filter((entry): entry is Nomination => !isGame(entry))
+}
+
+// The stored watched list with the entries of the right shape: a kind-less one is a film, a game
+// needs a string name and url, any other kind is dropped.
+export function validWatched(value: unknown): WatchedEntry[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((entry): entry is WatchedEntry => {
+    if (!entry || typeof entry !== 'object') return false
+    const kind = (entry as { kind?: unknown }).kind
+    if (kind === undefined) return true
+    return kind === 'game' && typeof (entry as GameEntry).name === 'string' && typeof (entry as GameEntry).url === 'string'
+  })
+}
+
 export type LetterboxdStatus = 'pending' | 'found' | 'missing'
 
 export interface LetterboxdLink {
@@ -43,13 +73,13 @@ export interface Viewer {
 
 export interface AppState {
   version: 1
-  settings: { viewersHidden: boolean; wheel: WheelSettings }
+  settings: { viewersHidden: boolean; fffUnlocked?: boolean; wheel: WheelSettings }
   roster: Viewer[]
   night: {
     presentIds: string[]
     nominations: Record<string, Nomination>
     wonFilms: number[]
-    watched: Nomination[]
+    watched: WatchedEntry[]
     ended: boolean
     // What the host changed for a viewer tonight; the wheel is derived from these.
     adjustments: Record<string, Adjustment>
@@ -65,7 +95,7 @@ export interface AppState {
 
 export const defaultState: AppState = {
   version: 1,
-  settings: { viewersHidden: false, wheel: defaultWheelSettings },
+  settings: { viewersHidden: false, fffUnlocked: false, wheel: defaultWheelSettings },
   roster: [],
   night: {
     presentIds: [],
@@ -83,6 +113,12 @@ export const defaultState: AppState = {
 
 export function setViewersHidden(state: AppState, hidden: boolean): AppState {
   return { ...state, settings: { ...state.settings, viewersHidden: hidden } }
+}
+
+// Unlocks the FFF cards for good; nothing locks them again.
+export function setFffUnlocked(state: AppState, unlocked: boolean): AppState {
+  if (state.settings.fffUnlocked === unlocked) return state
+  return { ...state, settings: { ...state.settings, fffUnlocked: unlocked } }
 }
 
 export const maxNameLength = 20
@@ -462,6 +498,12 @@ export function addCardEffect(
     ...state,
     night: { ...state.night, nominations, cardEffects: [...state.night.cardEffects, effect] },
   }
+}
+
+// Play Rento's Play press: lands the card and saves the game entry in one update.
+export function playGame(state: AppState, effect: CardEffect, game: GameEntry): AppState {
+  const landed = addCardEffect(state, effect)
+  return { ...landed, night: { ...landed.night, watched: [...landed.night.watched, game] } }
 }
 
 export function endNight(state: AppState): AppState {
