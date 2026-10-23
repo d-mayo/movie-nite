@@ -241,7 +241,8 @@ test('Watch records the film as a wildcard pick does and returns to the unlocked
   expect(watchedFilms(night).map((f) => f.title)).toEqual([title])
   expect(night.wonFilms).toEqual([])
   expect(night.nominations).toEqual(before.nominations)
-  expect(sound.log.closed).toBe(1)
+  await waitFor(() => expect(sound.log.events.at(-1)).toBe('slam'))
+  expect(sound.log.closed).toBe(0)
   await waitFor(() => expect(spinButton()).toBeEnabled())
   expect(wedgeKinds().filter((k) => k === 'wildcard')).toHaveLength(
     deriveSlices(['a', 'b', 'c'], defaultWheelSettings, {}).filter((s) => s.kind === 'wildcard').length,
@@ -813,4 +814,80 @@ test('a wedge for Play Rento draws the pawn glyph', async () => {
   fireEvent.click(spinButton())
   await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
   expect(screen.getAllByTestId('card-glyph')[0]).toHaveAttribute('data-glyph', 'pawn')
+})
+
+const count = (sound: { log: { events: string[] } }, name: string) => sound.log.events.filter((e) => e === name).length
+
+test("a movie card's landing leaves the win sounds for its film: the stinger and applause come when the film is taken, three knocks for three cans", async () => {
+  forceCard('genre-night')
+  const { fetchFn } = tmdbFetch({ ids: [11, 12, 13] })
+  const { sound } = setup({ fetchFn })
+  const dialog = await openCard()
+  expect(count(sound, 'landed-quiet')).toBe(1)
+  expect(count(sound, 'fanfare')).toBe(0)
+  const cans = await within(dialog).findAllByRole('button', { name: /^Pick can/ })
+  fireEvent.click(cans[0])
+  await waitFor(() => expect(within(dialog).getAllByRole('button', { name: /^Take Found/ })).toHaveLength(2))
+  expect(count(sound, 'knock')).toBe(2)
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Take the sealed can' }))
+  await screen.findByRole('heading', { name: /^Found/ })
+  expect(count(sound, 'knock')).toBe(3)
+  expect(count(sound, 'fanfare')).toBe(1)
+  expect(count(sound, 'landed')).toBe(0)
+})
+
+test('a single film knocks no can and plays the win sounds when shown', async () => {
+  forceCard('genre-night')
+  const { sound } = setup({ fetchFn: tmdbFetch({ ids: [11] }).fetchFn })
+  const dialog = await openCard()
+  fireEvent.click(await within(dialog).findByRole('button', { name: 'Show the film' }))
+  await screen.findByRole('heading', { name: /^Found/ })
+  expect(count(sound, 'knock')).toBe(0)
+  expect(count(sound, 'fanfare')).toBe(1)
+})
+
+test('a movie card whose draw fails plays no win sounds, and Back claps at the slam', async () => {
+  forceCard('genre-night')
+  const { sound } = setup({ fetchFn: tmdbFetch({ status: 500 }).fetchFn })
+  const dialog = await openCard()
+  await waitFor(() => expect(backButton(dialog)).toBeEnabled())
+  fireEvent.click(backButton(dialog))
+  await waitFor(() => expect(count(sound, 'slam')).toBe(1))
+  expect(count(sound, 'fanfare')).toBe(0)
+  expect(count(sound, 'landed')).toBe(0)
+  expect(sound.log.closed).toBe(0)
+})
+
+test('Play Rento plays the win sounds when the game reveal shows; Play claps once', async () => {
+  forceCard('play-rento')
+  const { sound } = setup({ fetchFn: tmdbFetch().fetchFn })
+  await openCard()
+  expect(count(sound, 'fanfare')).toBe(0)
+  const play = await screen.findByRole('button', { name: 'Play' })
+  expect(count(sound, 'fanfare')).toBe(1)
+  fireEvent.click(play)
+  await waitFor(() => expect(count(sound, 'slam')).toBe(1))
+  await waitFor(() => expect(spinButton()).toBeEnabled())
+  expect(sound.log.closed).toBe(0)
+})
+
+test('x on a film reveal claps once, with no fade of the loop', async () => {
+  forceCard('genre-night')
+  const { sound } = setup({ fetchFn: tmdbFetch({ ids: [11, 12, 13] }).fetchFn })
+  const dialog = await openCard()
+  const reveal = await takeSealed(dialog)
+  const frame = reveal.closest('[role="dialog"]') as HTMLElement
+  fireEvent.click(within(frame).getByRole('button', { name: 'Close' }))
+  await waitFor(() => expect(count(sound, 'slam')).toBe(1))
+  expect(sound.log.closed).toBe(0)
+})
+
+test('a movie card after a close call plays the cheer at the landing', async () => {
+  window.history.pushState({}, '', '/?debug')
+  forceCard('genre-night')
+  const { sound } = setup({ fetchFn: tmdbFetch({ ids: [11, 12, 13] }).fetchFn })
+  fireEvent.click(screen.getByLabelText('Force close calls'))
+  await openCard()
+  expect(sound.log.events).toContain('landed-quiet-close')
+  expect(count(sound, 'fanfare')).toBe(0)
 })
