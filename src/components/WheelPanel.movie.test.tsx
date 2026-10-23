@@ -54,7 +54,7 @@ function wildcardRandom(ids: string[]): () => number {
 }
 
 function recordingSound() {
-  const log = { closed: 0, ticks: 0, rolls: [] as number[], breaks: 0 }
+  const log = { closed: 0, ticks: 0, rolls: [] as number[], breaks: 0, events: [] as string[] }
   const engine: SoundEngine = {
     attach: () => () => {},
     apply: () => {},
@@ -62,6 +62,14 @@ function recordingSound() {
     musicStart: () => {},
     musicResume: () => {},
     beep: () => {},
+    wildcardLanded: () => void log.events.push('wildcard-landed'),
+    reelCut: () => void log.events.push('cut'),
+    cueBeep: () => void log.events.push('cue-beep'),
+    reelChange: () => void log.events.push('reel-change'),
+    landedQuiet: (close = false) => void log.events.push(close ? 'landed-quiet-close' : 'landed-quiet'),
+    fanfare: () => void log.events.push('fanfare'),
+    knock: () => void log.events.push('knock'),
+    slam: () => void log.events.push('slam'),
     spinSpeed: () => {},
     pinTick: () => void log.ticks++,
     spinEnd: () => {},
