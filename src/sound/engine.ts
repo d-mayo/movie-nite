@@ -22,6 +22,7 @@ export type SoundName =
   | 'runout'
   | 'clunk'
   | 'clap'
+  | 'knock'
 
 export interface SoundSettings {
   // 0 to 100 each: the overall volume, and the music's and the effects' levels,
@@ -190,7 +191,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
   function load() {
     if (loading) return
     loading = true
-    for (const name of ['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer', 'dloop', 'ambience', 'runout', 'clunk', 'clap'] as const) {
+    for (const name of ['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer', 'dloop', 'ambience', 'runout', 'clunk', 'clap', 'knock'] as const) {
       deps
         .load(name)
         .then((data) => ctx!.decodeAudioData(data))

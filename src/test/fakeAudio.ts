@@ -103,6 +103,7 @@ export const fakeDurations: Record<SoundName, number> = {
   runout: 3.3,
   clunk: 0.45,
   clap: 2.3,
+  knock: 0.3,
 }
 
 export class FakeContext {

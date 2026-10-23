@@ -6,7 +6,7 @@ export interface SoundCredit {
   source: string
   sourceUrl: string
   author: string
-  license: 'CC0' | 'Public domain'
+  license: 'CC0' | 'CC BY 4.0' | 'Public domain'
 }
 
 export const soundCredits: SoundCredit[] = [
@@ -131,5 +131,13 @@ export const soundCredits: SoundCredit[] = [
     sourceUrl: 'https://freesound.org/people/jonsept/sounds/579205/',
     author: 'jonsept',
     license: 'CC0',
+  },
+  {
+    file: 'knock.mp3',
+    what: 'Film can knock',
+    source: '698129, metal click',
+    sourceUrl: 'https://freesound.org/people/ChristianStuck/sounds/698129/',
+    author: 'ChristianStuck',
+    license: 'CC BY 4.0',
   },
 ]

@@ -41,7 +41,7 @@ describe('unlocking on a gesture', () => {
     document.dispatchEvent(new Event('pointerup'))
     expect(audio.contexts).toHaveLength(1)
     expect(audio.ctx.resumes).toBe(1)
-    expect(audio.loaded).toEqual(['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer', 'dloop', 'ambience', 'runout', 'clunk', 'clap'])
+    expect(audio.loaded).toEqual(['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer', 'dloop', 'ambience', 'runout', 'clunk', 'clap', 'knock'])
     detach()
   })
 
@@ -61,7 +61,7 @@ describe('unlocking on a gesture', () => {
     document.dispatchEvent(new Event('keydown'))
     expect(audio.contexts).toHaveLength(1)
     expect(audio.ctx.resumes).toBe(2)
-    expect(audio.loaded).toHaveLength(15)
+    expect(audio.loaded).toHaveLength(16)
     detach()
   })
 
@@ -72,7 +72,7 @@ describe('unlocking on a gesture', () => {
     const detach = sound.attach(document)
     document.dispatchEvent(new Event('pointerup'))
     expect(audio.contexts).toHaveLength(1)
-    expect(audio.loaded).toHaveLength(15)
+    expect(audio.loaded).toHaveLength(16)
     detach()
     document.dispatchEvent(new Event('keydown'))
     expect(audio.ctx.resumes).toBe(1)

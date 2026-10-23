@@ -14,6 +14,7 @@ import ambienceUrl from '../assets/sound/ambience.mp3'
 import runoutUrl from '../assets/sound/run-out.mp3'
 import clunkUrl from '../assets/sound/clunk.mp3'
 import clapUrl from '../assets/sound/clap.mp3'
+import knockUrl from '../assets/sound/knock.mp3'
 
 const urls: Record<SoundName, string> = {
   on: onUrl,
@@ -31,6 +32,7 @@ const urls: Record<SoundName, string> = {
   runout: runoutUrl,
   clunk: clunkUrl,
   clap: clapUrl,
+  knock: knockUrl,
 }
 
 type AudioContextConstructor = typeof AudioContext

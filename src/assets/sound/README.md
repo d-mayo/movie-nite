@@ -93,3 +93,5 @@ Five more MP3s. Originals live in the gitignored `sound-sources/`; the processin
 | `run-out.mp3` | [412145, 8 mm projector long run with finish](https://freesound.org/people/Stefan021/sounds/412145/) by Stefan021, CC0 | 92.0 to 95.3, the run-out's flapping tail; 10 ms fade in, 500 ms fade out, mono 64 kbps |
 | `clunk.mp3` | [702451, overhead projector](https://freesound.org/people/Stefan021/sounds/702451/) by Stefan021, CC0 | 1.38 to 1.83, the second clunk; mono 64 kbps |
 | `clap.mp3` | [579205, Clap at Two Church 6](https://freesound.org/people/jonsept/sounds/579205/) by jonsept, CC0 | the whole 1.53 s clap with a sharper snap (high-passed copy added, soft clip), a 2.4 s synthesized reverb tail, a low pitch-dropping thump and two slapback echoes, then an 0.8 s fade; stereo 96 kbps |
+
+`knock.mp3` is the one sound that needs a credit: [698129, metal click](https://freesound.org/people/ChristianStuck/sounds/698129/) by ChristianStuck, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The whole 0.3 s click with a 50 ms fade out, mono 64 kbps; the Credits dialog carries the credit.
