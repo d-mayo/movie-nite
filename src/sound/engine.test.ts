@@ -11,6 +11,7 @@ import {
   cheerLevel,
   createSound,
   dipLevel,
+  distortedLevel,
   drumrollLoopStart,
   humLoopEnd,
   humLoopStart,
@@ -595,7 +596,7 @@ describe('the wildcard wheel', () => {
     expect(twin.reaches(ctx.music)).toBe(true)
     expect(marchGain.gain.calls.at(-1)).toEqual({ method: 'linearRampToValueAtTime', value: 0 })
     expect(march.stoppedAt!).toBeCloseTo(5 + crossSeconds, 1)
-    expect((twin.out[0] as FakeGain).gain.calls.at(-1)).toEqual({ method: 'linearRampToValueAtTime', value: loopLevel })
+    expect((twin.out[0] as FakeGain).gain.calls.at(-1)).toEqual({ method: 'linearRampToValueAtTime', value: distortedLevel })
   })
 
   test('the twin picks up past the loop end by wrapping, and a march a close call silenced gives way to nothing', async () => {

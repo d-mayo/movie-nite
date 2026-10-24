@@ -185,8 +185,10 @@ export const windDownRate = 0.4
 export const crossSeconds = 0.5
 export const ambienceLoopEnd = 60.54
 export const ambienceLevel = 0.7
-const runoutLevel = 1
+const runoutLevel = 0.8
 const clunkLevel = 0.8
+// The distorted loop is mastered 6.7 LUFS louder than the march, so it plays this much lower to sound as loud.
+export const distortedLevel = 0.37
 const clapLevel = 1
 const knockLevel = 0.8
 const ambienceStopSeconds = 0.4
@@ -197,7 +199,9 @@ export const ambienceFadeInSeconds = 1.5
 const reelHighpassHz = 220
 const reelLowpassHz = 4200
 const reelDrive = 2.4
-const reelMakeup = 0.8
+// Soft clipping adds loudness: the chain's make-up gain takes it back down, and the loud close-call sounds are trimmed.
+const reelMakeup = 0.5
+const reelTrim = 0.6
 const reelWowHz = 0.7
 const reelWowDepth = 0.0035
 const reelFlutterHz = 7.3
@@ -317,7 +321,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
       source.connect(effectsIn(fx))
     } else {
       const gain = ctx.createGain()
-      gain.gain.value = level
+      gain.gain.value = fx && reelFx ? level * reelTrim : level
       source.connect(gain)
       gain.connect(effectsIn(fx))
     }
@@ -657,7 +661,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
       ramp(march.gain, 0, now, crossSeconds)
       march.source.stop(now + crossSeconds + 0.02)
       const twin = startLoop(true, loopPosition(), 0)
-      if (twin) ramp(twin.gain, loopLevel, now, crossSeconds)
+      if (twin) ramp(twin.gain, distortedLevel, now, crossSeconds)
     },
     reelCut() {
       if (!ctx) return
