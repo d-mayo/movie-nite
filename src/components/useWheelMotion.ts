@@ -188,7 +188,7 @@ export function useWheelMotion(
     // `done`; `done` runs once, on the frame the path ends. The `cues` each fire once,
     // on the first frame at or after its time, and always before `done`.
     // After a leader countdown the projector is already running, so only the music starts.
-    // With `cards` (the wildcard wheel's spin) the loop is the distorted one, which the engine starts.
+    // With `cards` (the wildcard wheel's spin) the engine starts no music: the ambience plays on.
     play(path: SpinPath, done: () => void, cues: Cue[] = [], afterCountdown = false, cards = false) {
       speed.current = 0
       if (afterCountdown) soundRef.current.musicStart()

@@ -436,7 +436,7 @@ test('on the wildcard wheel, Force close calls makes a close call and Force catc
   setup({ sound: close.engine, wheel: { spinSeconds: 6 } })
   fireEvent.click(screen.getByLabelText('Force close calls'))
   fireEvent.click(spinButton())
-  // The main spin is a close call too: the march comes back up when it lands on the wildcard.
+  // The main spin is a close call too: the march stays silent when it lands on the wildcard.
   await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
   expect(close.log.cues).toBe(1)
   expect(close.log.resumes).toBe(0)
@@ -460,7 +460,7 @@ test('on the wildcard wheel, Force close calls makes a close call and Force catc
   expect(caught.log.ticks.filter((t) => t === catchTickShare).length).toBe(afterMain + 1)
 })
 
-test('on the wildcard wheel, Force countdowns shows the dial and starts the distorted loop only when the count ends', async () => {
+test('on the wildcard wheel, Force countdowns shows the dial and calls musicStart again only when the count ends', async () => {
   withDebug()
   const { engine, log } = recordingSound()
   setup({ sound: engine })

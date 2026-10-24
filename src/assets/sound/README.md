@@ -84,7 +84,7 @@ ffmpeg -t 7 -i CHEER.wav -af "afade=t=in:d=0.02,afade=t=out:st=5.5:d=1.5,aresamp
 
 # Wildcard wheel sounds
 
-Five more MP3s. Originals live in the gitignored `sound-sources/`; the processing scripts were one-off Python (numpy, scipy) and ffmpeg. Times are seconds in the source file. The files together are about 770 KB.
+Six more MP3s. Originals live in the gitignored `sound-sources/`; the processing scripts were one-off Python (numpy, scipy) and ffmpeg. Times are seconds in the source file. The files together are about 770 KB.
 
 | File | Source | Cut |
 | --- | --- | --- |

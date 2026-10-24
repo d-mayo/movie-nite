@@ -618,7 +618,7 @@ export default function WheelPanel({
     clearTimeout(easeTimer.current)
     if (transitionRef.current === 'slam' || transitionRef.current === 'open') return
     // The clap sounds with the slam, as the top stick swings shut, or at the crossfade back's swap;
-    // it ends the loop, the ambience and any win sounds, and the march plays a phrase.
+    // it ends the loop, the ambience and any win sounds, and nothing plays after it.
     const clap = () => {
       sound.slam()
       musicOn.current = false
