@@ -11,4 +11,4 @@
 
 ## Credits
 
-Film data is from TMDB, Letterboxd data comes from public Letterboxd pages (movie-nite is not affiliated with Letterboxd), and the recorded sounds are CC0 or public domain. All are credited in the app (⚙ menu, Credits), from the list in [src/assets/sound/credits.ts](src/assets/sound/credits.ts); the cut points are in [src/assets/sound/README.md](src/assets/sound/README.md).
+Film data is from TMDB, Letterboxd data comes from public Letterboxd pages (movie-nite is not affiliated with Letterboxd), and the recorded sounds are CC0 or public domain, except the film-can knock (CC BY 4.0, by ChristianStuck). All are credited in the app (⚙ menu, Credits), from the list in [src/assets/sound/credits.ts](src/assets/sound/credits.ts); the cut points are in [src/assets/sound/README.md](src/assets/sound/README.md).
