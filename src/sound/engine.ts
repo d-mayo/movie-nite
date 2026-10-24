@@ -172,6 +172,8 @@ export const minTickGap = 0.03
 export const beepHz = 1000
 const beepSeconds = 0.12
 const beepLevel = 0.3
+// The cue beeps are softer and rounder than the leader's.
+const cueBeepLevel = 0.18
 // The cue mark's beep: higher than the leader's, and shorter.
 export const cueBeepHz = 1600
 const cueBeepSeconds = 0.09
@@ -183,11 +185,31 @@ export const windDownRate = 0.4
 export const crossSeconds = 0.5
 export const ambienceLoopEnd = 60.54
 export const ambienceLevel = 0.7
-const runoutLevel = 0.9
-const clunkLevel = 0.9
+const runoutLevel = 1
+const clunkLevel = 0.8
 const clapLevel = 1
 const knockLevel = 0.8
 const ambienceStopSeconds = 0.4
+// The ambience swells in rather than starting at full.
+export const ambienceFadeInSeconds = 1.5
+// The film-reel treatment of the wildcard wheel's win sounds: the soundtrack's band, a nasal bump, soft
+// clipping, wow and flutter from a modulated delay, and a make-up gain.
+const reelHighpassHz = 220
+const reelLowpassHz = 4200
+const reelDrive = 2.4
+const reelMakeup = 0.8
+const reelWowHz = 0.7
+const reelWowDepth = 0.0035
+const reelFlutterHz = 7.3
+const reelFlutterDepth = 0.0003
+const reelCurve = (() => {
+  const curve = new Float32Array(1024)
+  for (let i = 0; i < curve.length; i++) {
+    const x = (i / (curve.length - 1)) * 2 - 1
+    curve[i] = Math.tanh(reelDrive * x + 0.15 * x * x) / Math.tanh(reelDrive)
+  }
+  return curve
+})()
 const ambienceDipLevel = 0.25
 
 const gestures = ['pointerdown', 'pointerup', 'keydown', 'touchend']
@@ -220,6 +242,8 @@ export function createSound(deps: SoundDeps): SoundEngine {
   // The wildcard wheel's ambience while it plays; and whether the spin under way is the wildcard wheel's.
   let ambience: { source: AudioBufferSourceNode; gain: GainNode } | null = null
   let cardsSpin = false
+  // The film-reel chains the wildcard wheel's win sounds pass through while it shows, and the teardown.
+  let reelFx: { effects: GainNode; music: GainNode; stop: () => void } | null = null
   let wins: AudioBufferSourceNode[] = []
   // The close call's drumroll while it plays.
   let roll: { source: AudioBufferSourceNode; gain: GainNode } | null = null
@@ -279,21 +303,106 @@ export function createSound(deps: SoundDeps): SoundEngine {
     if (ctx.state !== 'running') ctx.resume().catch(() => {})
   }
 
-  function play(name: SoundName, level?: number) {
+  // Where a sound for the effects bus goes: through the reel chain while the wildcard wheel shows, if it wants the treatment.
+  function effectsIn(fx: boolean): AudioNode {
+    return fx && reelFx ? reelFx.effects : effects
+  }
+
+  function play(name: SoundName, level?: number, fx = false) {
     const buffer = buffers[name]
     if (!ctx || !buffer) return null
     const source = ctx.createBufferSource()
     source.buffer = buffer
     if (level === undefined) {
-      source.connect(effects)
+      source.connect(effectsIn(fx))
     } else {
       const gain = ctx.createGain()
       gain.gain.value = level
       source.connect(gain)
-      gain.connect(effects)
+      gain.connect(effectsIn(fx))
     }
     source.start()
     return source
+  }
+
+  // One film-reel chain into `dest`: the soundtrack's band, a nasal bump, soft clipping, then wow and
+  // flutter from a delay whose time two slow oscillators move. Returns its input and a teardown.
+  function makeReelChain(dest: AudioNode) {
+    const c = ctx!
+    const input = c.createGain()
+    const highpass = c.createBiquadFilter()
+    highpass.type = 'highpass'
+    highpass.frequency.value = reelHighpassHz
+    const lowpass = c.createBiquadFilter()
+    lowpass.type = 'lowpass'
+    lowpass.frequency.value = reelLowpassHz
+    const nasal = c.createBiquadFilter()
+    nasal.type = 'peaking'
+    nasal.frequency.value = 1300
+    nasal.Q.value = 0.8
+    nasal.gain.value = 5
+    const shaper = c.createWaveShaper()
+    shaper.curve = reelCurve
+    const delay = c.createDelay(0.05)
+    delay.delayTime.value = 0.012
+    const out = c.createGain()
+    out.gain.value = reelMakeup
+    input.connect(highpass)
+    highpass.connect(lowpass)
+    lowpass.connect(nasal)
+    nasal.connect(shaper)
+    shaper.connect(delay)
+    delay.connect(out)
+    out.connect(dest)
+    const oscillators = [
+      [reelWowHz, reelWowDepth],
+      [reelFlutterHz, reelFlutterDepth],
+    ].map(([hz, depth]) => {
+      const lfo = c.createOscillator()
+      lfo.frequency.value = hz
+      const amount = c.createGain()
+      amount.gain.value = depth
+      lfo.connect(amount)
+      amount.connect(delay.delayTime)
+      lfo.start()
+      return lfo
+    })
+    return {
+      input,
+      stop: () => {
+        for (const lfo of oscillators) lfo.stop()
+        out.disconnect()
+      },
+    }
+  }
+
+  // While the wildcard wheel shows, its win sounds (the stinger, the applause and cheer, the close call's
+  // gasp, drumroll and cymbal) pass through the film-reel chains; leaving it puts them back on the plain buses.
+  function setReelMode(on: boolean) {
+    if (!ctx || on === (reelFx !== null)) return
+    if (on) {
+      const fxEffects = makeReelChain(effects)
+      const fxMusic = makeReelChain(music)
+      win.disconnect()
+      win.connect(fxMusic.input)
+      crowd.disconnect()
+      crowd.connect(fxEffects.input)
+      reelFx = {
+        effects: fxEffects.input,
+        music: fxMusic.input,
+        stop: () => {
+          fxEffects.stop()
+          fxMusic.stop()
+        },
+      }
+    } else {
+      win.disconnect()
+      win.connect(music)
+      crowd.disconnect()
+      crowd.connect(effects)
+      reelFx?.stop()
+      reelFx = null
+    }
   }
 
   // Ends the drumroll, if it still plays, over a moment so it does not click.
@@ -318,7 +427,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     const gain = ctx.createGain()
     gain.gain.value = 0
     source.connect(gain)
-    gain.connect(effects)
+    gain.connect(effectsIn(true))
     source.start(now, 0)
     const fadeIn = Math.min(drumrollFadeInSeconds, seconds)
     ramp(gain, drumrollStartLevel, now, fadeIn)
@@ -370,10 +479,11 @@ export function createSound(deps: SoundDeps): SoundEngine {
     source.loopStart = 0
     source.loopEnd = Math.min(ambienceLoopEnd, buffer.duration)
     const gain = ctx.createGain()
-    gain.gain.value = ambienceLevel
+    gain.gain.value = 0
     source.connect(gain)
     gain.connect(music)
     source.start(0, 0)
+    ramp(gain, ambienceLevel, ctx.currentTime, ambienceFadeInSeconds)
     ambience = { source, gain }
   }
 
@@ -453,6 +563,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     loop = null
     ambience = null
     wins = []
+    setReelMode(false)
     for (const gain of [win, crowd]) {
       gain.gain.cancelScheduledValues(0)
       gain.gain.value = 1
@@ -556,12 +667,12 @@ export function createSound(deps: SoundDeps): SoundEngine {
       if (!ctx) return
       const at = ctx.currentTime
       const out = ctx.createGain()
-      out.gain.setValueAtTime(beepLevel, at)
-      out.gain.setValueAtTime(beepLevel, at + cueBeepSeconds - 0.02)
+      out.gain.setValueAtTime(cueBeepLevel, at)
+      out.gain.setValueAtTime(cueBeepLevel, at + cueBeepSeconds - 0.02)
       out.gain.linearRampToValueAtTime(0, at + cueBeepSeconds)
       out.connect(effects)
       const tone = ctx.createOscillator()
-      tone.type = 'square'
+      tone.type = 'triangle'
       tone.frequency.setValueAtTime(cueBeepHz, at)
       tone.connect(out)
       tone.start(at)
@@ -571,6 +682,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
       if (!ctx) return
       play('clunk', clunkLevel)
       startAmbience()
+      setReelMode(true)
     },
     knock() {
       if (!ctx) return
@@ -648,7 +760,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
       const b = bed()
       if (b) ramp(b.gain, 0, now, loopDropSeconds)
       if (loop) loopSilenced = true
-      play('gasp', gaspLevel)
+      play('gasp', gaspLevel, true)
       // The roll loops for the whole approach and fades in as the music fades out, then
       // builds by a ramp to the stop.
       startRoll(secondsToStop)
@@ -656,7 +768,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     closeCallBreak() {
       if (!ctx) return
       stopRoll()
-      play('cymbal', cymbalLevel)
+      play('cymbal', cymbalLevel, true)
     },
     drumroll(seconds) {
       if (!ctx) return
@@ -666,7 +778,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     drumrollBreak() {
       if (!ctx) return
       stopRoll()
-      play('cymbal', cymbalLevel)
+      play('cymbal', cymbalLevel, true)
     },
     landed(revealInSeconds, closeCall = false) {
       if (!ctx) return
@@ -716,6 +828,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
       fadeOut(win, now, musicFadeSeconds)
       fadeOut(crowd, now, musicFadeSeconds)
       for (const w of wins) w.stop(now + musicFadeSeconds + 0.05)
+      setReelMode(false)
     },
   }
 }

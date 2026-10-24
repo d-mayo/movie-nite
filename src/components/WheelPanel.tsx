@@ -161,6 +161,8 @@ const announceMs = 3000
 export const revealHoldMs = 650
 // A blind wheel that lands on a wildcard is unveiled this much longer before the wildcard wheel.
 export const blindWildcardHoldMs = 3000
+// A wildcard that opens the wildcard wheel holds its landing this long before the cue marks, so the reel can run out.
+export const wildcardHoldMs = 2200
 
 // The pointer's height as a share of the wheel's width, which is the zoom's origin (8.5% down the wheel).
 const pointerShare = 0.085
@@ -477,7 +479,8 @@ export default function WheelPanel({
             holdMs - closeCallEaseOutMs,
           )
         }
-        const wait = toCards && blindPress ? holdMs + blindWildcardHoldMs : holdMs
+        const base = toCards ? Math.max(holdMs, wildcardHoldMs) : holdMs
+        const wait = toCards && blindPress ? base + blindWildcardHoldMs : base
         holdTimer.current = setTimeout(() => {
           if (toCards) enterCards()
           else setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null })

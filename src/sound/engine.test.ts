@@ -747,6 +747,56 @@ describe('the wildcard wheel', () => {
     expect(ctx.sourcesOf('ambience')[0].stoppedAt).not.toBeNull()
   })
 
+  test('while it shows, the stinger, applause, cheer, gasp, drumroll and cymbal pass through the film-reel chain; the clap, run-out, clunk and knock do not', async () => {
+    const { ctx, sound } = await ready()
+    const through = (source: { reaches: (n: never) => boolean }) => ctx.shapers.some((shaper) => source.reaches(shaper as never))
+    sound.reelChange()
+    sound.spinStart(false, true)
+    sound.closeCall(3)
+    sound.closeCallBreak()
+    sound.landed(1, true)
+    for (const name of ['gasp', 'cymbal', 'drumroll', 'stinger', 'applause', 'cheer'] as const) {
+      const [source] = ctx.sourcesOf(name)
+      expect(through(source), name).toBe(true)
+    }
+    sound.wildcardLanded()
+    sound.knock()
+    for (const name of ['runout', 'clunk', 'knock'] as const) {
+      expect(through(ctx.sourcesOf(name)[0]), name).toBe(false)
+    }
+    // The stinger still ends on the music bus and the crowd on the effects bus.
+    expect(ctx.sourcesOf('stinger')[0].reaches(ctx.music)).toBe(true)
+    expect(ctx.sourcesOf('applause')[0].reaches(ctx.effects)).toBe(true)
+    sound.slam()
+    expect(through(ctx.sourcesOf('clap')[0])).toBe(false)
+  })
+
+  test('the main wheel is untouched by the film-reel chain, and a main spin or the slam puts it away', async () => {
+    const { ctx, sound } = await ready()
+    sound.spinStart()
+    sound.closeCall(3)
+    sound.closeCallBreak()
+    sound.landed(1, true)
+    expect(ctx.shapers).toHaveLength(0)
+    sound.reelChange()
+    expect(ctx.shapers).toHaveLength(2)
+    sound.slam()
+    sound.spinStart()
+    sound.closeCall(3)
+    sound.closeCallBreak()
+    const cymbals = ctx.sourcesOf('cymbal')
+    expect(ctx.shapers.some((shaper) => cymbals.at(-1)!.reaches(shaper as never))).toBe(false)
+    expect(cymbals.at(-1)!.reaches(ctx.effects)).toBe(true)
+  })
+
+  test('the ambience swells in rather than starting at full', async () => {
+    const { ctx, sound } = await ready()
+    sound.reelChange()
+    const gain = ctx.sourcesOf('ambience')[0].out[0] as FakeGain
+    expect(gain.gain.value).toBe(ambienceLevel)
+    expect(gain.gain.calls.at(-1)).toEqual({ method: 'linearRampToValueAtTime', value: ambienceLevel })
+  })
+
   test('every new call is a no-op before a gesture', () => {
     const sound = createSound(fakeAudio().deps)
     expect(() => {
