@@ -93,7 +93,7 @@ export const soundCredits: SoundCredit[] = [
   },
   {
     file: 'distorted-loop.mp3',
-    what: 'Wildcard wheel spin music',
+    what: 'Wildcard landing music',
     source: 'Entrance of the Gladiators, by Julius Fučík, run through a worn projector',
     sourceUrl:
       'https://commons.wikimedia.org/wiki/File:Julius_Fu%C4%8D%C3%ADk\'s_%22Entrance_of_the_Gladiators%22,_performed_by_the_U.S._Marine_Band.oga',
