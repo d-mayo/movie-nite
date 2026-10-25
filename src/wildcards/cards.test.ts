@@ -28,6 +28,7 @@ describe('the wheel cards', () => {
       'picks-again',
       'reshuffle',
       'blind-spin',
+      'wildcard-spins',
       'genre-night',
       'halloween',
       'christmas',
@@ -43,9 +44,9 @@ describe('the wheel cards', () => {
       'movie-night-rewind',
       'play-rento',
     ])
-    expect(cards.slice(0, 8).every((c) => c.type === 'wheel' && !c.fff)).toBe(true)
-    expect(cards.slice(8, 20).every((c) => c.type === 'movie' && !c.fff)).toBe(true)
-    expect(cards.slice(20).every((c) => c.type === 'movie' && c.fff)).toBe(true)
+    expect(cards.slice(0, 9).every((c) => c.type === 'wheel' && !c.fff)).toBe(true)
+    expect(cards.slice(9, 21).every((c) => c.type === 'movie' && !c.fff)).toBe(true)
+    expect(cards.slice(21).every((c) => c.type === 'movie' && c.fff)).toBe(true)
   })
 
   it('rolls a weight card with its label, title, text and effect', () => {
@@ -433,5 +434,40 @@ describe('card names and descriptions', () => {
       for (const text of [card.name, card.description]) expect(text).not.toMatch(/\b[Xn]\b/)
     }
     expect(new Set(cards.map((c) => c.name)).size).toBe(cards.length)
+  })
+})
+
+describe('the wildcard-spins card', () => {
+  const card = cards.find((c) => c.id === 'wildcard-spins')!
+  const ctx: DealContext = { viewers: [], wildcardCount: 3, today: new Date(2026, 2, 15), commonGround: false }
+
+  it('sits right after Blind Spin and rolls n from 2 to 5', () => {
+    const ids = cards.map((c) => c.id)
+    expect(ids.indexOf('wildcard-spins')).toBe(ids.indexOf('blind-spin') + 1)
+    expect(card.fff).toBe(false)
+    const counts = new Set<number>()
+    for (let seed = 1; seed < 80; seed++) {
+      const rolled = card.roll(ctx, seeded(seed))
+      const change = rolled.effect.change
+      if (change.kind !== 'spins') throw new Error('not spins')
+      counts.add(change.count)
+      expect(rolled.label).toBe(`${change.count}× wildcard spins`)
+      expect(rolled.title).toBe(`${change.count}× Wildcard Spins`)
+      expect(rolled.text).toContain(String(change.count))
+    }
+    expect([...counts].sort()).toEqual([2, 3, 4, 5])
+  })
+
+  it('is eligible while a pool card is', () => {
+    expect(card.eligible(ctx)).toBe(true)
+    expect(card.eligible({ ...ctx, wildcardCount: 12 })).toBe(false)
+  })
+
+  it('validCardEffects keeps a valid spins effect and drops a malformed one', () => {
+    const effect = (change: unknown) => ({ cardId: 'wildcard-spins', label: 'x', change })
+    expect(validCardEffects([effect({ kind: 'spins', count: 3 })])).toHaveLength(1)
+    for (const bad of [{ kind: 'spins' }, { kind: 'spins', count: 2.5 }, { kind: 'spins', count: 1 }, { kind: 'spins', count: 6 }]) {
+      expect(validCardEffects([effect(bad)])).toEqual([])
+    }
   })
 })

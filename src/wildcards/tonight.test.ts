@@ -85,3 +85,12 @@ describe('viewerCardLabels', () => {
     expect(viewerCardLabels(effects, 'z')).toEqual([])
   })
 })
+
+describe('the wildcard-spins card', () => {
+  const spins: CardEffect = { cardId: 'wildcard-spins', label: '3× wildcard spins', change: { kind: 'spins', count: 3 } }
+
+  it('is never a chip or a cell icon', () => {
+    expect(chipEffects([spins, weight('Sam +2 weight', 's')], ['s'])).toEqual([weight('Sam +2 weight', 's')])
+    expect(viewerCardLabels([spins], 's')).toEqual([])
+  })
+})

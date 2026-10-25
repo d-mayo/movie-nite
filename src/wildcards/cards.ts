@@ -21,6 +21,8 @@ export type CardChange =
   | { kind: 'blindSpin'; used: boolean }
   // A movie card's film was taken: it changes nothing on the wheel and only shows in the summary.
   | { kind: 'movie' }
+  // A wildcard-spins card: the sub-board it deals is spun this many times; only the summary shows it.
+  | { kind: 'spins'; count: number }
 
 // A card's landed effect, kept in the night.
 export interface CardEffect {
@@ -305,6 +307,36 @@ const blindSpinCard: CardDef = {
       title: 'Blind Spin',
       text: 'The next spin hides the names, titles and posters until it lands.',
       effect: { cardId: 'blind-spin', label: 'Blind spin', change: { kind: 'blindSpin', used: false } },
+    }
+  },
+}
+
+export const minSpins = 2
+export const maxSpins = 5
+
+// The cards a wildcard-spins sub-board is dealt from: the wheel cards that change slices, weight or wildcards.
+export const subBoardPool = ['viewer-weight', 'viewer-slices', 'everyone-weight', 'everyone-slices', 'wildcards']
+
+// A board of slice, weight and wildcard cards, spun two to five times.
+const wildcardSpinsCard: CardDef = {
+  id: 'wildcard-spins',
+  type: 'wheel',
+  fff: false,
+  name: 'Wildcard spins',
+  description: 'Spins a board of slice, weight and wildcard cards two to five times.',
+  // The card's switch is judged in the deal, which sees the switches; here only that the pool has a card.
+  eligible: (context) => cards.some((card) => subBoardPool.includes(card.id) && card.eligible(context)),
+  roll(_context, random) {
+    const n = minSpins + Math.min(maxSpins - minSpins, Math.floor(random() * (maxSpins - minSpins + 1)))
+    const label = `${n}× wildcard spins`
+    return {
+      cardId: 'wildcard-spins',
+      type: 'wheel',
+      fff: false,
+      label,
+      title: `${n}× Wildcard Spins`,
+      text: `A board of cards will be spun ${n} times.`,
+      effect: { cardId: 'wildcard-spins', label, change: { kind: 'spins', count: n } },
     }
   },
 }
@@ -597,6 +629,7 @@ export const cards: CardDef[] = [
   picksAgainCard,
   reshuffleCard,
   blindSpinCard,
+  wildcardSpinsCard,
   genreNightCard,
   seasonal('halloween', 'Halloween (Oct)', 'Three Halloween films, dealt every time in October.', 'Halloween', 'Halloween', [10, 1], [10, 31], { with_keywords: '3335' }),
   seasonal('christmas', 'Christmas (Dec 1–25)', 'Three Christmas films, dealt every time from December 1 to 25.', 'Christmas', 'Christmas', [12, 1], [12, 25], { with_keywords: '207317' }),
@@ -623,8 +656,17 @@ function validChange(value: unknown): value is CardChange {
     viewerIds?: unknown
     tmdbId?: unknown
     used?: unknown
+    count?: unknown
   }
   if (change.kind === 'movie') return true
+  if (change.kind === 'spins') {
+    return (
+      typeof change.count === 'number' &&
+      Number.isInteger(change.count) &&
+      change.count >= minSpins &&
+      change.count <= maxSpins
+    )
+  }
   if (change.kind === 'blindSpin') return typeof change.used === 'boolean'
   if (change.kind === 'picksAgain' || change.kind === 'reshuffle') {
     return (
