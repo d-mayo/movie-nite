@@ -31,8 +31,8 @@ import { drawFilmsFromList } from '../letterboxd/listDraw.ts'
 import { canCommonGround, canHaveBacklog, commonGroundGroup, drawCommonGround } from '../letterboxd/commonGround.ts'
 import { drawDiscoverFilms, filmsMessage, loadFilms, maxCanFilms } from '../tmdb/discoverDraw.ts'
 import { finishTake, hasCans, newCans, openChoice, pickCan, settleTick, takeFilm, type Cans } from '../wildcards/cans.ts'
-import { cards, type DealContext } from '../wildcards/cards.ts'
-import { canDeal, dealCards, dealSize, type DealtCard } from '../wildcards/deal.ts'
+import { cards, cardTextNow, type DealContext } from '../wildcards/cards.ts'
+import { canDeal, dealCards, dealSize, dealSubBoard, type DealtCard } from '../wildcards/deal.ts'
 import FilmCans from './FilmCans.tsx'
 import {
   buildCatchPath,
@@ -125,6 +125,8 @@ interface Spin {
   toCards: boolean
   // The film a movie card gave, once the room took it: its reveal replaces the card.
   taken: { film: CardFilm; at: Date } | null
+  // A wildcard-spins sub-board: how many spins it has and how many have landed and been taken.
+  sub: { total: number; done: number } | null
 }
 
 // A card's draw of films (a Reshuffle's or a movie card's): under way, ready with the films in their cans, or
@@ -540,6 +542,7 @@ export default function WheelPanel({
           blind: false,
           toCards: false,
           taken: null,
+          sub: null,
         })
       }
       if (prefersReducedMotion()) {
@@ -577,6 +580,7 @@ export default function WheelPanel({
       blind: blindPress,
       toCards,
       taken: null,
+      sub: onCards ? spin.sub : null,
     })
     onBusyChange(true)
     if (!countdown) {
@@ -671,10 +675,75 @@ export default function WheelPanel({
     } else if (change.kind === 'movie') {
       // A movie card lands when its film is taken; Back is only for a draw that found nothing.
       if (current?.phase !== 'failed') return
+    } else if (change.kind === 'spins') {
+      // The card lands and its sub-board rolls in; the room leaves only after the last spin.
+      addCardEffect(card.effect)
+      enterSubBoard(change.count)
+      return
     } else {
       addCardEffect(card.effect)
+      const sub = spin.sub
+      if (sub && sub.done + 1 < sub.total) {
+        // Back to the same sub-board, waiting for its next spin: no transition and no new deal.
+        setSpin((s) => s && s.sub && {
+          ...s,
+          drawn: 0,
+          landed: false,
+          revealedAt: null,
+          closeCall: false,
+          zoom: null,
+          countdown: null,
+          waiting: true,
+          taken: null,
+          sub: { ...s.sub, done: s.sub.done + 1 },
+        })
+        return
+      }
     }
     leave()
+  }
+
+  // A wildcard-spins card's sub-board is dealt once, against the wheel as it is now, and rolls in over the gate
+  // (a crossfade with reduced motion); it waits for its press like the wildcard wheel.
+  function enterSubBoard(total: number) {
+    const deal = dealSubBoard(dealContext(), random, settings.wheel.disabledCards)
+    if (deal.length === 0) {
+      leave()
+      return
+    }
+    clearTimeout(holdTimer.current)
+    clearTimeout(easeTimer.current)
+    const swap = () => {
+      sound.reelChange()
+      setSpin({
+        wedges: buildCardWedges(deal),
+        drawn: 0,
+        landed: false,
+        revealedAt: null,
+        closeCall: false,
+        zoom: null,
+        countdown: null,
+        wheel: 'cards',
+        deal,
+        waiting: true,
+        leaving: false,
+        blind: false,
+        toCards: false,
+        taken: null,
+        sub: { total, done: 0 },
+      })
+    }
+    // The card gives way at once.
+    setSpin((s) => s && { ...s, leaving: true })
+    if (prefersReducedMotion()) {
+      crossfade(swap)
+      return
+    }
+    const k = transitionScale()
+    phase('roll', (rollMs / 2) * k, () => {
+      swap()
+      phase('roll', (rollMs / 2) * k, () => phase(null, 0, () => {}))
+    })
   }
 
   // Play Rento's Play press: the card lands and the game joins tonight's watched list in one update.
@@ -883,6 +952,13 @@ export default function WheelPanel({
     return change.kind === 'movie' || !current.cans.taken
   }
 
+  // The card's button: the spins card deals its board, a sub-board card before the last spin goes on to the next.
+  function backLabel(): string | undefined {
+    if (shownCard?.effect.change.kind === 'spins') return 'Deal the spins'
+    const sub = spin?.sub
+    return sub && sub.done + 1 < sub.total ? `Spin again (${sub.done + 2} of ${sub.total})` : undefined
+  }
+
   function outcome(nomination: Nomination, result: Outcome, fromWheel: boolean) {
     recordOutcome(nomination, result, fromWheel)
     close()
@@ -925,6 +1001,11 @@ export default function WheelPanel({
         {(transition === 'slam' || transition === 'open') && <Clapper />}
         <div className="zoom-vignette" ref={vignetteRef} aria-hidden="true" />
         {spin?.landed && <Flicker key={spin.wheel} />}
+        {spin?.sub && (
+          <p className="spin-counter" data-testid="spin-counter">
+            Spin {spin.sub.done + 1} of {spin.sub.total}
+          </p>
+        )}
         {waiting && (
           <p id="spin-waiting" className="spin-waiting">
             {waiting}
@@ -1000,6 +1081,16 @@ export default function WheelPanel({
           card={spin.deal[spin.drawn]}
           closeCall={spin.closeCall}
           text={cardText()}
+          worded={cardTextNow(
+            spin.deal[spin.drawn],
+            settings.wheel,
+            night.adjustments,
+            night.cardEffects,
+            onWheel.length,
+            (id) => roster.find((v) => v.id === id)?.name,
+          )}
+          typeSuffix={spin.sub ? `Spin ${spin.sub.done + 1} of ${spin.sub.total}` : undefined}
+          backLabel={backLabel()}
           busy={cardBusy()}
           wide={current?.phase === 'ready' && hasCans(current.cans) && !(current.cans.taken && kind === 'reshuffle')}
           onBack={back}

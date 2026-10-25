@@ -864,3 +864,154 @@ test('with FFF locked and every other card off a wildcard landing opens the sear
   expect(wheelText()).toMatch(/MOVIE NIGHT REWIND|PLAY RENTO/)
   expect(wheelText()).not.toMatch(/BLIND SPIN|HALLOWEEN|GENRE/)
 })
+
+// The wildcard-spins card: a sub-board of slice, weight and wildcard cards, spun n times.
+async function openSpinsCard() {
+  forceCard('wildcard-spins')
+  const dialog = await openCard()
+  const n = Number(within(dialog).getByRole('heading').textContent!.match(/^(\d)×/)![1])
+  return { dialog, n }
+}
+
+test('a spins card deals its board by the gate roll, spins it n times, stores each card as its button is pressed, and leaves by the slam', async () => {
+  const { engine, log } = recordingSound()
+  const { store } = setup({ sound: engine })
+  const { dialog, n } = await openSpinsCard()
+  expect(n).toBeGreaterThanOrEqual(2)
+  expect(within(dialog).getByRole('button', { name: 'Deal the spins' })).toBeInTheDocument()
+  expect(screen.queryByTestId('spin-counter')).toBeNull()
+  const effects = () => store.getState().night.cardEffects
+  const startsBefore = log.starts
+  const cuts = log.events.filter((e) => e === 'cut').length
+  const stage = recordStage()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Deal the spins' }))
+  expect(effects().map((e) => e.change.kind)).toEqual(['spins'])
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  await waitFor(() => expect(screen.getByTestId('spin-counter')).toHaveTextContent(`Spin 1 of ${n}`))
+  await waitFor(() => expect(document.querySelector('.wheel-stage')).not.toHaveAttribute('data-transition'))
+  expect(stage.phases()).toEqual(['roll'])
+  expect(stage.records.some((r) => r.cueMark)).toBe(false)
+  expect(log.events.filter((e) => e === 'cut')).toHaveLength(cuts)
+  expect(log.events.filter((e) => e === 'reel-change')).toHaveLength(2)
+  expect(wedgeKinds()).toEqual(Array(8).fill('card'))
+  const board = wheelText()
+  expect(document.querySelector('.wheel-stage')).toHaveAttribute('data-wheel', 'cards')
+  for (let k = 1; k <= n; k++) {
+    expect(screen.getByTestId('spin-counter')).toHaveTextContent(`Spin ${k} of ${n}`)
+    expect(wheelText()).toBe(board)
+    fireEvent.click(spinButton())
+    const card = await screen.findByRole('dialog')
+    expect(card.querySelector('.card-type')).toHaveTextContent(`Wheel card · Spin ${k} of ${n}`)
+    expect(card.querySelector('[role="status"]')).toBeNull()
+    const last = k === n
+    const button = within(card).getByRole('button', { name: last ? 'Back to the main wheel' : `Spin again (${k + 1} of ${n})` })
+    expect(effects()).toHaveLength(k)
+    fireEvent.click(button)
+    expect(effects()).toHaveLength(k + 1)
+    if (!last) {
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+      expect(screen.getByTestId('spin-counter')).toHaveTextContent(`Spin ${k + 1} of ${n}`)
+      expect(wedgeKinds()).toEqual(Array(8).fill('card'))
+      await waitFor(() => expect(spinButton()).toBeEnabled())
+    }
+  }
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  await waitFor(() => expect(document.querySelector('.wheel-stage')).not.toHaveAttribute('data-transition'))
+  stage.stop()
+  expect(stage.phases()).toEqual(['roll', 'slam', 'open'])
+  expect(effects()).toHaveLength(n + 1)
+  expect(effects().slice(1).every((e) => ['slices', 'weight', 'wildcards'].includes(e.change.kind))).toBe(true)
+  // The main press started the night's spin once; each sub-board spin kept the music alone and landed with the stinger.
+  expect(log.starts - startsBefore).toBe(n)
+  expect(log.keepStarts).toBe(n + 1)
+  expect(log.events.filter((e) => e === 'landed')).toHaveLength(n + 1)
+  expect(log.events.filter((e) => e === 'cue-beep')).toHaveLength(2)
+  expect(screen.queryByTestId('spin-counter')).toBeNull()
+})
+
+test('Escape does what the card button does, before the last spin and on the last', async () => {
+  const { store } = setup()
+  const { n } = await openSpinsCard()
+  fireEvent.keyDown(document, { key: 'Escape' })
+  await waitFor(() => expect(screen.getByTestId('spin-counter')).toBeInTheDocument())
+  for (let k = 1; k <= n; k++) {
+    await waitFor(() => expect(spinButton()).toBeEnabled())
+    fireEvent.click(spinButton())
+    await screen.findByRole('dialog')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    if (k < n) {
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+      expect(screen.getByTestId('spin-counter')).toHaveTextContent(`Spin ${k + 1} of ${n}`)
+    }
+  }
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  expect(store.getState().night.cardEffects).toHaveLength(n + 1)
+})
+
+test('with reduced motion the sub-board comes in and the room leaves by crossfades', async () => {
+  stubReducedMotion()
+  forceCard('wildcard-spins')
+  setup()
+  const stage = recordStage()
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')), { timeout: 3000 })
+  fireEvent.click(spinButton())
+  const dialog = await screen.findByRole('dialog', undefined, { timeout: 3000 })
+  const n = Number(within(dialog).getByRole('heading').textContent!.match(/^(\d)×/)![1])
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Deal the spins' }))
+  await waitFor(() => expect(screen.getByTestId('spin-counter')).toBeInTheDocument(), { timeout: 3000 })
+  for (let k = 1; k <= n; k++) {
+    await waitFor(() => expect(spinButton()).toBeEnabled())
+    fireEvent.click(spinButton())
+    fireEvent.click(within(await screen.findByRole('dialog', undefined, { timeout: 3000 })).getByRole('button'))
+  }
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'), { timeout: 3000 })
+  stage.stop()
+  expect(stage.phases()).toEqual([])
+  expect(stage.records.some((r) => r.clapper || r.cueMark)).toBe(false)
+}, 20000)
+
+test('a sub-board card is ordinary text worded from the effective values when it opens', async () => {
+  const { store } = setup()
+  const { dialog, n } = await openSpinsCard()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Deal the spins' }))
+  await waitFor(() => expect(screen.getByTestId('spin-counter')).toBeInTheDocument())
+  const seen: string[] = []
+  for (let k = 1; k <= n; k++) {
+    await waitFor(() => expect(spinButton()).toBeEnabled())
+    fireEvent.click(spinButton())
+    const card = await screen.findByRole('dialog')
+    expect(card.querySelector('.card-text')).not.toHaveAttribute('role')
+    seen.push(card.querySelector('.card-text')!.textContent!)
+    fireEvent.click(within(card).getByRole('button'))
+    if (k < n) await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  }
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  expect(seen.every((t) => t.length > 0)).toBe(true)
+  expect(store.getState().night.cardEffects).toHaveLength(n + 1)
+})
+
+test('a forced spins card deals its sub-board from the pool cards that are on', async () => {
+  window.history.pushState({}, '', '/?debug')
+  setup({ wheel: { disabledCards: ['viewer-weight', 'viewer-slices', 'everyone-weight'] } })
+  fireEvent.click(screen.getByLabelText('Force wildcards'))
+  fireEvent.change(screen.getByLabelText('Force card'), { target: { value: 'wildcard-spins' } })
+  const dialog = await openCard()
+  expect(within(dialog).getByRole('heading').textContent).toMatch(/Wildcard Spins/)
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Deal the spins' }))
+  await waitFor(() => expect(screen.getByTestId('spin-counter')).toBeInTheDocument())
+  fireEvent.click(spinButton())
+  const card = await screen.findByRole('dialog')
+  expect(card.querySelector('h2')!.textContent).toMatch(/^(Everyone [+−]\d Slices|\+\d Wildcards?)$/)
+})
+
+test('with every pool card switched off a forced spins card deals its sub-board from the eligible pool', async () => {
+  window.history.pushState({}, '', '/?debug')
+  setup({ wheel: { disabledCards: ['viewer-weight', 'viewer-slices', 'everyone-weight', 'everyone-slices', 'wildcards'] } })
+  fireEvent.click(screen.getByLabelText('Force wildcards'))
+  fireEvent.change(screen.getByLabelText('Force card'), { target: { value: 'wildcard-spins' } })
+  const dialog = await openCard()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Deal the spins' }))
+  await waitFor(() => expect(screen.getByTestId('spin-counter')).toBeInTheDocument())
+  expect(wedgeKinds()).toEqual(Array(8).fill('card'))
+})

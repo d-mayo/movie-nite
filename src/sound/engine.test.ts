@@ -655,6 +655,15 @@ describe('the wildcard wheel', () => {
     expect(ambience.reaches(ctx.effects)).toBe(false)
   })
 
+  test('a second swap while the ambience plays plays the clunk and starts no second ambience', async () => {
+    const { ctx, sound } = await ready()
+    sound.reelChange()
+    sound.reelChange()
+    expect(ctx.sourcesOf('clunk')).toHaveLength(2)
+    expect(ctx.sourcesOf('ambience')).toHaveLength(1)
+    expect(ctx.sourcesOf('ambience')[0].stoppedAt).toBeNull()
+  })
+
   test('its spin keeps the ambience and starts no loop, with or without a countdown; the projector and hum run as ever', async () => {
     const { ctx, sound } = await ready()
     sound.reelChange()

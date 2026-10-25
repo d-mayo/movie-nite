@@ -39,6 +39,16 @@ test('lists a movie card by its label among the wheel cards, in landing order', 
   expect(items.map((li) => li.textContent)).toEqual(['+1 wildcard', 'Horror night'])
 })
 
+test('lists a spins card by its label, before the cards stored after it', () => {
+  mount([
+    { cardId: 'wildcard-spins', label: '2× wildcard spins', change: { kind: 'spins', count: 2 } },
+    { cardId: 'w', label: '+1 wildcard', change: { kind: 'wildcards', amount: 1 } },
+    { cardId: 'x', label: 'Ann +1 weight', change: { kind: 'weight', amount: 1, viewerIds: ['a'] } },
+  ])
+  const items = within(screen.getByRole('list', { name: 'Cards tonight' })).getAllByRole('listitem')
+  expect(items.map((li) => li.textContent)).toEqual(['2× wildcard spins', '+1 wildcard', 'Ann +1 weight'])
+})
+
 test('with no cards it shows no card list', () => {
   mount([])
   expect(screen.queryByText('Cards tonight:')).toBeNull()

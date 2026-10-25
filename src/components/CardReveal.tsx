@@ -9,6 +9,12 @@ interface Props {
   closeCall?: boolean
   // The card's text when it is not the rolled one (a Reshuffle's draw, its swap or its failure).
   text?: string
+  // The card's text worded from what it does to the wheel now, as ordinary text (not a live region); `text` wins.
+  worded?: string
+  // Added to the type line, for a card on a sub-board: "Spin 2 of 3".
+  typeSuffix?: string
+  // The button's words when they are not "Back to the main wheel".
+  backLabel?: string
   // Back and Escape wait: a draw is under way, or the cans are in play.
   busy?: boolean
   // What sits under the text: a movie card's sealed cans.
@@ -22,7 +28,7 @@ const typeLines = { wheel: 'Wheel card', movie: 'Movie card' } as const
 
 // A landed wildcard card, turned over from its back to its face (face up at once with
 // reduced motion). Back to the main wheel, or Escape, takes its effect.
-export default function CardReveal({ card, closeCall = false, text, busy = false, children, wide = false, onBack }: Props) {
+export default function CardReveal({ card, closeCall = false, text, worded, typeSuffix, backLabel, busy = false, children, wide = false, onBack }: Props) {
   const [flip, setFlip] = useState(() => !prefersReducedMotion())
   const centerX = useStageCenter()
   const back = useRef<HTMLButtonElement>(null)
@@ -71,11 +77,12 @@ export default function CardReveal({ card, closeCall = false, text, busy = false
         <div className={`card-face card-face-${card.type}`}>
           <p className="card-type">
             {typeLines[card.type]}
+            {typeSuffix && ` · ${typeSuffix}`}
             {closeCall && <span className="reveal-tag">Close call</span>}
           </p>
           <h2 id="card-heading">{card.title}</h2>
           {text === undefined ? (
-            <p className="card-text">{card.text}</p>
+            <p className="card-text">{worded ?? card.text}</p>
           ) : (
             <p className="card-text" role="status">
               {text}
@@ -83,7 +90,7 @@ export default function CardReveal({ card, closeCall = false, text, busy = false
           )}
           {children}
           <button ref={back} type="button" className="card-back-button" disabled={busy} onClick={onBack}>
-            Back to the main wheel
+            {backLabel ?? 'Back to the main wheel'}
           </button>
         </div>
         {flip && <div className="card-back" aria-hidden="true" />}

@@ -845,6 +845,19 @@ body:has(.wheel-stage[data-wheel='cards']) {
    wheel rolls in the gate (a stepped vertical jolt with blur and a brightness flare). It moves the zoom
    wrapper, never the stage, which must stay free of any transform or filter that would trap its fixed
    descendants (the flicker, the close-call vignette). */
+.spin-counter {
+  position: absolute;
+  top: 2%;
+  left: 2%;
+  z-index: 2;
+  margin: 0;
+  color: var(--film-stock);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.6rem;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+
 .cue-mark {
   position: absolute;
   top: 2%;
