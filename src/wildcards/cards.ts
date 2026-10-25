@@ -1,11 +1,15 @@
 import type { DiscoverParams } from '../tmdb/client.ts'
 import { formatRuntime } from '../wheel/reveal.ts'
 import {
+  effectiveSetting,
   maxSlices,
   maxWeight,
   maxWildcards,
   minSlices,
   minWeight,
+  wildcardTotal,
+  type Adjustment,
+  type WheelSettings,
 } from '../wheel/edit.ts'
 
 // What a landed card changes: a viewer-set change of slices or weight by a
@@ -694,4 +698,44 @@ export function validCardEffects(value: unknown): CardEffect[] {
       typeof (e as CardEffect).label === 'string' &&
       validChange((e as CardEffect).change),
   )
+}
+
+// The text of a slice, weight or wildcards card as it opens, worded from what the
+// card actually does to the wheel as it is now: the effective values before and
+// after its effect over `effects`. The rolled text is kept where it still holds,
+// and every other card's text is its rolled text.
+export function cardTextNow(
+  card: RolledCard,
+  wheel: WheelSettings,
+  adjustments: Record<string, Adjustment>,
+  effects: CardEffect[],
+  viewerCount: number,
+  nameOf: (viewerId: string) => string | undefined,
+): string {
+  const { change } = card.effect
+  const after = [...effects, card.effect]
+  if (change.kind === 'wildcards') {
+    const added = wildcardTotal(viewerCount, wheel, after) - wildcardTotal(viewerCount, wheel, effects)
+    if (added <= 0) return 'The wheel already has the most wildcards.'
+    return `The wheel gets ${added} more ${added === 1 ? 'wildcard' : 'wildcards'} for the rest of the night.`
+  }
+  if (change.kind !== 'slices' && change.kind !== 'weight') return card.text
+  const field = change.kind
+  const move = (viewerId: string) => ({
+    from: effectiveSetting(wheel, adjustments, viewerId, effects)[field],
+    to: effectiveSetting(wheel, adjustments, viewerId, after)[field],
+  })
+  if (card.cardId.startsWith('everyone')) {
+    return change.viewerIds.some((id) => {
+      const { from, to } = move(id)
+      return from !== to
+    })
+      ? card.text
+      : `Nothing changes: everyone's ${field} ${field === 'slices' ? 'are' : 'is'} already at the limit.`
+  }
+  const name = nameOf(change.viewerIds[0])
+  if (name === undefined) return card.text
+  const { from, to } = move(change.viewerIds[0])
+  if (from === to) return `${name}'s ${field} ${field === 'slices' ? 'stay' : 'stays'} at ${to}.`
+  return `${name}'s ${field} ${field === 'slices' ? 'go' : 'goes'} from ${from} to ${to} for the rest of the night.`
 }
