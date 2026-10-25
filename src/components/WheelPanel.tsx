@@ -161,6 +161,8 @@ const announceMs = 3000
 export const revealHoldMs = 650
 // A blind wheel that lands on a wildcard is unveiled this much longer before the wildcard wheel.
 export const blindWildcardHoldMs = 3000
+// A wildcard that opens the wildcard wheel holds its landing this long before the cue marks, so the reel can run out.
+export const wildcardHoldMs = 2200
 
 // The pointer's height as a share of the wheel's width, which is the zoom's origin (8.5% down the wheel).
 const pointerShare = 0.085
@@ -218,6 +220,7 @@ export default function WheelPanel({
   const fadeTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const countdownTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const holdTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const beepTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const vignetteRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const easeTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -234,6 +237,7 @@ export default function WheelPanel({
       clearTimeout(countdownTimer.current)
       clearTimeout(fadeTimer.current)
       clearTimeout(transitionTimer.current)
+      clearTimeout(beepTimer.current)
       // Unmounted with the reveal open (a cleared token): the music still fades.
       if (musicOn.current) soundRef.current.revealClosed()
     },
@@ -455,15 +459,19 @@ export default function WheelPanel({
       }
       // A catch's one tick, as the pin first meets the tongue; no pin slips off in a catch, so it has no other.
       if (caughtPath) cues.push({ atMs: caughtPath.contactMs, fire: () => sound.pinTick(catchTickShare) })
+      // A landing on a wildcard that opens the wildcard wheel plays the reel running out instead of the fanfare;
+      // on the wildcard wheel a movie card's win sounds wait for its film (or the game), and the quiet landing
+      // plays only a close call's cheer; every other landing plays the stinger, applause and, after a close call, the cheer.
+      const movieCard = onCards && spin.deal?.[drawn]?.effect.change.kind === 'movie'
+      function landSound(seconds: number) {
+        if (toCards) sound.wildcardLanded()
+        else if (movieCard) sound.landedQuiet(closeCall)
+        else sound.landed(seconds, closeCall)
+      }
       // The landing: the stinger's hit and the reveal after `holdMs`; a close call holds its zoom, then
       // eases it back (the hold's last part) before the reveal opens.
       function land(holdMs: number) {
-        // A landing on a wildcard that opens the wildcard wheel plays no fanfare: the march plays on, brought back up after a close call.
-        if (toCards) {
-          if (closeCall) sound.musicResume()
-        } else {
-          sound.landed(holdMs / 1000, closeCall)
-        }
+        landSound(holdMs / 1000)
         setSpin((s) => s && { ...s, landed: true })
         if (closeCall) {
           easeTimer.current = setTimeout(
@@ -471,7 +479,8 @@ export default function WheelPanel({
             holdMs - closeCallEaseOutMs,
           )
         }
-        const wait = toCards && blindPress ? holdMs + blindWildcardHoldMs : holdMs
+        const base = toCards ? Math.max(holdMs, wildcardHoldMs) : holdMs
+        const wait = toCards && blindPress ? base + blindWildcardHoldMs : base
         holdTimer.current = setTimeout(() => {
           if (toCards) enterCards()
           else setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null })
@@ -484,12 +493,11 @@ export default function WheelPanel({
           if (kind === 'bend') sound.closeCallBreak()
           if (immediate) {
             // With reduced motion there is no flicker, and a test-length spin opens at once.
+            landSound(0)
             if (toCards) {
-              if (closeCall) sound.musicResume()
               enterCards()
               return
             }
-            sound.landed(0, closeCall)
             setSpin((s) => s && { ...s, landed: !reduced, revealedAt: new Date(), zoom: null })
             return
           }
@@ -513,7 +521,10 @@ export default function WheelPanel({
         setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null })
         return
       }
-      const swap = () =>
+      const swap = () => {
+        // The reel clunks and the ambience starts under the wildcard wheel.
+        sound.reelChange()
+        musicOn.current = true
         setSpin({
           wedges: buildCardWedges(deal),
           drawn: 0,
@@ -530,12 +541,19 @@ export default function WheelPanel({
           toCards: false,
           taken: null,
         })
+      }
       if (prefersReducedMotion()) {
+        sound.reelCut()
         crossfade(swap)
         return
       }
       // The cue mark blinks, the wheel rolls in the gate, and the wheels swap halfway through the roll.
+      // The march is cut as the cue begins and each blink beeps (the blinks show at 0 and half of cueMs).
       const k = transitionScale()
+      sound.reelCut()
+      sound.cueBeep()
+      clearTimeout(beepTimer.current)
+      beepTimer.current = setTimeout(() => sound.cueBeep(), (cueMs / 2) * k)
       phase('cue', cueMs * k, () =>
         phase('roll', (rollMs / 2) * k, () => {
           swap()
@@ -598,12 +616,17 @@ export default function WheelPanel({
   function leave() {
     clearTimeout(holdTimer.current)
     clearTimeout(easeTimer.current)
-    if (musicOn.current) sound.revealClosed()
-    musicOn.current = false
     if (transitionRef.current === 'slam' || transitionRef.current === 'open') return
+    // The clap sounds with the slam, as the top stick swings shut, or at the crossfade back's swap;
+    // it ends the loop, the ambience and any win sounds, and nothing plays after it.
+    const clap = () => {
+      sound.slam()
+      musicOn.current = false
+    }
     setSpin((s) => s && { ...s, leaving: true })
     if (prefersReducedMotion()) {
       crossfade(() => {
+        clap()
         setSpin(null)
         onBusyChange(false)
       })
@@ -612,6 +635,7 @@ export default function WheelPanel({
     // The clapperboard slams shut over the stage, the wheels swap under it, its sticks part, and the lock ends.
     const k = transitionScale()
     phase('slam', slamMs * k, () => {
+      clap()
       setSpin(null)
       phase('slam', slamHoldMs * k, () =>
         phase('open', openMs * k, () => {
@@ -626,6 +650,11 @@ export default function WheelPanel({
   const shownCard =
     spin?.revealedAt && spin.wheel === 'cards' && !spin.leaving && !spin.taken ? spin.deal?.[spin.drawn] : null
   const current = draw?.key === spin?.revealedAt ? draw : null
+  // Play Rento's game reveal replaces its card: the win sounds land with it.
+  const gameShown = current?.phase === 'game'
+  useEffect(() => {
+    if (gameShown) soundRef.current.fanfare(0)
+  }, [gameShown])
 
   // The card's effect joins the night, the stage fades back to the main wheel, and the lock ends.
   function back() {
@@ -659,6 +688,8 @@ export default function WheelPanel({
   // The room's film from a movie card: the card lands, and the film's own reveal replaces it.
   function landFilm(card: DealtCard, nomination: Nomination) {
     addCardEffect(card.effect)
+    // The win sounds wait for the film: the stinger's hit lands as its reveal opens.
+    sound.fanfare(0)
     const source = card.source
     const viewer = source?.kind === 'shortest' ? roster.find((v) => v.id === source.viewerId) : undefined
     const film: CardFilm = viewer
@@ -676,6 +707,8 @@ export default function WheelPanel({
     if (!card || current?.phase !== 'ready') return
     const cans = play(current.cans)
     if (cans === current.cans) return
+    // Each can that opens knocks once.
+    for (let i = current.cans.opened.length; i < cans.opened.length; i++) sound.knock()
     setDraw({ ...current, cans })
     if (cans.taken && card.effect.change.kind === 'movie') landFilm(card, cans.taken)
   }

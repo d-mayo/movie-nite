@@ -6,7 +6,7 @@ export interface SoundCredit {
   source: string
   sourceUrl: string
   author: string
-  license: 'CC0' | 'Public domain'
+  license: 'CC0' | 'CC BY 4.0' | 'Public domain'
 }
 
 export const soundCredits: SoundCredit[] = [
@@ -90,5 +90,54 @@ export const soundCredits: SoundCredit[] = [
     sourceUrl: 'https://freesound.org/people/beeproductive/sounds/430046/',
     author: 'beeproductive',
     license: 'CC0',
+  },
+  {
+    file: 'distorted-loop.mp3',
+    what: 'Wildcard landing music',
+    source: 'Entrance of the Gladiators, by Julius Fučík, run through a worn projector',
+    sourceUrl:
+      'https://commons.wikimedia.org/wiki/File:Julius_Fu%C4%8D%C3%ADk\'s_%22Entrance_of_the_Gladiators%22,_performed_by_the_U.S._Marine_Band.oga',
+    author: 'U.S. Marine Band',
+    license: 'Public domain',
+  },
+  {
+    file: 'ambience.mp3',
+    what: 'Wildcard wheel ambience',
+    source: '412145, 8 mm projector long run with finish, under a slowed Entrance of the Gladiators (public domain)',
+    sourceUrl: 'https://freesound.org/people/Stefan021/sounds/412145/',
+    author: 'Stefan021',
+    license: 'CC0',
+  },
+  {
+    file: 'run-out.mp3',
+    what: 'Reel running out',
+    source: '412145, 8 mm projector long run with finish',
+    sourceUrl: 'https://freesound.org/people/Stefan021/sounds/412145/',
+    author: 'Stefan021',
+    license: 'CC0',
+  },
+  {
+    file: 'clunk.mp3',
+    what: 'Reel change clunk',
+    source: '702451, overhead projector',
+    sourceUrl: 'https://freesound.org/people/Stefan021/sounds/702451/',
+    author: 'Stefan021',
+    license: 'CC0',
+  },
+  {
+    file: 'clap.mp3',
+    what: 'Clapper slam',
+    source: '579205, Clap at Two Church 6',
+    sourceUrl: 'https://freesound.org/people/jonsept/sounds/579205/',
+    author: 'jonsept',
+    license: 'CC0',
+  },
+  {
+    file: 'knock.mp3',
+    what: 'Film can knock',
+    source: '698129, metal click',
+    sourceUrl: 'https://freesound.org/people/ChristianStuck/sounds/698129/',
+    author: 'ChristianStuck',
+    license: 'CC BY 4.0',
   },
 ]

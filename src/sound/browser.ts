@@ -9,6 +9,12 @@ import gaspUrl from '../assets/sound/gasp.mp3'
 import drumrollUrl from '../assets/sound/drumroll.mp3'
 import cymbalUrl from '../assets/sound/cymbal.mp3'
 import cheerUrl from '../assets/sound/cheer.mp3'
+import dloopUrl from '../assets/sound/distorted-loop.mp3'
+import ambienceUrl from '../assets/sound/ambience.mp3'
+import runoutUrl from '../assets/sound/run-out.mp3'
+import clunkUrl from '../assets/sound/clunk.mp3'
+import clapUrl from '../assets/sound/clap.mp3'
+import knockUrl from '../assets/sound/knock.mp3'
 
 const urls: Record<SoundName, string> = {
   on: onUrl,
@@ -21,6 +27,12 @@ const urls: Record<SoundName, string> = {
   drumroll: drumrollUrl,
   cymbal: cymbalUrl,
   cheer: cheerUrl,
+  dloop: dloopUrl,
+  ambience: ambienceUrl,
+  runout: runoutUrl,
+  clunk: clunkUrl,
+  clap: clapUrl,
+  knock: knockUrl,
 }
 
 type AudioContextConstructor = typeof AudioContext

@@ -29,6 +29,10 @@ export class FakeParam {
     this.set('linearRampToValueAtTime', value)
   }
   cancelScheduledValues() {}
+  // A param is the end of a path, never a node that reaches another.
+  reaches() {
+    return false
+  }
 }
 
 export class FakeNode {
@@ -36,6 +40,9 @@ export class FakeNode {
   connect(node: FakeNode) {
     this.out.push(node)
     return node
+  }
+  disconnect() {
+    this.out = []
   }
   // Whether this node's output reaches `target`.
   reaches(target: FakeNode): boolean {
@@ -84,6 +91,15 @@ export class FakeFilter extends FakeNode {
   type = ''
   frequency = new FakeParam(350)
   Q = new FakeParam(1)
+  gain = new FakeParam(0)
+}
+
+export class FakeDelay extends FakeNode {
+  delayTime = new FakeParam(0)
+}
+
+export class FakeShaper extends FakeNode {
+  curve: Float32Array | null = null
 }
 
 // The decoded length of each file, in seconds.
@@ -98,6 +114,12 @@ export const fakeDurations: Record<SoundName, number> = {
   drumroll: 1.8,
   cymbal: 2.23,
   cheer: 7,
+  dloop: 32.32,
+  ambience: 60.64,
+  runout: 3.3,
+  clunk: 0.45,
+  clap: 2.3,
+  knock: 0.3,
 }
 
 export class FakeContext {
@@ -109,6 +131,7 @@ export class FakeContext {
   gains: FakeGain[] = []
   sources: FakeSource[] = []
   oscillators: FakeOscillator[] = []
+  shapers: FakeShaper[] = []
   createGain() {
     const gain = new FakeGain()
     this.gains.push(gain)
@@ -129,6 +152,14 @@ export class FakeContext {
   }
   createBiquadFilter() {
     return new FakeFilter()
+  }
+  createDelay() {
+    return new FakeDelay()
+  }
+  createWaveShaper() {
+    const shaper = new FakeShaper()
+    this.shapers.push(shaper)
+    return shaper
   }
   resume() {
     this.resumes++

@@ -90,7 +90,7 @@ function recordingSound() {
       log.starts++
       if (countdown) log.countdownStarts++
       if (keep) log.keepStarts++
-      log.events.push(keep ? 'start-keep' : 'start')
+      log.events.push(keep ? 'start-cards' : 'start')
     },
     musicStart: () => {
       log.musicStarts++
@@ -103,6 +103,14 @@ function recordingSound() {
     beep: () => {},
     spinSpeed: () => {},
     pinTick: (share) => void log.ticks.push(share),
+    wildcardLanded: () => void log.events.push('wildcard-landed'),
+    reelCut: () => void log.events.push('cut'),
+    cueBeep: () => void log.events.push('cue-beep'),
+    reelChange: () => void log.events.push('reel-change'),
+    landedQuiet: (close = false) => void log.events.push(close ? 'landed-quiet-close' : 'landed-quiet'),
+    fanfare: () => void log.events.push('fanfare'),
+    knock: () => void log.events.push('knock'),
+    slam: () => void log.events.push('slam'),
     spinEnd: () => {},
     closeCall: () => void log.cues++,
     closeCallBreak: () => {},
@@ -244,6 +252,14 @@ test('with the Wildcard wheel switch off a wildcard landing opens the wildcard s
   expect(store.getState().night.cardEffects).toEqual([])
 })
 
+test('with the Wildcard wheel switch off a wildcard landing sounds as any landing: the fanfare, no run-out', async () => {
+  const { engine, log } = recordingSound()
+  setup({ wheel: { wildcardWheel: false }, sound: engine })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(log.events).toEqual(['start', 'landed'])
+})
+
 test('the card opens face up with no flip under reduced motion, and the wheel still crossfades', async () => {
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query.includes('prefers-reduced-motion'),
@@ -353,21 +369,40 @@ test('with reduced motion entering and leaving are crossfades with no cue mark, 
   expect(stage.records.some((r) => r.clapper || r.cueMark)).toBe(false)
 }, 9000)
 
-test('the music plays on through the wildcard wheel: no landing sounds at the wildcard, keep-music spin, landing at the card, fade at Back', async () => {
+test("the wildcard wheel's sounds come in order: run-out at the landing, cut and two beeps at the cue, clunk at the swap, its own spin, stinger at the card, clap at the slam", async () => {
   const { engine, log } = recordingSound()
   setup({ sound: engine })
   fireEvent.click(spinButton())
   await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
-  expect(log.landed).toBe(0)
+  // No fanfare, no march fade and no resume at the wildcard.
+  expect(log.events).toEqual(['start', 'wildcard-landed', 'cut', 'cue-beep', 'cue-beep', 'reel-change'])
   expect(log.closed).toBe(0)
   fireEvent.click(spinButton())
   await screen.findByRole('dialog')
-  expect(log.events).toEqual(['start', 'start-keep', 'landed'])
+  expect(log.events.slice(6)).toEqual(['start-cards', 'landed'])
   expect(log.keepStarts).toBe(1)
   expect(log.musicStarts).toBe(0)
   fireEvent.click(screen.getByRole('button', { name: 'Back to the main wheel' }))
-  expect(log.closed).toBe(1)
+  await waitFor(() => expect(log.events.at(-1)).toBe('slam'))
+  expect(log.events.filter((e) => e === 'slam')).toHaveLength(1)
+  expect(log.closed).toBe(0)
 })
+
+test('with reduced motion the march is cut with no beeps, the clunk comes at the swap and the clap at the crossfade back', async () => {
+  stubReducedMotion()
+  const { engine, log } = recordingSound()
+  setup({ sound: engine })
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')), { timeout: 3000 })
+  expect(log.events).toEqual(['start', 'wildcard-landed', 'cut', 'reel-change'])
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog', undefined, { timeout: 3000 })
+  fireEvent.click(screen.getByRole('button', { name: 'Back to the main wheel' }))
+  expect(log.events).not.toContain('slam')
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'), { timeout: 3000 })
+  expect(log.events.at(-1)).toBe('slam')
+  expect(log.events.filter((e) => e === 'slam')).toHaveLength(1)
+}, 9000)
 
 function withDebug() {
   window.history.pushState({}, '', '/?debug')
@@ -401,11 +436,12 @@ test('on the wildcard wheel, Force close calls makes a close call and Force catc
   setup({ sound: close.engine, wheel: { spinSeconds: 6 } })
   fireEvent.click(screen.getByLabelText('Force close calls'))
   fireEvent.click(spinButton())
-  // The main spin is a close call too: the march comes back up when it lands on the wildcard.
+  // The main spin is a close call too: the march stays silent when it lands on the wildcard.
   await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
   expect(close.log.cues).toBe(1)
-  expect(close.log.resumes).toBe(1)
+  expect(close.log.resumes).toBe(0)
   expect(close.log.landed).toBe(0)
+  expect(close.log.events).toContain('wildcard-landed')
   fireEvent.click(spinButton())
   await screen.findByRole('dialog')
   expect(close.log.cues).toBe(2)
@@ -424,7 +460,7 @@ test('on the wildcard wheel, Force close calls makes a close call and Force catc
   expect(caught.log.ticks.filter((t) => t === catchTickShare).length).toBe(afterMain + 1)
 })
 
-test('on the wildcard wheel, Force countdowns shows the dial and starts no music', async () => {
+test('on the wildcard wheel, Force countdowns shows the dial and calls musicStart again only when the count ends', async () => {
   withDebug()
   const { engine, log } = recordingSound()
   setup({ sound: engine })
@@ -437,9 +473,10 @@ test('on the wildcard wheel, Force countdowns shows the dial and starts no music
   expect(dial()).not.toBeNull()
   expect(log.countdownStarts).toBe(2)
   expect(log.keepStarts).toBe(1)
+  expect(log.musicStarts).toBe(1)
   await screen.findByRole('dialog', undefined, { timeout: 4000 })
   expect(dial()).toBeNull()
-  expect(log.musicStarts).toBe(1)
+  expect(log.musicStarts).toBe(2)
 }, 15000)
 
 const weightEffect = (label: string, ...viewerIds: string[]) => ({

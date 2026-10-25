@@ -17,6 +17,12 @@ export type SoundName =
   | 'drumroll'
   | 'cymbal'
   | 'cheer'
+  | 'dloop'
+  | 'ambience'
+  | 'runout'
+  | 'clunk'
+  | 'clap'
+  | 'knock'
 
 export interface SoundSettings {
   // 0 to 100 each: the overall volume, and the music's and the effects' levels,
@@ -33,14 +39,32 @@ export interface SoundEngine {
   apply(settings: SoundSettings): void
   // Spin pressed: the projector switches on and its motor starts, and the music loop starts, unless
   // `countdown` says a leader countdown comes first, when the music waits for musicStart.
-  // With `keepMusic` (the wildcard wheel's spin) the music is left as it is: not restarted, not stopped.
-  spinStart(countdown?: boolean, keepMusic?: boolean): void
+  // On the wildcard wheel (`cards`) the ambience plays on and no loop starts.
+  spinStart(countdown?: boolean, cards?: boolean): void
   // Brings a loop a close call silenced back to its full level, with no stinger.
   musicResume(): void
   // The leader countdown ended: the music loop starts, as at an ordinary press.
   musicStart(): void
   // One leader beep, at the start of each number of the countdown.
   beep(): void
+  // A wildcard landing that opens the wildcard wheel: the reel runs out in place of the win sounds, and the
+  // march gives way to its distorted twin, from where it has reached.
+  wildcardLanded(): void
+  // The cue marks begin: the loop winds down like a dying reel, slowing and fading, and stops.
+  reelCut(): void
+  // One beep with each blink of the cue mark, pitched apart from the leader beep.
+  cueBeep(): void
+  // The wheels swap: the reel clunks and the ambience starts looping.
+  reelChange(): void
+  // The wildcard wheel's spin landed and its win sounds wait for the result: the loop settles to its
+  // bed (after a close call, back up from silence) and a close call's cheer plays.
+  landedQuiet(closeCall?: boolean): void
+  // The stinger (its hit `revealInSeconds` from now) and the applause alone, the loop dipping under them.
+  fanfare(revealInSeconds: number): void
+  // A film can opened.
+  knock(): void
+  // Leaving the wildcard wheel: a clap ends the ambience and any win sounds, and silence follows its reverb.
+  slam(): void
   // The wheel's speed as a share (0 to 1) of the spin's peak, and the seconds
   // until it stops: the hum follows both.
   spinSpeed(share: number, secondsLeft: number): void
@@ -81,6 +105,14 @@ export const silentSound: SoundEngine = {
   musicStart: () => {},
   musicResume: () => {},
   beep: () => {},
+  wildcardLanded: () => {},
+  reelCut: () => {},
+  cueBeep: () => {},
+  reelChange: () => {},
+  landedQuiet: () => {},
+  fanfare: () => {},
+  knock: () => {},
+  slam: () => {},
   spinSpeed: () => {},
   pinTick: () => {},
   spinEnd: () => {},
@@ -140,6 +172,49 @@ export const minTickGap = 0.03
 export const beepHz = 1000
 const beepSeconds = 0.12
 const beepLevel = 0.3
+// The cue beeps are softer and rounder than the leader's.
+const cueBeepLevel = 0.18
+// The cue mark's beep: higher than the leader's, and shorter.
+export const cueBeepHz = 1600
+const cueBeepSeconds = 0.09
+// The wildcard wheel's sounds: the march is cut over a moment, the ambience loops over its
+// whole file (less the encoder's margin). At the cue the loop winds down over cutSeconds to a reel's
+// slow turn; the march gives way to its distorted twin over crossSeconds.
+export const cutSeconds = 0.7
+export const windDownRate = 0.4
+export const crossSeconds = 0.5
+export const ambienceLoopEnd = 60.54
+export const ambienceLevel = 0.7
+const runoutLevel = 0.8
+const clunkLevel = 0.8
+// The distorted loop is mastered 6.7 LUFS louder than the march, so it plays this much lower to sound as loud.
+export const distortedLevel = 0.37
+const clapLevel = 1
+const knockLevel = 0.8
+const ambienceStopSeconds = 0.4
+// The ambience swells in rather than starting at full.
+export const ambienceFadeInSeconds = 1.5
+// The film-reel treatment of the wildcard wheel's win sounds: the soundtrack's band, a nasal bump, soft
+// clipping, wow and flutter from a modulated delay, and a make-up gain.
+const reelHighpassHz = 220
+const reelLowpassHz = 4200
+const reelDrive = 2.4
+// Soft clipping adds loudness: the chain's make-up gain takes it back down, and the loud close-call sounds are trimmed.
+const reelMakeup = 0.5
+const reelTrim = 0.6
+const reelWowHz = 0.7
+const reelWowDepth = 0.0035
+const reelFlutterHz = 7.3
+const reelFlutterDepth = 0.0003
+const reelCurve = (() => {
+  const curve = new Float32Array(1024)
+  for (let i = 0; i < curve.length; i++) {
+    const x = (i / (curve.length - 1)) * 2 - 1
+    curve[i] = Math.tanh(reelDrive * x + 0.15 * x * x) / Math.tanh(reelDrive)
+  }
+  return curve
+})()
+const ambienceDipLevel = 0.25
 
 const gestures = ['pointerdown', 'pointerup', 'keydown', 'touchend']
 
@@ -165,7 +240,14 @@ export function createSound(deps: SoundDeps): SoundEngine {
   let crowd: GainNode
   // The loop while it plays or fades; the stinger and applause, which fade
   // with it.
-  let loop: { source: AudioBufferSourceNode; gain: GainNode } | null = null
+  let loop: { source: AudioBufferSourceNode; gain: GainNode; startedAt: number } | null = null
+  // Whether a close call has silenced the loop, which then has nothing to give way to.
+  let loopSilenced = false
+  // The wildcard wheel's ambience while it plays; and whether the spin under way is the wildcard wheel's.
+  let ambience: { source: AudioBufferSourceNode; gain: GainNode } | null = null
+  let cardsSpin = false
+  // The film-reel chains the wildcard wheel's win sounds pass through while it shows, and the teardown.
+  let reelFx: { effects: GainNode; music: GainNode; stop: () => void } | null = null
   let wins: AudioBufferSourceNode[] = []
   // The close call's drumroll while it plays.
   let roll: { source: AudioBufferSourceNode; gain: GainNode } | null = null
@@ -185,7 +267,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
   function load() {
     if (loading) return
     loading = true
-    for (const name of ['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer'] as const) {
+    for (const name of ['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer', 'dloop', 'ambience', 'runout', 'clunk', 'clap', 'knock'] as const) {
       deps
         .load(name)
         .then((data) => ctx!.decodeAudioData(data))
@@ -225,21 +307,106 @@ export function createSound(deps: SoundDeps): SoundEngine {
     if (ctx.state !== 'running') ctx.resume().catch(() => {})
   }
 
-  function play(name: SoundName, level?: number) {
+  // Where a sound for the effects bus goes: through the reel chain while the wildcard wheel shows, if it wants the treatment.
+  function effectsIn(fx: boolean): AudioNode {
+    return fx && reelFx ? reelFx.effects : effects
+  }
+
+  function play(name: SoundName, level?: number, fx = false) {
     const buffer = buffers[name]
     if (!ctx || !buffer) return null
     const source = ctx.createBufferSource()
     source.buffer = buffer
     if (level === undefined) {
-      source.connect(effects)
+      source.connect(effectsIn(fx))
     } else {
       const gain = ctx.createGain()
-      gain.gain.value = level
+      gain.gain.value = fx && reelFx ? level * reelTrim : level
       source.connect(gain)
-      gain.connect(effects)
+      gain.connect(effectsIn(fx))
     }
     source.start()
     return source
+  }
+
+  // One film-reel chain into `dest`: the soundtrack's band, a nasal bump, soft clipping, then wow and
+  // flutter from a delay whose time two slow oscillators move. Returns its input and a teardown.
+  function makeReelChain(dest: AudioNode) {
+    const c = ctx!
+    const input = c.createGain()
+    const highpass = c.createBiquadFilter()
+    highpass.type = 'highpass'
+    highpass.frequency.value = reelHighpassHz
+    const lowpass = c.createBiquadFilter()
+    lowpass.type = 'lowpass'
+    lowpass.frequency.value = reelLowpassHz
+    const nasal = c.createBiquadFilter()
+    nasal.type = 'peaking'
+    nasal.frequency.value = 1300
+    nasal.Q.value = 0.8
+    nasal.gain.value = 5
+    const shaper = c.createWaveShaper()
+    shaper.curve = reelCurve
+    const delay = c.createDelay(0.05)
+    delay.delayTime.value = 0.012
+    const out = c.createGain()
+    out.gain.value = reelMakeup
+    input.connect(highpass)
+    highpass.connect(lowpass)
+    lowpass.connect(nasal)
+    nasal.connect(shaper)
+    shaper.connect(delay)
+    delay.connect(out)
+    out.connect(dest)
+    const oscillators = [
+      [reelWowHz, reelWowDepth],
+      [reelFlutterHz, reelFlutterDepth],
+    ].map(([hz, depth]) => {
+      const lfo = c.createOscillator()
+      lfo.frequency.value = hz
+      const amount = c.createGain()
+      amount.gain.value = depth
+      lfo.connect(amount)
+      amount.connect(delay.delayTime)
+      lfo.start()
+      return lfo
+    })
+    return {
+      input,
+      stop: () => {
+        for (const lfo of oscillators) lfo.stop()
+        out.disconnect()
+      },
+    }
+  }
+
+  // While the wildcard wheel shows, its win sounds (the stinger, the applause and cheer, the close call's
+  // gasp, drumroll and cymbal) pass through the film-reel chains; leaving it puts them back on the plain buses.
+  function setReelMode(on: boolean) {
+    if (!ctx || on === (reelFx !== null)) return
+    if (on) {
+      const fxEffects = makeReelChain(effects)
+      const fxMusic = makeReelChain(music)
+      win.disconnect()
+      win.connect(fxMusic.input)
+      crowd.disconnect()
+      crowd.connect(fxEffects.input)
+      reelFx = {
+        effects: fxEffects.input,
+        music: fxMusic.input,
+        stop: () => {
+          fxEffects.stop()
+          fxMusic.stop()
+        },
+      }
+    } else {
+      win.disconnect()
+      win.connect(music)
+      crowd.disconnect()
+      crowd.connect(effects)
+      reelFx?.stop()
+      reelFx = null
+    }
   }
 
   // Ends the drumroll, if it still plays, over a moment so it does not click.
@@ -264,7 +431,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     const gain = ctx.createGain()
     gain.gain.value = 0
     source.connect(gain)
-    gain.connect(effects)
+    gain.connect(effectsIn(true))
     source.start(now, 0)
     const fadeIn = Math.min(drumrollFadeInSeconds, seconds)
     ramp(gain, drumrollStartLevel, now, fadeIn)
@@ -272,20 +439,77 @@ export function createSound(deps: SoundDeps): SoundEngine {
     roll = { source, gain }
   }
 
-  function startLoop() {
-    const buffer = buffers.loop
-    if (!ctx || !buffer) return
+  // The march, or its distorted twin (same lead-in and loop points), from `offset` in its file.
+  function startLoop(distorted = false, offset = 0, level = loopLevel) {
+    const buffer = buffers[distorted ? 'dloop' : 'loop']
+    if (!ctx || !buffer) return null
     const source = ctx.createBufferSource()
     source.buffer = buffer
     source.loop = true
     source.loopStart = loopStart
     source.loopEnd = Math.min(loopEnd, buffer.duration)
     const gain = ctx.createGain()
-    gain.gain.value = loopLevel
+    gain.gain.value = level
+    source.connect(gain)
+    gain.connect(music)
+    source.start(0, offset)
+    loopSilenced = false
+    loop = { source, gain, startedAt: ctx.currentTime - offset }
+    return loop
+  }
+
+  // The background that plays now: the loop, or on the wildcard wheel the ambience.
+  function bed() {
+    if (loop) return { gain: loop.gain, full: loopLevel, rest: bedLevel, dip: dipLevel }
+    if (ambience) return { gain: ambience.gain, full: ambienceLevel, rest: ambienceLevel, dip: ambienceDipLevel }
+    return null
+  }
+
+  // Where the march has reached in its file, wrapping at the loop's end.
+  function loopPosition() {
+    if (!ctx || !loop) return 0
+    const t = ctx.currentTime - loop.startedAt
+    const length = loopEnd - loopStart
+    return t < loopEnd ? t : loopStart + ((t - loopStart) % length)
+  }
+
+  function startAmbience() {
+    const buffer = buffers.ambience
+    if (!ctx || !buffer) return
+    stopAmbience()
+    const source = ctx.createBufferSource()
+    source.buffer = buffer
+    source.loop = true
+    source.loopStart = 0
+    source.loopEnd = Math.min(ambienceLoopEnd, buffer.duration)
+    const gain = ctx.createGain()
+    gain.gain.value = 0
     source.connect(gain)
     gain.connect(music)
     source.start(0, 0)
-    loop = { source, gain }
+    ramp(gain, ambienceLevel, ctx.currentTime, ambienceFadeInSeconds)
+    ambience = { source, gain }
+  }
+
+  // Lets the ambience go over a moment, so it does not click.
+  function stopAmbience() {
+    if (!ctx || !ambience) return
+    const { source, gain } = ambience
+    ambience = null
+    ramp(gain, 0, ctx.currentTime, ambienceStopSeconds)
+    source.stop(ctx.currentTime + ambienceStopSeconds + 0.02)
+  }
+
+  // Winds the loop down like a dying reel, slowing and fading, and stops it.
+  function windDownLoop() {
+    if (!ctx || !loop) return
+    const { source, gain } = loop
+    loop = null
+    const now = ctx.currentTime
+    ramp(gain, 0, now, cutSeconds)
+    source.playbackRate.setValueAtTime(1, now)
+    source.playbackRate.linearRampToValueAtTime(windDownRate, now + cutSeconds)
+    source.stop(now + cutSeconds + 0.02)
   }
 
   function humTargets(share: number, secondsLeft: number) {
@@ -338,13 +562,48 @@ export function createSound(deps: SoundDeps): SoundEngine {
   function stopMusic() {
     if (!ctx) return
     if (loop) loop.source.stop()
+    if (ambience) ambience.source.stop()
     for (const source of wins) source.stop()
     loop = null
+    ambience = null
     wins = []
+    setReelMode(false)
     for (const gain of [win, crowd]) {
       gain.gain.cancelScheduledValues(0)
       gain.gain.value = 1
     }
+  }
+
+  // The spin's loop: the march; the wildcard wheel keeps its ambience instead.
+  function startSpinMusic() {
+    if (!ctx || cardsSpin) return
+    startLoop()
+  }
+
+  // The background dips under the stinger and comes back up to its bed as it ends; without the
+  // stinger there is nothing to dip under.
+  function dipLoop(now: number, hold: number, lead: number) {
+    const b = bed()
+    if (!b) return
+    if (!buffers.stinger) return ramp(b.gain, b.rest, now, 0.5)
+    const end = now + hold - lead + (stingerSeconds - (stingerHit - lead))
+    ramp(b.gain, b.dip, now, 0.15)
+    // Back up as the stinger ends, to the bed.
+    b.gain.gain.setValueAtTime(b.dip, end - 0.5)
+    b.gain.gain.linearRampToValueAtTime(b.rest, end)
+  }
+
+  // The stinger and applause, the stinger's hit `hold` seconds from now, the loop dipping under
+  // them and coming back to the bed as the stinger ends.
+  function playFanfare(hold: number, cheer = false) {
+    if (!ctx) return
+    const now = ctx.currentTime
+    // The hit lands as the reveal opens: start the stinger's swell early
+    // enough, or, with no hold, from its hit.
+    const lead = Math.min(stingerHit, hold)
+    playWin('stinger', now + hold - lead, stingerHit - lead, stingerLevel)
+    playWin('applause', now + hold, 0, applauseLevel)
+    if (cheer) playWin('cheer', now + hold, 0, cheerLevel)
   }
 
   return {
@@ -358,13 +617,14 @@ export function createSound(deps: SoundDeps): SoundEngine {
       settings = next
       setGains(false)
     },
-    spinStart(countdown = false, keepMusic = false) {
+    spinStart(countdown = false, cards = false) {
       if (!ctx) return
+      cardsSpin = cards
       stopHum()
       stopRoll()
-      if (!keepMusic) stopMusic()
+      if (!cards) stopMusic()
       play('on')
-      if (!countdown && !keepMusic) startLoop()
+      if (!countdown) startSpinMusic()
       const buffer = buffers.hum
       if (!buffer) return
       const source = ctx.createBufferSource()
@@ -382,11 +642,63 @@ export function createSound(deps: SoundDeps): SoundEngine {
       hum = { source, gain }
     },
     musicStart() {
-      startLoop()
+      startSpinMusic()
     },
     musicResume() {
-      if (!ctx || !loop) return
-      ramp(loop.gain, loopLevel, ctx.currentTime, 0.5)
+      const b = bed()
+      if (!ctx || !b) return
+      loopSilenced = false
+      ramp(b.gain, b.full, ctx.currentTime, 0.5)
+    },
+    wildcardLanded() {
+      if (!ctx) return
+      play('runout', runoutLevel)
+      // The march turns into its distorted twin from where it has reached (one a close call has
+      // silenced has nothing to give way to).
+      if (!loop || loopSilenced || !buffers.dloop) return
+      const now = ctx.currentTime
+      const march = loop
+      ramp(march.gain, 0, now, crossSeconds)
+      march.source.stop(now + crossSeconds + 0.02)
+      const twin = startLoop(true, loopPosition(), 0)
+      if (twin) ramp(twin.gain, distortedLevel, now, crossSeconds)
+    },
+    reelCut() {
+      if (!ctx) return
+      windDownLoop()
+    },
+    cueBeep() {
+      if (!ctx) return
+      const at = ctx.currentTime
+      const out = ctx.createGain()
+      out.gain.setValueAtTime(cueBeepLevel, at)
+      out.gain.setValueAtTime(cueBeepLevel, at + cueBeepSeconds - 0.02)
+      out.gain.linearRampToValueAtTime(0, at + cueBeepSeconds)
+      out.connect(effects)
+      const tone = ctx.createOscillator()
+      tone.type = 'triangle'
+      tone.frequency.setValueAtTime(cueBeepHz, at)
+      tone.connect(out)
+      tone.start(at)
+      tone.stop(at + cueBeepSeconds)
+    },
+    reelChange() {
+      if (!ctx) return
+      play('clunk', clunkLevel)
+      startAmbience()
+      setReelMode(true)
+    },
+    knock() {
+      if (!ctx) return
+      play('knock', knockLevel)
+    },
+    slam() {
+      if (!ctx) return
+      stopRoll()
+      // The ambience goes out under the clap, whose reverb then rings into silence.
+      stopAmbience()
+      stopMusic()
+      play('clap', clapLevel)
     },
     beep() {
       if (!ctx) return
@@ -449,8 +761,10 @@ export function createSound(deps: SoundDeps): SoundEngine {
     closeCall(secondsToStop) {
       if (!ctx) return
       const now = ctx.currentTime
-      if (loop) ramp(loop.gain, 0, now, loopDropSeconds)
-      play('gasp', gaspLevel)
+      const b = bed()
+      if (b) ramp(b.gain, 0, now, loopDropSeconds)
+      if (loop) loopSilenced = true
+      play('gasp', gaspLevel, true)
       // The roll loops for the whole approach and fades in as the music fades out, then
       // builds by a ramp to the stop.
       startRoll(secondsToStop)
@@ -458,7 +772,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     closeCallBreak() {
       if (!ctx) return
       stopRoll()
-      play('cymbal', cymbalLevel)
+      play('cymbal', cymbalLevel, true)
     },
     drumroll(seconds) {
       if (!ctx) return
@@ -468,40 +782,49 @@ export function createSound(deps: SoundDeps): SoundEngine {
     drumrollBreak() {
       if (!ctx) return
       stopRoll()
-      play('cymbal', cymbalLevel)
+      play('cymbal', cymbalLevel, true)
     },
     landed(revealInSeconds, closeCall = false) {
       if (!ctx) return
       const now = ctx.currentTime
       const hold = Math.max(revealInSeconds, 0)
-
-      // The hit lands as the reveal opens: start the stinger's swell early
-      // enough, or, with no hold, from its hit.
       const lead = Math.min(stingerHit, hold)
-      playWin('stinger', now + hold - lead, stingerHit - lead, stingerLevel)
-      playWin('applause', now + hold, 0, applauseLevel)
-      if (closeCall) playWin('cheer', now + hold, 0, cheerLevel)
-      if (!loop) return
+      playFanfare(hold, closeCall)
+      const b = bed()
+      if (!b) return
       if (closeCall) {
-        // The loop has been silent since the cue: it comes back as the stinger ends, from where it has reached.
+        // The background has been silent since the cue: it comes back as the stinger ends, from where it has reached.
         const end = buffers.stinger ? now + hold - Math.min(stingerHit, hold) + (stingerSeconds - (stingerHit - Math.min(stingerHit, hold))) : now + hold
-        ramp(loop.gain, 0, now, 0.05)
-        loop.gain.gain.setValueAtTime(0, end - 0.5)
-        loop.gain.gain.linearRampToValueAtTime(bedLevel, end)
+        ramp(b.gain, 0, now, 0.05)
+        b.gain.gain.setValueAtTime(0, end - 0.5)
+        b.gain.gain.linearRampToValueAtTime(b.rest, end)
         return
       }
-      // Without the stinger there is nothing to dip under.
-      if (!buffers.stinger) return ramp(loop.gain, bedLevel, now, 0.5)
-      const end = now + hold - lead + (stingerSeconds - (stingerHit - lead))
-      ramp(loop.gain, dipLevel, now, 0.15)
-      // Back up as the stinger ends, to the bed.
-      loop.gain.gain.setValueAtTime(dipLevel, end - 0.5)
-      loop.gain.gain.linearRampToValueAtTime(bedLevel, end)
+      dipLoop(now, hold, lead)
+    },
+    landedQuiet(closeCall = false) {
+      if (!ctx) return
+      const now = ctx.currentTime
+      if (closeCall) playWin('cheer', now, 0, cheerLevel)
+      const b = bed()
+      if (!b) return
+      // After a close call the background comes back up from silence to its bed, the cymbal having struck.
+      ramp(b.gain, b.rest, now, closeCall ? 0.8 : 0.5)
+    },
+    fanfare(revealInSeconds) {
+      if (!ctx) return
+      const hold = Math.max(revealInSeconds, 0)
+      playFanfare(hold)
+      dipLoop(ctx.currentTime, hold, Math.min(stingerHit, hold))
     },
     revealClosed() {
       if (!ctx) return
       const now = ctx.currentTime
       stopRoll()
+      if (ambience) {
+        fadeOut(ambience.gain, now, musicFadeSeconds)
+        ambience.source.stop(now + musicFadeSeconds + 0.05)
+      }
       if (loop) {
         fadeOut(loop.gain, now, musicFadeSeconds)
         loop.source.stop(now + musicFadeSeconds + 0.05)
@@ -509,6 +832,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
       fadeOut(win, now, musicFadeSeconds)
       fadeOut(crowd, now, musicFadeSeconds)
       for (const w of wins) w.stop(now + musicFadeSeconds + 0.05)
+      setReelMode(false)
     },
   }
 }
