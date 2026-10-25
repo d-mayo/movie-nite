@@ -167,6 +167,14 @@ describe('the wheel with card effects', () => {
     change: { kind: 'wildcards', amount },
   })
 
+  test('ignores a spins effect', () => {
+    const spins: CardEffect = { cardId: 'wildcard-spins', label: 'fx', change: { kind: 'spins', count: 3 } }
+    const fx = [weightFx(2, 'A'), wildFx(1)]
+    expect(effectiveSetting(wheel(), {}, 'A', [spins, ...fx])).toEqual(effectiveSetting(wheel(), {}, 'A', fx))
+    expect(wildcardTotal(2, wheel(), [spins, ...fx])).toBe(wildcardTotal(2, wheel(), fx))
+    expect(deriveSlices(['A', 'B'], wheel(), {}, [spins, ...fx])).toEqual(deriveSlices(['A', 'B'], wheel(), {}, fx))
+  })
+
   test('adds a named viewer\'s change over their adjustment or default', () => {
     expect(effectiveSetting(wheel(), {}, 'A', [weightFx(2, 'A'), sliceFx(1, 'A')])).toEqual({
       slices: 4,

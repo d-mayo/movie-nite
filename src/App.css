@@ -841,10 +841,6 @@ body:has(.wheel-stage[data-wheel='cards']) {
   opacity: 0;
 }
 
-/* The reel change into the wildcard wheel: a cue mark blinks twice in the stage's corner, then the
-   wheel rolls in the gate (a stepped vertical jolt with blur and a brightness flare). It moves the zoom
-   wrapper, never the stage, which must stay free of any transform or filter that would trap its fixed
-   descendants (the flicker, the close-call vignette). */
 .spin-counter {
   position: absolute;
   top: 2%;
@@ -858,6 +854,10 @@ body:has(.wheel-stage[data-wheel='cards']) {
   pointer-events: none;
 }
 
+/* The reel change into the wildcard wheel: a cue mark blinks twice in the stage's corner, then the
+   wheel rolls in the gate (a stepped vertical jolt with blur and a brightness flare). It moves the zoom
+   wrapper, never the stage, which must stay free of any transform or filter that would trap its fixed
+   descendants (the flicker, the close-call vignette). */
 .cue-mark {
   position: absolute;
   top: 2%;
