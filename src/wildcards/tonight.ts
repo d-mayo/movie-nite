@@ -9,7 +9,7 @@ export function chipEffects(effects: CardEffect[], rosterIds: string[]): CardEff
     (e) =>
       e.change.kind === 'wildcards' ||
       e.change.kind === 'blindSpin' ||
-      (e.change.kind !== 'movie' && e.change.viewerIds.some((id) => roster.has(id))),
+      (e.change.kind !== 'movie' && e.change.kind !== 'spins' && e.change.viewerIds.some((id) => roster.has(id))),
   )
 }
 
@@ -21,6 +21,7 @@ export function viewerCardLabels(effects: CardEffect[], viewerId: string): strin
         e.change.kind !== 'wildcards' &&
         e.change.kind !== 'blindSpin' &&
         e.change.kind !== 'movie' &&
+        e.change.kind !== 'spins' &&
         e.change.viewerIds.includes(viewerId),
     )
     .map((e) => e.label)

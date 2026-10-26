@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { seeded } from './seeded.ts'
 import { createTmdbClient } from '../tmdb/client.ts'
-import { cards, validCardEffects, type DealContext, type DealViewer } from './cards.ts'
+import { defaultWheelSettings } from '../wheel/edit.ts'
+import { cards, cardTextNow, validCardEffects, type DealContext, type DealViewer } from './cards.ts'
 
 // A March day: no seasonal card is eligible.
 const today = new Date(2026, 2, 15)
@@ -28,6 +29,7 @@ describe('the wheel cards', () => {
       'picks-again',
       'reshuffle',
       'blind-spin',
+      'wildcard-spins',
       'genre-night',
       'halloween',
       'christmas',
@@ -43,9 +45,9 @@ describe('the wheel cards', () => {
       'movie-night-rewind',
       'play-rento',
     ])
-    expect(cards.slice(0, 8).every((c) => c.type === 'wheel' && !c.fff)).toBe(true)
-    expect(cards.slice(8, 20).every((c) => c.type === 'movie' && !c.fff)).toBe(true)
-    expect(cards.slice(20).every((c) => c.type === 'movie' && c.fff)).toBe(true)
+    expect(cards.slice(0, 9).every((c) => c.type === 'wheel' && !c.fff)).toBe(true)
+    expect(cards.slice(9, 21).every((c) => c.type === 'movie' && !c.fff)).toBe(true)
+    expect(cards.slice(21).every((c) => c.type === 'movie' && c.fff)).toBe(true)
   })
 
   it('rolls a weight card with its label, title, text and effect', () => {
@@ -433,5 +435,103 @@ describe('card names and descriptions', () => {
       for (const text of [card.name, card.description]) expect(text).not.toMatch(/\b[Xn]\b/)
     }
     expect(new Set(cards.map((c) => c.name)).size).toBe(cards.length)
+  })
+})
+
+describe('the wildcard-spins card', () => {
+  const card = cards.find((c) => c.id === 'wildcard-spins')!
+  const ctx: DealContext = { viewers: [], wildcardCount: 3, today: new Date(2026, 2, 15), commonGround: false }
+
+  it('sits right after Blind Spin and rolls n from 2 to 5', () => {
+    const ids = cards.map((c) => c.id)
+    expect(ids.indexOf('wildcard-spins')).toBe(ids.indexOf('blind-spin') + 1)
+    expect(card.fff).toBe(false)
+    const counts = new Set<number>()
+    for (let seed = 1; seed < 80; seed++) {
+      const rolled = card.roll(ctx, seeded(seed))
+      const change = rolled.effect.change
+      if (change.kind !== 'spins') throw new Error('not spins')
+      counts.add(change.count)
+      expect(rolled.label).toBe(`${change.count}× wildcard spins`)
+      expect(rolled.title).toBe(`${change.count}× Wildcard Spins`)
+      expect(rolled.text).toContain(String(change.count))
+    }
+    expect([...counts].sort()).toEqual([2, 3, 4, 5])
+  })
+
+  it('is eligible while a pool card is', () => {
+    expect(card.eligible(ctx)).toBe(true)
+    expect(card.eligible({ ...ctx, wildcardCount: 12 })).toBe(false)
+  })
+
+  it('validCardEffects keeps a valid spins effect and drops a malformed one', () => {
+    const effect = (change: unknown) => ({ cardId: 'wildcard-spins', label: 'x', change })
+    expect(validCardEffects([effect({ kind: 'spins', count: 3 })])).toHaveLength(1)
+    for (const bad of [{ kind: 'spins' }, { kind: 'spins', count: 2.5 }, { kind: 'spins', count: 1 }, { kind: 'spins', count: 6 }]) {
+      expect(validCardEffects([effect(bad)])).toEqual([])
+    }
+  })
+})
+
+describe('cardTextNow', () => {
+  const wheel = { ...defaultWheelSettings, defaultSlices: 3, defaultWeight: 2, wildcardsPerViewer: false, wildcardCount: 3 }
+  const names = (id: string) => ({ a: 'Sam', b: 'Jo' })[id]
+  const ctx = (viewers: DealViewer[], wildcardCount = 3): DealContext => ({
+    viewers, wildcardCount, today: new Date(2026, 2, 15), commonGround: false,
+  })
+  const viewer = (id: string, slices: number, weight: number): DealViewer => ({
+    id, name: names(id)!, slices, weight, film: null, canReshuffle: false, canBacklog: false,
+  })
+  const roll = (id: string, context: DealContext, seed = 1) => cards.find((c) => c.id === id)!.roll(context, seeded(seed))
+  const word = (card: ReturnType<typeof roll>, adjustments = {}, effects: import('./cards.ts').CardEffect[] = [], count = 2) =>
+    cardTextNow(card, wheel, adjustments, effects, count, names)
+
+  it('equals the rolled text when rolled against the same wheel', () => {
+    const context = ctx([viewer('a', 3, 2), viewer('b', 3, 2)])
+    for (const id of ['viewer-weight', 'viewer-slices', 'everyone-weight', 'everyone-slices', 'wildcards']) {
+      for (let seed = 1; seed < 20; seed++) {
+        const card = roll(id, context, seed)
+        expect(word(card)).toBe(card.text)
+      }
+    }
+  })
+
+  it('reads from the stored value to the new one, and that it stays at a limit', () => {
+    const plus = (n: number) => ({ cardId: 'viewer-weight', label: 'x', change: { kind: 'weight' as const, amount: n, viewerIds: ['a'] } })
+    const card = { ...roll('viewer-weight', ctx([viewer('a', 3, 2)])), effect: plus(3) }
+    expect(word(card, { a: { weight: 2 } }, [plus(3)])).toBe("Sam's weight goes from 5 to 8 for the rest of the night.")
+    expect(word(card, { a: { weight: 18 } }, [plus(3)])).toBe("Sam's weight stays at 20.")
+    expect(word(card, { a: { weight: 18 } }, [])).toBe("Sam's weight goes from 18 to 20 for the rest of the night.")
+  })
+
+  it('reads the effective values, not the raw sums', () => {
+    const minus = (n: number) => ({ cardId: 'viewer-weight', label: 'x', change: { kind: 'weight' as const, amount: n, viewerIds: ['a'] } })
+    const card = { ...roll('viewer-weight', ctx([viewer('a', 3, 2)])), effect: minus(1) }
+    expect(word(card, { a: { weight: 2 } }, [minus(-1), minus(-1)])).toBe("Sam's weight goes from 0.5 to 1 for the rest of the night.")
+  })
+
+  it('says nothing changes for an everyone card with every viewer at the limit', () => {
+    const everyone = cards.find((c) => c.id === 'everyone-slices')!
+    const card = everyone.roll(ctx([viewer('a', 3, 2), viewer('b', 3, 2)]), seeded(1))
+    const change = card.effect.change
+    if (change.kind !== 'slices') throw new Error()
+    const up = { ...card, effect: { ...card.effect, change: { ...change, amount: 2 } } }
+    expect(word(up, { a: { slices: 12 }, b: { slices: 12 } })).toBe("Nothing changes: everyone's slices are already at the limit.")
+    expect(word(up, { a: { slices: 12 } })).toBe(up.text)
+  })
+
+  it('names the wildcards actually added, or that the wheel has the most', () => {
+    const card = roll('wildcards', ctx([viewer('a', 3, 2)], 11), 1)
+    const change = card.effect.change
+    if (change.kind !== 'wildcards') throw new Error()
+    const three = { ...card, effect: { ...card.effect, change: { ...change, amount: 3 } } }
+    const w = { ...wheel, wildcardCount: 11 }
+    expect(cardTextNow(three, w, {}, [], 2, names)).toBe('The wheel gets 1 more wildcard for the rest of the night.')
+    expect(cardTextNow(three, { ...wheel, wildcardCount: 12 }, {}, [], 2, names)).toBe('The wheel already has the most wildcards.')
+  })
+
+  it('leaves any other card text alone', () => {
+    const card = roll('blind-spin', ctx([]))
+    expect(word(card)).toBe(card.text)
   })
 })

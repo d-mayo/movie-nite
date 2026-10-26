@@ -1,11 +1,15 @@
 import type { DiscoverParams } from '../tmdb/client.ts'
 import { formatRuntime } from '../wheel/reveal.ts'
 import {
+  effectiveSetting,
   maxSlices,
   maxWeight,
   maxWildcards,
   minSlices,
   minWeight,
+  wildcardTotal,
+  type Adjustment,
+  type WheelSettings,
 } from '../wheel/edit.ts'
 
 // What a landed card changes: a viewer-set change of slices or weight by a
@@ -21,6 +25,8 @@ export type CardChange =
   | { kind: 'blindSpin'; used: boolean }
   // A movie card's film was taken: it changes nothing on the wheel and only shows in the summary.
   | { kind: 'movie' }
+  // A wildcard-spins card: the sub-board it deals is spun this many times; only the summary shows it.
+  | { kind: 'spins'; count: number }
 
 // A card's landed effect, kept in the night.
 export interface CardEffect {
@@ -305,6 +311,36 @@ const blindSpinCard: CardDef = {
       title: 'Blind Spin',
       text: 'The next spin hides the names, titles and posters until it lands.',
       effect: { cardId: 'blind-spin', label: 'Blind spin', change: { kind: 'blindSpin', used: false } },
+    }
+  },
+}
+
+export const minSpins = 2
+export const maxSpins = 5
+
+// The cards a wildcard-spins sub-board is dealt from: the wheel cards that change slices, weight or wildcards.
+export const subBoardPool = ['viewer-weight', 'viewer-slices', 'everyone-weight', 'everyone-slices', 'wildcards']
+
+// A board of slice, weight and wildcard cards, spun two to five times.
+const wildcardSpinsCard: CardDef = {
+  id: 'wildcard-spins',
+  type: 'wheel',
+  fff: false,
+  name: 'Wildcard spins',
+  description: 'Spins a board of slice, weight and wildcard cards two to five times.',
+  // The card's switch is judged in the deal, which sees the switches; here only that the pool has a card.
+  eligible: (context) => cards.some((card) => subBoardPool.includes(card.id) && card.eligible(context)),
+  roll(_context, random) {
+    const n = minSpins + Math.min(maxSpins - minSpins, Math.floor(random() * (maxSpins - minSpins + 1)))
+    const label = `${n}× wildcard spins`
+    return {
+      cardId: 'wildcard-spins',
+      type: 'wheel',
+      fff: false,
+      label,
+      title: `${n}× Wildcard Spins`,
+      text: `A board of cards will be spun ${n} times.`,
+      effect: { cardId: 'wildcard-spins', label, change: { kind: 'spins', count: n } },
     }
   },
 }
@@ -597,6 +633,7 @@ export const cards: CardDef[] = [
   picksAgainCard,
   reshuffleCard,
   blindSpinCard,
+  wildcardSpinsCard,
   genreNightCard,
   seasonal('halloween', 'Halloween (Oct)', 'Three Halloween films, dealt every time in October.', 'Halloween', 'Halloween', [10, 1], [10, 31], { with_keywords: '3335' }),
   seasonal('christmas', 'Christmas (Dec 1–25)', 'Three Christmas films, dealt every time from December 1 to 25.', 'Christmas', 'Christmas', [12, 1], [12, 25], { with_keywords: '207317' }),
@@ -623,8 +660,17 @@ function validChange(value: unknown): value is CardChange {
     viewerIds?: unknown
     tmdbId?: unknown
     used?: unknown
+    count?: unknown
   }
   if (change.kind === 'movie') return true
+  if (change.kind === 'spins') {
+    return (
+      typeof change.count === 'number' &&
+      Number.isInteger(change.count) &&
+      change.count >= minSpins &&
+      change.count <= maxSpins
+    )
+  }
   if (change.kind === 'blindSpin') return typeof change.used === 'boolean'
   if (change.kind === 'picksAgain' || change.kind === 'reshuffle') {
     return (
@@ -652,4 +698,44 @@ export function validCardEffects(value: unknown): CardEffect[] {
       typeof (e as CardEffect).label === 'string' &&
       validChange((e as CardEffect).change),
   )
+}
+
+// The text of a slice, weight or wildcards card as it opens, worded from what the
+// card actually does to the wheel as it is now: the effective values before and
+// after its effect over `effects`. The rolled text is kept where it still holds,
+// and every other card's text is its rolled text.
+export function cardTextNow(
+  card: RolledCard,
+  wheel: WheelSettings,
+  adjustments: Record<string, Adjustment>,
+  effects: CardEffect[],
+  viewerCount: number,
+  nameOf: (viewerId: string) => string | undefined,
+): string {
+  const { change } = card.effect
+  const after = [...effects, card.effect]
+  if (change.kind === 'wildcards') {
+    const added = wildcardTotal(viewerCount, wheel, after) - wildcardTotal(viewerCount, wheel, effects)
+    if (added <= 0) return 'The wheel already has the most wildcards.'
+    return `The wheel gets ${added} more ${added === 1 ? 'wildcard' : 'wildcards'} for the rest of the night.`
+  }
+  if (change.kind !== 'slices' && change.kind !== 'weight') return card.text
+  const field = change.kind
+  const move = (viewerId: string) => ({
+    from: effectiveSetting(wheel, adjustments, viewerId, effects)[field],
+    to: effectiveSetting(wheel, adjustments, viewerId, after)[field],
+  })
+  if (card.cardId.startsWith('everyone')) {
+    return change.viewerIds.some((id) => {
+      const { from, to } = move(id)
+      return from !== to
+    })
+      ? card.text
+      : `Nothing changes: everyone's ${field} ${field === 'slices' ? 'are' : 'is'} already at the limit.`
+  }
+  const name = nameOf(change.viewerIds[0])
+  if (name === undefined) return card.text
+  const { from, to } = move(change.viewerIds[0])
+  if (from === to) return `${name}'s ${field} ${field === 'slices' ? 'stay' : 'stays'} at ${to}.`
+  return `${name}'s ${field} ${field === 'slices' ? 'go' : 'goes'} from ${from} to ${to} for the rest of the night.`
 }

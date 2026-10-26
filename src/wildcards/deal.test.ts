@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { cards, type DealContext } from './cards.ts'
-import { canDeal, dealCards } from './deal.ts'
+import { canDeal, dealCards, dealSubBoard, subBoardPool } from './deal.ts'
 import { seeded } from './seeded.ts'
 
 // A March day: no seasonal card is eligible.
@@ -28,7 +28,7 @@ describe('dealCards', () => {
       if (change.kind === 'wildcards') {
         expect(change.amount).toBeGreaterThanOrEqual(1)
         expect(change.amount).toBeLessThanOrEqual(3)
-      } else if (change.kind !== 'blindSpin' && change.kind !== 'movie') {
+      } else if (change.kind !== 'blindSpin' && change.kind !== 'movie' && change.kind !== 'spins') {
         expect(change.viewerIds.every((id) => ['a', 'b', 'c'].includes(id))).toBe(true)
       }
     }
@@ -201,5 +201,49 @@ describe('disabled cards', () => {
 
   it('deals the same with nothing disabled as without the argument', () => {
     expect(dealCards(context, seeded(5), [])).toEqual(dealCards(context, seeded(5)))
+  })
+})
+
+describe('the wildcard-spins sub-board', () => {
+  it('deals eight pool cards, none switched off, with no seasonal slot', () => {
+    const october = { ...context, today: new Date(2026, 9, 15) }
+    for (let seed = 1; seed < 40; seed++) {
+      const dealt = dealSubBoard(october, seeded(seed), ['viewer-weight'])
+      expect(dealt).toHaveLength(8)
+      for (const card of dealt) {
+        expect(subBoardPool).toContain(card.cardId)
+        expect(card.cardId).not.toBe('viewer-weight')
+      }
+    }
+  })
+
+  it('deals nothing when no pool card is eligible', () => {
+    const none: DealContext = { viewers: [], wildcardCount: 12, today, commonGround: false }
+    expect(dealSubBoard(none, seeded(1))).toEqual([])
+  })
+
+  it('draws from the eligible pool regardless of the switches when they leave none', () => {
+    const dealt = dealSubBoard(context, seeded(3), subBoardPool)
+    expect(dealt).toHaveLength(8)
+    expect(dealt.every((c) => subBoardPool.includes(c.cardId))).toBe(true)
+  })
+
+  it('is dealt only while an eligible pool card is on', () => {
+    const noPool: DealContext = { viewers: [], wildcardCount: 12, today, commonGround: false }
+    const others = cards.filter((c) => c.id !== 'wildcard-spins' && !subBoardPool.includes(c.id)).map((c) => c.id)
+    const spinsDealt = (ctx: DealContext, disabled: string[]) => {
+      for (let seed = 1; seed < 60; seed++) {
+        if (dealCards(ctx, seeded(seed), disabled).some((c) => c.cardId === 'wildcard-spins')) return true
+      }
+      return false
+    }
+    expect(spinsDealt(noPool, [])).toBe(false)
+    expect(spinsDealt(context, subBoardPool)).toBe(false)
+    expect(canDeal(context, [...others])).toBe(true)
+    expect(canDeal(context, [...others, ...subBoardPool])).toBe(false)
+    expect(canDeal(context, [...others, ...subBoardPool.slice(1)])).toBe(true)
+    expect(canDeal(noPool, [...others, 'blind-spin'])).toBe(false)
+    expect(spinsDealt(context, [])).toBe(true)
+    expect(spinsDealt(context, subBoardPool.filter((id) => id !== 'wildcards'))).toBe(true)
   })
 })

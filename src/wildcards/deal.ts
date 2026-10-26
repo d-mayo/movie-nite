@@ -1,4 +1,6 @@
-import { cards, type DealContext, type RolledCard } from './cards.ts'
+import { cards, subBoardPool, type CardDef, type DealContext, type RolledCard } from './cards.ts'
+
+export { subBoardPool }
 
 export interface DealtCard extends RolledCard {
   // How much of the wildcard wheel the card takes: a whole number from 1 to 5.
@@ -13,7 +15,19 @@ const labelTries = 3
 
 // The cards that can be dealt: eligible and not switched off; the FFF cards only once unlocked.
 function dealable(context: DealContext, disabled: readonly string[], fffUnlocked: boolean) {
-  return cards.filter((card) => (fffUnlocked || !card.fff) && !disabled.includes(card.id) && card.eligible(context))
+  return cards.filter(
+    (card) =>
+      (fffUnlocked || !card.fff) &&
+      !disabled.includes(card.id) &&
+      card.eligible(context) &&
+      // The spins card needs a sub-board card that is on.
+      (card.id !== 'wildcard-spins' || poolCards(context, disabled).length > 0),
+  )
+}
+
+// The sub-board's pool cards that are eligible and not switched off.
+function poolCards(context: DealContext, disabled: readonly string[]): CardDef[] {
+  return cards.filter((card) => subBoardPool.includes(card.id) && !disabled.includes(card.id) && card.eligible(context))
 }
 
 // Whether any card can be dealt.
@@ -29,10 +43,25 @@ export function dealCards(
   disabled: readonly string[] = [],
   fffUnlocked = false,
 ): DealtCard[] {
-  const eligible = dealable(context, disabled, fffUnlocked)
+  return dealFrom(dealable(context, disabled, fffUnlocked), context, random, true)
+}
+
+// The sub-board of a wildcard-spins card: eight pool cards (switches respected,
+// or ignored when they leave none), with no seasonal slot.
+export function dealSubBoard(
+  context: DealContext,
+  random: () => number,
+  disabled: readonly string[] = [],
+): DealtCard[] {
+  let pool = poolCards(context, disabled)
+  if (pool.length === 0) pool = poolCards(context, [])
+  return dealFrom(pool, context, random, false)
+}
+
+function dealFrom(eligible: CardDef[], context: DealContext, random: () => number, seasonal: boolean): DealtCard[] {
   if (eligible.length === 0) return []
   // A card that is guaranteed while eligible takes a slot of its own, at a random place on the wheel.
-  const guaranteed = eligible.filter((card) => card.guaranteed)
+  const guaranteed = seasonal ? eligible.filter((card) => card.guaranteed) : []
   const slots = Array.from({ length: dealSize }, (_, slot) => slot)
   const reserved = new Map<number, (typeof cards)[number]>()
   for (const card of guaranteed.slice(0, dealSize)) {

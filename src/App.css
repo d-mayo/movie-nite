@@ -841,6 +841,82 @@ body:has(.wheel-stage[data-wheel='cards']) {
   opacity: 0;
 }
 
+.spin-counter {
+  position: absolute;
+  top: 2%;
+  left: 2%;
+  z-index: 2;
+  margin: 0;
+  color: var(--film-stock);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.6rem;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+
+.sub-tray {
+  position: absolute;
+  bottom: 1.5cqw;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--n), 15cqw);
+  justify-content: center;
+  gap: 1.5cqw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+
+/* Each card is a portrait playing card: it appears large over the wheel's center and moves to its place in the
+   row below, the row centered under the wheel as it will be once every spin has landed. */
+.sub-card {
+  grid-column: calc(var(--i) + 1);
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6cqw;
+  aspect-ratio: 5 / 7;
+  padding: 1cqw;
+  overflow: hidden;
+  border: 0.3cqw solid var(--film-stock);
+  border-radius: 1.2cqw;
+  background: var(--film-cream);
+  color: var(--film-stock);
+  font-size: clamp(0.4rem, 1.35cqw, 0.75rem);
+  line-height: 1.2;
+  text-align: center;
+  animation: sub-card-in 1.6s ease-in-out both;
+}
+
+.sub-card strong {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.6em;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+@keyframes sub-card-in {
+  0% {
+    opacity: 0;
+    transform: translate(calc(((var(--n) - 1) / 2 - var(--i)) * 16.5cqw), -38cqw) scale(2);
+  }
+  25% {
+    opacity: 1;
+  }
+  45% {
+    transform: translate(calc(((var(--n) - 1) / 2 - var(--i)) * 16.5cqw), -38cqw) scale(2);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* The reel change into the wildcard wheel: a cue mark blinks twice in the stage's corner, then the
    wheel rolls in the gate (a stepped vertical jolt with blur and a brightness flare). It moves the zoom
    wrapper, never the stage, which must stay free of any transform or filter that would trap its fixed
@@ -1016,6 +1092,7 @@ body:has(.wheel-stage[data-wheel='cards']) {
 
 @media (prefers-reduced-motion: reduce) {
   .cue-mark,
+  .sub-card,
   .clapper,
   .clapper-stick-top,
   .wheel-stage[data-transition] .wheel-zoom {

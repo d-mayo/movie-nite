@@ -675,6 +675,14 @@ describe('choosing cards', () => {
     expect(screen.getByText(`${listed.length - 1} of ${listed.length} on`)).toBeInTheDocument()
   })
 
+  test('the spins card has a switch among the wheel cards, and the counts include it', () => {
+    setup()
+    openEditor()
+    expect(screen.getByText('21 of 21 on')).toBeInTheDocument()
+    fireEvent.click(choose())
+    expect(within(overlay()!).getByRole('switch', { name: 'Wildcard spins' })).toBeChecked()
+  })
+
   test('the button is disabled while locked and while the Wildcard wheel switch is off', () => {
     const store = setup()
     openEditor()

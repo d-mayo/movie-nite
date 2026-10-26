@@ -54,7 +54,7 @@ export interface SoundEngine {
   reelCut(): void
   // One beep with each blink of the cue mark, pitched apart from the leader beep.
   cueBeep(): void
-  // The wheels swap: the reel clunks and the ambience starts looping.
+  // The wheels swap: the reel clunks and the ambience starts looping (one already playing is left as it is).
   reelChange(): void
   // The wildcard wheel's spin landed and its win sounds wait for the result: the loop settles to its
   // bed (after a close call, back up from silence) and a close call's cheer plays.
@@ -685,7 +685,8 @@ export function createSound(deps: SoundDeps): SoundEngine {
     reelChange() {
       if (!ctx) return
       play('clunk', clunkLevel)
-      startAmbience()
+      // A sub-board rolls in under the ambience already playing: it is left as it is.
+      if (!ambience) startAmbience()
       setReelMode(true)
     },
     knock() {
