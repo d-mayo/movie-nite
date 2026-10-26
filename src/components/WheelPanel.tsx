@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Ref } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type Ref } from 'react'
 import { createPortal } from 'react-dom'
 import { isBlind, isGame, viewersOnWheel, type Nomination, type Outcome } from '../state/model.ts'
 import type { TmdbClient } from '../tmdb/client.ts'
@@ -126,7 +126,9 @@ interface Spin {
   // The film a movie card gave, once the room took it: its reveal replaces the card.
   taken: { film: CardFilm; at: Date } | null
   // A wildcard-spins sub-board: how many spins it has and how many have landed and been taken.
-  sub: { total: number; done: number } | null
+  // Its spins run by themselves after the first: `cards` are the ones landed so far, in order, each with its
+  // worded effect, shown in a tray at the bottom of the wheel.
+  sub: { total: number; done: number; cards: { title: string; text: string }[] } | null
 }
 
 // A card's draw of films (a Reshuffle's or a movie card's): under way, ready with the films in their cans, or
@@ -163,6 +165,10 @@ const announceMs = 3000
 export const revealHoldMs = 650
 // A blind wheel that lands on a wildcard is unveiled this much longer before the wildcard wheel.
 export const blindWildcardHoldMs = 3000
+// A wildcard-spins sub-board's spin never runs longer than this, whatever the Length setting says.
+export const subSpinMaxSeconds = 8
+// A sub-board card takes this long to move into its place in the tray before the next spin starts.
+export const subTrayMs = 2200
 // A wildcard that opens the wildcard wheel holds its landing this long before the cue marks, so the reel can run out.
 export const wildcardHoldMs = 2200
 
@@ -216,6 +222,8 @@ export default function WheelPanel({
   const [fading, setFading] = useState(false)
   // The reel change or clapper slam in progress; the lock and the main Spin wait for it to end.
   const [transition, setTransition] = useState<Transition | null>(null)
+  const subTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const autoSpun = useRef(-1)
   const transitionTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const transitionRef = useRef<Transition | null>(null)
   const [draw, setDraw] = useState<Draw | null>(null)
@@ -239,6 +247,7 @@ export default function WheelPanel({
       clearTimeout(countdownTimer.current)
       clearTimeout(fadeTimer.current)
       clearTimeout(transitionTimer.current)
+      clearTimeout(subTimer.current)
       clearTimeout(beepTimer.current)
       // Unmounted with the reveal open (a cleared token): the music still fades.
       if (musicOn.current) soundRef.current.revealClosed()
@@ -363,14 +372,19 @@ export default function WheelPanel({
       (canDeal(dealContext(), settings.wheel.disabledCards, settings.fffUnlocked) || forcedCardEligible())
     const blindPress = !onCards && isBlind(night)
     const reduced = prefersReducedMotion()
-    const plan = spinPlan(settings.wheel, reduced)
+    // A sub-board's spins are plain: no close call, catch or countdown, and a capped length.
+    const subSpin = onCards && spin.sub !== null
+    const plan = spinPlan(
+      subSpin ? { ...settings.wheel, spinSeconds: Math.min(subSpinMaxSeconds, settings.wheel.spinSeconds) } : settings.wheel,
+      reduced,
+    )
     const { angle: from, speed } = motion.current()
     const arcs = wedges.map((w) => w.arc)
     const natural = restRotation(from, arcs, drawn, random, plan.turns)
     // A share of spins (all of them with the debug checkbox) rest in a close-call zone of the
     // drawn slice, when it has one: the winner is the same, only where in the slice it stops.
     // Close calls need a long enough spin: a shorter one is still turning when the zoom would begin.
-    const closeCallsOn = settings.wheel.spinSeconds >= closeCallMinSpinSeconds
+    const closeCallsOn = !subSpin && settings.wheel.spinSeconds >= closeCallMinSpinSeconds
     const steer =
       closeCallsOn &&
       (forceCloseCalls || (!isCloseCall(slices, arcs, drawn, angleUnderPointer(natural)) && random() < closeCallChance))
@@ -383,16 +397,17 @@ export default function WheelPanel({
     // motion, which has no rock.
     const catchSteer =
       !closeCall &&
+      !subSpin &&
       !reduced &&
       (forceCatches || (!isCatch(slices, arcs, drawn, angleUnderPointer(afterClose)) && random() < catchChance))
     const to = (catchSteer && forcedCatchRotation(from, slices, arcs, drawn, random, plan.turns)) || afterClose
     const rest = angleUnderPointer(to)
-    const caught = !closeCall && !reduced && isCatch(slices, arcs, drawn, rest)
+    const caught = !closeCall && !subSpin && !reduced && isCatch(slices, arcs, drawn, rest)
     // A catch runs on into the start edge's pin and rocks back off it; the peak bend is drawn from 16° to 26°.
     const peakBend = caught ? 16 + random() * 10 : 0
     // The countdown is rolled last, so every other draw takes the value it would without one. A test-length
     // spin rolls none (only the debug checkbox forces one), and reduced motion has none.
-    const countdown = !reduced && (forceCountdowns || (spinMs === undefined && rollsCountdown(random())))
+    const countdown = !reduced && !subSpin && (forceCountdowns || (spinMs === undefined && rollsCountdown(random())))
     // The path is built from where the wheel is when the spin launches: at the press, or when the
     // countdown ends; the rest point is the one drawn here.
     function launch(from: number, speed: number, to: number, afterCountdown: boolean) {
@@ -465,6 +480,38 @@ export default function WheelPanel({
       // on the wildcard wheel a movie card's win sounds wait for its film (or the game), and the quiet landing
       // plays only a close call's cheer; every other landing plays the stinger, applause and, after a close call, the cheer.
       const movieCard = onCards && spin.deal?.[drawn]?.effect.change.kind === 'movie'
+      // A sub-board's landing: its card's effect joins the night at once, the card moves into the tray, and then
+      // the next spin starts by itself, or after the last the room leaves by the slam.
+      function landSub() {
+        const card = spin!.deal![drawn]
+        const sub = spin!.sub!
+        addCardEffect(card.effect)
+        const text = cardTextNow(
+          card,
+          settings.wheel,
+          night.adjustments,
+          night.cardEffects,
+          onWheel.length,
+          (id) => roster.find((v) => v.id === id)?.name,
+        )
+        const done = sub.done + 1
+        setSpin((s) => s && s.sub && { ...s, landed: true, sub: { ...s.sub, done, cards: [...s.sub.cards, { title: card.title, text }] } })
+        clearTimeout(subTimer.current)
+        subTimer.current = setTimeout(
+          () => {
+            if (done >= sub.total) {
+              leave()
+              return
+            }
+            setSpin(
+              (s) =>
+                s &&
+                s.sub && { ...s, drawn: 0, landed: false, revealedAt: null, closeCall: false, zoom: null, countdown: null, waiting: true, taken: null },
+            )
+          },
+          subTrayMs * (spinMs !== undefined ? testTransitionScale : reduced ? 0.4 : 1),
+        )
+      }
       function landSound(seconds: number) {
         if (toCards) sound.wildcardLanded()
         else if (movieCard) sound.landedQuiet(closeCall)
@@ -485,6 +532,7 @@ export default function WheelPanel({
         const wait = toCards && blindPress ? base + blindWildcardHoldMs : base
         holdTimer.current = setTimeout(() => {
           if (toCards) enterCards()
+          else if (subSpin) landSub()
           else setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null })
         }, wait)
       }
@@ -498,6 +546,10 @@ export default function WheelPanel({
             landSound(0)
             if (toCards) {
               enterCards()
+              return
+            }
+            if (subSpin) {
+              landSub()
               return
             }
             setSpin((s) => s && { ...s, landed: !reduced, revealedAt: new Date(), zoom: null })
@@ -652,7 +704,7 @@ export default function WheelPanel({
 
   // The current draw, when it is the shown card's.
   const shownCard =
-    spin?.revealedAt && spin.wheel === 'cards' && !spin.leaving && !spin.taken ? spin.deal?.[spin.drawn] : null
+    spin?.revealedAt && spin.wheel === 'cards' && !spin.leaving && !spin.taken && !spin.sub ? spin.deal?.[spin.drawn] : null
   const current = draw?.key === spin?.revealedAt ? draw : null
   // Play Rento's game reveal replaces its card: the win sounds land with it.
   const gameShown = current?.phase === 'game'
@@ -682,23 +734,6 @@ export default function WheelPanel({
       return
     } else {
       addCardEffect(card.effect)
-      const sub = spin.sub
-      if (sub && sub.done + 1 < sub.total) {
-        // Back to the same sub-board, waiting for its next spin: no transition and no new deal.
-        setSpin((s) => s && s.sub && {
-          ...s,
-          drawn: 0,
-          landed: false,
-          revealedAt: null,
-          closeCall: false,
-          zoom: null,
-          countdown: null,
-          waiting: true,
-          taken: null,
-          sub: { ...s.sub, done: s.sub.done + 1 },
-        })
-        return
-      }
     }
     leave()
   }
@@ -713,6 +748,7 @@ export default function WheelPanel({
     }
     clearTimeout(holdTimer.current)
     clearTimeout(easeTimer.current)
+    autoSpun.current = -1
     const swap = () => {
       sound.reelChange()
       setSpin({
@@ -730,7 +766,7 @@ export default function WheelPanel({
         blind: false,
         toCards: false,
         taken: null,
-        sub: { total, done: 0 },
+        sub: { total, done: 0, cards: [] },
       })
     }
     // The card gives way at once.
@@ -952,11 +988,9 @@ export default function WheelPanel({
     return change.kind === 'movie' || !current.cans.taken
   }
 
-  // The card's button: the spins card deals its board, a sub-board card before the last spin goes on to the next.
+  // The spins card deals its board; every other card says Back.
   function backLabel(): string | undefined {
-    if (shownCard?.effect.change.kind === 'spins') return 'Deal the spins'
-    const sub = spin?.sub
-    return sub && sub.done + 1 < sub.total ? `Spin again (${sub.done + 2} of ${sub.total})` : undefined
+    return shownCard?.effect.change.kind === 'spins' ? 'Deal the spins' : undefined
   }
 
   function outcome(nomination: Nomination, result: Outcome, fromWheel: boolean) {
@@ -965,6 +999,14 @@ export default function WheelPanel({
   }
 
   // A movie card's film closes its reveal back to the main wheel, whichever way it closes.
+  // A sub-board spins by itself after its first spin, once the tray has taken the last card.
+  useEffect(() => {
+    if (spin?.wheel !== 'cards' || !spin.sub || spin.sub.done === 0 || !spin.waiting) return
+    if (autoSpun.current === spin.sub.done) return
+    autoSpun.current = spin.sub.done
+    start()
+  })
+
   function filmOutcome(nomination: Nomination, result: Outcome, fromWheel: boolean) {
     recordOutcome(nomination, result, fromWheel)
     leave()
@@ -988,7 +1030,7 @@ export default function WheelPanel({
               type="button"
               className="spin-button"
               onClick={start}
-              disabled={!canSpin || (spin !== null && !spin.waiting) || transition === 'slam' || transition === 'open'}
+              disabled={!canSpin || (spin !== null && !spin.waiting) || (spin?.sub != null && spin.sub.done > 0) || transition === 'slam' || transition === 'open'}
               aria-describedby={waiting ? 'spin-waiting' : undefined}
             >
               <Hub hubRef={motion.hubRef} />
@@ -1003,8 +1045,18 @@ export default function WheelPanel({
         {spin?.landed && <Flicker key={spin.wheel} />}
         {spin?.sub && (
           <p className="spin-counter" data-testid="spin-counter">
-            Spin {spin.sub.done + 1} of {spin.sub.total}
+            Spin {Math.min(spin.sub.done + 1, spin.sub.total)} of {spin.sub.total}
           </p>
+        )}
+        {spin?.sub && spin.sub.cards.length > 0 && (
+          <ol className="sub-tray" aria-label="Spins so far">
+            {spin.sub.cards.map((card, i) => (
+              <li key={i} className="sub-card" style={{ '--i': i } as CSSProperties}>
+                <strong>{card.title}</strong>
+                <span>{card.text}</span>
+              </li>
+            ))}
+          </ol>
         )}
         {waiting && (
           <p id="spin-waiting" className="spin-waiting">
@@ -1089,7 +1141,6 @@ export default function WheelPanel({
             onWheel.length,
             (id) => roster.find((v) => v.id === id)?.name,
           )}
-          typeSuffix={spin.sub ? `Spin ${spin.sub.done + 1} of ${spin.sub.total}` : undefined}
           backLabel={backLabel()}
           busy={cardBusy()}
           wide={current?.phase === 'ready' && hasCans(current.cans) && !(current.cans.taken && kind === 'reshuffle')}

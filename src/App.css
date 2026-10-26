@@ -854,6 +854,63 @@ body:has(.wheel-stage[data-wheel='cards']) {
   pointer-events: none;
 }
 
+.sub-tray {
+  position: absolute;
+  bottom: 1.5cqw;
+  left: 3cqw;
+  right: 3cqw;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1cqw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+
+/* Each card appears large in the middle of the wheel and moves to its place at the bottom, left to right. */
+.sub-card {
+  grid-column: calc(var(--i) + 1);
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3cqw;
+  padding: 1cqw;
+  overflow: hidden;
+  border: 0.2cqw solid var(--film-stock);
+  border-radius: 1cqw;
+  background: var(--film-cream);
+  color: var(--film-stock);
+  font-size: clamp(0.5rem, 1.7cqw, 0.8rem);
+  line-height: 1.2;
+  animation: sub-card-in 1.6s ease-in-out both;
+}
+
+.sub-card strong {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5em;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+@keyframes sub-card-in {
+  0% {
+    opacity: 0;
+    transform: translate(calc((2 - var(--i)) * 19.5cqw), -40cqw) scale(2.2);
+  }
+  25% {
+    opacity: 1;
+  }
+  45% {
+    transform: translate(calc((2 - var(--i)) * 19.5cqw), -40cqw) scale(2.2);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* The reel change into the wildcard wheel: a cue mark blinks twice in the stage's corner, then the
    wheel rolls in the gate (a stepped vertical jolt with blur and a brightness flare). It moves the zoom
    wrapper, never the stage, which must stay free of any transform or filter that would trap its fixed
@@ -1029,6 +1086,7 @@ body:has(.wheel-stage[data-wheel='cards']) {
 
 @media (prefers-reduced-motion: reduce) {
   .cue-mark,
+  .sub-card,
   .clapper,
   .clapper-stick-top,
   .wheel-stage[data-transition] .wheel-zoom {
