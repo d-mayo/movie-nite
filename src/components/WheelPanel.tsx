@@ -1049,7 +1049,7 @@ export default function WheelPanel({
           </p>
         )}
         {spin?.sub && spin.sub.cards.length > 0 && (
-          <ol className="sub-tray" aria-label="Spins so far">
+          <ol className="sub-tray" aria-label="Spins so far" style={{ '--n': spin.sub.total } as CSSProperties}>
             {spin.sub.cards.map((card, i) => (
               <li key={i} className="sub-card" style={{ '--i': i } as CSSProperties}>
                 <strong>{card.title}</strong>
