@@ -980,3 +980,17 @@ test('with every pool card switched off a forced spins card deals its sub-board 
   await waitFor(() => expect(screen.getByTestId('spin-counter')).toBeInTheDocument())
   expect(wedgeKinds()).toEqual(Array(8).fill('card'))
 })
+
+test('the viewer key hides while the wildcard wheel shows and comes back after the slam', async () => {
+  const { store } = setup({ wheel: { showLabels: false } })
+  act(() => store.setState((s) => ({ settings: { ...s.settings, viewersHidden: true } })))
+  const key = () => screen.queryByRole('list', { name: "Tonight's viewers" })
+  expect(key()).not.toBeNull()
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
+  expect(key()).toBeNull()
+  fireEvent.click(spinButton())
+  fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Back to the main wheel' }))
+  await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
+  await waitFor(() => expect(key()).not.toBeNull())
+})

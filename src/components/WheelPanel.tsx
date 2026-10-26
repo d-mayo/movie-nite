@@ -186,7 +186,7 @@ interface Props {
   client: TmdbClient
   // Where a Reshuffle draws from, and which viewers it may be dealt for.
   watchlist?: WatchlistSource
-  // Whether the main wheel is blind right now, for the viewer key, which hides with it.
+  // Whether the viewer key should hide: the main wheel is blind, or the wildcard wheel shows.
   onBlindChange?: (blind: boolean) => void
   onBusyChange: (busy: boolean) => void
   // Where the "waiting for" message goes; under the wheel when there is none.
@@ -265,9 +265,11 @@ export default function WheelPanel({
     .map((id) => roster.find((v) => v.id === id)?.name ?? '')
   const canSpin = !night.ended && onWheel.length > 0 && missing.length === 0
   const wedges = spin?.wedges ?? live
+  // The viewer key hides with a blind wheel and while the wildcard wheel shows.
+  const keyHidden = blind || spin?.wheel === 'cards'
   useEffect(() => {
-    onBlindChange?.(blind)
-  }, [blind, onBlindChange])
+    onBlindChange?.(keyHidden)
+  }, [keyHidden, onBlindChange])
   const shownWedges = blind ? blindfold(wedges) : wedges
   const motion = useWheelMotion(
     // The drift runs on under a countdown's dial and eases to a stop only once the spin is under way.
