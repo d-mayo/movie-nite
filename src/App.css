@@ -257,10 +257,6 @@ main {
 }
 
 @media (min-width: 900px) {
-  .hide-viewers {
-    display: inline-block;
-  }
-
   .show-viewers {
     display: flex;
     align-items: center;
@@ -1905,6 +1901,13 @@ body:has(.wheel-stage[data-wheel='cards']) {
   height: 2rem;
   padding: 0;
   color: var(--text);
+}
+
+/* Hide viewers exists only where the pane can slide away; this must outrank the rule above. */
+@media (max-width: 899px) {
+  .pane-head .hide-viewers {
+    display: none;
+  }
 }
 
 /* The contact sheet: a rail of sprocket holes in the app's greys down the pane's left edge. */
