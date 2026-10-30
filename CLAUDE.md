@@ -60,6 +60,3 @@ A static single-page app (React, TypeScript, Vite) hosted on GitHub Pages, with 
 - Letterboxd challenges (403 "Just a moment") every check from `npm run dev:worker` on a home IP, though not the deployed Worker, so a username that never leaves pending locally is that, not a bug: for local Letterboxd work run `npm run dev:worker -- --remote` (it needs a wrangler login and runs on Cloudflare's edge, and port 8787 must be free).
 - The Letterboxd username field carries `data-bwignore`, `data-1p-ignore`, `data-lpignore`, the name `lb-profile` and a label and placeholder without the word username, because Firefox and Bitwarden offered a login on it; keep "username" out of its label, name and placeholder.
 - Letterboxd answers a private watchlist with the same 403 "classified" page it uses for a block, so the Worker reads any 403 that is not a bot challenge ("Just a moment", cf-chl) as private; a real block on the watchlist route therefore shows as "private" until it clears.
-- `src/ci.test.ts` reads `.github/workflows/ci.yml` for `
-  job:
-`, so on a Windows checkout where git gives that file CRLF its 3 tests fail without any code being wrong; the real CI (LF) passes them.
