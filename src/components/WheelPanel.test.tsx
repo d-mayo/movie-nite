@@ -178,7 +178,9 @@ test('Close makes the wheel live and unlocks setup', async () => {
 
 test('the draw uses crypto.getRandomValues by default', async () => {
   const spy = vi.spyOn(crypto, 'getRandomValues')
-  setup(['a', 'b'])
+  // No wildcards, so the landing always opens the reveal rather than the wildcard wheel.
+  setup(['a', 'b'], { spinMs: 20 }, { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0 })
+  spy.mockClear()
   fireEvent.click(spinButton())
   expect(spy).toHaveBeenCalled()
   await screen.findByRole('dialog')
