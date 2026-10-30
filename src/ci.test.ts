@@ -1,5 +1,8 @@
 import { expect, test } from 'vitest'
-import ci from '../.github/workflows/ci.yml?raw'
+import ciRaw from '../.github/workflows/ci.yml?raw'
+
+// A Windows checkout can give the file CRLF line endings; the checks read it as LF.
+const ci = ciRaw.replace(/\r\n/g, '\n')
 
 // The text of one top-level job, from its name to the next job (or the end).
 function job(name: string): string {
