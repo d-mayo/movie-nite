@@ -286,6 +286,9 @@ main {
   }
 }
 
+/* The stage is a size container (the hub label, the clapper's word and the sub-board tray are sized in
+   cqw). Safari makes a size container the containing block of its fixed descendants, so the full-screen
+   layers (the flicker, the close-call vignette) are rendered beside it in the wheel panel, never in it. */
 .wheel-stage {
   position: relative;
   container-type: inline-size;
@@ -338,11 +341,11 @@ html:has(.wheel-stage[data-zoom]) {
   transition: opacity 4s ease-in;
 }
 
-.wheel-stage[data-zoom='in'] .zoom-vignette {
+.wheel-stage[data-zoom='in'] ~ .zoom-vignette {
   opacity: 1;
 }
 
-.wheel-stage[data-zoom='out'] .zoom-vignette {
+.wheel-stage[data-zoom='out'] ~ .zoom-vignette {
   transition-duration: 1s;
   transition-timing-function: ease-in-out;
 }
@@ -919,8 +922,8 @@ body:has(.wheel-stage[data-wheel='cards']) {
 
 /* The reel change into the wildcard wheel: a cue mark blinks twice in the stage's corner, then the
    wheel rolls in the gate (a stepped vertical jolt with blur and a brightness flare). It moves the zoom
-   wrapper, never the stage, which must stay free of any transform or filter that would trap its fixed
-   descendants (the flicker, the close-call vignette). */
+   wrapper, never the stage, which the reveal measures and which must stay free of any transform or
+   filter, so a fixed layer that ever goes in it still covers the screen. */
 .cue-mark {
   position: absolute;
   top: 2%;

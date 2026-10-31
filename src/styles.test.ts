@@ -157,7 +157,12 @@ describe('the wildcard wheel stylesheet', () => {
     expect(appCss).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.can-turn\s*\{\s*transition:\s*none/)
   })
 
-  test('the stage itself never gets a transform or filter (it holds fixed descendants)', () => {
+  test('the stage stays a size container, for the cqw sizes inside it', () => {
+    const stage = rules(appCss).find(({ selector }) => selector.replace(/\/\*[\s\S]*?\*\//g, '').trim() === '.wheel-stage')
+    expect(stage?.body).toMatch(/(^|[\s;])container-type:\s*inline-size;/)
+  })
+
+  test('the stage itself never gets a transform or filter (the reveal measures it)', () => {
     for (const { selector, body } of rules(appCss)) {
       const parts = selector.split(',').map((part) => part.trim())
       if (!parts.some((part) => /(^|\s)\.wheel-stage(\[[^\]]*\])*$/.test(part))) continue

@@ -1024,7 +1024,7 @@ export default function WheelPanel({
         data-wheel={spin?.wheel === 'cards' ? 'cards' : undefined}
         data-transition={transition ?? undefined}
       >
-        {/* A close call's zoom scales this wrapper, not the stage, which the reveal measures and the flicker sits in. */}
+        {/* A close call's zoom scales this wrapper, not the stage, which the reveal measures. */}
         <div className="wheel-zoom">
           <Wheel wedges={shownWedges} showLabels={settings.wheel.showLabels && !blind} blind={blind} groupRef={motion.groupRef} flapperRef={motion.flapperRef} />
           {wedges.length > 0 && (
@@ -1043,8 +1043,6 @@ export default function WheelPanel({
         </div>
         {transition === 'cue' && <div className="cue-mark" data-testid="cue-mark" aria-hidden="true" />}
         {(transition === 'slam' || transition === 'open') && <Clapper />}
-        <div className="zoom-vignette" ref={vignetteRef} aria-hidden="true" />
-        {spin?.landed && <Flicker key={spin.wheel} />}
         {spin?.sub && (
           <p className="spin-counter" data-testid="spin-counter">
             Spin {Math.min(spin.sub.done + 1, spin.sub.total)} of {spin.sub.total}
@@ -1066,6 +1064,10 @@ export default function WheelPanel({
           </p>
         )}
       </div>
+      {/* The full-screen layers sit beside the stage, never in it: Safari makes the stage, a size container,
+          the containing block of its fixed descendants, which would box them into it. */}
+      <div className="zoom-vignette" ref={vignetteRef} aria-hidden="true" />
+      {spin?.landed && <Flicker key={spin.wheel} />}
       {spin?.wheel === 'cards' && <div className="stage-grain" data-testid="negative-face" aria-hidden="true" />}
       <CardChips />
       {debug && (
