@@ -5,7 +5,7 @@ A web app for the FFF movie-night group to pick tonight's film: viewers nominate
 A static single-page app (React, TypeScript, Vite) hosted on GitHub Pages, with one small Cloudflare Worker in `worker/` that holds the TMDB token and relays the app's TMDB calls.
 
 ## Commands
-<!-- covers: package.json, .github/workflows/*.yml; verified: 2026-10-25 -->
+<!-- covers: package.json, .github/workflows/*.yml; verified: 2026-10-31 -->
 - Run tests: `npm test`
 - Lint: `npm run lint`
 - Dev server: `npm run dev` (serves at http://localhost:5173/movie-nite/)
@@ -15,7 +15,7 @@ A static single-page app (React, TypeScript, Vite) hosted on GitHub Pages, with 
 - Full check (what CI runs): `npm ci && npm run lint && npm test && npm run build`
 
 ## Layout
-<!-- covers: src/**, public/**, worker/**, .github/workflows/*.yml; verified: 2026-10-19 -->
+<!-- covers: src/**, public/**, worker/**, .github/workflows/*.yml; verified: 2026-10-31 -->
 - `src/`: the React app: `src/main.tsx` builds the store on the `localStorage` persistence and mounts `src/App.tsx`; `src/assets/` holds the TMDB logo and the Movie Nite logo set (`src/assets/logo/`: the six final SVGs, including the simplified square M-and-reel icon in light and dark, plus `src/assets/logo/old-iterations/`, the earlier designs kept for reference), which feed the site banner in `src/App.tsx` and the README logo block, and which `src/assets/logo.test.ts` checks (including that README block and that the wheel's wildcard watermark is a copy of the dark icon's M); `src/test/setup.ts` is the Vitest setup
 - `src/index.css`: the shared look: color (the logo's six greys plus one `--danger`, and the `--film-*` tokens: the reel's stock, cream and steel greys, defined once on `:root` and the same in light and dark, used only by the wheel, its Spin button, the flicker and the reveal's frame, whose reveal block redefines the color tokens to their dark values and so looks the same in both schemes), spacing, radius and shadow tokens on `:root`, redefined under `prefers-color-scheme: dark`, and base styles for bare controls inside `:where()` (zero specificity, so the spin button and other class rules still win) with the `primary`, `quiet` and `danger` button variants and the `card` class; `src/styles.test.ts` checks its palette (the film tokens apart) and WCAG contrast, and the film tokens' values and placement; the shared control rules (the inset-card, card-head, stepper, slider and switch classes, the visually-hidden class and the range input) live there too; component layout rules live in `src/App.css`
 - `public/`: files Vite serves as-is under the base path; `public/favicon.svg` is the site favicon, a copy of `src/assets/logo/logo-icon-light.svg` that `src/assets/logo.test.ts` keeps identical
@@ -60,6 +60,3 @@ A static single-page app (React, TypeScript, Vite) hosted on GitHub Pages, with 
 - Letterboxd challenges (403 "Just a moment") every check from `npm run dev:worker` on a home IP, though not the deployed Worker, so a username that never leaves pending locally is that, not a bug: for local Letterboxd work run `npm run dev:worker -- --remote` (it needs a wrangler login and runs on Cloudflare's edge, and port 8787 must be free).
 - The Letterboxd username field carries `data-bwignore`, `data-1p-ignore`, `data-lpignore`, the name `lb-profile` and a label and placeholder without the word username, because Firefox and Bitwarden offered a login on it; keep "username" out of its label, name and placeholder.
 - Letterboxd answers a private watchlist with the same 403 "classified" page it uses for a block, so the Worker reads any 403 that is not a bot challenge ("Just a moment", cf-chl) as private; a real block on the watchlist route therefore shows as "private" until it clears.
-- `src/ci.test.ts` reads `.github/workflows/ci.yml` for `
-  job:
-`, so on a Windows checkout where git gives that file CRLF its 3 tests fail without any code being wrong; the real CI (LF) passes them.
