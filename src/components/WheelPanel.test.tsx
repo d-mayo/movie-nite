@@ -497,6 +497,18 @@ test('a test-length spin still shows the flicker while the reveal opens at once'
   expect(screen.getByTestId('flicker')).toBeInTheDocument()
 })
 
+test('the flicker and the vignette sit beside the stage, not in it', async () => {
+  setup(['a', 'b'], { random: () => 0.5, spinMs: 20 })
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  const stage = document.querySelector('.wheel-stage')!
+  const panel = document.querySelector('.wheel-panel')!
+  for (const layer of [screen.getByTestId('flicker'), document.querySelector('.zoom-vignette')!]) {
+    expect(stage.contains(layer)).toBe(false)
+    expect(panel.contains(layer)).toBe(true)
+  }
+})
+
 test('the flapper starts bent against the first pin and springs free as the drift moves the wheel', async () => {
   setup(['a', 'b'])
   const samples = await sampleFlapper(2500)
@@ -817,6 +829,10 @@ test('a close-call spin cues once before the landing, zooms from the cue and cle
   await waitFor(() => expect(log.cues).toHaveLength(1))
   expect(log.landed).toHaveLength(0)
   await waitFor(() => expect(stage().dataset.zoom).toBe('in'))
+  // The vignette, beside the stage, still gets the pointer's place at the cue.
+  const vignette = document.querySelector<HTMLElement>('.zoom-vignette')!
+  expect(vignette.style.getPropertyValue('--pointer-x')).toMatch(/px$/)
+  expect(vignette.style.getPropertyValue('--pointer-y')).toMatch(/px$/)
   await screen.findByRole('dialog')
   expect(log.cues).toHaveLength(1)
   expect(log.landedClose).toEqual([true])
