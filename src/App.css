@@ -257,10 +257,6 @@ main {
 }
 
 @media (min-width: 900px) {
-  .hide-viewers {
-    display: inline-block;
-  }
-
   .show-viewers {
     display: flex;
     align-items: center;
@@ -1610,14 +1606,24 @@ body:has(.wheel-stage[data-wheel='cards']) {
   overflow-wrap: anywhere;
 }
 
+/* The eyebrow never breaks a word or the tag: a tag with no room beside "Now showing" wraps to a line of
+   its own, at the eyebrow's start. The dot's negative margin keeps it at the plain gap from the text,
+   while the text keeps the wider gap from the tag. */
 .reveal-eyebrow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  column-gap: calc(var(--space-2) + var(--space-1));
+  row-gap: var(--space-1);
+  white-space: nowrap;
   font-size: 0.7rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+.reveal-eyebrow .reveal-dot {
+  margin-right: calc(-1 * var(--space-1));
 }
 
 .reveal-tag {
@@ -1626,6 +1632,11 @@ body:has(.wheel-stage[data-wheel='cards']) {
   border: 1px solid var(--film-cream);
   border-radius: var(--radius-sm);
   color: var(--film-cream);
+  white-space: nowrap;
+}
+
+.reveal-eyebrow .reveal-tag {
+  margin-left: 0;
 }
 
 .reveal-dot {
@@ -1794,6 +1805,13 @@ body:has(.wheel-stage[data-wheel='cards']) {
   }
 }
 
+/* Too narrow for "Now showing" to clear the close X beside it: the eyebrow starts just below the X. */
+@media (max-width: 360px) {
+  .reveal .reveal-eyebrow {
+    margin-top: calc(var(--space-2) + 2rem - var(--space-5) + var(--space-1));
+  }
+}
+
 .setup ul {
   list-style: none;
   padding: 0;
@@ -1883,6 +1901,13 @@ body:has(.wheel-stage[data-wheel='cards']) {
   height: 2rem;
   padding: 0;
   color: var(--text);
+}
+
+/* Hide viewers exists only where the pane can slide away; this must outrank the rule above. */
+@media (max-width: 899px) {
+  .pane-head .hide-viewers {
+    display: none;
+  }
 }
 
 /* The contact sheet: a rail of sprocket holes in the app's greys down the pane's left edge. */
