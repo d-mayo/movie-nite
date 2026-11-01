@@ -10,10 +10,10 @@ import {
   minSpinSeconds,
   minSpinTurnsPerSecond,
 } from '../wheel/edit.ts'
-import { canHover, closeDelayMs } from './canHover.ts'
 import CardSwitches, { listedCards } from './CardSwitches.tsx'
 import Slider from './Slider.tsx'
 import Stepper from './Stepper.tsx'
+import { useHungPopover } from './useHungPopover.ts'
 
 interface Props {
   locked?: boolean
@@ -61,9 +61,8 @@ function RestoreDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClose
   )
 }
 
-// The Wheel settings popover, mounted only while shown. It closes on Escape
-// (the native `close` event), on a press outside it, and, where a pointer can
-// hover, shortly after the pointer leaves it.
+// The Wheel settings popover, mounted only while shown; `useHungPopover`
+// places it and closes it.
 export default function WheelEditor({ locked = false, onClosed, anchor }: Props) {
   const {
     night,
@@ -84,129 +83,29 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
     restoreWheelSettings,
   } = useApp()
   const { wheel } = settings
-  const dialog = useRef<HTMLDialogElement>(null)
+  const { dialogRef, dialogProps, suspend, resume } = useHungPopover(onClosed, anchor)
   const [confirming, setConfirming] = useState(false)
   const [choosing, setChoosing] = useState(false)
   const chooseButton = useRef<HTMLButtonElement>(null)
-  // Read by the document listeners, which outlive a render. True while a dialog sits over the popover.
-  const confirmingRef = useRef(false)
-  // True once the pointer has been inside since the popover opened, or since
-  // the Restore confirmation closed.
-  const wasInside = useRef(false)
-  // True while the last pointer position was outside the popover.
-  const outside = useRef(false)
-  // True from a press on the backdrop, outside the popover's rectangle, until its click.
-  const outsidePress = useRef(false)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Close natively, then unmount at once rather than wait for the `close` event.
-  const dismiss = useCallback(() => {
-    dialog.current?.close()
-    onClosed()
-  }, [onClosed])
-  const clearTimer = useCallback(() => {
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = null
-  }, [])
-  const scheduleClose = useCallback(() => {
-    clearTimer()
-    timer.current = setTimeout(dismiss, closeDelayMs)
-  }, [clearTimer, dismiss])
-  const insideRect = useCallback((x: number, y: number) => {
-    const r = dialog.current?.getBoundingClientRect()
-    return !!r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
-  }, [])
-  useEffect(() => {
-    const el = dialog.current
-    if (!el) return
-    if (!el.open) el.showModal()
-    el.addEventListener('close', onClosed)
-    // Keep focus off the sliders, so an arrow key right after opening changes nothing.
-    el.focus()
-    // Hang the popover under the button that opened it, right edges aligned.
-    function place() {
-      const rect = anchor?.current?.getBoundingClientRect()
-      if (!el || !rect) return
-      el.style.top = `${rect.bottom + 8}px`
-      const left = rect.right - el.offsetWidth
-      el.style.left = `${Math.min(Math.max(8, left), window.innerWidth - el.offsetWidth - 8)}px`
-      el.style.maxHeight = `${window.innerHeight - rect.bottom - 24}px`
-    }
-    place()
-    window.addEventListener('resize', place)
-    // A modal dialog's backdrop covers the viewport and its events target the
-    // dialog, so leaving is found by comparing positions with its rectangle.
-    function onMove(e: PointerEvent) {
-      if (confirmingRef.current || e.pointerType === 'touch' || !canHover()) return
-      if (insideRect(e.clientX, e.clientY)) {
-        outside.current = false
-        wasInside.current = true
-        clearTimer()
-      } else {
-        outside.current = true
-        // A held button is a drag, such as a slider's: it ends with pointerup.
-        if (wasInside.current && !outsidePress.current && e.buttons === 0) scheduleClose()
-      }
-    }
-    function onLeaveDocument(e: PointerEvent) {
-      if (confirmingRef.current || e.pointerType === 'touch' || !canHover()) return
-      outside.current = true
-      if (wasInside.current && !outsidePress.current) scheduleClose()
-    }
-    // A drag that ends outside the popover leaves it open for the usual delay.
-    function onUp() {
-      if (outside.current && wasInside.current && !outsidePress.current && !confirmingRef.current && canHover()) {
-        scheduleClose()
-      }
-    }
-    document.addEventListener('pointermove', onMove)
-    document.addEventListener('pointerup', onUp)
-    document.documentElement.addEventListener('pointerleave', onLeaveDocument)
-    return () => {
-      window.removeEventListener('resize', place)
-      document.removeEventListener('pointermove', onMove)
-      document.removeEventListener('pointerup', onUp)
-      document.documentElement.removeEventListener('pointerleave', onLeaveDocument)
-      el.removeEventListener('close', onClosed)
-      clearTimer()
-    }
-  }, [anchor, onClosed, insideRect, clearTimer, scheduleClose])
-  // A press that ends without a click leaves the popover open, and restarts
-  // the leave timer if the pointer is still outside.
-  function pressEnded() {
-    if (!outsidePress.current) return
-    outsidePress.current = false
-    if (wasInside.current && outside.current && canHover() && !confirmingRef.current) {
-      scheduleClose()
-    }
-  }
   function showConfirm() {
-    confirmingRef.current = true
-    clearTimer()
+    suspend()
     setConfirming(true)
   }
-  // Back to the popover: the pointer must be inside again before leaving counts.
   const closeConfirm = useCallback(() => {
-    confirmingRef.current = false
     setConfirming(false)
-    wasInside.current = false
-    outside.current = false
-    clearTimer()
-    dialog.current?.focus()
-  }, [clearTimer])
+    resume()
+    dialogRef.current?.focus()
+  }, [resume, dialogRef])
   function showCards() {
-    confirmingRef.current = true
-    clearTimer()
+    suspend()
     setChoosing(true)
   }
   // Back to the popover and the button that opened the overlay.
   const closeCards = useCallback(() => {
-    confirmingRef.current = false
     setChoosing(false)
-    wasInside.current = false
-    outside.current = false
-    clearTimer()
+    resume()
     chooseButton.current?.focus()
-  }, [clearTimer])
+  }, [resume])
   const atFactory = (Object.keys(defaultWheelSettings) as (keyof typeof wheel)[]).every((k) => {
     const now = wheel[k]
     const factory = defaultWheelSettings[k]
@@ -222,20 +121,10 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
   return (
     <>
       <dialog
-        ref={dialog}
+        ref={dialogRef}
         className="card wheel-drawer"
         aria-label="Wheel settings"
-        tabIndex={-1}
-        onPointerDown={(e) => {
-          outsidePress.current = e.target === e.currentTarget && !insideRect(e.clientX, e.clientY)
-          if (outsidePress.current) clearTimer()
-        }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget && outsidePress.current) dismiss()
-        }}
-        onPointerCancel={pressEnded}
-        onContextMenu={pressEnded}
-        onAuxClick={pressEnded}
+        {...dialogProps}
       >
         <div className="drawer-body">
           <fieldset className="setup wheel-editor">

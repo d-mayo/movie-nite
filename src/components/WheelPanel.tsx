@@ -4,6 +4,7 @@ import { isBlind, isGame, viewersOnWheel, type Nomination, type Outcome } from '
 import type { TmdbClient } from '../tmdb/client.ts'
 import { useApp } from '../state/store.ts'
 import { CardChips } from './CardChips.tsx'
+import { defaultDebugOptions, type DebugOptions } from './debugOptions.ts'
 import {
   angleUnderPointer,
   cryptoRandom,
@@ -191,6 +192,8 @@ interface Props {
   onBusyChange: (busy: boolean) => void
   // Where the "waiting for" message goes; under the wheel when there is none.
   reasonSlot?: HTMLElement | null
+  // The unsaved debug forces, set from the banner's debug popover.
+  debug?: DebugOptions
 }
 
 // "Ann", "Ann and Bo", "Ann, Bo, and Cy".
@@ -205,19 +208,12 @@ export default function WheelPanel({
   onBlindChange,
   onBusyChange,
   reasonSlot,
+  debug = defaultDebugOptions,
 }: Props) {
   const { night, roster, settings, holdover, recordOutcome, startSpin, addCardEffect, playGame } = useApp()
   // Fixed when Spin is pressed and dropped on Close, so the wheel, the draw
   // and the reveal agree even if the store changes meanwhile.
   const [spin, setSpin] = useState<Spin | null>(null)
-  // The debug query flag, read once, and its unsaved checkbox.
-  const [debug] = useState(() => new URLSearchParams(window.location.search).has('debug'))
-  const [forceCloseCalls, setForceCloseCalls] = useState(false)
-  const [forceCatches, setForceCatches] = useState(false)
-  const [forceCountdowns, setForceCountdowns] = useState(false)
-  const [forceWildcards, setForceWildcards] = useState(false)
-  // The debug select: every dealt card is this one, when it is eligible ('' deals normally).
-  const [forceCard, setForceCard] = useState('')
   // The stage is faded out between the main wheel and the wildcard wheel.
   const [fading, setFading] = useState(false)
   // The reel change or clapper slam in progress; the lock and the main Spin wait for it to end.
@@ -283,7 +279,6 @@ export default function WheelPanel({
       muted: settings.wheel.soundMuted,
     },
   )
-  const closeCallsAvailable = settings.wheel.spinSeconds >= closeCallMinSpinSeconds
   const reason = night.ended
     ? null
     : onWheel.length === 0
@@ -354,7 +349,7 @@ export default function WheelPanel({
   }
 
   function forcedCardEligible(): boolean {
-    const forced = cards.find((c) => c.id === forceCard)
+    const forced = cards.find((c) => c.id === debug.card)
     return !!forced && (!forced.fff || !!settings.fffUnlocked) && forced.eligible(dealContext())
   }
 
@@ -364,7 +359,7 @@ export default function WheelPanel({
     if (!onCards) startSpin()
     const wedges = onCards ? spin.wedges : buildWedges(night, roster, settings.wheel)
     const slices = wedges.map((w) => w.slice)
-    const drawn = (forceWildcards && !onCards ? drawWildcardSlice(slices, random) : null) ?? drawSlice(slices, random)
+    const drawn = (debug.wildcards && !onCards ? drawWildcardSlice(slices, random) : null) ?? drawSlice(slices, random)
     // A wildcard drawn on the main wheel opens the wildcard wheel, when it is on and has a card to deal.
     // The debug Force card ignores the card switches, so it opens the wheel whenever its card is eligible.
     const toCards =
@@ -389,7 +384,7 @@ export default function WheelPanel({
     const closeCallsOn = !subSpin && settings.wheel.spinSeconds >= closeCallMinSpinSeconds
     const steer =
       closeCallsOn &&
-      (forceCloseCalls || (!isCloseCall(slices, arcs, drawn, angleUnderPointer(natural)) && random() < closeCallChance))
+      (debug.closeCalls || (!isCloseCall(slices, arcs, drawn, angleUnderPointer(natural)) && random() < closeCallChance))
     const forced = steer ? forcedRestRotation(from, slices, arcs, drawn, random, plan.turns) : null
     const afterClose = forced ?? natural
     const kind = closeCallsOn ? closeCallKind(slices, arcs, drawn, angleUnderPointer(afterClose)) : null
@@ -401,7 +396,7 @@ export default function WheelPanel({
       !closeCall &&
       !subSpin &&
       !reduced &&
-      (forceCatches || (!isCatch(slices, arcs, drawn, angleUnderPointer(afterClose)) && random() < catchChance))
+      (debug.catches || (!isCatch(slices, arcs, drawn, angleUnderPointer(afterClose)) && random() < catchChance))
     const to = (catchSteer && forcedCatchRotation(from, slices, arcs, drawn, random, plan.turns)) || afterClose
     const rest = angleUnderPointer(to)
     const caught = !closeCall && !subSpin && !reduced && isCatch(slices, arcs, drawn, rest)
@@ -409,7 +404,7 @@ export default function WheelPanel({
     const peakBend = caught ? 16 + random() * 10 : 0
     // The countdown is rolled last, so every other draw takes the value it would without one. A test-length
     // spin rolls none (only the debug checkbox forces one), and reduced motion has none.
-    const countdown = !reduced && !subSpin && (forceCountdowns || (spinMs === undefined && rollsCountdown(random())))
+    const countdown = !reduced && !subSpin && (debug.countdowns || (spinMs === undefined && rollsCountdown(random())))
     // The path is built from where the wheel is when the spin launches: at the press, or when the
     // countdown ends; the rest point is the one drawn here.
     function launch(from: number, speed: number, to: number, afterCountdown: boolean) {
@@ -568,7 +563,7 @@ export default function WheelPanel({
     // The wildcard wheel: the deal is made now, and the stage fades over to it.
     function enterCards() {
       const context = dealContext()
-      const forced = cards.find((c) => c.id === forceCard)
+      const forced = cards.find((c) => c.id === debug.card)
       const deal =
         forced && (!forced.fff || settings.fffUnlocked) && forced.eligible(context)
           ? Array.from({ length: dealSize }, () => ({ ...forced.roll(context, random), weight: 1 }))
@@ -1070,64 +1065,6 @@ export default function WheelPanel({
       {spin?.landed && <Flicker key={spin.wheel} />}
       {spin?.wheel === 'cards' && <div className="stage-grain" data-testid="negative-face" aria-hidden="true" />}
       <CardChips />
-      {debug && (
-        <label className="debug-force">
-          <input
-            type="checkbox"
-            checked={forceCloseCalls}
-            disabled={spin !== null || !closeCallsAvailable}
-            onChange={(e) => setForceCloseCalls(e.target.checked)}
-          />{' '}
-          Force close calls
-          {!closeCallsAvailable && ` (needs a spin Length of ${closeCallMinSpinSeconds} s or more)`}
-        </label>
-      )}
-      {debug && (
-        <label className="debug-force">
-          <input
-            type="checkbox"
-            checked={forceCatches}
-            disabled={spin !== null}
-            onChange={(e) => setForceCatches(e.target.checked)}
-          />{' '}
-          Force catches
-        </label>
-      )}
-      {debug && (
-        <label className="debug-force">
-          <input
-            type="checkbox"
-            checked={forceCountdowns}
-            disabled={spin !== null}
-            onChange={(e) => setForceCountdowns(e.target.checked)}
-          />{' '}
-          Force countdowns
-        </label>
-      )}
-      {debug && (
-        <label className="debug-force">
-          <input
-            type="checkbox"
-            checked={forceWildcards}
-            disabled={spin !== null}
-            onChange={(e) => setForceWildcards(e.target.checked)}
-          />{' '}
-          Force wildcards
-        </label>
-      )}
-      {debug && (
-        <label className="debug-force">
-          Force card{' '}
-          <select value={forceCard} disabled={spin !== null} onChange={(e) => setForceCard(e.target.value)}>
-            <option value="">Random deal</option>
-            {cards.filter((c) => !c.fff || settings.fffUnlocked).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.id}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
       {reason && !reasonSlot && <p>{reason}</p>}
       {reason && reasonSlot && createPortal(<p>{reason}</p>, reasonSlot)}
       {night.ended && !reasonSlot && <NightOver />}
