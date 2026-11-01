@@ -14,6 +14,7 @@ import type { SoundEngine, SoundSettings } from '../sound/engine.ts'
 import { catchZone, isCatch } from '../wheel/catch.ts'
 import { catchTickShare } from './WheelPanel.tsx'
 import { useWheelMotion } from './useWheelMotion.ts'
+import { closeDebug, debugControl, openDebug, toggleForce } from '../test/debug.ts'
 
 function film(id: number, posterPath: string | null = null): Nomination {
   return {
@@ -921,24 +922,28 @@ function withQuery(query: string) {
   return () => window.history.pushState({}, '', '/')
 }
 
-test('without the debug flag there is no Force close calls checkbox', () => {
+test('without the debug flag there is no debug button or Force close calls switch', () => {
   setupCrowd({ random: () => 0.5, spinMs: 20 })
+  expect(screen.queryByRole('button', { name: 'Debug options' })).toBeNull()
   expect(screen.queryByLabelText('Force close calls')).toBeNull()
 })
 
-test('with the debug flag the checkbox shows, starts unchecked and locks during a spin and its reveal', async () => {
+test('with the debug flag the switch shows, starts off and locks during a spin and its reveal', async () => {
   const restore = withQuery('?debug')
   try {
     setupCrowd({ random: () => 0.5, spinMs: 20 }, 6)
-    const box = screen.getByLabelText('Force close calls')
+    const box = debugControl('Force close calls')
     expect(box).not.toBeChecked()
     expect(box).toBeEnabled()
+    closeDebug()
     fireEvent.click(spinButton())
-    expect(box).toBeDisabled()
+    expect(debugControl('Force close calls')).toBeDisabled()
+    closeDebug()
     await screen.findByRole('dialog')
-    expect(box).toBeDisabled()
+    expect(debugControl('Force close calls')).toBeDisabled()
+    closeDebug()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    expect(box).toBeEnabled()
+    expect(debugControl('Force close calls')).toBeEnabled()
   } finally {
     restore()
   }
@@ -953,7 +958,7 @@ test('checked, a mid-slice random still lands on the drawn slice but is a close 
     const arcs = sliceArcs(slices)
     // The same slice that drawSlice picks for 0.5, whichever way the rest point is chosen.
     const drawn = drawSlice(slices, () => 0.5)
-    fireEvent.click(screen.getByLabelText('Force close calls'))
+    toggleForce('Force close calls')
     fireEvent.click(spinButton())
     await screen.findByRole('dialog')
     expect(log.cues).toHaveLength(1)
@@ -963,7 +968,7 @@ test('checked, a mid-slice random still lands on the drawn slice but is a close 
     expect(rest).toBeLessThan(arcs[drawn].end)
     expect(isCloseCall(slices, arcs, drawn, rest)).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    fireEvent.click(screen.getByLabelText('Force close calls'))
+    toggleForce('Force close calls')
     fireEvent.click(spinButton())
     await screen.findByRole('dialog')
     expect(log.cues).toHaveLength(1)
@@ -1005,7 +1010,8 @@ test('close calls are off at a spin Length under 5 s, even with the debug box, w
   try {
     const { engine, log } = recordingSound()
     setupCrowd({ random: closeCallRandom, spinMs: 30, sound: engine }, 4)
-    expect(screen.getByLabelText(/Force close calls/)).toBeDisabled()
+    expect(debugControl(/Force close calls/)).toBeDisabled()
+    closeDebug()
     fireEvent.click(spinButton())
     await screen.findByRole('dialog')
     expect(log.cues).toEqual([])
@@ -1143,7 +1149,7 @@ test('reduced motion steers nothing into a catch, and nothing rocks or ticks for
   }
 }, 8000)
 
-test('without the debug flag there is no Force catches checkbox', () => {
+test('without the debug flag there is no Force catches switch', () => {
   setupCrowd({ random: () => 0.5, spinMs: 20 })
   expect(screen.queryByLabelText('Force catches')).toBeNull()
 })
@@ -1153,18 +1159,21 @@ test('with the debug flag Force catches shows, starts unchecked, locks during a 
   try {
     const { engine, log } = recordingSound()
     setupCrowd({ random: () => 0.5, spinMs: 40, sound: engine }, 2)
-    const box = screen.getByLabelText('Force catches')
+    const box = debugControl('Force catches')
     expect(box).not.toBeChecked()
     expect(box).toBeEnabled()
     fireEvent.click(box)
+    closeDebug()
     fireEvent.click(spinButton())
-    expect(box).toBeDisabled()
+    expect(debugControl('Force catches')).toBeDisabled()
+    closeDebug()
     await screen.findByRole('dialog')
-    expect(box).toBeDisabled()
+    expect(debugControl('Force catches')).toBeDisabled()
+    closeDebug()
     expect(isCatch(crowd, crowdArcs, crowdDrawn, angleUnderPointer(wheelRotation()))).toBe(true)
     expect(tickCount(log.ticks)).toBe(1)
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    expect(box).toBeEnabled()
+    expect(debugControl('Force catches')).toBeEnabled()
   } finally {
     restore()
   }
@@ -1175,8 +1184,8 @@ test('with both boxes checked, a slice with a close-call zone gets a close call'
   try {
     const { engine, log } = recordingSound()
     setupCrowd({ random: () => 0.5, spinMs: 40, sound: engine }, 6)
-    fireEvent.click(screen.getByLabelText('Force close calls'))
-    fireEvent.click(screen.getByLabelText('Force catches'))
+    toggleForce('Force close calls')
+    toggleForce('Force catches')
     fireEvent.click(spinButton())
     await screen.findByRole('dialog')
     expect(log.cues).toHaveLength(1)
@@ -1190,26 +1199,31 @@ test('with both boxes checked, a slice with a close-call zone gets a close call'
 // The leader countdown.
 const dial = () => screen.queryByTestId('countdown')
 
-test('without the debug flag there is no Force countdowns checkbox', () => {
+test('without the debug flag there is no Force countdowns switch', () => {
   setupCrowd({ random: () => 0.5, spinMs: 20 })
   expect(screen.queryByLabelText('Force countdowns')).toBeNull()
 })
 
-test('with the debug flag Force countdowns shows beside the others, starts unchecked and locks during a spin and its reveal', async () => {
+test('with the debug flag Force countdowns shows beside the others in the popover, starts off and locks during a spin and its reveal', async () => {
   const restore = withQuery('?debug')
   try {
     setupCrowd({ random: () => 0.5, spinMs: 20 }, 6)
-    const boxes = screen.getAllByRole('checkbox').map((b) => b.parentElement!.textContent!.trim())
-    expect(boxes.slice(-4).map((t) => t.replace(/ \(.*/, ''))).toEqual(['Force close calls', 'Force catches', 'Force countdowns', 'Force wildcards'])
-    const box = screen.getByLabelText('Force countdowns')
+    const boxes = within(openDebug()).getAllByRole('switch').map((b) => b.parentElement!.textContent!.trim())
+    expect(boxes.map((t) => t.replace(/ \(.*/, ''))).toEqual(['Force close calls', 'Force catches', 'Force countdowns', 'Force wildcards'])
+    // Nothing debug-related sits in or under the wheel panel.
+    expect(document.querySelector('.wheel-panel')!.querySelector('input, select, .debug-force')).toBeNull()
+    const box = debugControl('Force countdowns')
     expect(box).not.toBeChecked()
     expect(box).toBeEnabled()
+    closeDebug()
     fireEvent.click(spinButton())
-    expect(box).toBeDisabled()
+    expect(debugControl('Force countdowns')).toBeDisabled()
+    closeDebug()
     await screen.findByRole('dialog')
-    expect(box).toBeDisabled()
+    expect(debugControl('Force countdowns')).toBeDisabled()
+    closeDebug()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    expect(box).toBeEnabled()
+    expect(debugControl('Force countdowns')).toBeEnabled()
   } finally {
     restore()
   }
@@ -1220,7 +1234,7 @@ test('a forced countdown runs 3, 2, 1 over the drifting wheel, switches the proj
   try {
     const { engine, log } = recordingSound()
     setupCrowd({ random: () => 0.5, spinMs: 20, sound: engine })
-    fireEvent.click(screen.getByLabelText('Force countdowns'))
+    toggleForce('Force countdowns')
     await sleep(300)
     fireEvent.click(spinButton())
     expect(spinButton()).toBeDisabled()
@@ -1260,8 +1274,8 @@ test('a countdown spin that is a close call still cues, zooms and lands', async 
   try {
     const { engine, log } = recordingSound()
     setupCrowd({ random: () => 0.5, spinMs: 40, sound: engine }, 6)
-    fireEvent.click(screen.getByLabelText('Force close calls'))
-    fireEvent.click(screen.getByLabelText('Force countdowns'))
+    toggleForce('Force close calls')
+    toggleForce('Force countdowns')
     fireEvent.click(spinButton())
     expect(dial()).not.toBeNull()
     await screen.findByRole('dialog', undefined, { timeout: 4000 })
@@ -1279,7 +1293,7 @@ test('leaving mid-countdown starts no spin and plays no later beep', async () =>
   try {
     const { engine, log } = recordingSound()
     setupCrowd({ random: () => 0.5, spinMs: 20, sound: engine })
-    fireEvent.click(screen.getByLabelText('Force countdowns'))
+    toggleForce('Force countdowns')
     fireEvent.click(spinButton())
     expect(dial()).not.toBeNull()
     cleanup()
@@ -1304,7 +1318,7 @@ test('with reduced motion there is no countdown even when forced', async () => {
   try {
     const { engine, log } = recordingSound()
     setupCrowd({ random: () => 0.99, sound: engine })
-    fireEvent.click(screen.getByLabelText('Force countdowns'))
+    toggleForce('Force countdowns')
     fireEvent.click(spinButton())
     expect(dial()).toBeNull()
     await screen.findByRole('dialog', undefined, { timeout: 4000 })

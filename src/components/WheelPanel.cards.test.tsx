@@ -13,6 +13,7 @@ import { blindColor } from '../wheel/wedges.ts'
 import { isBlind, isReshuffleLocked } from '../state/model.ts'
 import { catchTickShare } from './WheelPanel.tsx'
 import { recordStage } from '../test/phases.ts'
+import { chooseForceCard, closeDebug, debugControl, toggleForce } from '../test/debug.ts'
 
 // The deal is the real one unless a test forces a card with `forceCard`.
 vi.mock('../wildcards/deal.ts', async (importOriginal) => {
@@ -418,16 +419,17 @@ test('without the debug flag there is no Force wildcards checkbox', () => {
 test('Force wildcards makes an ordinary random land on a wildcard, and locks during a spin', async () => {
   withDebug()
   const { store } = setup({ random: () => 0.01 })
-  const box = screen.getByLabelText('Force wildcards')
-  expect(box).not.toBeChecked()
+  expect(debugControl('Force wildcards')).not.toBeChecked()
+  closeDebug()
   fireEvent.click(spinButton())
   // Unchecked, 0.01 draws a viewer's film.
   await screen.findByRole('dialog')
   expect(wedgeKinds()).not.toContain('card')
   fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-  fireEvent.click(box)
+  toggleForce('Force wildcards')
   fireEvent.click(spinButton())
-  expect(box).toBeDisabled()
+  expect(debugControl('Force wildcards')).toBeDisabled()
+  closeDebug()
   await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
   expect(store.getState().night.cardEffects).toEqual([])
 })
@@ -436,7 +438,7 @@ test('on the wildcard wheel, Force close calls makes a close call and Force catc
   withDebug()
   const close = recordingSound()
   setup({ sound: close.engine, wheel: { spinSeconds: 6 } })
-  fireEvent.click(screen.getByLabelText('Force close calls'))
+  toggleForce('Force close calls')
   fireEvent.click(spinButton())
   // The main spin is a close call too: the march stays silent when it lands on the wildcard.
   await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
@@ -453,7 +455,7 @@ test('on the wildcard wheel, Force close calls makes a close call and Force catc
 
   const caught = recordingSound()
   setup({ sound: caught.engine })
-  fireEvent.click(screen.getByLabelText('Force catches'))
+  toggleForce('Force catches')
   fireEvent.click(spinButton())
   await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
   const afterMain = caught.log.ticks.filter((t) => t === catchTickShare).length
@@ -466,7 +468,7 @@ test('on the wildcard wheel, Force countdowns shows the dial and calls musicStar
   withDebug()
   const { engine, log } = recordingSound()
   setup({ sound: engine })
-  fireEvent.click(screen.getByLabelText('Force countdowns'))
+  toggleForce('Force countdowns')
   fireEvent.click(spinButton())
   expect(dial()).not.toBeNull()
   await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')), { timeout: 4000 })
@@ -505,7 +507,7 @@ test("Tonight's cards list one chip per landed card, in order, repeats included"
     }),
   )
   expect(chipTexts()).toEqual(['Ann +2 weight', '+1 wildcard', 'Ann +2 weight'])
-  // After the wheel stage, before the debug checkboxes.
+  // After the wheel stage.
   const stage = document.querySelector('.wheel-stage')!
   expect(stage.compareDocumentPosition(chips()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })
@@ -786,8 +788,8 @@ test('Blind Spin: the wheel comes back blind, stays blind through the next main 
 test('the debug Force card select deals eight of the chosen card, and Random deal deals normally', async () => {
   window.history.pushState({}, '', '/?debug')
   const { store } = setup()
-  fireEvent.click(screen.getByLabelText('Force wildcards'))
-  fireEvent.change(screen.getByLabelText('Force card'), { target: { value: 'blind-spin' } })
+  toggleForce('Force wildcards')
+  chooseForceCard('blind-spin')
   const dialog = await openCard()
   expect(within(dialog).getByRole('heading')).toHaveTextContent('Blind Spin')
   fireEvent.click(within(dialog).getByRole('button', { name: 'Back to the main wheel' }))
@@ -832,8 +834,8 @@ test('the wildcard wheel is dealt only from the cards that are on, and keeps its
 test('the debug Force card ignores the switches, even with every card switched off', async () => {
   window.history.pushState({}, '', '/?debug')
   setup({ wheel: { disabledCards: allCardIds } })
-  fireEvent.click(screen.getByLabelText('Force wildcards'))
-  fireEvent.change(screen.getByLabelText('Force card'), { target: { value: 'blind-spin' } })
+  toggleForce('Force wildcards')
+  chooseForceCard('blind-spin')
   const dialog = await openCard()
   expect(within(dialog).getByRole('heading')).toHaveTextContent('Blind Spin')
 })
@@ -843,7 +845,7 @@ const nonFffIds = cards.filter((c) => !c.fff).map((c) => c.id)
 test('the debug Force card select lists the FFF cards only while they are unlocked', () => {
   window.history.pushState({}, '', '/?debug')
   setup()
-  const options = () => within(screen.getByLabelText('Force card')).getAllByRole('option').map((o) => o.textContent)
+  const options = () => within(debugControl('Force card')).getAllByRole('option').map((o) => o.textContent)
   expect(options()).not.toContain('movie-night-rewind')
   expect(options()).not.toContain('play-rento')
   expect(options()).toContain('blind-spin')
@@ -960,8 +962,8 @@ test('with reduced motion the sub-board comes in, runs and leaves by crossfades'
 test('a forced spins card deals its sub-board from the pool cards that are on', async () => {
   window.history.pushState({}, '', '/?debug')
   setup({ wheel: { disabledCards: ['viewer-weight', 'viewer-slices', 'everyone-weight'] } })
-  fireEvent.click(screen.getByLabelText('Force wildcards'))
-  fireEvent.change(screen.getByLabelText('Force card'), { target: { value: 'wildcard-spins' } })
+  toggleForce('Force wildcards')
+  chooseForceCard('wildcard-spins')
   const dialog = await openCard()
   expect(within(dialog).getByRole('heading').textContent).toMatch(/Wildcard Spins/)
   fireEvent.click(within(dialog).getByRole('button', { name: 'Deal the spins' }))
@@ -975,8 +977,8 @@ test('a forced spins card deals its sub-board from the pool cards that are on', 
 test('with every pool card switched off a forced spins card deals its sub-board from the eligible pool', async () => {
   window.history.pushState({}, '', '/?debug')
   setup({ wheel: { disabledCards: ['viewer-weight', 'viewer-slices', 'everyone-weight', 'everyone-slices', 'wildcards'] } })
-  fireEvent.click(screen.getByLabelText('Force wildcards'))
-  fireEvent.change(screen.getByLabelText('Force card'), { target: { value: 'wildcard-spins' } })
+  toggleForce('Force wildcards')
+  chooseForceCard('wildcard-spins')
   const dialog = await openCard()
   fireEvent.click(within(dialog).getByRole('button', { name: 'Deal the spins' }))
   await waitFor(() => expect(screen.getByTestId('spin-counter')).toBeInTheDocument())
