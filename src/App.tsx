@@ -3,6 +3,7 @@ import logoDark from './assets/logo/logo-dark-transparent.svg'
 import logoLight from './assets/logo/logo-light-transparent.svg'
 import './App.css'
 import { HeldFilmCard, HeldFilmChip, type FocusRequest } from './components/HeldFilm.tsx'
+import { useDebugFlag, useDebugOptions } from './components/debugOptions.ts'
 import NightControls from './components/NightControls.tsx'
 import NightSetup from './components/NightSetup.tsx'
 import ViewerKey from './components/ViewerKey.tsx'
@@ -40,6 +41,8 @@ function Banner({ children }: { children?: ReactNode }) {
 
 function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
   const { settings, setViewersHidden } = useApp()
+  const debugFlag = useDebugFlag()
+  const [debugOptions, setDebugOptions] = useDebugOptions()
   const [locked, setLocked] = useState(false)
   const [blind, setBlind] = useState(false)
   const [focusRequest, setFocusRequest] = useState<FocusRequest>(null)
@@ -69,6 +72,7 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
       <Banner>
         <NightControls
           locked={locked}
+          debug={debugFlag ? { options: debugOptions, onChange: setDebugOptions } : undefined}
           heldFilmChip={<HeldFilmChip focusRequest={focusRequest} onRequestFocus={setFocusRequest} />}
         />
       </Banner>
@@ -83,6 +87,7 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
             onBlindChange={setBlind}
             onBusyChange={setLocked}
             reasonSlot={reasonSlot}
+            debug={debugFlag ? debugOptions : undefined}
           />
           <div className="wheel-reason-slot" ref={setReasonSlot} />
           <div className="setup-column">

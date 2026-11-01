@@ -476,7 +476,7 @@ html:has(.wheel-stage[data-zoom]) {
 }
 
 /* The page's ground is film cream while the wildcard wheel shows; the banner and the viewer pane keep
-   their own look. What sits on the ground (the chips, the debug controls) takes the light-scheme tokens
+   their own look. What sits on the ground (the chips) takes the light-scheme tokens
    in both modes so it reads on cream. */
 body:has(.wheel-stage[data-wheel='cards']) {
   background-color: var(--film-cream);
@@ -3077,14 +3077,31 @@ dialog.wheel-drawer:focus {
   gap: var(--space-2);
 }
 
-/* The debug flag's checkbox under the wheel. */
-.debug-force {
-  color: var(--muted);
-  font-size: 0.85rem;
+/* The debug popover reuses the Wheel settings popover's look; its Force card select
+   is styled here only. */
+dialog.debug-drawer {
+  width: min(22rem, calc(100vw - 1rem));
 }
 
-.debug-force + .debug-force {
-  margin-left: var(--space-4);
+.debug-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.debug-select select {
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+}
+
+.debug-select select:disabled {
+  opacity: 0.5;
 }
 
 .viewer-key {
