@@ -15,8 +15,15 @@ import runoutUrl from '../assets/sound/run-out.mp3'
 import clunkUrl from '../assets/sound/clunk.mp3'
 import clapUrl from '../assets/sound/clap.mp3'
 import knockUrl from '../assets/sound/knock.mp3'
+import christmasLoopUrl from '../assets/sound/christmas-loop.mp3'
+import christmasStingerUrl from '../assets/sound/christmas-stinger.mp3'
+import christmasWin1Url from '../assets/sound/christmas-win-1.mp3'
+import christmasWin2Url from '../assets/sound/christmas-win-2.mp3'
+import christmasWin3Url from '../assets/sound/christmas-win-3.mp3'
+import christmasWin4Url from '../assets/sound/christmas-win-4.mp3'
+import christmasBellsUrl from '../assets/sound/christmas-bells.mp3'
 
-// The seasonal files have no URL until they are cut (a part with none falls back to the march's).
+// An imported MP3 is only a URL: a seasonal file is fetched when the engine asks for it, while its season is active.
 const urls: Partial<Record<SoundName, string>> = {
   on: onUrl,
   hum: humUrl,
@@ -34,6 +41,13 @@ const urls: Partial<Record<SoundName, string>> = {
   clunk: clunkUrl,
   clap: clapUrl,
   knock: knockUrl,
+  'christmas-loop': christmasLoopUrl,
+  'christmas-stinger': christmasStingerUrl,
+  'christmas-win-1': christmasWin1Url,
+  'christmas-win-2': christmasWin2Url,
+  'christmas-win-3': christmasWin3Url,
+  'christmas-win-4': christmasWin4Url,
+  'christmas-bells': christmasBellsUrl,
 }
 
 type AudioContextConstructor = typeof AudioContext

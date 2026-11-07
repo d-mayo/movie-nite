@@ -49,18 +49,19 @@ export const marchSet: Required<Pick<SoundSet, 'loop' | 'stinger'>> = {
 // The seasons that have a sound set. Halloween and Valentine's Day have none yet.
 export type SoundSets = Partial<Record<SeasonId, SoundSet>>
 
-// Christmas's files come in with their cut; until then no URL is mapped for them and the march plays.
+// Christmas: a jazz Jingle Bells loop (a 0.1 s margin, then 56.49 s that closes on its own first beat), a sleigh-bell
+// stinger, four "ho ho ho" variants and a sleigh-bell loop for the spin. Lengths are ffprobe's.
 export const soundSets: SoundSets = {
   christmas: {
-    loop: { name: 'christmas-loop', loopStart: 2.0, loopEnd: 30, length: 30.1 },
-    stinger: { name: 'christmas-stinger', hit: 1.5, seconds: 3 },
+    loop: { name: 'christmas-loop', loopStart: 0.1, loopEnd: 56.595, length: 56.695 },
+    stinger: { name: 'christmas-stinger', hit: 0.05, seconds: 2.6 },
     win: [
-      { name: 'christmas-win-1', length: 2.2 },
+      { name: 'christmas-win-1', length: 2.15 },
       { name: 'christmas-win-2', length: 3.2 },
-      { name: 'christmas-win-3', length: 4 },
+      { name: 'christmas-win-3', length: 4.0 },
       { name: 'christmas-win-4', length: 3.7 },
     ],
-    bells: { name: 'christmas-bells', loopStart: 0.1, loopEnd: 4, length: 4.1 },
+    bells: { name: 'christmas-bells', loopStart: 0.1, loopEnd: 5.45, length: 5.55 },
   },
 }
 

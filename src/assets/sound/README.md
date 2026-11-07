@@ -95,3 +95,57 @@ Six more MP3s. Originals live in the gitignored `sound-sources/`; the processing
 | `clap.mp3` | [579205, Clap at Two Church 6](https://freesound.org/people/jonsept/sounds/579205/) by jonsept, CC0 | the whole 1.53 s clap with a sharper snap (high-passed copy added, soft clip), a 2.4 s synthesized reverb tail, a low pitch-dropping thump and two slapback echoes, then an 0.8 s fade; stereo 96 kbps |
 
 `knock.mp3` is the one sound that needs a credit: [698129, metal click](https://freesound.org/people/ChristianStuck/sounds/698129/) by ChristianStuck, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The whole 0.3 s click with a 50 ms fade out, mono 64 kbps; the Credits dialog carries the credit.
+
+# Christmas sounds
+
+Seven MP3s that play only while Christmas is the active theme (`src/sound/seasons.ts` holds each file's
+figures). They are fetched when the theme turns on, never before. Originals live in the gitignored
+`sound-sources/`; times are seconds in the source file. The files together are about 940 KB. The spin music is the
+one recording under the [Pixabay Content License](https://pixabay.com/service/license-summary/), which allows a
+cut to ship inside an app but forbids redistributing the track on its own; the others are CC0.
+
+| File | Source | Cut |
+| --- | --- | --- |
+| `christmas-loop.mp3` | [Jingle Bells Holiday Jazz](https://pixabay.com/music/christmas-jingle-bells-holiday-jazz-603042/) by 331music, Pixabay Content License | 0.07 to 56.565, the song's opening beat to the dip before its 24th downbeat (24 bars at about 102 bpm), loudness-matched to -18 LUFS, stereo 96 kbps |
+| `christmas-stinger.mp3` | [369506, Sleigh bells hit](https://freesound.org/people/Selector/sounds/369506/) by Selector, CC0 | the whole hit, mixed to mono, with an echo tail to 2.6 s, matched to the march stinger (-15.1 LUFS), mono 96 kbps |
+| `christmas-bells.mp3` | [255104, Sleigh bells 90 bpm loop](https://freesound.org/people/soundstack/sounds/255104/) by soundstack, CC0 | 23.62 to 28.97, two bars at 90 bpm; the last 0.5 s cross-fades into the start, mono 96 kbps |
+| `christmas-win-1.mp3` | [110642, santa - ho ho ho #2](https://freesound.org/people/canucklovingbrit/sounds/110642/) by canucklovingbrit, CC0 | 0 to 2.15, matched to the cheer (-20.2 LUFS), mono 96 kbps |
+| `christmas-win-2.mp3` | [325180, SantaClaus_HoHoHo](https://freesound.org/people/Bollenator/sounds/325180/) by Bollenator, CC0 | 4.0 to 7.2, same treatment |
+| `christmas-win-3.mp3` | the same file | 8.4 to 12.4 |
+| `christmas-win-4.mp3` | the same file | 15.1 to 18.8 |
+
+## The spin music loop
+
+The song's own first beat (about 0.09 s) is bar 1 of the chorus, and the verse ends 24 bars later, so the body
+closes on itself with a hard cut (a 10 ms cross-fade only to avoid a click) where the music dips just before the
+next downbeat. The file is 0.1 s of silence, then the 56.49 s body, then 0.1 s of the body's start, so the
+encoder's padding falls in the margins:
+
+- `loopStart` = 0.1
+- `loopEnd` = 56.595
+
+## The bells loop
+
+The body is 5.35 s with its last 0.5 s cross-fading into the start, 0.1 s margin each side:
+
+- `loopStart` = 0.1
+- `loopEnd` = 5.45
+
+## The stinger and the win sounds
+
+The stinger's hit lands at about 0.05 s of its 2.6 s. Each landing plays one of the four "ho ho ho" files, chosen
+at random, with the applause.
+
+Remake (ffmpeg, from `sound-sources/`; `JB` is the Pixabay MP3, `SS` the soundstack WAV, `SE` Selector's, `CA` and
+`BO` the two "ho ho ho" WAVs; each result is then gained to its target loudness and limited to 0.89):
+
+```
+ffmpeg -i JB -filter_complex "aevalsrc=0|0:d=0.1:s=44100[pre];[0:a]atrim=0.07:56.555,asetpts=PTS-STARTPTS[main];[0:a]atrim=56.555:56.565,asetpts=PTS-STARTPTS,afade=t=out:d=0.01:curve=qsin[t1];[0:a]atrim=0.06:0.07,asetpts=PTS-STARTPTS,afade=t=in:d=0.01:curve=qsin[t2];[t1][t2]amix=inputs=2:normalize=0[blend];[0:a]atrim=0.07:0.17,asetpts=PTS-STARTPTS[post];[pre][main][blend][post]concat=n=4:v=0:a=1[o]" -map "[o]" -c:a libmp3lame -b:a 96k christmas-loop.mp3
+ffmpeg -i SS -filter_complex "[0:a]atrim=23.62:28.97,asetpts=PTS-STARTPTS[full];[0:a]atrim=28.97:29.47,asetpts=PTS-STARTPTS[tail];[tail][full]acrossfade=d=0.5:c1=tri:c2=tri,asplit=3[b1][b2][b3];[b1]atrim=5.25:5.35,asetpts=PTS-STARTPTS[pre];[b3]atrim=0:0.1,asetpts=PTS-STARTPTS[post];[pre][b2][post]concat=n=3:v=0:a=1,pan=mono|c0=0.5*c0+0.5*c1[o]" -map "[o]" -ac 1 -c:a libmp3lame -b:a 96k christmas-bells.mp3
+ffmpeg -i SE -af "pan=mono|c0=0.5*c0+0.5*c1,aecho=0.8:0.7:90|180|300:0.45|0.3|0.2,apad=whole_dur=2.6,atrim=0:2.6" -c:a libmp3lame -b:a 96k christmas-stinger.mp3
+ffmpeg -i CA -af "atrim=0:2.15,asetpts=PTS-STARTPTS,pan=mono|c0=0.5*c0+0.5*c1,afade=t=in:d=0.01,afade=t=out:st=1.9:d=0.25" -c:a libmp3lame -b:a 96k christmas-win-1.mp3
+ffmpeg -i BO -af "atrim=4.0:7.2,asetpts=PTS-STARTPTS,pan=mono|c0=0.5*c0+0.5*c1,afade=t=in:d=0.01,afade=t=out:st=2.95:d=0.25" -c:a libmp3lame -b:a 96k christmas-win-2.mp3
+```
+
+`christmas-win-3.mp3` and `-4.mp3` are the same command with the cuts 8.4 to 12.4 and 15.1 to 18.8 (the fade-out
+starts 0.25 s before the end).

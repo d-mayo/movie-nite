@@ -6,7 +6,7 @@ export interface SoundCredit {
   source: string
   sourceUrl: string
   author: string
-  license: 'CC0' | 'CC BY 4.0' | 'Public domain'
+  license: 'CC0' | 'CC BY 4.0' | 'Public domain' | 'Pixabay Content License'
 }
 
 export const soundCredits: SoundCredit[] = [
@@ -139,5 +139,61 @@ export const soundCredits: SoundCredit[] = [
     sourceUrl: 'https://freesound.org/people/ChristianStuck/sounds/698129/',
     author: 'ChristianStuck',
     license: 'CC BY 4.0',
+  },
+  {
+    file: 'christmas-loop.mp3',
+    what: 'Christmas spin music',
+    source: 'Jingle Bells Holiday Jazz',
+    sourceUrl: 'https://pixabay.com/music/christmas-jingle-bells-holiday-jazz-603042/',
+    author: '331music',
+    license: 'Pixabay Content License',
+  },
+  {
+    file: 'christmas-stinger.mp3',
+    what: 'Christmas winner flourish',
+    source: '369506, Sleigh bells hit',
+    sourceUrl: 'https://freesound.org/people/Selector/sounds/369506/',
+    author: 'Selector',
+    license: 'CC0',
+  },
+  {
+    file: 'christmas-bells.mp3',
+    what: 'Christmas spin bells',
+    source: '255104, Sleigh bells 90 bpm loop',
+    sourceUrl: 'https://freesound.org/people/soundstack/sounds/255104/',
+    author: 'soundstack',
+    license: 'CC0',
+  },
+  {
+    file: 'christmas-win-1.mp3',
+    what: 'Christmas ho ho ho one',
+    source: '110642, santa - ho ho ho #2',
+    sourceUrl: 'https://freesound.org/people/canucklovingbrit/sounds/110642/',
+    author: 'canucklovingbrit',
+    license: 'CC0',
+  },
+  {
+    file: 'christmas-win-2.mp3',
+    what: 'Christmas ho ho ho two',
+    source: '325180, SantaClaus_HoHoHo',
+    sourceUrl: 'https://freesound.org/people/Bollenator/sounds/325180/',
+    author: 'Bollenator',
+    license: 'CC0',
+  },
+  {
+    file: 'christmas-win-3.mp3',
+    what: 'Christmas ho ho ho three',
+    source: '325180, SantaClaus_HoHoHo',
+    sourceUrl: 'https://freesound.org/people/Bollenator/sounds/325180/',
+    author: 'Bollenator',
+    license: 'CC0',
+  },
+  {
+    file: 'christmas-win-4.mp3',
+    what: 'Christmas ho ho ho four',
+    source: '325180, SantaClaus_HoHoHo',
+    sourceUrl: 'https://freesound.org/people/Bollenator/sounds/325180/',
+    author: 'Bollenator',
+    license: 'CC0',
   },
 ]
