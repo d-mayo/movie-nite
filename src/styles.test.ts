@@ -23,7 +23,8 @@ const dark = tokens(block(css.slice(darkStart), ':root'))
 
 const isColor = (value: string) => /^#[0-9a-f]{6}$/i.test(value)
 const isFilm = (name: string) => name.startsWith('--film-')
-const colorNames = Object.keys(light).filter((name) => isColor(light[name]) && !isFilm(name))
+const isSeason = (name: string) => name.startsWith('--season-')
+const colorNames = Object.keys(light).filter((name) => isColor(light[name]) && !isFilm(name) && !isSeason(name))
 const isShadow = (name: string) => name.startsWith('--shadow')
 
 const channel = (v: number) => {
@@ -53,7 +54,7 @@ describe('color tokens', () => {
 
   test('every color and shadow token in light is also in dark, and body uses tokens', () => {
     for (const name of Object.keys(light)) {
-      if ((isColor(light[name]) && !isFilm(name)) || isShadow(name)) {
+      if ((isColor(light[name]) && !isFilm(name) && !isSeason(name)) || isShadow(name)) {
         expect(dark, name).toHaveProperty(name)
       }
     }
@@ -85,6 +86,24 @@ describe('color tokens', () => {
         }
       }
       expect(contrast(set['--accent-text'], set['--accent']), `${scheme} accent-text`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+})
+
+describe('season tokens', () => {
+  test('are colors defined on the light :root only, outside the dark-scheme block', () => {
+    const names = Object.keys(light).filter(isSeason)
+    expect(names.length).toBeGreaterThan(0)
+    for (const name of names) expect(light[name], name).toMatch(/^#[0-9a-f]{6}$/i)
+    expect(Object.keys(dark).filter(isSeason)).toEqual([])
+    expect(css.slice(darkStart)).not.toContain('--season-')
+  })
+
+  test('are used only by the seasonal effect layer rules in App.css', () => {
+    expect(css.replace(/--season-[\w-]+\s*:/g, '')).not.toMatch(/var\(--season-/)
+    const rules = appCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)
+    for (const [, selector, body] of rules) {
+      if (/var\(--season-/.test(body)) expect(selector, selector).toMatch(/\.seasonal-effects/)
     }
   })
 })

@@ -116,3 +116,53 @@ test('Force season overrides the date and the switch in the Now line, and a remo
   setup(nov7)
   expect((debugControl('Force season') as HTMLSelectElement).value).toBe('')
 })
+
+const banner = () => {
+  const header = screen.getByRole('banner')
+  return {
+    img: within(header).getByAltText('Movie Nite') as HTMLImageElement,
+    source: header.querySelector('source') as HTMLSourceElement,
+  }
+}
+const isChristmas = (b: ReturnType<typeof banner>) =>
+  /christmas-light/.test(b.img.getAttribute('src')!) && /christmas-dark/.test(b.source.getAttribute('srcset')!)
+const isPlain = (b: ReturnType<typeof banner>) =>
+  /logo-light-transparent/.test(b.img.getAttribute('src')!) &&
+  /logo-dark-transparent/.test(b.source.getAttribute('srcset')!) &&
+  !/christmas/.test(b.img.getAttribute('src')! + b.source.getAttribute('srcset')!)
+
+test('the banner shows the Christmas pair when Christmas is active, by date or by force', () => {
+  setup(dec10)
+  expect(isChristmas(banner())).toBe(true)
+  cleanup()
+  window.history.pushState({}, '', '/?debug')
+  setup(nov7)
+  expect(isPlain(banner())).toBe(true)
+  fireEvent.change(debugControl('Force season'), { target: { value: 'christmas' } })
+  closeDebug()
+  expect(isChristmas(banner())).toBe(true)
+  expect(banner().img.alt).toBe('Movie Nite')
+})
+
+test('the banner shows the plain pair with no theme, forced None, Halloween or Valentine\'s Day', () => {
+  window.history.pushState({}, '', '/?debug')
+  setup(dec10)
+  for (const value of ['none', 'halloween', 'valentines']) {
+    fireEvent.change(debugControl('Force season'), { target: { value } })
+    closeDebug()
+    expect(isPlain(banner()), value).toBe(true)
+  }
+  cleanup()
+  setup(nov7)
+  expect(isPlain(banner())).toBe(true)
+})
+
+test('turning Seasonal themes off brings back the plain logo, and on brings Christmas back', () => {
+  setup(dec10)
+  openEditor()
+  const toggle = within(seasonsCard()).getByRole('switch', { name: 'Seasonal themes' })
+  fireEvent.click(toggle)
+  expect(isPlain(banner())).toBe(true)
+  fireEvent.click(toggle)
+  expect(isChristmas(banner())).toBe(true)
+})

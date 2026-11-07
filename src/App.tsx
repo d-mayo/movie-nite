@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import logoDark from './assets/logo/logo-dark-transparent.svg'
 import logoLight from './assets/logo/logo-light-transparent.svg'
+import christmasDark from './assets/logo/seasons/logo-christmas-dark-transparent.svg'
+import christmasLight from './assets/logo/seasons/logo-christmas-light-transparent.svg'
 import './App.css'
 import { HeldFilmCard, HeldFilmChip, type FocusRequest } from './components/HeldFilm.tsx'
 import { forcedSeason, useDebugOptions } from './components/debugOptions.ts'
@@ -8,7 +10,7 @@ import NightControls from './components/NightControls.tsx'
 import NightSetup from './components/NightSetup.tsx'
 import ViewerKey from './components/ViewerKey.tsx'
 import WheelPanel from './components/WheelPanel.tsx'
-import { seasonOf } from './seasons/seasons.ts'
+import { activeSeason, seasonOf, type SeasonId } from './seasons/seasons.ts'
 import type { SoundEngine } from './sound/engine.ts'
 import { applyDebugLink } from './state/debugLink.ts'
 import { AppStoreContext, useApp, type AppStore } from './state/store.ts'
@@ -29,13 +31,19 @@ interface Props {
   today?: Date
 }
 
-function Banner({ children }: { children?: ReactNode }) {
+// The banner's logo pair for a theme; the seasons without their own look show the plain logo.
+const logos: Partial<Record<SeasonId, { light: string; dark: string }>> = {
+  christmas: { light: christmasLight, dark: christmasDark },
+}
+
+function Banner({ season, children }: { season: SeasonId | null; children?: ReactNode }) {
+  const logo = (season && logos[season]) || { light: logoLight, dark: logoDark }
   return (
     <header className="banner">
       <h1>
         <picture>
-          <source media="(prefers-color-scheme: dark)" srcSet={logoDark} />
-          <img src={logoLight} alt="Movie Nite" />
+          <source media="(prefers-color-scheme: dark)" srcSet={logo.dark} />
+          <img src={logo.light} alt="Movie Nite" />
         </picture>
       </h1>
       {children}
@@ -52,6 +60,8 @@ function Screen({ fetchFn, random, spinMs, sound, today }: Omit<Props, 'store'>)
   const forced = debugFlag ? forcedSeason(debugOptions.season) : undefined
   // What the Seasons line names: the forced season, else the date's.
   const seasonNow = forced !== undefined ? forced : seasonOf(loadDate)
+  // The theme in force: the forced season, else none while the switch is off, else the date's.
+  const theme = activeSeason({ forced, enabled: settings.wheel.seasonalThemes, date: loadDate })
   const [locked, setLocked] = useState(false)
   const [blind, setBlind] = useState(false)
   const [focusRequest, setFocusRequest] = useState<FocusRequest>(null)
@@ -78,7 +88,7 @@ function Screen({ fetchFn, random, spinMs, sound, today }: Omit<Props, 'store'>)
 
   return (
     <>
-      <Banner>
+      <Banner season={theme}>
         <NightControls
           locked={locked}
           seasonNow={seasonNow}
