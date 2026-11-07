@@ -13,5 +13,5 @@
 <circle cx="17" cy="110" r="16" fill="#FFFFFF" stroke="#262626" stroke-width="2.5" stroke-linejoin="round"/>
 <path d="M9 118C13 122 19 122 23 118M25 104C23 100 19 98 15 98" fill="none" stroke="#B4C3D1" stroke-width="2.5"/>
 </g>
-<g id="present" transform="rotate(8 717 495)"><rect x="698" y="484" width="38" height="28" rx="3" fill="#2F7D46"/><rect x="694" y="474" width="46" height="12" rx="3" fill="#256338"/><rect x="713" y="474" width="8" height="38" fill="#E0B43C"/><ellipse cx="710" cy="468" rx="9" ry="6" transform="rotate(-25 710 468)" fill="#E0B43C"/><ellipse cx="724" cy="468" rx="9" ry="6" transform="rotate(25 724 468)" fill="#E0B43C"/><circle cx="717" cy="471" r="4" fill="#E0B43C"/></g>
+<g id="present" transform="translate(-12 -30) translate(676 400) scale(1.15) rotate(8) translate(-676 -400)"><rect x="626" y="392" width="100" height="48" rx="6" fill="#2F7D46"/><rect x="617" y="366" width="118" height="26" rx="6" fill="#256338"/><rect x="667" y="366" width="18" height="74" fill="#E0B43C"/><ellipse cx="652" cy="357" rx="22" ry="13" transform="rotate(-25 652 357)" fill="#E0B43C"/><ellipse cx="700" cy="357" rx="22" ry="13" transform="rotate(25 700 357)" fill="#E0B43C"/><circle cx="676" cy="364" r="9" fill="#E0B43C"/></g>
 </svg>
