@@ -84,17 +84,32 @@ ffmpeg -t 7 -i CHEER.wav -af "afade=t=in:d=0.02,afade=t=out:st=5.5:d=1.5,aresamp
 
 # Wildcard wheel sounds
 
-Six more MP3s. Originals live in the gitignored `sound-sources/`; the processing scripts were one-off Python (numpy, scipy) and ffmpeg. Times are seconds in the source file. The files together are about 770 KB.
+Three MP3s here and the knock below. Originals live in the gitignored `sound-sources/`; the processing scripts were one-off ffmpeg. Times are seconds in the source file. The three together are about 73 KB.
 
 | File | Source | Cut |
 | --- | --- | --- |
-| `distorted-loop.mp3` | the same Commons recording of Fučík's *Entrance of the Gladiators* as `music-loop.mp3` ([Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Julius_Fu%C4%8D%C3%ADk's_%22Entrance_of_the_Gladiators%22,_performed_by_the_U.S._Marine_Band.oga)), public domain, U.S. Marine Band | the music loop's cut (10 to 42.12 with its cross-fade) played through a film-reel simulation: the speed wanders (a slow drift, a faster flutter and a few drags that slow it down and catch up, periodic over the body so the loop still closes), then a narrow optical-soundtrack band, fuzz, 24 fps gate flicker, dropouts, hiss, dust ticks and splice thumps. Same loop points as the music loop: `loopStart` = 2.0, `loopEnd` = 32.12, 0.1 s margin appended, mono 80 kbps |
-| `ambience.mp3` | the same recording (the main body, 2.0 to 32.12 of the cut) and the projector hum of 412145 ([Stefan021](https://freesound.org/people/Stefan021/sounds/412145/), CC0) | the body slowed to half speed and an octave down (`asetrate`), low-passed to 1.1 kHz with a short echo, over the hum low-passed to 650 Hz at a fifth of the music's level, with hiss and dust; the last 2 s cross-fade into the first 2 s so it closes: `loopStart` = 0, `loopEnd` = 60.54, 0.1 s margin appended, mono 48 kbps |
 | `run-out.mp3` | [412145, 8 mm projector long run with finish](https://freesound.org/people/Stefan021/sounds/412145/) by Stefan021, CC0 | 92.9 to 95.3, the run-out's flapping tail; +12 dB then limited to 0.8, 350 ms fade in, 1.2 s fade out from 1.2 s, mono 64 kbps |
 | `clunk.mp3` | [702451, overhead projector](https://freesound.org/people/Stefan021/sounds/702451/) by Stefan021, CC0 | 1.38 to 1.83, the second clunk; +10 dB then limited to 0.8, mono 64 kbps |
 | `clap.mp3` | [579205, Clap at Two Church 6](https://freesound.org/people/jonsept/sounds/579205/) by jonsept, CC0 | the whole 1.53 s clap with a sharper snap (high-passed copy added, soft clip), a 2.4 s synthesized reverb tail, a low pitch-dropping thump and two slapback echoes, then an 0.8 s fade; stereo 96 kbps |
 
 `knock.mp3` is the one sound that needs a credit: [698129, metal click](https://freesound.org/people/ChristianStuck/sounds/698129/) by ChristianStuck, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The whole 0.3 s click with a 50 ms fade out, mono 64 kbps; the Credits dialog carries the credit.
+
+## The wildcard wheel's music is made live
+
+The distorted twin the march turns into at a wildcard landing, and the ambience under the wildcard wheel, have
+no files: the engine (`src/sound/engine.ts`) builds both from whichever loop plays, so every season's loop gets
+them and a twin can never mismatch its loop.
+
+- The twin is the playing loop's own buffer, started where the loop has reached and crossfaded in. It runs through
+  a worn-reel chain: the speed wanders (two slow oscillators on the source's detune), then the film-reel band, a nasal
+  bump and soft clipping with wow and flutter from a modulated delay, a 24 fps gate flicker, hiss, dust ticks and a few
+  short dropouts.
+- The ambience is the active set's loop at half speed (an octave down), low-passed to 700 Hz with a short echo, over
+  the projector hum low-passed to 260 Hz at a fifth of its level, with hiss and dust.
+- Everything either chain starts stops when it stops.
+
+The march's earlier files for both, `distorted-loop.mp3` and `ambience.mp3`, were made offline from the music loop
+and removed once the live versions were approved by ear; git history has them.
 
 # Christmas sounds
 

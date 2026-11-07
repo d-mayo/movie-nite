@@ -873,8 +873,7 @@ describe('the wildcard wheel', () => {
     sound.wildcardLanded()
     sound.reelChange()
     expect(ctx.ambiencesOf('loop')).toHaveLength(1)
-    expect(loaded).not.toContain('dloop')
-    expect(loaded).not.toContain('ambience')
+    expect(loaded).toHaveLength(14)
   })
 
   test('every new call is a no-op before a gesture', () => {

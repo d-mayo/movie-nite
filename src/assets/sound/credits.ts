@@ -92,23 +92,6 @@ export const soundCredits: SoundCredit[] = [
     license: 'CC0',
   },
   {
-    file: 'distorted-loop.mp3',
-    what: 'Wildcard landing music',
-    source: 'Entrance of the Gladiators, by Julius Fučík, run through a worn projector',
-    sourceUrl:
-      'https://commons.wikimedia.org/wiki/File:Julius_Fu%C4%8D%C3%ADk\'s_%22Entrance_of_the_Gladiators%22,_performed_by_the_U.S._Marine_Band.oga',
-    author: 'U.S. Marine Band',
-    license: 'Public domain',
-  },
-  {
-    file: 'ambience.mp3',
-    what: 'Wildcard wheel ambience',
-    source: '412145, 8 mm projector long run with finish, under a slowed Entrance of the Gladiators (public domain)',
-    sourceUrl: 'https://freesound.org/people/Stefan021/sounds/412145/',
-    author: 'Stefan021',
-    license: 'CC0',
-  },
-  {
     file: 'run-out.mp3',
     what: 'Reel running out',
     source: '412145, 8 mm projector long run with finish',

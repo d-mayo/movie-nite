@@ -20,8 +20,6 @@ export type SoundName =
   | 'drumroll'
   | 'cymbal'
   | 'cheer'
-  | 'dloop'
-  | 'ambience'
   | 'runout'
   | 'clunk'
   | 'clap'
