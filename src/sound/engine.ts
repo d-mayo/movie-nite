@@ -225,8 +225,10 @@ const twinFlickerHz = 24
 const twinFlickerDepth = 0.08
 const twinHissLevel = 0.012
 const twinDustLevel = 0.05
-const twinDropouts = 4
-const twinDropoutSeconds = 0.09
+const twinDropouts = 5
+const twinDropoutSeconds = 0.12
+// The first dropout comes this long (give or take half) after the landing, while the twin is still heard.
+export const twinFirstDropout = 0.4
 // The ambience: the loop at half speed, low-passed, with a short echo, over the projector hum (a fifth of its level),
 // hiss and dust.
 export const ambienceRate = 0.5
@@ -655,9 +657,9 @@ export function createSound(deps: SoundDeps): SoundEngine {
     const dropout = c.createGain()
     dropout.gain.value = 1
     const now = c.currentTime
-    let at = now + 0.8
+    let at = now + twinFirstDropout * (0.5 + Math.random())
     for (let i = 0; i < twinDropouts; i++) {
-      at += 0.6 + Math.random() * 2.2
+      if (i > 0) at += 0.3 + Math.random() * 0.9
       dropout.gain.setValueAtTime(1, at)
       dropout.gain.linearRampToValueAtTime(0.1, at + 0.015)
       dropout.gain.setValueAtTime(0.1, at + twinDropoutSeconds - 0.015)
@@ -740,7 +742,6 @@ export function createSound(deps: SoundDeps): SoundEngine {
     echo.connect(wet)
     wet.connect(bedGain)
     source.start(0, part.loopStart)
-    live.push(source)
     const humBuffer = buffers.hum
     if (humBuffer) {
       const hum = c.createBufferSource()

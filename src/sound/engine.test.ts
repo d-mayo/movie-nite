@@ -833,6 +833,23 @@ describe('the wildcard wheel', () => {
     }
   })
 
+  test('the twin drops out within a second of the landing, so an ordinary landing is heard to', async () => {
+    const { ctx, sound } = await ready()
+    sound.spinStart()
+    ctx.currentTime = 5
+    const gains = ctx.gains.length
+    sound.wildcardLanded()
+    // The dropout gain dips to 0.1 on a ramp: the earliest dip must come soon after the landing.
+    const dips = ctx.gains
+      .slice(gains)
+      .flatMap((g) => g.gain.timed)
+      .filter((c) => c.method === 'linearRampToValueAtTime' && c.value === 0.1)
+    expect(dips.length).toBeGreaterThanOrEqual(2)
+    const first = Math.min(...dips.map((c) => c.at!))
+    expect(first - 5).toBeGreaterThan(0.1)
+    expect(first - 5).toBeLessThan(1)
+  })
+
   test('the twin gate flickers at 24 fps and the speed wanders through the source detune', async () => {
     const { ctx, sound } = await ready()
     sound.spinStart()

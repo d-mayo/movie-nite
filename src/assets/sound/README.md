@@ -152,15 +152,19 @@ The stinger's hit lands at about 0.05 s of its 2.6 s. Each landing plays one of 
 at random, with the applause.
 
 Remake (ffmpeg, from `sound-sources/`; `JB` is the Pixabay MP3, `SS` the soundstack WAV, `SE` Selector's, `CA` and
-`BO` the two "ho ho ho" WAVs; each result is then gained to its target loudness and limited to 0.89):
+`BO` the two "ho ho ho" WAVs). Each command ends with the gain that matched the cut to its target loudness (the
+loop to -18 LUFS, the stinger to the march stinger's -15.1, the win sounds to the cheer's -20.2, the bells to -22)
+and a limiter at 0.89:
 
 ```
-ffmpeg -i JB -filter_complex "aevalsrc=0|0:d=0.1:s=44100[pre];[0:a]atrim=0.07:56.555,asetpts=PTS-STARTPTS[main];[0:a]atrim=56.555:56.565,asetpts=PTS-STARTPTS,afade=t=out:d=0.01:curve=qsin[t1];[0:a]atrim=0.06:0.07,asetpts=PTS-STARTPTS,afade=t=in:d=0.01:curve=qsin[t2];[t1][t2]amix=inputs=2:normalize=0[blend];[0:a]atrim=0.07:0.17,asetpts=PTS-STARTPTS[post];[pre][main][blend][post]concat=n=4:v=0:a=1[o]" -map "[o]" -c:a libmp3lame -b:a 96k christmas-loop.mp3
-ffmpeg -i SS -filter_complex "[0:a]atrim=23.62:28.97,asetpts=PTS-STARTPTS[full];[0:a]atrim=28.97:29.47,asetpts=PTS-STARTPTS[tail];[tail][full]acrossfade=d=0.5:c1=tri:c2=tri,asplit=3[b1][b2][b3];[b1]atrim=5.25:5.35,asetpts=PTS-STARTPTS[pre];[b3]atrim=0:0.1,asetpts=PTS-STARTPTS[post];[pre][b2][post]concat=n=3:v=0:a=1,pan=mono|c0=0.5*c0+0.5*c1[o]" -map "[o]" -ac 1 -c:a libmp3lame -b:a 96k christmas-bells.mp3
-ffmpeg -i SE -af "pan=mono|c0=0.5*c0+0.5*c1,aecho=0.8:0.7:90|180|300:0.45|0.3|0.2,apad=whole_dur=2.6,atrim=0:2.6" -c:a libmp3lame -b:a 96k christmas-stinger.mp3
-ffmpeg -i CA -af "atrim=0:2.15,asetpts=PTS-STARTPTS,pan=mono|c0=0.5*c0+0.5*c1,afade=t=in:d=0.01,afade=t=out:st=1.9:d=0.25" -c:a libmp3lame -b:a 96k christmas-win-1.mp3
-ffmpeg -i BO -af "atrim=4.0:7.2,asetpts=PTS-STARTPTS,pan=mono|c0=0.5*c0+0.5*c1,afade=t=in:d=0.01,afade=t=out:st=2.95:d=0.25" -c:a libmp3lame -b:a 96k christmas-win-2.mp3
+ffmpeg -i JB -filter_complex "aevalsrc=0|0:d=0.1:s=44100[pre];[0:a]atrim=0.07:56.555,asetpts=PTS-STARTPTS[main];[0:a]atrim=56.555:56.565,asetpts=PTS-STARTPTS,afade=t=out:d=0.01:curve=qsin[t1];[0:a]atrim=0.06:0.07,asetpts=PTS-STARTPTS,afade=t=in:d=0.01:curve=qsin[t2];[t1][t2]amix=inputs=2:normalize=0[blend];[0:a]atrim=0.07:0.17,asetpts=PTS-STARTPTS[post];[pre][main][blend][post]concat=n=4:v=0:a=1,volume=-9.7dB,alimiter=limit=0.89:level=disabled[o]" -map "[o]" -ar 44100 -c:a libmp3lame -b:a 96k christmas-loop.mp3
+ffmpeg -i SS -filter_complex "[0:a]atrim=23.62:28.97,asetpts=PTS-STARTPTS[full];[0:a]atrim=28.97:29.47,asetpts=PTS-STARTPTS[tail];[tail][full]acrossfade=d=0.5:c1=tri:c2=tri,asplit=3[b1][b2][b3];[b1]atrim=5.25:5.35,asetpts=PTS-STARTPTS[pre];[b3]atrim=0:0.1,asetpts=PTS-STARTPTS[post];[pre][b2][post]concat=n=3:v=0:a=1,pan=mono|c0=0.5*c0+0.5*c1,volume=5.7dB,alimiter=limit=0.89:level=disabled[o]" -map "[o]" -ac 1 -ar 44100 -c:a libmp3lame -b:a 96k christmas-bells.mp3
+ffmpeg -i SE -af "pan=mono|c0=0.5*c0+0.5*c1,aecho=0.8:0.7:90|180|300:0.45|0.3|0.2,apad=whole_dur=2.6,atrim=0:2.6,volume=5.5dB,alimiter=limit=0.89:level=disabled" -ar 44100 -c:a libmp3lame -b:a 96k christmas-stinger.mp3
+ffmpeg -i CA -af "atrim=0:2.15,asetpts=PTS-STARTPTS,pan=mono|c0=0.5*c0+0.5*c1,afade=t=in:d=0.01,afade=t=out:st=1.9:d=0.25,volume=0.5dB,alimiter=limit=0.89:level=disabled" -ar 44100 -c:a libmp3lame -b:a 96k christmas-win-1.mp3
+ffmpeg -i BO -af "atrim=4.0:7.2,asetpts=PTS-STARTPTS,pan=mono|c0=0.5*c0+0.5*c1,afade=t=in:d=0.01,afade=t=out:st=2.95:d=0.25,volume=5.4dB,alimiter=limit=0.89:level=disabled" -ar 44100 -c:a libmp3lame -b:a 96k christmas-win-2.mp3
+ffmpeg -i BO -af "atrim=8.4:12.4,asetpts=PTS-STARTPTS,pan=mono|c0=0.5*c0+0.5*c1,afade=t=in:d=0.01,afade=t=out:st=3.75:d=0.25,volume=1.4dB,alimiter=limit=0.89:level=disabled" -ar 44100 -c:a libmp3lame -b:a 96k christmas-win-3.mp3
+ffmpeg -i BO -af "atrim=15.1:18.8,asetpts=PTS-STARTPTS,pan=mono|c0=0.5*c0+0.5*c1,afade=t=in:d=0.01,afade=t=out:st=3.45:d=0.25,volume=5.7dB,alimiter=limit=0.89:level=disabled" -ar 44100 -c:a libmp3lame -b:a 96k christmas-win-4.mp3
 ```
 
-`christmas-win-3.mp3` and `-4.mp3` are the same command with the cuts 8.4 to 12.4 and 15.1 to 18.8 (the fade-out
-starts 0.25 s before the end).
+To redo a cut with different times, measure it first (`ffmpeg -i cut.wav -af ebur128 -f null -`, the `I:` line) and
+set the `volume` to the target minus that.
