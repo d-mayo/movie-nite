@@ -263,6 +263,10 @@ describe('the seasonal effect layer', () => {
 
   test('sits under the reveals, flicker, vignette, held-film card, setup column and banner', () => {
     const z = (selector: string) => Number(rule(selector).match(/z-index:\s*(\d+)/)?.[1])
+    // The Show viewers tab (900 px and up) has no z-index, so the snow paints over it.
+    const tab = appCss.match(/@media \(min-width: 900px\) \{\s*\.show-viewers \{[^}]*\}/)?.[0]
+    expect(tab).toMatch(/position: fixed/)
+    expect(tab).not.toMatch(/z-index:/)
     for (const selector of ['.banner', '.reveal', '.card-reveal', '.flicker', '.zoom-vignette', '.held-film', '.setup-column']) {
       expect(z(selector), selector).toBeGreaterThan(1)
     }
