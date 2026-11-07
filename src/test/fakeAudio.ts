@@ -48,8 +48,10 @@ export class FakeNode {
     this.out = []
   }
   // Whether this node's output reaches `target`.
-  reaches(target: FakeNode): boolean {
-    return this.out.some((node) => node === target || node.reaches(target))
+  reaches(target: FakeNode, seen = new Set<FakeNode>()): boolean {
+    if (seen.has(this)) return false
+    seen.add(this)
+    return this.out.some((node) => node === target || node.reaches(target, seen))
   }
 }
 
@@ -75,6 +77,7 @@ export class FakeSource extends FakeNode {
   loopStart = 0
   loopEnd = 0
   playbackRate = new FakeParam(1)
+  detune = new FakeParam(0)
   started: { when: number | undefined; offset: number | undefined } | null = null
   stoppedAt: number | null = null
   start(when?: number, offset?: number) {
@@ -186,9 +189,46 @@ export class FakeContext {
   get music() {
     return this.gains[2]
   }
-  // The sources made from a decoded file, by its name.
+  // Whether a source is a live twin or ambience chain's, told by its route and rate: the twin's source reaches a
+  // wave shaper, the ambience's runs at half speed, and the ambience's hum reaches the music bus (the projector's
+  // reaches only the effects bus).
+  isLive(source: FakeSource) {
+    const duration = source.buffer?.duration
+    if (duration === fakeDurations.hum) return source.reaches(this.music)
+    // Only the loops are made live; the win sounds reach a shaper too, through the film-reel chain.
+    if (duration !== fakeDurations.loop && duration !== fakeDurations['christmas-loop']) return false
+    return source.playbackRate.value === 0.5 || this.shapers.some((shaper) => source.reaches(shaper))
+  }
+  // The plain sources made from a decoded file, by its name: not the live twin's or ambience's.
   sourcesOf(name: SoundName) {
-    return this.sources.filter((s) => s.buffer?.duration === fakeDurations[name])
+    return this.sources.filter((s) => s.buffer?.duration === fakeDurations[name] && !this.isLive(s))
+  }
+  // The live twin's or ambience's sources made from a decoded file.
+  liveOf(name: SoundName) {
+    return this.sources.filter((s) => s.buffer?.duration === fakeDurations[name] && this.isLive(s))
+  }
+  // The live twins: the loop's own buffer through a worn-reel chain.
+  twinsOf(name: SoundName) {
+    return this.liveOf(name).filter((s) => s.playbackRate.value !== 0.5)
+  }
+  // The live ambiences: the loop's buffer at half speed.
+  ambiencesOf(name: SoundName) {
+    return this.liveOf(name).filter((s) => s.playbackRate.value === 0.5)
+  }
+  // The last gain before the music bus on a source's way there (an ambience's level, which swells and ducks).
+  bedGainOf(source: FakeSource): FakeGain {
+    const seen = new Set<FakeNode>()
+    const walk = (node: FakeNode): FakeGain | null => {
+      if (seen.has(node)) return null
+      seen.add(node)
+      if (node instanceof FakeGain && node.out.includes(this.music)) return node
+      for (const next of node.out) {
+        const found = walk(next)
+        if (found) return found
+      }
+      return null
+    }
+    return walk(source)!
   }
 }
 

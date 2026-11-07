@@ -201,12 +201,34 @@ const cueBeepSeconds = 0.09
 export const cutSeconds = 0.7
 export const windDownRate = 0.4
 export const crossSeconds = 0.5
-export const ambienceLoopEnd = 60.54
 export const ambienceLevel = 0.7
 const runoutLevel = 0.8
 const clunkLevel = 0.8
-// The distorted loop is mastered 6.7 LUFS louder than the march, so it plays this much lower to sound as loud.
-export const distortedLevel = 0.37
+// The live twin's level on the music bus, after its worn-reel chain.
+export const distortedLevel = 0.7
+// The twin's worn-reel figures: the speed wanders by cents, the gate flickers at the projector's 24 frames a
+// second, hiss and dust lie under it, and now and then the sound drops out for a moment.
+const twinWanderHz = 0.35
+const twinWanderCents = 28
+const twinFlutterHz = 2.1
+const twinFlutterCents = 7
+const twinFlickerHz = 24
+const twinFlickerDepth = 0.08
+const twinHissLevel = 0.012
+const twinDustLevel = 0.05
+const twinDropouts = 4
+const twinDropoutSeconds = 0.09
+// The ambience: the loop at half speed, low-passed, with a short echo, over the projector hum (a fifth of its level),
+// hiss and dust.
+export const ambienceRate = 0.5
+const ambienceLowpassHz = 700
+const ambienceEchoSeconds = 0.31
+const ambienceEchoFeedback = 0.38
+const ambienceEchoMix = 0.45
+const ambienceHumShare = 0.2
+const ambienceHumLowpassHz = 260
+const ambienceHissLevel = 0.01
+const ambienceDustLevel = 0.04
 const clapLevel = 1
 const knockLevel = 0.8
 const ambienceStopSeconds = 0.4
@@ -265,11 +287,12 @@ export function createSound(deps: SoundDeps): SoundEngine {
   // The loop while it plays or fades; the stinger and applause, which fade
   // with it.
   // The loop's part is the set whose figures it plays by, for as long as it plays.
-  let loop: { source: AudioBufferSourceNode; gain: GainNode; startedAt: number; part: LoopPart } | null = null
+  // `extras` stops what a live twin's chain started, at the time given.
+  let loop: { source: AudioBufferSourceNode; gain: GainNode; startedAt: number; part: LoopPart; extras?: (at: number) => void } | null = null
   // Whether a close call has silenced the loop, which then has nothing to give way to.
   let loopSilenced = false
   // The wildcard wheel's ambience while it plays; and whether the spin under way is the wildcard wheel's.
-  let ambience: { source: AudioBufferSourceNode; gain: GainNode } | null = null
+  let ambience: { source: AudioBufferSourceNode; gain: GainNode; extras: (at: number) => void } | null = null
   let cardsSpin = false
   // The film-reel chains the wildcard wheel's win sounds pass through while it shows, and the teardown.
   let reelFx: { effects: GainNode; music: GainNode; stop: () => void } | null = null
@@ -304,7 +327,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
   function load() {
     if (loading) return
     loading = true
-    for (const name of ['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer', 'dloop', 'ambience', 'runout', 'clunk', 'clap', 'knock'] as const) {
+    for (const name of ['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer', 'runout', 'clunk', 'clap', 'knock'] as const) {
       fetchSound(name)
     }
   }
@@ -434,11 +457,53 @@ export function createSound(deps: SoundDeps): SoundEngine {
     })
     return {
       input,
-      stop: () => {
-        for (const lfo of oscillators) lfo.stop()
-        out.disconnect()
+      // Stops the chain's oscillators, at `at` if given (and then leaves it connected, for a tail to ring out).
+      stop: (at?: number) => {
+        for (const lfo of oscillators) lfo.stop(at)
+        if (at === undefined) out.disconnect()
       },
     }
+  }
+
+  // A noise source for hiss (white, high-passed by the caller) or dust (sparse clicks): a looping buffer made once.
+  const noiseBuffers: { hiss?: AudioBuffer; dust?: AudioBuffer } = {}
+  function noiseLoop(kind: 'hiss' | 'dust') {
+    const c = ctx!
+    let buffer = noiseBuffers[kind]
+    if (!buffer) {
+      buffer = c.createBuffer(1, Math.ceil(c.sampleRate * 2), c.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < data.length; i++) {
+        data[i] = kind === 'hiss' ? Math.random() * 2 - 1 : Math.random() < 0.0004 ? (Math.random() * 2 - 1) * 4 : 0
+      }
+      noiseBuffers[kind] = buffer
+    }
+    const source = c.createBufferSource()
+    source.buffer = buffer
+    source.loop = true
+    return source
+  }
+
+  // A low-level layer of hiss and dust into `dest`; the sources go on `live`.
+  function wearBed(dest: AudioNode, hissLevel: number, dustLevel: number, live: { stop(at?: number): void }[]) {
+    const c = ctx!
+    const hiss = noiseLoop('hiss')
+    const hissFilter = c.createBiquadFilter()
+    hissFilter.type = 'highpass'
+    hissFilter.frequency.value = 3500
+    const hissGain = c.createGain()
+    hissGain.gain.value = hissLevel
+    hiss.connect(hissFilter)
+    hissFilter.connect(hissGain)
+    hissGain.connect(dest)
+    hiss.start()
+    const dust = noiseLoop('dust')
+    const dustGain = c.createGain()
+    dustGain.gain.value = dustLevel
+    dust.connect(dustGain)
+    dustGain.connect(dest)
+    dust.start()
+    live.push(hiss, dust)
   }
 
   // While the wildcard wheel shows, its win sounds (the stinger, the applause and cheer, the close call's
@@ -500,11 +565,10 @@ export function createSound(deps: SoundDeps): SoundEngine {
     roll = { source, gain }
   }
 
-  // The march, or its distorted twin (same lead-in and loop points), from `offset` in its file.
-  function startLoop(distorted = false, offset = 0, level = loopLevel) {
-    // The twin keeps the figures of the loop it gives way to.
-    const part = distorted && loop ? loop.part : pickLoop()
-    const buffer = buffers[distorted ? 'dloop' : part.name]
+  // The music loop of the active set (the march's when the season's is not decoded).
+  function startLoop(offset = 0, level = loopLevel) {
+    const part = pickLoop()
+    const buffer = buffers[part.name]
     if (!ctx || !buffer) return null
     const source = ctx.createBufferSource()
     source.buffer = buffer
@@ -519,6 +583,86 @@ export function createSound(deps: SoundDeps): SoundEngine {
     loopSilenced = false
     loop = { source, gain, startedAt: ctx.currentTime - offset, part }
     return loop
+  }
+
+  // The playing loop's distorted twin, made live: its own buffer from `offset`, wandering in speed, through the
+  // film-reel band and soft clipping, with a 24 fps gate flicker, hiss, dust and now and then a dropout.
+  function startTwin(offset: number) {
+    const playing = loop
+    const buffer = playing ? buffers[playing.part.name] : undefined
+    if (!ctx || !playing || !buffer) return null
+    const c = ctx
+    const part = playing.part
+    const live: { stop(at?: number): void }[] = []
+    const source = c.createBufferSource()
+    source.buffer = buffer
+    source.loop = true
+    source.loopStart = part.loopStart
+    source.loopEnd = Math.min(part.loopEnd, buffer.duration)
+    // The speed wanders: two slow oscillators move the source's detune.
+    for (const [hz, cents] of [
+      [twinWanderHz, twinWanderCents],
+      [twinFlutterHz, twinFlutterCents],
+    ]) {
+      const lfo = c.createOscillator()
+      lfo.frequency.value = hz
+      const depth = c.createGain()
+      depth.gain.value = cents
+      lfo.connect(depth)
+      depth.connect(source.detune)
+      lfo.start()
+      live.push(lfo)
+    }
+    const gain = c.createGain()
+    gain.gain.value = 0
+    source.connect(gain)
+    wearBed(gain, twinHissLevel, twinDustLevel, live)
+    // The gate flickers 24 times a second.
+    const flicker = c.createGain()
+    flicker.gain.value = 1 - twinFlickerDepth
+    const gate = c.createOscillator()
+    gate.frequency.value = twinFlickerHz
+    const gateDepth = c.createGain()
+    gateDepth.gain.value = twinFlickerDepth
+    gate.connect(gateDepth)
+    gateDepth.connect(flicker.gain)
+    gate.start()
+    live.push(gate)
+    // Dropouts: a few short dips on the audio clock over the moments the twin plays.
+    const dropout = c.createGain()
+    dropout.gain.value = 1
+    const now = c.currentTime
+    let at = now + 0.8
+    for (let i = 0; i < twinDropouts; i++) {
+      at += 0.6 + Math.random() * 2.2
+      dropout.gain.setValueAtTime(1, at)
+      dropout.gain.linearRampToValueAtTime(0.1, at + 0.015)
+      dropout.gain.setValueAtTime(0.1, at + twinDropoutSeconds - 0.015)
+      dropout.gain.linearRampToValueAtTime(1, at + twinDropoutSeconds)
+    }
+    const chain = makeReelChain(music)
+    gain.connect(flicker)
+    flicker.connect(dropout)
+    dropout.connect(chain.input)
+    source.start(0, offset)
+    loopSilenced = false
+    loop = {
+      source,
+      gain,
+      startedAt: now - offset,
+      part,
+      extras: (when) => {
+        for (const node of live) node.stop(when)
+        chain.stop(when)
+      },
+    }
+    return loop
+  }
+
+  // Stops a loop (the march or its twin) with everything its chain started.
+  function stopLoopAt(l: NonNullable<typeof loop>, at: number) {
+    l.source.stop(at)
+    l.extras?.(at)
   }
 
   // The background that plays now: the loop, or on the wildcard wheel the ambience.
@@ -536,43 +680,99 @@ export function createSound(deps: SoundDeps): SoundEngine {
     return t < end ? t : start + ((t - start) % (end - start))
   }
 
+  // The wildcard wheel's ambience, made live from the active set's loop: at half speed (an octave down),
+  // low-passed with a short echo, over the projector hum low-passed at a fifth of its level, with hiss and dust.
   function startAmbience() {
-    const buffer = buffers.ambience
+    const part = pickLoop()
+    const buffer = buffers[part.name]
     if (!ctx || !buffer) return
     stopAmbience()
-    const source = ctx.createBufferSource()
+    const c = ctx
+    const live: { stop(at?: number): void }[] = []
+    const bedGain = c.createGain()
+    bedGain.gain.value = 0
+    bedGain.connect(music)
+    const source = c.createBufferSource()
     source.buffer = buffer
     source.loop = true
-    source.loopStart = 0
-    source.loopEnd = Math.min(ambienceLoopEnd, buffer.duration)
-    const gain = ctx.createGain()
-    gain.gain.value = 0
-    source.connect(gain)
-    gain.connect(music)
-    source.start(0, 0)
-    ramp(gain, ambienceLevel, ctx.currentTime, ambienceFadeInSeconds)
-    ambience = { source, gain }
+    source.loopStart = part.loopStart
+    source.loopEnd = Math.min(part.loopEnd, buffer.duration)
+    source.playbackRate.value = ambienceRate
+    const lowpass = c.createBiquadFilter()
+    lowpass.type = 'lowpass'
+    lowpass.frequency.value = ambienceLowpassHz
+    const dry = c.createGain()
+    const echo = c.createDelay(1)
+    echo.delayTime.value = ambienceEchoSeconds
+    const feedback = c.createGain()
+    feedback.gain.value = ambienceEchoFeedback
+    const wet = c.createGain()
+    wet.gain.value = ambienceEchoMix
+    source.connect(lowpass)
+    lowpass.connect(dry)
+    dry.connect(bedGain)
+    dry.connect(echo)
+    echo.connect(feedback)
+    feedback.connect(echo)
+    echo.connect(wet)
+    wet.connect(bedGain)
+    source.start(0, part.loopStart)
+    live.push(source)
+    const humBuffer = buffers.hum
+    if (humBuffer) {
+      const hum = c.createBufferSource()
+      hum.buffer = humBuffer
+      hum.loop = true
+      hum.loopStart = humLoopStart
+      hum.loopEnd = Math.min(humLoopEnd, humBuffer.duration)
+      const humFilter = c.createBiquadFilter()
+      humFilter.type = 'lowpass'
+      humFilter.frequency.value = ambienceHumLowpassHz
+      const humGain = c.createGain()
+      humGain.gain.value = humLevel * ambienceHumShare
+      hum.connect(humFilter)
+      humFilter.connect(humGain)
+      humGain.connect(bedGain)
+      hum.start(0, humLoopStart)
+      live.push(hum)
+    }
+    wearBed(bedGain, ambienceHissLevel, ambienceDustLevel, live)
+    ramp(bedGain, ambienceLevel, c.currentTime, ambienceFadeInSeconds)
+    ambience = {
+      source,
+      gain: bedGain,
+      extras: (when) => {
+        for (const node of live) node.stop(when)
+      },
+    }
+  }
+
+  // Ends the ambience's source and everything its chain started.
+  function stopAmbienceAt(a: NonNullable<typeof ambience>, at: number) {
+    a.source.stop(at)
+    a.extras(at)
   }
 
   // Lets the ambience go over a moment, so it does not click.
   function stopAmbience() {
     if (!ctx || !ambience) return
-    const { source, gain } = ambience
+    const a = ambience
     ambience = null
-    ramp(gain, 0, ctx.currentTime, ambienceStopSeconds)
-    source.stop(ctx.currentTime + ambienceStopSeconds + 0.02)
+    ramp(a.gain, 0, ctx.currentTime, ambienceStopSeconds)
+    stopAmbienceAt(a, ctx.currentTime + ambienceStopSeconds + 0.02)
   }
 
   // Winds the loop down like a dying reel, slowing and fading, and stops it.
   function windDownLoop() {
     if (!ctx || !loop) return
-    const { source, gain } = loop
+    const l = loop
+    const { source, gain } = l
     loop = null
     const now = ctx.currentTime
     ramp(gain, 0, now, cutSeconds)
     source.playbackRate.setValueAtTime(1, now)
     source.playbackRate.linearRampToValueAtTime(windDownRate, now + cutSeconds)
-    source.stop(now + cutSeconds + 0.02)
+    stopLoopAt(l, now + cutSeconds + 0.02)
   }
 
   // The bells follow the wheel as the hum does: louder and a touch faster at the peak, thinning as it creeps.
@@ -663,8 +863,8 @@ export function createSound(deps: SoundDeps): SoundEngine {
   // Ends the loop and any win sounds at once.
   function stopMusic() {
     if (!ctx) return
-    if (loop) loop.source.stop()
-    if (ambience) ambience.source.stop()
+    if (loop) stopLoopAt(loop, 0)
+    if (ambience) stopAmbienceAt(ambience, 0)
     for (const source of wins) source.stop()
     loop = null
     ambience = null
@@ -769,12 +969,13 @@ export function createSound(deps: SoundDeps): SoundEngine {
       play('runout', runoutLevel)
       // The march turns into its distorted twin from where it has reached (one a close call has
       // silenced has nothing to give way to).
-      if (!loop || loopSilenced || !buffers.dloop || loop.part.name !== 'loop') return
+      if (!loop || loopSilenced) return
       const now = ctx.currentTime
       const march = loop
+      const position = loopPosition()
       ramp(march.gain, 0, now, crossSeconds)
-      march.source.stop(now + crossSeconds + 0.02)
-      const twin = startLoop(true, loopPosition(), 0)
+      stopLoopAt(march, now + crossSeconds + 0.02)
+      const twin = startTwin(position)
       if (twin) ramp(twin.gain, distortedLevel, now, crossSeconds)
     },
     reelCut() {
@@ -944,11 +1145,11 @@ export function createSound(deps: SoundDeps): SoundEngine {
       stopRoll()
       if (ambience) {
         fadeOut(ambience.gain, now, musicFadeSeconds)
-        ambience.source.stop(now + musicFadeSeconds + 0.05)
+        stopAmbienceAt(ambience, now + musicFadeSeconds + 0.05)
       }
       if (loop) {
         fadeOut(loop.gain, now, musicFadeSeconds)
-        loop.source.stop(now + musicFadeSeconds + 0.05)
+        stopLoopAt(loop, now + musicFadeSeconds + 0.05)
       }
       fadeOut(win, now, musicFadeSeconds)
       fadeOut(crowd, now, musicFadeSeconds)

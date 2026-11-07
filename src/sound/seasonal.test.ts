@@ -24,7 +24,7 @@ async function ready(before?: (e: SoundEngine) => void, sets: SoundSets = testSe
   return { ...audio, sound }
 }
 
-const base = ['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer', 'dloop', 'ambience', 'runout', 'clunk', 'clap', 'knock']
+const base = ['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer', 'runout', 'clunk', 'clap', 'knock']
 const christmas: SoundName[] = ['christmas-loop', 'christmas-stinger', 'christmas-win', 'christmas-bells']
 
 // An engine whose seasonal files load only when `allow` says so (a rejected load is a file that never decodes).
