@@ -1,5 +1,5 @@
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import App from '../App.tsx'
 import { defaultState, type Nomination } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'
@@ -12,11 +12,11 @@ function film(id: number): Nomination {
   return { tmdbId: id, title: `Film ${id}`, year: 2000, posterPath: null, overview: 'A film.', runtime: 112, genres: [] }
 }
 
-function setup(wheel = {}, fffUnlocked = false) {
+function setup(wheel = {}, fffUnlocked = false, debugEnabled = false) {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { viewersHidden: false, fffUnlocked, wheel: { ...defaultWheelSettings, ...wheel } },
+      settings: { viewersHidden: false, fffUnlocked, debugEnabled, wheel: { ...defaultWheelSettings, ...wheel } },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
@@ -28,25 +28,46 @@ function setup(wheel = {}, fffUnlocked = false) {
   return store
 }
 
-const bug = () => screen.getByRole('button', { name: 'Debug options' })
+const gear = () => screen.getByRole('button', { name: 'Settings' })
+const menuItem = () => screen.queryByRole('button', { name: 'Debug options' })
 const spin = () => screen.getByRole('button', { name: 'Spin' })
 const labels = ['Force close calls', 'Force catches', 'Force countdowns', 'Force wildcards']
 
 beforeEach(() => window.history.pushState({}, '', '/?debug'))
 afterEach(() => window.history.pushState({}, '', '/'))
 
-test('without ?debug there is no debug button', () => {
+test('without ?debug there is no Debug options item in the settings menu', () => {
   window.history.pushState({}, '', '/')
   setup()
-  expect(screen.queryByRole('button', { name: 'Debug options' })).toBeNull()
+  fireEvent.click(gear())
+  expect(menuItem()).toBeNull()
+  expect(screen.getByRole('button', { name: 'Credits' })).toBeInTheDocument()
 })
 
-test('the popover holds every Force control once, none under the wheel, and starts off', () => {
+test('?debug adds the item to the menu after Credits, and it stays once the address is plain', () => {
+  setup()
+  fireEvent.click(gear())
+  const items = screen.getAllByRole('button').filter((b) => b.closest('#settings-menu'))
+  expect(items.map((b) => b.textContent)).toEqual(['Wheel settings', 'Credits', 'Debug options'])
+  cleanup()
+  window.history.pushState({}, '', '/')
+  setup({}, false, true)
+  fireEvent.click(gear())
+  expect(menuItem()).not.toBeNull()
+})
+
+test('?debug=off removes the item again', () => {
+  window.history.pushState({}, '', '/?debug=off')
+  setup({}, false, true)
+  fireEvent.click(gear())
+  expect(menuItem()).toBeNull()
+})
+
+test('the overlay holds every Force control once, none under the wheel, and starts off', () => {
   setup()
   for (const label of [...labels, 'Force card']) expect(screen.queryByLabelText(label)).toBeNull()
   expect(document.querySelector('.debug-force')).toBeNull()
   const dialog = openDebug()
-  expect(bug()).toHaveClass('active')
   for (const label of labels) {
     expect(screen.getAllByLabelText(label)).toHaveLength(1)
     expect(within(dialog).getByLabelText(label)).not.toBeChecked()
@@ -55,7 +76,6 @@ test('the popover holds every Force control once, none under the wheel, and star
   expect(screen.getAllByLabelText('Force card')).toHaveLength(1)
   expect(within(dialog).getByLabelText('Force card')).toHaveValue('')
   closeDebug()
-  expect(bug()).not.toHaveClass('active')
   for (const label of labels) expect(screen.queryByLabelText(label)).toBeNull()
 })
 
@@ -69,13 +89,13 @@ test('the Force card select starts at Random deal and lists the FFF cards only w
   expect(options().slice(1)).toEqual(cards.map((c) => c.id))
 })
 
-test('the controls lock during a spin while the popover still opens, and Force close calls needs a Length of 5 s', async () => {
+test('the controls lock during a spin while the overlay still opens, and Force close calls needs a Length of 5 s', async () => {
   setup()
   fireEvent.click(spin())
   const dialog = openDebug()
   for (const label of [...labels, 'Force card']) expect(within(dialog).getByLabelText(label)).toBeDisabled()
   closeDebug()
-  await screen.findByRole('dialog', { name: /./ })
+  await screen.findByRole('dialog')
   fireEvent.click(await screen.findByRole('button', { name: 'Close' }))
   for (const label of [...labels, 'Force card']) expect(within(openDebug()).getByLabelText(label)).toBeEnabled()
   closeDebug()
@@ -100,58 +120,25 @@ test('a value persists across closing and reopening, and is off again after a re
   expect(within(openDebug()).getByLabelText('Force card')).toHaveValue('')
 })
 
-describe('closing', () => {
-  const at = (x: number, y: number) => ({ clientX: x, clientY: y })
-  const stubRect = (dialog: HTMLElement) =>
-    vi.spyOn(dialog, 'getBoundingClientRect').mockReturnValue({
-      left: 100, top: 100, right: 400, bottom: 500, width: 300, height: 400, x: 100, y: 100, toJSON: () => ({}),
-    })
-
-  test('Escape closes it and focus returns to the button', () => {
-    setup()
-    openDebug()
-    expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'Debug options' }))
-    // dialog.close() stands in for Escape, which closes a modal dialog natively.
-    closeDebug()
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(document.activeElement).toBe(bug())
+test('Done, Escape and a press outside close it, a press inside does not, and focus returns to the gear', () => {
+  setup()
+  const dialog = openDebug()
+  vi.spyOn(dialog, 'getBoundingClientRect').mockReturnValue({
+    left: 100, top: 100, right: 400, bottom: 500, width: 300, height: 400, x: 100, y: 100, toJSON: () => ({}),
   })
-
-  test('a press outside it closes it on its click and starts no spin', () => {
-    setup()
-    const dialog = openDebug()
-    stubRect(dialog)
-    fireEvent.pointerDown(dialog, at(10, 10))
-    expect(screen.getByRole('dialog', { name: 'Debug options' })).toBeInTheDocument()
-    fireEvent.click(dialog)
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(spin()).toBeEnabled()
-    expect(document.activeElement).toBe(bug())
-  })
-
-  describe('where a pointer can hover', () => {
-    beforeEach(() => {
-      vi.useFakeTimers()
-      vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query }))
-    })
-    afterEach(() => {
-      vi.useRealTimers()
-      vi.unstubAllGlobals()
-    })
-
-    test('it closes 150 ms after the pointer leaves it once it has been inside', () => {
-      setup()
-      stubRect(openDebug())
-      fireEvent.pointerMove(document, at(10, 10))
-      act(() => vi.advanceTimersByTime(1000))
-      expect(screen.queryByRole('dialog', { name: 'Debug options' })).not.toBeNull()
-      fireEvent.pointerMove(document, at(200, 200))
-      fireEvent.pointerMove(document, at(10, 10))
-      act(() => vi.advanceTimersByTime(149))
-      expect(screen.queryByRole('dialog', { name: 'Debug options' })).not.toBeNull()
-      act(() => vi.advanceTimersByTime(1))
-      expect(screen.queryByRole('dialog')).toBeNull()
-      expect(document.activeElement).toBe(bug())
-    })
-  })
+  fireEvent.pointerDown(dialog, { clientX: 200, clientY: 200 })
+  fireEvent.click(dialog)
+  expect(screen.queryByRole('dialog', { name: 'Debug options' })).not.toBeNull()
+  fireEvent.pointerDown(dialog, { clientX: 10, clientY: 10 })
+  fireEvent.click(dialog)
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(spin()).toBeEnabled()
+  expect(document.activeElement).toBe(gear())
+  fireEvent.click(within(openDebug()).getByRole('button', { name: 'Done' }))
+  expect(screen.queryByRole('dialog')).toBeNull()
+  openDebug()
+  // dialog.close() stands in for Escape, which closes a modal dialog natively.
+  closeDebug()
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(document.activeElement).toBe(gear())
 })

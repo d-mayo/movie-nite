@@ -3,12 +3,13 @@ import logoDark from './assets/logo/logo-dark-transparent.svg'
 import logoLight from './assets/logo/logo-light-transparent.svg'
 import './App.css'
 import { HeldFilmCard, HeldFilmChip, type FocusRequest } from './components/HeldFilm.tsx'
-import { useDebugFlag, useDebugOptions } from './components/debugOptions.ts'
+import { useDebugOptions } from './components/debugOptions.ts'
 import NightControls from './components/NightControls.tsx'
 import NightSetup from './components/NightSetup.tsx'
 import ViewerKey from './components/ViewerKey.tsx'
 import WheelPanel from './components/WheelPanel.tsx'
 import type { SoundEngine } from './sound/engine.ts'
+import { applyDebugLink } from './state/debugLink.ts'
 import { AppStoreContext, useApp, type AppStore } from './state/store.ts'
 import { createTmdbClient, defaultApiBase } from './tmdb/client.ts'
 import { createLetterboxdClient } from './letterboxd/client.ts'
@@ -41,7 +42,7 @@ function Banner({ children }: { children?: ReactNode }) {
 
 function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
   const { settings, setViewersHidden } = useApp()
-  const debugFlag = useDebugFlag()
+  const debugFlag = !!settings.debugEnabled
   const [debugOptions, setDebugOptions] = useDebugOptions()
   const [locked, setLocked] = useState(false)
   const [blind, setBlind] = useState(false)
@@ -129,6 +130,8 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
 }
 
 function App({ store, fetchFn, random, spinMs, sound }: Props) {
+  // ?debug turns the debug options on for this browser; ?debug=off turns them off.
+  useEffect(() => applyDebugLink(store, window.location, window.history), [store])
   return (
     <AppStoreContext.Provider value={store}>
       <Screen fetchFn={fetchFn} random={random} spinMs={spinMs} sound={sound} />

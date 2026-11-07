@@ -10,7 +10,7 @@ interface Props {
   locked: boolean
   // The held film's chip, which sits first in the toolbar.
   heldFilmChip?: ReactNode
-  // With the debug query flag: the unsaved forces and how to change them; without it, no debug button.
+  // While the debug options are on: the unsaved forces and how to change them; off, no menu item.
   debug?: { options: DebugOptions; onChange: (change: Partial<DebugOptions>) => void }
 }
 
@@ -62,7 +62,6 @@ export default function NightControls({ locked, heldFilmChip, debug }: Props) {
   const menu = useRef<HTMLDivElement>(null)
   const [debugging, setDebugging] = useState(false)
   const gear = useRef<HTMLButtonElement>(null)
-  const bug = useRef<HTMLButtonElement>(null)
   // The gear menu closes shortly after the pointer leaves it, once it has been inside.
   const menuInside = useRef(false)
   const menuTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -82,7 +81,7 @@ export default function NightControls({ locked, heldFilmChip, debug }: Props) {
   }, [])
   const closeDebug = useCallback(() => {
     setDebugging(false)
-    bug.current?.focus()
+    gear.current?.focus()
   }, [])
   return (
     <div className="night-controls">
@@ -112,20 +111,6 @@ export default function NightControls({ locked, heldFilmChip, debug }: Props) {
       >
         <span aria-hidden="true">⚙</span>
       </button>
-      {debug && (
-        <button
-          type="button"
-          ref={bug}
-          className={debugging ? 'quiet active' : 'quiet'}
-          aria-label="Debug options"
-          onClick={() => setDebugging(true)}
-        >
-          <svg viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <ellipse cx="12" cy="14" rx="5" ry="6" />
-            <path d="M9 8.5a3 3 0 0 1 6 0M12 8v12M7 12H3M17 12h4M7.5 17L4 19M16.5 17l3.5 2M8 6L6 4M16 6l2-2" />
-          </svg>
-        </button>
-      )}
       <div id="settings-menu" popover="auto" ref={menu} className="card settings-menu"
         onToggle={(e) => {
           if ((e as unknown as { newState: string }).newState === 'closed') {
@@ -162,10 +147,21 @@ export default function NightControls({ locked, heldFilmChip, debug }: Props) {
         >
           Credits
         </button>
+        {debug && (
+          <button
+            type="button"
+            onClick={() => {
+              menu.current?.hidePopover()
+              setDebugging(true)
+            }}
+          >
+            Debug options
+          </button>
+        )}
       </div>
       {editing && <WheelEditor locked={locked} onClosed={closeDrawer} anchor={gear} />}
       {debug && debugging && (
-        <DebugMenu options={debug.options} onChange={debug.onChange} locked={locked} onClosed={closeDebug} anchor={bug} />
+        <DebugMenu options={debug.options} onChange={debug.onChange} locked={locked} onClosed={closeDebug} />
       )}
       {showingCredits && <Credits onClosed={closeCredits} />}
       {confirming && (

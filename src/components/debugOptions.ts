@@ -18,12 +18,6 @@ export const defaultDebugOptions: DebugOptions = {
   card: '',
 }
 
-// Whether the page was opened with the debug query flag, read once.
-export function useDebugFlag(): boolean {
-  const [flag] = useState(() => new URLSearchParams(window.location.search).has('debug'))
-  return flag
-}
-
 export function useDebugOptions() {
   const [options, setOptions] = useState<DebugOptions>(defaultDebugOptions)
   const update = useCallback((change: Partial<DebugOptions>) => setOptions((o) => ({ ...o, ...change })), [])

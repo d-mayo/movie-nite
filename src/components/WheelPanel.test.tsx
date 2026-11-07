@@ -922,8 +922,9 @@ function withQuery(query: string) {
   return () => window.history.pushState({}, '', '/')
 }
 
-test('without the debug flag there is no debug button or Force close calls switch', () => {
+test('without the debug flag there is no Debug options item or Force close calls switch', () => {
   setupCrowd({ random: () => 0.5, spinMs: 20 })
+  fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
   expect(screen.queryByRole('button', { name: 'Debug options' })).toBeNull()
   expect(screen.queryByLabelText('Force close calls')).toBeNull()
 })
@@ -1204,7 +1205,7 @@ test('without the debug flag there is no Force countdowns switch', () => {
   expect(screen.queryByLabelText('Force countdowns')).toBeNull()
 })
 
-test('with the debug flag Force countdowns shows beside the others in the popover, starts off and locks during a spin and its reveal', async () => {
+test('with the debug flag Force countdowns shows beside the others in the overlay, starts off and locks during a spin and its reveal', async () => {
   const restore = withQuery('?debug')
   try {
     setupCrowd({ random: () => 0.5, spinMs: 20 }, 6)

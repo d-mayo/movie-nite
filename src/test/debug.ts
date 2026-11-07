@@ -1,9 +1,10 @@
 import { act, fireEvent, screen, within } from '@testing-library/react'
 
-// The debug popover, opened from the banner's debug button (with ?debug in the address).
+// The debug overlay, opened from the ⚙ menu's Debug options item (once ?debug has turned it on).
 export function openDebug(): HTMLElement {
   const open = screen.queryByRole('dialog', { name: 'Debug options' })
   if (open) return open
+  fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
   fireEvent.click(screen.getByRole('button', { name: 'Debug options' }))
   return screen.getByRole('dialog', { name: 'Debug options' })
 }
@@ -14,12 +15,12 @@ export function closeDebug() {
   if (open) act(() => (open as HTMLDialogElement).close())
 }
 
-// A control of the open popover, by its label.
+// A control of the open overlay, by its label.
 export function debugControl(label: string | RegExp): HTMLElement {
   return within(openDebug()).getByLabelText(label)
 }
 
-// Presses one Force switch through the popover, then closes it so it does not cover the reveal.
+// Presses one Force switch through the overlay, then closes the overlay so it does not cover the reveal.
 export function toggleForce(label: string) {
   fireEvent.click(debugControl(label))
   closeDebug()
