@@ -1,5 +1,6 @@
 import type { DiscoverParams } from '../tmdb/client.ts'
 import { formatRuntime } from '../wheel/reveal.ts'
+import { inWindow, seasonById, type SeasonWindow } from '../seasons/seasons.ts'
 import {
   effectiveSetting,
   maxSlices,
@@ -425,18 +426,14 @@ function seasonal(
   name: string,
   // What the text calls its films: "Halloween", "romance".
   noun: string,
-  from: [number, number],
-  to: [number, number],
+  window: SeasonWindow,
   params: DiscoverParams,
 ): CardDef {
   const card = discoverCard(
     id,
     settingsName,
     description,
-    ({ today }) => {
-      const day = (today.getMonth() + 1) * 100 + today.getDate()
-      return day >= from[0] * 100 + from[1] && day <= to[0] * 100 + to[1]
-    },
+    ({ today }) => inWindow(today, window),
     () => discoverRoll(id, name, name, `Three ${noun} films in the cans.`, params),
   )
   return { ...card, guaranteed: true }
@@ -635,10 +632,10 @@ export const cards: CardDef[] = [
   blindSpinCard,
   wildcardSpinsCard,
   genreNightCard,
-  seasonal('halloween', 'Halloween (Oct)', 'Three Halloween films, dealt every time in October.', 'Halloween', 'Halloween', [10, 1], [10, 31], { with_keywords: '3335' }),
-  seasonal('christmas', 'Christmas (Dec 1–25)', 'Three Christmas films, dealt every time from December 1 to 25.', 'Christmas', 'Christmas', [12, 1], [12, 25], { with_keywords: '207317' }),
-  seasonal('romance', 'Romance (Feb 1–14)', 'Three romance films, dealt every time from February 1 to 14.', 'Romance', 'romance', [2, 1], [2, 14], { with_genres: '10749' }),
-  seasonal('creature-feature', 'Creature feature (Jun–Aug)', 'Three creature-feature films, dealt every time from June to August.', 'Creature Feature', 'creature feature', [6, 1], [8, 31], {
+  seasonal('halloween', 'Halloween (Oct)', 'Three Halloween films, dealt every time in October.', 'Halloween', 'Halloween', seasonById('halloween').window, { with_keywords: '3335' }),
+  seasonal('christmas', 'Christmas (Dec 1–25)', 'Three Christmas films, dealt every time from December 1 to 25.', 'Christmas', 'Christmas', seasonById('christmas').window, { with_keywords: '207317' }),
+  seasonal('romance', 'Romance (Feb 1–14)', 'Three romance films, dealt every time from February 1 to 14.', 'Romance', 'romance', seasonById('valentines').window, { with_genres: '10749' }),
+  seasonal('creature-feature', 'Creature feature (Jun–Aug)', 'Three creature-feature films, dealt every time from June to August.', 'Creature Feature', 'creature feature', { from: [6, 1], to: [8, 31] }, {
     with_keywords: '158126|11100|161791',
   }),
   criticsCard,

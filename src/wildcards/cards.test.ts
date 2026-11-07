@@ -1,3 +1,4 @@
+import { seasonOf } from '../seasons/seasons.ts'
 import { describe, expect, it } from 'vitest'
 import { seeded } from './seeded.ts'
 import { createTmdbClient } from '../tmdb/client.ts'
@@ -281,6 +282,19 @@ describe('the movie cards', () => {
       (r) => r.title === 'World Cinema: Korean',
     )
     expect(korean?.label).toBe('Korean cinema')
+  })
+
+  it('takes the Halloween, Christmas and Romance windows from the seasons rule', () => {
+    const pairs = [['halloween', 'halloween'], ['christmas', 'christmas'], ['romance', 'valentines']] as const
+    for (const [card, season] of pairs) {
+      for (let month = 1; month <= 12; month++) {
+        for (const day of [1, 14, 15, 25, 26, 28, 31]) {
+          const date = new Date(2026, month - 1, day)
+          if (date.getMonth() !== month - 1) continue
+          expect(byId(card).eligible(on(month, day))).toBe(seasonOf(date) === season)
+        }
+      }
+    }
   })
 
   it('has each seasonal card eligible exactly on its dates, with its keywords or genre', () => {
