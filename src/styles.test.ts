@@ -244,3 +244,27 @@ describe('card faces', () => {
     expect(contrast(color('.card-back-button', 'color'), button)).toBeGreaterThanOrEqual(4.5)
   })
 })
+
+describe('the seasonal effect layer', () => {
+  const rule = (selector: string) => {
+    for (const m of appCss.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (m[1].trim() === selector) return m[2]
+    }
+    return ''
+  }
+
+  test('is fixed, click-through, at z-index 1, and its flakes animate', () => {
+    const layer = rule('.seasonal-effects')
+    expect(layer).toMatch(/position:\s*fixed/)
+    expect(layer).toMatch(/pointer-events:\s*none/)
+    expect(layer).toMatch(/z-index:\s*1;/)
+    expect(rule('.seasonal-effects .snowflake')).toMatch(/animation:/)
+  })
+
+  test('sits under the reveals, flicker, vignette, held-film card, setup column and banner', () => {
+    const z = (selector: string) => Number(rule(selector).match(/z-index:\s*(\d+)/)?.[1])
+    for (const selector of ['.banner', '.reveal', '.card-reveal', '.flicker', '.zoom-vignette', '.held-film', '.setup-column']) {
+      expect(z(selector), selector).toBeGreaterThan(1)
+    }
+  })
+})

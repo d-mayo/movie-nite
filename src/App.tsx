@@ -8,6 +8,7 @@ import { HeldFilmCard, HeldFilmChip, type FocusRequest } from './components/Held
 import { forcedSeason, useDebugOptions } from './components/debugOptions.ts'
 import NightControls from './components/NightControls.tsx'
 import NightSetup from './components/NightSetup.tsx'
+import SeasonalEffects from './components/SeasonalEffects.tsx'
 import ViewerKey from './components/ViewerKey.tsx'
 import WheelPanel from './components/WheelPanel.tsx'
 import { activeSeason, seasonOf, type SeasonId } from './seasons/seasons.ts'
@@ -143,6 +144,7 @@ function Screen({ fetchFn, random, spinMs, sound, today }: Omit<Props, 'store'>)
           </button>
         )}
       </main>
+      <SeasonalEffects season={theme} random={random ?? Math.random} />
       <HeldFilmCard focusRequest={focusRequest} onRequestFocus={setFocusRequest} />
     </>
   )
