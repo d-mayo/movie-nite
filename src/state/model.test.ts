@@ -252,6 +252,7 @@ describe('global wheel settings', () => {
       soundMuted: false,
       showLabels: true,
       wildcardWheel: true,
+      seasonalThemes: true,
       disabledCards: [],
     })
   })

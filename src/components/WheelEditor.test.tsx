@@ -327,12 +327,12 @@ test('with nobody on the wheel the note sits under Wildcards', () => {
   expect(note.previousElementSibling).toHaveTextContent('Wildcards')
 })
 
-test('the popover shows Wildcards, Wildcard Cards, Spin, Viewer Defaults and Sound cards and nothing of the old list', () => {
+test('the popover shows Wildcards, Wildcard Cards, Spin, Viewer Defaults, Seasons and Sound cards and nothing of the old list', () => {
   setup()
   openEditor()
   const drawer = screen.getByRole('dialog', { name: 'Wheel settings' })
   const cards = drawer.querySelectorAll('.inset-card')
-  expect(cards).toHaveLength(5)
+  expect(cards).toHaveLength(6)
   expect(within(cards[0] as HTMLElement).getByRole('heading', { name: 'Wildcards' })).toBeInTheDocument()
   expect(within(cards[0] as HTMLElement).getByRole('switch', { name: 'One per viewer' })).toBeChecked()
   expect(within(cards[0] as HTMLElement).getByRole('group', { name: 'Wildcard count' })).toBeInTheDocument()
@@ -342,12 +342,14 @@ test('the popover shows Wildcards, Wildcard Cards, Spin, Viewer Defaults and Sou
   expect(within(cards[3] as HTMLElement).getByRole('heading', { name: 'Viewer Defaults' })).toBeInTheDocument()
   expect(within(cards[3] as HTMLElement).getByRole('group', { name: 'Slices per viewer' })).toBeInTheDocument()
   expect(within(cards[3] as HTMLElement).getByLabelText('Weight per viewer')).toBeInTheDocument()
-  expect(within(cards[4] as HTMLElement).getByRole('heading', { name: 'Sound' })).toBeInTheDocument()
-  expect(within(cards[4] as HTMLElement).getByLabelText('Music')).toHaveValue('70')
-  expect(within(cards[4] as HTMLElement).getByLabelText('Effects')).toHaveValue('70')
-  expect(within(cards[4] as HTMLElement).getByLabelText('Volume')).toBeInTheDocument()
+  expect(within(cards[4] as HTMLElement).getByRole('heading', { name: 'Seasons' })).toBeInTheDocument()
+  expect(within(cards[4] as HTMLElement).getByRole('switch', { name: 'Seasonal themes' })).toBeChecked()
+  expect(within(cards[5] as HTMLElement).getByRole('heading', { name: 'Sound' })).toBeInTheDocument()
+  expect(within(cards[5] as HTMLElement).getByLabelText('Music')).toHaveValue('70')
+  expect(within(cards[5] as HTMLElement).getByLabelText('Effects')).toHaveValue('70')
+  expect(within(cards[5] as HTMLElement).getByLabelText('Volume')).toBeInTheDocument()
   // Sound comes last among the cards, and Restore All Defaults after it.
-  expect(cards[4].nextElementSibling).toBe(screen.getByRole('button', { name: 'Restore All Defaults' }))
+  expect(cards[5].nextElementSibling).toBe(screen.getByRole('button', { name: 'Restore All Defaults' }))
   for (const gone of [/Add wildcard/, /Remove wildcard/, /^Move slice/, /^Drag slice/, /Spread evenly/, /Reset to default/]) {
     expect(screen.queryByRole('button', { name: gone })).toBeNull()
   }

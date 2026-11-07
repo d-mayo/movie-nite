@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import logoDark from './assets/logo/logo-dark-transparent.svg'
 import logoLight from './assets/logo/logo-light-transparent.svg'
+import christmasDark from './assets/logo/seasons/logo-christmas-dark-transparent.svg'
+import christmasLight from './assets/logo/seasons/logo-christmas-light-transparent.svg'
 import './App.css'
 import { HeldFilmCard, HeldFilmChip, type FocusRequest } from './components/HeldFilm.tsx'
-import { useDebugOptions } from './components/debugOptions.ts'
+import { forcedSeason, useDebugOptions } from './components/debugOptions.ts'
 import NightControls from './components/NightControls.tsx'
 import NightSetup from './components/NightSetup.tsx'
+import SeasonalEffects from './components/SeasonalEffects.tsx'
 import ViewerKey from './components/ViewerKey.tsx'
 import WheelPanel from './components/WheelPanel.tsx'
+import { activeSeason, seasonOf, type SeasonId } from './seasons/seasons.ts'
 import type { SoundEngine } from './sound/engine.ts'
 import { applyDebugLink } from './state/debugLink.ts'
 import { AppStoreContext, useApp, type AppStore } from './state/store.ts'
@@ -24,15 +28,23 @@ interface Props {
   spinMs?: number
   // The sound engine; silent when left out.
   sound?: SoundEngine
+  // The date the season is worked out from, read once; the current date when left out.
+  today?: Date
 }
 
-function Banner({ children }: { children?: ReactNode }) {
+// The banner's logo pair for a theme; the seasons without their own look show the plain logo.
+const logos: Partial<Record<SeasonId, { light: string; dark: string }>> = {
+  christmas: { light: christmasLight, dark: christmasDark },
+}
+
+function Banner({ season, children }: { season: SeasonId | null; children?: ReactNode }) {
+  const logo = (season && logos[season]) || { light: logoLight, dark: logoDark }
   return (
     <header className="banner">
       <h1>
         <picture>
-          <source media="(prefers-color-scheme: dark)" srcSet={logoDark} />
-          <img src={logoLight} alt="Movie Nite" />
+          <source media="(prefers-color-scheme: dark)" srcSet={logo.dark} />
+          <img src={logo.light} alt="Movie Nite" />
         </picture>
       </h1>
       {children}
@@ -40,10 +52,17 @@ function Banner({ children }: { children?: ReactNode }) {
   )
 }
 
-function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
+function Screen({ fetchFn, random, spinMs, sound, today }: Omit<Props, 'store'>) {
   const { settings, setViewersHidden } = useApp()
   const debugFlag = !!settings.debugEnabled
   const [debugOptions, setDebugOptions] = useDebugOptions()
+  // The date is read once, when the app mounts.
+  const [loadDate] = useState(() => today ?? new Date())
+  const forced = debugFlag ? forcedSeason(debugOptions.season) : undefined
+  // What the Seasons line names: the forced season, else the date's.
+  const seasonNow = forced !== undefined ? forced : seasonOf(loadDate)
+  // The theme in force: the forced season, else none while the switch is off, else the date's.
+  const theme = activeSeason({ forced, enabled: settings.wheel.seasonalThemes, date: loadDate })
   const [locked, setLocked] = useState(false)
   const [blind, setBlind] = useState(false)
   const [focusRequest, setFocusRequest] = useState<FocusRequest>(null)
@@ -70,9 +89,10 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
 
   return (
     <>
-      <Banner>
+      <Banner season={theme}>
         <NightControls
           locked={locked}
+          seasonNow={seasonNow}
           debug={debugFlag ? { options: debugOptions, onChange: setDebugOptions } : undefined}
           heldFilmChip={<HeldFilmChip focusRequest={focusRequest} onRequestFocus={setFocusRequest} />}
         />
@@ -124,17 +144,18 @@ function Screen({ fetchFn, random, spinMs, sound }: Omit<Props, 'store'>) {
           </button>
         )}
       </main>
+      <SeasonalEffects season={theme} random={random ?? Math.random} />
       <HeldFilmCard focusRequest={focusRequest} onRequestFocus={setFocusRequest} />
     </>
   )
 }
 
-function App({ store, fetchFn, random, spinMs, sound }: Props) {
+function App({ store, fetchFn, random, spinMs, sound, today }: Props) {
   // ?debug turns the debug options on for this browser; ?debug=off turns them off.
   useEffect(() => applyDebugLink(store, window.location, window.history), [store])
   return (
     <AppStoreContext.Provider value={store}>
-      <Screen fetchFn={fetchFn} random={random} spinMs={spinMs} sound={sound} />
+      <Screen fetchFn={fetchFn} random={random} spinMs={spinMs} sound={sound} today={today} />
     </AppStoreContext.Provider>
   )
 }

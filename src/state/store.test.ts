@@ -152,6 +152,7 @@ test('wheel settings and adjustments survive a reload', () => {
     soundMuted: true,
     showLabels: false,
     wildcardWheel: true,
+    seasonalThemes: true,
     disabledCards: [],
   })
 })
@@ -444,6 +445,29 @@ test('the wildcard wheel setting loads as on unless stored as a boolean, and Res
   expect(createAppStore(persistence).getState().settings.wheel.wildcardWheel).toBe(false)
   store.getState().restoreWheelSettings()
   expect(store.getState().settings.wheel.wildcardWheel).toBe(true)
+})
+
+test('the seasonal themes setting loads as on unless stored as exactly false, and Restore turns it on', () => {
+  for (const stored of [undefined, 'false', 0, null]) {
+    const persistence = createMemoryPersistence()
+    const wheel = { ...defaultWheelSettings, seasonalThemes: stored as never }
+    persistence.save({ ...defaultState, settings: { ...defaultState.settings, wheel } })
+    expect(createAppStore(persistence).getState().settings.wheel.seasonalThemes).toBe(true)
+  }
+  const persistence = createMemoryPersistence()
+  persistence.save({
+    ...defaultState,
+    settings: { ...defaultState.settings, wheel: { ...defaultWheelSettings, seasonalThemes: false } },
+  })
+  const store = createAppStore(persistence)
+  expect(store.getState().settings.wheel.seasonalThemes).toBe(false)
+  store.getState().newNight()
+  expect(store.getState().settings.wheel.seasonalThemes).toBe(false)
+  store.getState().setSeasonalThemes(true)
+  expect(createAppStore(persistence).getState().settings.wheel.seasonalThemes).toBe(true)
+  store.getState().setSeasonalThemes(false)
+  store.getState().restoreWheelSettings()
+  expect(store.getState().settings.wheel.seasonalThemes).toBe(true)
 })
 
 test('a stored night with a pending Blind Spin loads blind, and a malformed one drops', () => {

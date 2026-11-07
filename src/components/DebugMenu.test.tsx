@@ -81,7 +81,7 @@ test('the overlay holds every Force control once, none under the wheel, and star
 
 test('the Force card select starts at Random deal and lists the FFF cards only while unlocked', () => {
   setup()
-  const options = () => within(openDebug()).getAllByRole('option').map((o) => o.textContent)
+  const options = () => within(within(openDebug()).getByLabelText('Force card')).getAllByRole('option').map((o) => o.textContent)
   expect(options()[0]).toBe('Random deal')
   expect(options().slice(1)).toEqual(cards.filter((c) => !c.fff).map((c) => c.id))
   cleanup()

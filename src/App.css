@@ -264,7 +264,7 @@ main {
     position: fixed;
     top: 50%;
     right: 0;
-    z-index: 2;
+    /* Left out of the stacking order on purpose: the seasonal effect layer paints over this tab, which still sits over the stage. */
     translate: 0 -50%;
     padding: var(--space-4) var(--space-3) var(--space-4) var(--space-2);
     min-width: 3rem;
@@ -569,6 +569,43 @@ body:has(.wheel-stage[data-wheel='cards']) {
   }
   80% {
     background-position: 0 0, 80px 70px;
+  }
+}
+
+/* The active season's screen effect: a click-through layer over the page, under the reveals, the
+   pane, the banner, the menus and the dialogs. Outside the wheel stage, which is a stacking context
+   of its own, so it paints over all of the stage. Christmas: snow, moved by keyframes alone. */
+.seasonal-effects {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.seasonal-effects .snowflake {
+  position: absolute;
+  top: 0;
+  left: var(--x);
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: var(--season-snow);
+  box-shadow: 0 0 0 1px var(--season-snow-edge), 0 0 4px 1px var(--season-snow-edge);
+  opacity: var(--flake-opacity);
+  animation: snowfall var(--duration) linear var(--delay) infinite;
+  will-change: transform;
+}
+
+@keyframes snowfall {
+  from {
+    transform: translate3d(0, -5vh, 0);
+  }
+  50% {
+    transform: translate3d(var(--sway), 52vh, 0);
+  }
+  to {
+    transform: translate3d(0, 105vh, 0);
   }
 }
 

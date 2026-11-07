@@ -387,6 +387,11 @@ export function setWildcardWheel(state: AppState, on: boolean): AppState {
   return withWheel(state, { wildcardWheel: on })
 }
 
+export function setSeasonalThemes(state: AppState, on: boolean): AppState {
+  if (state.settings.wheel.seasonalThemes === on) return state
+  return withWheel(state, { seasonalThemes: on })
+}
+
 // Switches one wildcard card on or off by its id.
 export function setCardEnabled(state: AppState, cardId: string, enabled: boolean): AppState {
   const disabled = state.settings.wheel.disabledCards
