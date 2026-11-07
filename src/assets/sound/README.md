@@ -152,9 +152,10 @@ The stinger's hit lands at about 0.05 s of its 2.6 s. Each landing plays one of 
 at random, with the applause.
 
 Remake (ffmpeg, from `sound-sources/`; `JB` is the Pixabay MP3, `SS` the soundstack WAV, `SE` Selector's, `CA` and
-`BO` the two "ho ho ho" WAVs). Each command ends with the gain that matched the cut to its target loudness (the
+`BO` the two "ho ho ho" WAVs). Each command ends with the gain that took the cut to its target loudness (the
 loop to -18 LUFS, the stinger to the march stinger's -15.1, the win sounds to the cheer's -20.2, the bells to -22)
-and a limiter at 0.89:
+and a limiter at 0.89. The limiter holds every file 0.4 to 0.5 dB under its target, and the stinger, whose gain it
+eats most, about 1 dB under (-16.2 LUFS); the shipped files are exactly what these commands make:
 
 ```
 ffmpeg -i JB -filter_complex "aevalsrc=0|0:d=0.1:s=44100[pre];[0:a]atrim=0.07:56.555,asetpts=PTS-STARTPTS[main];[0:a]atrim=56.555:56.565,asetpts=PTS-STARTPTS,afade=t=out:d=0.01:curve=qsin[t1];[0:a]atrim=0.06:0.07,asetpts=PTS-STARTPTS,afade=t=in:d=0.01:curve=qsin[t2];[t1][t2]amix=inputs=2:normalize=0[blend];[0:a]atrim=0.07:0.17,asetpts=PTS-STARTPTS[post];[pre][main][blend][post]concat=n=4:v=0:a=1,volume=-9.7dB,alimiter=limit=0.89:level=disabled[o]" -map "[o]" -ar 44100 -c:a libmp3lame -b:a 96k christmas-loop.mp3
