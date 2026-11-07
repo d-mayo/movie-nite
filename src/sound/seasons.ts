@@ -35,7 +35,8 @@ export interface BellsPart {
 export interface SoundSet {
   loop?: LoopPart
   stinger?: StingerPart
-  win?: WinPart
+  // Variants of the win sound; one of the decoded ones plays, at random.
+  win?: WinPart[]
   bells?: BellsPart
 }
 
@@ -53,12 +54,17 @@ export const soundSets: SoundSets = {
   christmas: {
     loop: { name: 'christmas-loop', loopStart: 2.0, loopEnd: 30, length: 30.1 },
     stinger: { name: 'christmas-stinger', hit: 1.5, seconds: 3 },
-    win: { name: 'christmas-win', length: 2 },
+    win: [
+      { name: 'christmas-win-1', length: 2.2 },
+      { name: 'christmas-win-2', length: 3.2 },
+      { name: 'christmas-win-3', length: 4 },
+      { name: 'christmas-win-4', length: 3.7 },
+    ],
     bells: { name: 'christmas-bells', loopStart: 0.1, loopEnd: 4, length: 4.1 },
   },
 }
 
 // The file names a set asks for.
 export function setFiles(set: SoundSet): SoundName[] {
-  return [set.loop?.name, set.stinger?.name, set.win?.name, set.bells?.name].filter((n): n is SoundName => n !== undefined)
+  return [set.loop?.name, set.stinger?.name, ...(set.win ?? []).map((v) => v.name), set.bells?.name].filter((n): n is SoundName => n !== undefined)
 }

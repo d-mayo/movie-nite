@@ -8,7 +8,10 @@ const testSets: SoundSets = {
   christmas: {
     loop: { name: 'christmas-loop', loopStart: 3, loopEnd: 20, length: 30.1 },
     stinger: { name: 'christmas-stinger', hit: 1, seconds: 3.5 },
-    win: { name: 'christmas-win', length: 2.5 },
+    win: [
+      { name: 'christmas-win-1', length: 2.5 },
+      { name: 'christmas-win-2', length: 3 },
+    ],
     bells: { name: 'christmas-bells', loopStart: 0.2, loopEnd: 4, length: 4.4 },
   },
 }
@@ -16,7 +19,7 @@ const testSets: SoundSets = {
 // A started engine on fake audio; `before` runs before the first gesture.
 async function ready(before?: (e: SoundEngine) => void, sets: SoundSets = testSets) {
   const audio = fakeAudio()
-  const sound = createSound({ ...audio.deps, sets })
+  const sound = createSound({ ...audio.deps, sets, random: () => 0 })
   sound.attach(document)
   before?.(sound)
   document.dispatchEvent(new Event('pointerup'))
@@ -25,7 +28,7 @@ async function ready(before?: (e: SoundEngine) => void, sets: SoundSets = testSe
 }
 
 const base = ['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer', 'runout', 'clunk', 'clap', 'knock']
-const christmas: SoundName[] = ['christmas-loop', 'christmas-stinger', 'christmas-win', 'christmas-bells']
+const christmas: SoundName[] = ['christmas-loop', 'christmas-stinger', 'christmas-win-1', 'christmas-win-2', 'christmas-bells']
 
 // An engine whose seasonal files load only when `allow` says so (a rejected load is a file that never decodes).
 function withFiles(allow: (name: SoundName) => boolean) {
@@ -106,6 +109,7 @@ describe('falling back part by part', () => {
     const sound = createSound({
       ...audio.deps,
       sets: testSets,
+      random: () => 0,
       load: (name) =>
         christmas.includes(name) && !open
           ? new Promise((resolve) => gates.push(() => resolve(new ArrayBuffer(Math.round(fakeDurations[name] * 100)))))
@@ -126,7 +130,7 @@ describe('falling back part by part', () => {
     sound.spinEnd()
     sound.landed(0)
     expect(ctx.sourcesOf('christmas-stinger')).toHaveLength(1)
-    expect(ctx.sourcesOf('christmas-win')).toHaveLength(1)
+    expect(ctx.sourcesOf('christmas-win-1')).toHaveLength(1)
     sound.spinStart()
     expect(ctx.sourcesOf('christmas-loop')).toHaveLength(1)
     expect(ctx.sourcesOf('christmas-bells')).toHaveLength(1)
@@ -158,7 +162,7 @@ describe('falling back part by part', () => {
     expect(ctx.sourcesOf('christmas-stinger')).toHaveLength(1)
     expect(ctx.sourcesOf('stinger')).toHaveLength(0)
     expect(ctx.sourcesOf('applause')).toHaveLength(1)
-    expect(ctx.sourcesOf('christmas-win')).toHaveLength(0)
+    for (const name of ['christmas-win-1', 'christmas-win-2'] as const) expect(ctx.sourcesOf(name)).toHaveLength(0)
     expect(ctx.sourcesOf('christmas-bells')).toHaveLength(0)
   })
 })
@@ -167,23 +171,23 @@ describe('the win sound', () => {
   test('it rides the crowd gain with the applause, in landed and fanfare and not landedQuiet', async () => {
     const { ctx, sound } = await ready((s) => s.setSeason('christmas'))
     sound.landed(2)
-    const [win] = ctx.sourcesOf('christmas-win')
+    const [win] = ctx.sourcesOf('christmas-win-1')
     const [applause] = ctx.sourcesOf('applause')
     expect(win.started?.when).toBe(applause.started?.when)
     expect(win.reaches(ctx.effects)).toBe(true)
     expect(win.reaches(ctx.music)).toBe(false)
     sound.fanfare(1)
-    expect(ctx.sourcesOf('christmas-win')).toHaveLength(2)
+    expect(ctx.sourcesOf('christmas-win-1')).toHaveLength(2)
     sound.landedQuiet()
     sound.landedQuiet(true)
-    expect(ctx.sourcesOf('christmas-win')).toHaveLength(2)
+    expect(ctx.sourcesOf('christmas-win-1')).toHaveLength(2)
   })
 
   test('on the wildcard wheel it passes through the film-reel chain as the applause does', async () => {
     const { ctx, sound } = await ready((s) => s.setSeason('christmas'))
     sound.reelChange()
     sound.landed(1)
-    const [win] = ctx.sourcesOf('christmas-win')
+    const [win] = ctx.sourcesOf('christmas-win-1')
     const [applause] = ctx.sourcesOf('applause')
     // Both gains feed the crowd gain, which the reel chain took in.
     expect(win.out[0].out).toEqual(applause.out[0].out)
@@ -194,7 +198,36 @@ describe('the win sound', () => {
   test('with no season there is no win sound', async () => {
     const { ctx, sound } = await ready()
     sound.landed(1)
-    expect(ctx.sourcesOf('christmas-win')).toHaveLength(0)
+    for (const name of ['christmas-win-1', 'christmas-win-2'] as const) expect(ctx.sourcesOf(name)).toHaveLength(0)
+  })
+})
+
+describe('the win sound variants', () => {
+  test('one decoded variant plays, chosen at random, and an undecoded one is never chosen', async () => {
+    const audio = fakeAudio()
+    let roll = 0.9
+    const sound = createSound({ ...audio.deps, sets: testSets, random: () => roll })
+    sound.attach(document)
+    sound.setSeason('christmas')
+    document.dispatchEvent(new Event('pointerup'))
+    await audio.finishLoads()
+    sound.landed(1)
+    expect(audio.ctx.sourcesOf('christmas-win-2')).toHaveLength(1)
+    expect(audio.ctx.sourcesOf('christmas-win-1')).toHaveLength(0)
+    roll = 0.1
+    sound.landed(1)
+    expect(audio.ctx.sourcesOf('christmas-win-1')).toHaveLength(1)
+    expect(audio.ctx.sourcesOf('christmas-win-2')).toHaveLength(1)
+  })
+
+  test('with only one variant decoded that one plays whatever the roll', async () => {
+    const { audio, sound } = withFiles((name) => name === 'christmas-win-2')
+    sound.setSeason('christmas')
+    document.dispatchEvent(new Event('pointerup'))
+    await audio.finishLoads()
+    sound.landed(1)
+    expect(audio.ctx.sourcesOf('christmas-win-2')).toHaveLength(1)
+    expect(audio.ctx.sourcesOf('christmas-win-1')).toHaveLength(0)
   })
 })
 

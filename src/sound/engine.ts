@@ -28,7 +28,10 @@ export type SoundName =
   | 'knock'
   | 'christmas-loop'
   | 'christmas-stinger'
-  | 'christmas-win'
+  | 'christmas-win-1'
+  | 'christmas-win-2'
+  | 'christmas-win-3'
+  | 'christmas-win-4'
   | 'christmas-bells'
 
 export interface SoundSettings {
@@ -107,6 +110,8 @@ export interface SoundDeps {
   load(name: SoundName): Promise<ArrayBuffer>
   // The seasons' sound sets; the shipped ones when left out (tests pass their own).
   sets?: SoundSets
+  // Picks a win sound among a season's variants; Math.random when left out.
+  random?: () => number
 }
 
 export const silentSound: SoundEngine = {
@@ -351,9 +356,11 @@ export function createSound(deps: SoundDeps): SoundEngine {
     return buffers.stinger ? marchSet.stinger : null
   }
 
+  // One of the season's win sound variants that is decoded, chosen at random.
   function pickWin() {
-    const part = season ? sets[season]?.win : undefined
-    return part && buffers[part.name] ? part : null
+    const decoded = (season ? sets[season]?.win : undefined)?.filter((v) => buffers[v.name]) ?? []
+    if (decoded.length === 0) return null
+    return decoded[Math.min(Math.floor((deps.random ?? Math.random)() * decoded.length), decoded.length - 1)]
   }
 
   function pickBells(): BellsPart | null {

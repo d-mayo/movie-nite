@@ -24,11 +24,11 @@ describe('the sound sets', () => {
       expect(set.bells.loopEnd).toBeGreaterThan(set.bells.loopStart)
       expect(set.bells.loopEnd).toBeLessThanOrEqual(set.bells.length)
     }
-    if (set.win) expect(set.win.length).toBeGreaterThan(0)
+    for (const variant of set.win ?? []) expect(variant.length).toBeGreaterThan(0)
   })
 
   test('only Christmas has a set so far', () => {
     expect(Object.keys(soundSets)).toEqual(['christmas'])
-    expect(setFiles(soundSets.christmas!)).toEqual(['christmas-loop', 'christmas-stinger', 'christmas-win', 'christmas-bells'])
+    expect(setFiles(soundSets.christmas!)).toEqual(['christmas-loop', 'christmas-stinger', 'christmas-win-1', 'christmas-win-2', 'christmas-win-3', 'christmas-win-4', 'christmas-bells'])
   })
 })

@@ -128,7 +128,10 @@ export const fakeDurations: Record<SoundName, number> = {
   knock: 0.3,
   'christmas-loop': 30.1,
   'christmas-stinger': 3.5,
-  'christmas-win': 2.5,
+  'christmas-win-1': 2.5,
+  'christmas-win-2': 3,
+  'christmas-win-3': 3.5,
+  'christmas-win-4': 4,
   'christmas-bells': 4.4,
 }
 
