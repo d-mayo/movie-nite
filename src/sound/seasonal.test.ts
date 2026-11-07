@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { fakeAudio, fakeDurations, type FakeGain } from '../test/fakeAudio.ts'
-import { bedLevel, createSound, dipLevel, loopEnd, loopStart, minBellsGain, stingerHit, type SoundEngine, type SoundName } from './engine.ts'
+import { bedLevel, bellsLevel, bellsLoopLevel, createSound, dipLevel, loopEnd, loopStart, minBellsGain, stingerHit, type SoundEngine, type SoundName } from './engine.ts'
 import type { SoundSets } from './seasons.ts'
 
 // A set whose figures differ from the march's.
@@ -280,5 +280,54 @@ describe('the spin bells', () => {
     const { ctx, sound } = await ready()
     sound.spinStart()
     expect(ctx.sourcesOf('christmas-bells')).toHaveLength(0)
+  })
+})
+
+describe('the bells level', () => {
+  test('they are louder over the main wheel music loop than over the wildcard wheel ambience', async () => {
+    const { ctx, sound } = await ready((s) => s.setSeason('christmas'))
+    sound.spinStart()
+    sound.spinSpeed(1, 5)
+    const main = (ctx.sourcesOf('christmas-bells')[0].out[0] as FakeGain).gain.value
+    sound.spinEnd()
+    sound.reelChange()
+    sound.spinStart(false, true)
+    sound.spinSpeed(1, 5)
+    const cards = (ctx.sourcesOf('christmas-bells')[1].out[0] as FakeGain).gain.value
+    expect(main).toBeCloseTo(bellsLoopLevel)
+    expect(cards).toBeCloseTo(bellsLevel)
+    expect(main).toBeGreaterThan(cards)
+  })
+})
+
+describe('the season cue', () => {
+  test("it plays the season's own stinger once on the effects bus, from its start", async () => {
+    const { ctx, sound } = await ready((s) => s.setSeason('christmas'))
+    sound.seasonCue()
+    const [stinger] = ctx.sourcesOf('christmas-stinger')
+    expect(stinger.started?.offset).toBe(0)
+    expect(stinger.reaches(ctx.effects)).toBe(true)
+    expect(ctx.sourcesOf('stinger')).toHaveLength(0)
+    expect(ctx.sourcesOf('applause')).toHaveLength(0)
+  })
+
+  test('with no season, or a season with no stinger, it plays nothing', async () => {
+    const { ctx, sound } = await ready()
+    sound.seasonCue()
+    sound.setSeason('halloween')
+    sound.seasonCue()
+    expect(ctx.sources).toHaveLength(0)
+  })
+
+  test('asked before the file decodes, it plays when the file arrives, once', async () => {
+    const { audio, sound } = withFiles((name) => name === 'christmas-stinger')
+    document.dispatchEvent(new Event('pointerup'))
+    sound.setSeason('christmas')
+    sound.seasonCue()
+    expect(audio.ctx.sourcesOf('christmas-stinger')).toHaveLength(0)
+    await audio.finishLoads()
+    expect(audio.ctx.sourcesOf('christmas-stinger')).toHaveLength(1)
+    await audio.finishLoads()
+    expect(audio.ctx.sourcesOf('christmas-stinger')).toHaveLength(1)
   })
 })

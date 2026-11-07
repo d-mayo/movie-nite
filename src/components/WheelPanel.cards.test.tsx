@@ -88,6 +88,7 @@ function recordingSound() {
     attach: () => () => {},
     apply: () => {},
     setSeason: () => {},
+    seasonCue: () => {},
     spinStart: (countdown = false, keep = false) => {
       log.starts++
       if (countdown) log.countdownStarts++

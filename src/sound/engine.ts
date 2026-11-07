@@ -49,6 +49,9 @@ export interface SoundEngine {
   apply(settings: SoundSettings): void
   // The season whose soundtrack plays (null for the march). A season's files are fetched only while it is set.
   setSeason(season: SeasonId | null): void
+  // The season's stinger, once, as a preview (the debug menu's Force season plays it): nothing without a season
+  // or a stinger of its own; if its file is still decoding it plays when it arrives.
+  seasonCue(): void
   // Spin pressed: the projector switches on and its motor starts, and the music loop starts, unless
   // `countdown` says a leader countdown comes first, when the music waits for musicStart.
   // On the wildcard wheel (`cards`) the ambience plays on and no loop starts.
@@ -118,6 +121,7 @@ export const silentSound: SoundEngine = {
   attach: () => () => {},
   apply: () => {},
   setSeason: () => {},
+  seasonCue: () => {},
   spinStart: () => {},
   musicStart: () => {},
   musicResume: () => {},
@@ -151,6 +155,8 @@ export const minHumGain = 0.4
 const humLevel = 0.9
 // A season's spin bells: at full speed, how far they fall as the wheel slows (gain, and gently the rate).
 export const bellsLevel = 0.5
+// The same on the main wheel, where the music loop plays over them (the wildcard wheel has only the ambience).
+export const bellsLoopLevel = 1.1
 export const minBellsGain = 0.15
 export const minBellsRate = 0.85
 // A season's win sound, played with the applause.
@@ -281,7 +287,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
   const buffers: Partial<Record<SoundName, AudioBuffer>> = {}
   let hum: { source: AudioBufferSourceNode; gain: GainNode } | null = null
   // The season's sleigh bells while a spin runs, if its file is decoded.
-  let bells: { source: AudioBufferSourceNode; gain: GainNode } | null = null
+  let bells: { source: AudioBufferSourceNode; gain: GainNode; peak: number } | null = null
   const sets = deps.sets ?? soundSets
   let season: SeasonId | null = null
   // The files asked for already, so none is fetched twice a session.
@@ -317,6 +323,9 @@ export function createSound(deps: SoundDeps): SoundEngine {
     set(music, volumeGain(Math.min(settings.music, settings.volume)))
   }
 
+  // A preview cue asked for before its file decoded: the file's name, played when it arrives.
+  let pendingCue: SoundName | null = null
+
   function fetchSound(name: SoundName) {
     if (requested.has(name)) return
     requested.add(name)
@@ -325,6 +334,10 @@ export function createSound(deps: SoundDeps): SoundEngine {
       .then((data) => ctx!.decodeAudioData(data))
       .then((buffer) => {
         buffers[name] = buffer
+        if (pendingCue === name) {
+          pendingCue = null
+          playCue(name)
+        }
       })
       .catch(() => {})
   }
@@ -342,6 +355,11 @@ export function createSound(deps: SoundDeps): SoundEngine {
     const set = season ? sets[season] : undefined
     if (!ctx || !set) return
     for (const name of setFiles(set)) fetchSound(name)
+  }
+
+  // The season's stinger from its start, on the effects bus: a preview, no dip or applause.
+  function playCue(name: SoundName) {
+    if (ctx) playWin(name, effects, ctx.currentTime, 0, stingerLevel)
   }
 
   // Each part of the soundtrack is chosen at its own cue: the season's if its file is decoded, else the march's.
@@ -783,12 +801,12 @@ export function createSound(deps: SoundDeps): SoundEngine {
   }
 
   // The bells follow the wheel as the hum does: louder and a touch faster at the peak, thinning as it creeps.
-  function bellsTargets(share: number, secondsLeft: number) {
+  function bellsTargets(share: number, secondsLeft: number, peak: number) {
     const s = Math.min(Math.max(share, 0), 1)
     const fade = Math.min(Math.max(secondsLeft / humFadeSeconds, 0), 1)
     return {
       rate: minBellsRate + (1 - minBellsRate) * s,
-      gain: bellsLevel * (minBellsGain + (1 - minBellsGain) * s) * fade,
+      gain: peak * (minBellsGain + (1 - minBellsGain) * s) * fade,
     }
   }
 
@@ -802,14 +820,16 @@ export function createSound(deps: SoundDeps): SoundEngine {
     source.loopStart = part.loopStart
     source.loopEnd = Math.min(part.loopEnd, buffer.duration)
     const gain = ctx.createGain()
-    const { rate, gain: level } = bellsTargets(0, Infinity)
+    // Over the music loop the bells need more to be heard than over the wildcard wheel's ambience.
+    const peak = cardsSpin ? bellsLevel : bellsLoopLevel
+    const { rate, gain: level } = bellsTargets(0, Infinity, peak)
     source.playbackRate.value = rate
     gain.gain.value = level
     source.connect(gain)
     // On the plain effects bus, never through the film-reel chain.
     gain.connect(effects)
     source.start(0, part.loopStart)
-    bells = { source, gain }
+    bells = { source, gain, peak }
   }
 
   function stopBells() {
@@ -935,7 +955,14 @@ export function createSound(deps: SoundDeps): SoundEngine {
     },
     setSeason(next) {
       season = next
+      pendingCue = null
       loadSeason()
+    },
+    seasonCue() {
+      const part = season ? sets[season]?.stinger : undefined
+      if (!ctx || !part) return
+      if (buffers[part.name]) playCue(part.name)
+      else pendingCue = part.name
     },
     spinStart(countdown = false, cards = false) {
       if (!ctx) return
@@ -1041,7 +1068,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     spinSpeed(share, secondsLeft) {
       if (!ctx) return
       if (bells) {
-        const target = bellsTargets(share, secondsLeft)
+        const target = bellsTargets(share, secondsLeft, bells.peak)
         bells.source.playbackRate.setTargetAtTime(target.rate, ctx.currentTime, 0.08)
         bells.gain.gain.setTargetAtTime(target.gain, ctx.currentTime, 0.08)
       }

@@ -67,6 +67,13 @@ function Screen({ fetchFn, random, spinMs, sound, today }: Omit<Props, 'store'>)
   useEffect(() => {
     sound?.setSeason(theme)
   }, [sound, theme])
+  // Forcing a season from the debug menu plays that season's stinger, as a preview of its sound.
+  const lastForced = useRef(forced)
+  useEffect(() => {
+    if (lastForced.current === forced) return
+    lastForced.current = forced
+    if (forced) sound?.seasonCue()
+  }, [forced, sound])
   const [locked, setLocked] = useState(false)
   const [blind, setBlind] = useState(false)
   const [focusRequest, setFocusRequest] = useState<FocusRequest>(null)

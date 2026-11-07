@@ -591,6 +591,7 @@ function recordingSound() {
     },
     apply: (settings) => void log.applied.push(settings),
     setSeason: () => {},
+    seasonCue: () => {},
     spinStart: (countdown = false, keepMusic = false) => {
       log.starts++
       if (countdown) log.countdownStarts++

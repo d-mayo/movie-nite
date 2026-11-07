@@ -60,6 +60,7 @@ function recordingSound() {
     attach: () => () => {},
     apply: () => {},
     setSeason: () => {},
+    seasonCue: () => {},
     spinStart: () => {},
     musicStart: () => {},
     musicResume: () => {},

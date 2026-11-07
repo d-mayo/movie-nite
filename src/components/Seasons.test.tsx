@@ -171,8 +171,14 @@ test('turning Seasonal themes off brings back the plain logo, and on brings Chri
 // A recording sound engine: the seasons it was told, in order.
 function recordingSound() {
   const seasons: (string | null)[] = []
-  const sound: SoundEngine = { ...silentSound, setSeason: (season) => void seasons.push(season) }
-  return { sound, seasons }
+  const cues: (string | null)[] = []
+  const sound: SoundEngine = {
+    ...silentSound,
+    setSeason: (season) => void seasons.push(season),
+    // The season the engine was last told when a cue was asked for.
+    seasonCue: () => void cues.push(seasons.at(-1) ?? null),
+  }
+  return { sound, seasons, cues }
 }
 
 test('the sound engine is told the active theme: Christmas by date, none when the switch is off, and a forced season', () => {
@@ -189,4 +195,16 @@ test('the sound engine is told the active theme: Christmas by date, none when th
   expect(forced.seasons.at(-1)).toBeNull()
   fireEvent.change(debugControl('Force season'), { target: { value: 'christmas' } })
   expect(forced.seasons.at(-1)).toBe('christmas')
+})
+
+test('forcing a season in the debug menu plays its cue, after the engine is told; By date and None play none', () => {
+  window.history.pushState({}, '', '/?debug')
+  const { sound, cues } = recordingSound()
+  setup(nov7, {}, sound)
+  expect(cues).toEqual([])
+  fireEvent.change(debugControl('Force season'), { target: { value: 'christmas' } })
+  expect(cues).toEqual(['christmas'])
+  fireEvent.change(debugControl('Force season'), { target: { value: 'none' } })
+  fireEvent.change(debugControl('Force season'), { target: { value: '' } })
+  expect(cues).toEqual(['christmas'])
 })
