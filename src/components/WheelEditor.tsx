@@ -13,10 +13,13 @@ import {
 import CardSwitches, { listedCards } from './CardSwitches.tsx'
 import Slider from './Slider.tsx'
 import Stepper from './Stepper.tsx'
+import { seasonById, type SeasonId } from '../seasons/seasons.ts'
 import { useHungPopover } from './useHungPopover.ts'
 
 interface Props {
   locked?: boolean
+  // The season the Seasons line names, or null for none.
+  seasonNow?: SeasonId | null
   onClosed: () => void
   // The button the popover hangs from.
   anchor?: RefObject<HTMLElement | null>
@@ -63,7 +66,7 @@ function RestoreDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClose
 
 // The Wheel settings popover, mounted only while shown; `useHungPopover`
 // places it and closes it.
-export default function WheelEditor({ locked = false, onClosed, anchor }: Props) {
+export default function WheelEditor({ locked = false, seasonNow = null, onClosed, anchor }: Props) {
   const {
     night,
     settings,
@@ -80,6 +83,7 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
     setSoundMuted,
     setShowLabels,
     setWildcardWheel,
+    setSeasonalThemes,
     restoreWheelSettings,
   } = useApp()
   const { wheel } = settings
@@ -239,6 +243,21 @@ export default function WheelEditor({ locked = false, onClosed, anchor }: Props)
                 max={20}
                 onChange={setDefaultWeight}
               />
+            </fieldset>
+            <fieldset className="inset-card" disabled={locked} aria-labelledby="seasons-heading">
+              <div className="card-head">
+                <h3 id="seasons-heading">Seasons</h3>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={wheel.seasonalThemes}
+                    onChange={(e) => setSeasonalThemes(e.target.checked)}
+                  />
+                  Seasonal themes
+                </label>
+              </div>
+              <p>{seasonNow ? `Now: ${seasonById(seasonNow).name}` : 'None right now'}</p>
             </fieldset>
             <section className="inset-card" aria-labelledby="sound-heading">
               <div className="card-head">

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useApp } from '../state/store.ts'
 import { cards } from '../wildcards/cards.ts'
 import { closeCallMinSpinSeconds } from '../wheel/closeCall.ts'
+import { seasons } from '../seasons/seasons.ts'
 import type { DebugOptions } from './debugOptions.ts'
 
 interface Props {
@@ -110,6 +111,26 @@ export default function DebugMenu({ options, onChange, locked, onClosed }: Props
               {cards.filter((c) => !c.fff || settings.fffUnlocked).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.id}
+                </option>
+              ))}
+            </select>
+          </label>
+        </fieldset>
+        <fieldset className="inset-card" disabled={locked} aria-labelledby="debug-seasons-heading">
+          <div className="card-head">
+            <h3 id="debug-seasons-heading">Seasons</h3>
+          </div>
+          <label className="debug-select">
+            Force season
+            <select
+              value={options.season}
+              onChange={(e) => onChange({ season: e.target.value as DebugOptions['season'] })}
+            >
+              <option value="">By date</option>
+              <option value="none">None</option>
+              {seasons.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
                 </option>
               ))}
             </select>

@@ -4,6 +4,7 @@ import { canHover, closeDelayMs } from './canHover.ts'
 import Credits from './Credits.tsx'
 import DebugMenu from './DebugMenu.tsx'
 import type { DebugOptions } from './debugOptions.ts'
+import type { SeasonId } from '../seasons/seasons.ts'
 import WheelEditor from './WheelEditor.tsx'
 
 interface Props {
@@ -12,6 +13,8 @@ interface Props {
   heldFilmChip?: ReactNode
   // While the debug options are on: the unsaved forces and how to change them; off, no menu item.
   debug?: { options: DebugOptions; onChange: (change: Partial<DebugOptions>) => void }
+  // The season the Wheel settings' Seasons line names, or null for none.
+  seasonNow: SeasonId | null
 }
 
 // Mounted only while shown, so React state always matches whether the dialog
@@ -54,7 +57,7 @@ function EndNightDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClos
   )
 }
 
-export default function NightControls({ locked, heldFilmChip, debug }: Props) {
+export default function NightControls({ locked, heldFilmChip, debug, seasonNow }: Props) {
   const { night, endNight, newNight } = useApp()
   const [confirming, setConfirming] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -159,7 +162,7 @@ export default function NightControls({ locked, heldFilmChip, debug }: Props) {
           </button>
         )}
       </div>
-      {editing && <WheelEditor locked={locked} onClosed={closeDrawer} anchor={gear} />}
+      {editing && <WheelEditor locked={locked} seasonNow={seasonNow} onClosed={closeDrawer} anchor={gear} />}
       {debug && debugging && (
         <DebugMenu options={debug.options} onChange={debug.onChange} locked={locked} onClosed={closeDebug} />
       )}

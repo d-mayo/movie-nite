@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import type { SeasonId } from '../seasons/seasons.ts'
 
 // The unsaved forces the debug popover sets: they start off and reset on reload.
 export interface DebugOptions {
@@ -8,6 +9,8 @@ export interface DebugOptions {
   wildcards: boolean
   // The id of the card every dealt card is, when it is eligible ('' deals normally).
   card: string
+  // The season every theme follows: '' by the date, 'none' for none, or a season id.
+  season: '' | 'none' | SeasonId
 }
 
 export const defaultDebugOptions: DebugOptions = {
@@ -16,6 +19,13 @@ export const defaultDebugOptions: DebugOptions = {
   countdowns: false,
   wildcards: false,
   card: '',
+  season: '',
+}
+
+// The forced season as the season rule takes it: undefined by date, null for None.
+export function forcedSeason(season: DebugOptions['season']): SeasonId | null | undefined {
+  if (season === '') return undefined
+  return season === 'none' ? null : season
 }
 
 export function useDebugOptions() {
