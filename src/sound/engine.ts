@@ -6,6 +6,9 @@
 // destination, and the settings drive the three gains. The music loop, the win
 // stinger and the applause all ride the music bus.
 
+import type { SeasonId } from '../seasons/seasons.ts'
+import { marchSet, setFiles, soundSets, type BellsPart, type LoopPart, type SoundSets, type StingerPart } from './seasons.ts'
+
 export type SoundName =
   | 'on'
   | 'hum'
@@ -23,6 +26,10 @@ export type SoundName =
   | 'clunk'
   | 'clap'
   | 'knock'
+  | 'christmas-loop'
+  | 'christmas-stinger'
+  | 'christmas-win'
+  | 'christmas-bells'
 
 export interface SoundSettings {
   // 0 to 100 each: the overall volume, and the music's and the effects' levels,
@@ -37,6 +44,8 @@ export interface SoundEngine {
   // Listens for the first gestures on `target`; the returned function stops.
   attach(target: EventTarget): () => void
   apply(settings: SoundSettings): void
+  // The season whose soundtrack plays (null for the march). A season's files are fetched only while it is set.
+  setSeason(season: SeasonId | null): void
   // Spin pressed: the projector switches on and its motor starts, and the music loop starts, unless
   // `countdown` says a leader countdown comes first, when the music waits for musicStart.
   // On the wildcard wheel (`cards`) the ambience plays on and no loop starts.
@@ -96,11 +105,14 @@ export interface SoundDeps {
   // Null where there is no Web Audio.
   createContext(): AudioContext | null
   load(name: SoundName): Promise<ArrayBuffer>
+  // The seasons' sound sets; the shipped ones when left out (tests pass their own).
+  sets?: SoundSets
 }
 
 export const silentSound: SoundEngine = {
   attach: () => () => {},
   apply: () => {},
+  setSeason: () => {},
   spinStart: () => {},
   musicStart: () => {},
   musicResume: () => {},
@@ -132,12 +144,18 @@ export const humLoopEnd = 8.1
 export const minHumRate = 0.6
 export const minHumGain = 0.4
 const humLevel = 0.9
+// A season's spin bells: at full speed, how far they fall as the wheel slows (gain, and gently the rate).
+export const bellsLevel = 0.5
+export const minBellsGain = 0.15
+export const minBellsRate = 0.85
+// A season's win sound, played with the applause.
+export const winLevel = 1
 // Only in this last moment before the stop does the hum fade to silence.
 export const humFadeSeconds = 0.3
 // The music loop's points in its file: a 2 s lead-in (the wind-up), then the
 // body that loops, with 0.1 s of margin after the end for the encoder's padding.
-export const loopStart = 2.0
-export const loopEnd = 32.12
+export const loopStart = marchSet.loop.loopStart
+export const loopEnd = marchSet.loop.loopEnd
 // Levels on the music bus: the loop at full, dipped under the stinger, and the
 // bed it settles to while the reveal is open.
 export const loopLevel = 0.8
@@ -161,8 +179,8 @@ export const drumrollLoopStart = 0.1
 export const drumrollLoopEnd = 1.7
 const drumrollFadeInSeconds = 0.8
 // Where the stinger's main hit falls in its file, and its length.
-export const stingerHit = 1.65
-export const stingerSeconds = 3.03
+export const stingerHit = marchSet.stinger.hit
+export const stingerSeconds = marchSet.stinger.seconds
 // How long the music takes to fade out when the reveal closes.
 export const musicFadeSeconds = 2
 const fadeFloor = 0.001
@@ -235,12 +253,19 @@ export function createSound(deps: SoundDeps): SoundEngine {
   let loading = false
   const buffers: Partial<Record<SoundName, AudioBuffer>> = {}
   let hum: { source: AudioBufferSourceNode; gain: GainNode } | null = null
+  // The season's sleigh bells while a spin runs, if its file is decoded.
+  let bells: { source: AudioBufferSourceNode; gain: GainNode } | null = null
+  const sets = deps.sets ?? soundSets
+  let season: SeasonId | null = null
+  // The files asked for already, so none is fetched twice a session.
+  const requested = new Set<SoundName>()
   let lastTick = -Infinity
   let win: GainNode
   let crowd: GainNode
   // The loop while it plays or fades; the stinger and applause, which fade
   // with it.
-  let loop: { source: AudioBufferSourceNode; gain: GainNode; startedAt: number } | null = null
+  // The loop's part is the set whose figures it plays by, for as long as it plays.
+  let loop: { source: AudioBufferSourceNode; gain: GainNode; startedAt: number; part: LoopPart } | null = null
   // Whether a close call has silenced the loop, which then has nothing to give way to.
   let loopSilenced = false
   // The wildcard wheel's ambience while it plays; and whether the spin under way is the wildcard wheel's.
@@ -264,18 +289,53 @@ export function createSound(deps: SoundDeps): SoundEngine {
     set(music, volumeGain(Math.min(settings.music, settings.volume)))
   }
 
+  function fetchSound(name: SoundName) {
+    if (requested.has(name)) return
+    requested.add(name)
+    deps
+      .load(name)
+      .then((data) => ctx!.decodeAudioData(data))
+      .then((buffer) => {
+        buffers[name] = buffer
+      })
+      .catch(() => {})
+  }
+
   function load() {
     if (loading) return
     loading = true
     for (const name of ['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer', 'dloop', 'ambience', 'runout', 'clunk', 'clap', 'knock'] as const) {
-      deps
-        .load(name)
-        .then((data) => ctx!.decodeAudioData(data))
-        .then((buffer) => {
-          buffers[name] = buffer
-        })
-        .catch(() => {})
+      fetchSound(name)
     }
+  }
+
+  // The active season's files, fetched only while it is set and has a sound set, and once the context exists.
+  function loadSeason() {
+    const set = season ? sets[season] : undefined
+    if (!ctx || !set) return
+    for (const name of setFiles(set)) fetchSound(name)
+  }
+
+  // Each part of the soundtrack is chosen at its own cue: the season's if its file is decoded, else the march's.
+  function pickLoop(): LoopPart {
+    const part = season ? sets[season]?.loop : undefined
+    return part && buffers[part.name] ? part : marchSet.loop
+  }
+
+  function pickStinger(): StingerPart | null {
+    const part = season ? sets[season]?.stinger : undefined
+    if (part && buffers[part.name]) return part
+    return buffers.stinger ? marchSet.stinger : null
+  }
+
+  function pickWin() {
+    const part = season ? sets[season]?.win : undefined
+    return part && buffers[part.name] ? part : null
+  }
+
+  function pickBells(): BellsPart | null {
+    const part = season ? sets[season]?.bells : undefined
+    return part && buffers[part.name] ? part : null
   }
 
   function unlock() {
@@ -303,6 +363,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
       for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1
       setGains(true)
       load()
+      loadSeason()
     }
     if (ctx.state !== 'running') ctx.resume().catch(() => {})
   }
@@ -441,20 +502,22 @@ export function createSound(deps: SoundDeps): SoundEngine {
 
   // The march, or its distorted twin (same lead-in and loop points), from `offset` in its file.
   function startLoop(distorted = false, offset = 0, level = loopLevel) {
-    const buffer = buffers[distorted ? 'dloop' : 'loop']
+    // The twin keeps the figures of the loop it gives way to.
+    const part = distorted && loop ? loop.part : pickLoop()
+    const buffer = buffers[distorted ? 'dloop' : part.name]
     if (!ctx || !buffer) return null
     const source = ctx.createBufferSource()
     source.buffer = buffer
     source.loop = true
-    source.loopStart = loopStart
-    source.loopEnd = Math.min(loopEnd, buffer.duration)
+    source.loopStart = part.loopStart
+    source.loopEnd = Math.min(part.loopEnd, buffer.duration)
     const gain = ctx.createGain()
     gain.gain.value = level
     source.connect(gain)
     gain.connect(music)
     source.start(0, offset)
     loopSilenced = false
-    loop = { source, gain, startedAt: ctx.currentTime - offset }
+    loop = { source, gain, startedAt: ctx.currentTime - offset, part }
     return loop
   }
 
@@ -469,8 +532,8 @@ export function createSound(deps: SoundDeps): SoundEngine {
   function loopPosition() {
     if (!ctx || !loop) return 0
     const t = ctx.currentTime - loop.startedAt
-    const length = loopEnd - loopStart
-    return t < loopEnd ? t : loopStart + ((t - loopStart) % length)
+    const { loopStart: start, loopEnd: end } = loop.part
+    return t < end ? t : start + ((t - start) % (end - start))
   }
 
   function startAmbience() {
@@ -512,6 +575,44 @@ export function createSound(deps: SoundDeps): SoundEngine {
     source.stop(now + cutSeconds + 0.02)
   }
 
+  // The bells follow the wheel as the hum does: louder and a touch faster at the peak, thinning as it creeps.
+  function bellsTargets(share: number, secondsLeft: number) {
+    const s = Math.min(Math.max(share, 0), 1)
+    const fade = Math.min(Math.max(secondsLeft / humFadeSeconds, 0), 1)
+    return {
+      rate: minBellsRate + (1 - minBellsRate) * s,
+      gain: bellsLevel * (minBellsGain + (1 - minBellsGain) * s) * fade,
+    }
+  }
+
+  function startBells() {
+    const part = pickBells()
+    const buffer = part ? buffers[part.name] : undefined
+    if (!ctx || !part || !buffer) return
+    const source = ctx.createBufferSource()
+    source.buffer = buffer
+    source.loop = true
+    source.loopStart = part.loopStart
+    source.loopEnd = Math.min(part.loopEnd, buffer.duration)
+    const gain = ctx.createGain()
+    const { rate, gain: level } = bellsTargets(0, Infinity)
+    source.playbackRate.value = rate
+    gain.gain.value = level
+    source.connect(gain)
+    // On the plain effects bus, never through the film-reel chain.
+    gain.connect(effects)
+    source.start(0, part.loopStart)
+    bells = { source, gain }
+  }
+
+  function stopBells() {
+    if (!ctx || !bells) return
+    const { source, gain } = bells
+    bells = null
+    gain.gain.setTargetAtTime(0, ctx.currentTime, 0.01)
+    source.stop(ctx.currentTime + 0.06)
+  }
+
   function humTargets(share: number, secondsLeft: number) {
     const s = Math.min(Math.max(share, 0), 1)
     const fade = Math.min(Math.max(secondsLeft / humFadeSeconds, 0), 1)
@@ -522,6 +623,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
   }
 
   function stopHum() {
+    stopBells()
     if (!ctx || !hum) return
     const { source, gain } = hum
     hum = null
@@ -545,7 +647,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     gain.gain.setValueAtTime(0, at + seconds)
   }
 
-  function playWin(name: 'stinger' | 'applause' | 'cheer', when: number, offset: number, level: number) {
+  function playWin(name: SoundName, to: GainNode, when: number, offset: number, level: number) {
     const buffer = buffers[name]
     if (!ctx || !buffer) return
     const source = ctx.createBufferSource()
@@ -553,7 +655,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
     const gain = ctx.createGain()
     gain.gain.value = level
     source.connect(gain)
-    gain.connect(name === 'stinger' ? win : crowd)
+    gain.connect(to)
     source.start(when, offset)
     wins.push(source)
   }
@@ -582,11 +684,11 @@ export function createSound(deps: SoundDeps): SoundEngine {
 
   // The background dips under the stinger and comes back up to its bed as it ends; without the
   // stinger there is nothing to dip under.
-  function dipLoop(now: number, hold: number, lead: number) {
+  function dipLoop(now: number, hold: number, lead: number, stinger: StingerPart | null) {
     const b = bed()
     if (!b) return
-    if (!buffers.stinger) return ramp(b.gain, b.rest, now, 0.5)
-    const end = now + hold - lead + (stingerSeconds - (stingerHit - lead))
+    if (!stinger) return ramp(b.gain, b.rest, now, 0.5)
+    const end = now + hold - lead + (stinger.seconds - (stinger.hit - lead))
     ramp(b.gain, b.dip, now, 0.15)
     // Back up as the stinger ends, to the bed.
     b.gain.gain.setValueAtTime(b.dip, end - 0.5)
@@ -596,14 +698,21 @@ export function createSound(deps: SoundDeps): SoundEngine {
   // The stinger and applause, the stinger's hit `hold` seconds from now, the loop dipping under
   // them and coming back to the bed as the stinger ends.
   function playFanfare(hold: number, cheer = false) {
-    if (!ctx) return
+    if (!ctx) return null
     const now = ctx.currentTime
     // The hit lands as the reveal opens: start the stinger's swell early
     // enough, or, with no hold, from its hit.
-    const lead = Math.min(stingerHit, hold)
-    playWin('stinger', now + hold - lead, stingerHit - lead, stingerLevel)
-    playWin('applause', now + hold, 0, applauseLevel)
-    if (cheer) playWin('cheer', now + hold, 0, cheerLevel)
+    const stinger = pickStinger()
+    if (stinger) {
+      const lead = Math.min(stinger.hit, hold)
+      playWin(stinger.name, win, now + hold - lead, stinger.hit - lead, stingerLevel)
+    }
+    playWin('applause', crowd, now + hold, 0, applauseLevel)
+    // A season's win sound plays with the applause.
+    const voice = pickWin()
+    if (voice) playWin(voice.name, crowd, now + hold, 0, winLevel)
+    if (cheer) playWin('cheer', crowd, now + hold, 0, cheerLevel)
+    return stinger
   }
 
   return {
@@ -617,6 +726,10 @@ export function createSound(deps: SoundDeps): SoundEngine {
       settings = next
       setGains(false)
     },
+    setSeason(next) {
+      season = next
+      loadSeason()
+    },
     spinStart(countdown = false, cards = false) {
       if (!ctx) return
       cardsSpin = cards
@@ -625,6 +738,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
       if (!cards) stopMusic()
       play('on')
       if (!countdown) startSpinMusic()
+      startBells()
       const buffer = buffers.hum
       if (!buffer) return
       const source = ctx.createBufferSource()
@@ -655,7 +769,7 @@ export function createSound(deps: SoundDeps): SoundEngine {
       play('runout', runoutLevel)
       // The march turns into its distorted twin from where it has reached (one a close call has
       // silenced has nothing to give way to).
-      if (!loop || loopSilenced || !buffers.dloop) return
+      if (!loop || loopSilenced || !buffers.dloop || loop.part.name !== 'loop') return
       const now = ctx.currentTime
       const march = loop
       ramp(march.gain, 0, now, crossSeconds)
@@ -717,7 +831,13 @@ export function createSound(deps: SoundDeps): SoundEngine {
       tone.stop(at + beepSeconds)
     },
     spinSpeed(share, secondsLeft) {
-      if (!ctx || !hum) return
+      if (!ctx) return
+      if (bells) {
+        const target = bellsTargets(share, secondsLeft)
+        bells.source.playbackRate.setTargetAtTime(target.rate, ctx.currentTime, 0.08)
+        bells.gain.gain.setTargetAtTime(target.gain, ctx.currentTime, 0.08)
+      }
+      if (!hum) return
       const { rate, gain } = humTargets(share, secondsLeft)
       hum.source.playbackRate.setTargetAtTime(rate, ctx.currentTime, 0.08)
       hum.gain.gain.setTargetAtTime(gain, ctx.currentTime, 0.08)
@@ -789,24 +909,24 @@ export function createSound(deps: SoundDeps): SoundEngine {
       if (!ctx) return
       const now = ctx.currentTime
       const hold = Math.max(revealInSeconds, 0)
-      const lead = Math.min(stingerHit, hold)
-      playFanfare(hold, closeCall)
+      const stinger = playFanfare(hold, closeCall)
+      const lead = Math.min(stinger?.hit ?? 0, hold)
       const b = bed()
       if (!b) return
       if (closeCall) {
         // The background has been silent since the cue: it comes back as the stinger ends, from where it has reached.
-        const end = buffers.stinger ? now + hold - Math.min(stingerHit, hold) + (stingerSeconds - (stingerHit - Math.min(stingerHit, hold))) : now + hold
+        const end = stinger ? now + hold - lead + (stinger.seconds - (stinger.hit - lead)) : now + hold
         ramp(b.gain, 0, now, 0.05)
         b.gain.gain.setValueAtTime(0, end - 0.5)
         b.gain.gain.linearRampToValueAtTime(b.rest, end)
         return
       }
-      dipLoop(now, hold, lead)
+      dipLoop(now, hold, lead, stinger)
     },
     landedQuiet(closeCall = false) {
       if (!ctx) return
       const now = ctx.currentTime
-      if (closeCall) playWin('cheer', now, 0, cheerLevel)
+      if (closeCall) playWin('cheer', crowd, now, 0, cheerLevel)
       const b = bed()
       if (!b) return
       // After a close call the background comes back up from silence to its bed, the cymbal having struck.
@@ -815,8 +935,8 @@ export function createSound(deps: SoundDeps): SoundEngine {
     fanfare(revealInSeconds) {
       if (!ctx) return
       const hold = Math.max(revealInSeconds, 0)
-      playFanfare(hold)
-      dipLoop(ctx.currentTime, hold, Math.min(stingerHit, hold))
+      const stinger = playFanfare(hold)
+      dipLoop(ctx.currentTime, hold, Math.min(stinger?.hit ?? 0, hold), stinger)
     },
     revealClosed() {
       if (!ctx) return

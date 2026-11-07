@@ -16,7 +16,8 @@ import clunkUrl from '../assets/sound/clunk.mp3'
 import clapUrl from '../assets/sound/clap.mp3'
 import knockUrl from '../assets/sound/knock.mp3'
 
-const urls: Record<SoundName, string> = {
+// The seasonal files have no URL until they are cut (a part with none falls back to the march's).
+const urls: Partial<Record<SoundName, string>> = {
   on: onUrl,
   hum: humUrl,
   off: offUrl,
@@ -47,6 +48,9 @@ export function createBrowserSound(): SoundEngine {
         (window as unknown as { webkitAudioContext?: AudioContextConstructor }).webkitAudioContext
       return Context ? new Context() : null
     },
-    load: (name) => fetch(urls[name]).then((response) => response.arrayBuffer()),
+    load(name) {
+      const url = urls[name]
+      return url ? fetch(url).then((response) => response.arrayBuffer()) : Promise.reject(new Error(`No file for ${name}`))
+    },
   })
 }

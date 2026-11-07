@@ -87,6 +87,7 @@ function recordingSound() {
   const engine: SoundEngine = {
     attach: () => () => {},
     apply: () => {},
+    setSeason: () => {},
     spinStart: (countdown = false, keep = false) => {
       log.starts++
       if (countdown) log.countdownStarts++

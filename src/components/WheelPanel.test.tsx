@@ -590,6 +590,7 @@ function recordingSound() {
       return () => log.detached++
     },
     apply: (settings) => void log.applied.push(settings),
+    setSeason: () => {},
     spinStart: (countdown = false, keepMusic = false) => {
       log.starts++
       if (countdown) log.countdownStarts++

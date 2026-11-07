@@ -8,10 +8,13 @@ export class FakeParam {
   sets: number[] = []
   // The same, with the method that set each.
   calls: { method: string; value: number }[] = []
+  // The same again with the time each was scheduled for, where it was given.
+  timed: { method: string; value: number; at: number | undefined }[] = []
   constructor(value = 0) {
     this.value = value
   }
-  private set(method: string, value: number) {
+  private set(method: string, value: number, at?: number) {
+    this.timed.push({ method, value, at })
     this.value = value
     this.sets.push(value)
     this.calls.push({ method, value })
@@ -19,14 +22,14 @@ export class FakeParam {
   setTargetAtTime(value: number) {
     this.set('setTargetAtTime', value)
   }
-  setValueAtTime(value: number) {
-    this.set('setValueAtTime', value)
+  setValueAtTime(value: number, at?: number) {
+    this.set('setValueAtTime', value, at)
   }
-  exponentialRampToValueAtTime(value: number) {
-    this.set('exponentialRampToValueAtTime', value)
+  exponentialRampToValueAtTime(value: number, at?: number) {
+    this.set('exponentialRampToValueAtTime', value, at)
   }
-  linearRampToValueAtTime(value: number) {
-    this.set('linearRampToValueAtTime', value)
+  linearRampToValueAtTime(value: number, at?: number) {
+    this.set('linearRampToValueAtTime', value, at)
   }
   cancelScheduledValues() {}
   // A param is the end of a path, never a node that reaches another.
@@ -120,6 +123,10 @@ export const fakeDurations: Record<SoundName, number> = {
   clunk: 0.45,
   clap: 2.3,
   knock: 0.3,
+  'christmas-loop': 30.1,
+  'christmas-stinger': 3.5,
+  'christmas-win': 2.5,
+  'christmas-bells': 4.4,
 }
 
 export class FakeContext {

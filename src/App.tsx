@@ -63,6 +63,10 @@ function Screen({ fetchFn, random, spinMs, sound, today }: Omit<Props, 'store'>)
   const seasonNow = forced !== undefined ? forced : seasonOf(loadDate)
   // The theme in force: the forced season, else none while the switch is off, else the date's.
   const theme = activeSeason({ forced, enabled: settings.wheel.seasonalThemes, date: loadDate })
+  // The sound engine plays the soundtrack of the theme in force.
+  useEffect(() => {
+    sound?.setSeason(theme)
+  }, [sound, theme])
   const [locked, setLocked] = useState(false)
   const [blind, setBlind] = useState(false)
   const [focusRequest, setFocusRequest] = useState<FocusRequest>(null)
