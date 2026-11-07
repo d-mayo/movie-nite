@@ -476,7 +476,7 @@ html:has(.wheel-stage[data-zoom]) {
 }
 
 /* The page's ground is film cream while the wildcard wheel shows; the banner and the viewer pane keep
-   their own look. What sits on the ground (the chips, the debug controls) takes the light-scheme tokens
+   their own look. What sits on the ground (the chips) takes the light-scheme tokens
    in both modes so it reads on cream. */
 body:has(.wheel-stage[data-wheel='cards']) {
   background-color: var(--film-cream);
@@ -3077,14 +3077,40 @@ dialog.wheel-drawer:focus {
   gap: var(--space-2);
 }
 
-/* The debug flag's checkbox under the wheel. */
-.debug-force {
-  color: var(--muted);
-  font-size: 0.85rem;
+/* The debug overlay is the Choose cards overlay's frame at the height of its contents;
+   its Force card select is styled here only. */
+dialog.card-switches.debug-switches {
+  width: min(32rem, calc(100vw - 1rem));
+  height: fit-content;
+  max-height: calc(100vh - 1rem);
 }
 
-.debug-force + .debug-force {
-  margin-left: var(--space-4);
+.debug-switches .card-switches-body {
+  flex: 0 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.debug-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.debug-select select {
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+}
+
+.debug-select select:disabled {
+  opacity: 0.5;
 }
 
 .viewer-key {

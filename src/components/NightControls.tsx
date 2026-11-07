@@ -2,12 +2,16 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useApp } from '../state/store.ts'
 import { canHover, closeDelayMs } from './canHover.ts'
 import Credits from './Credits.tsx'
+import DebugMenu from './DebugMenu.tsx'
+import type { DebugOptions } from './debugOptions.ts'
 import WheelEditor from './WheelEditor.tsx'
 
 interface Props {
   locked: boolean
   // The held film's chip, which sits first in the toolbar.
   heldFilmChip?: ReactNode
+  // While the debug options are on: the unsaved forces and how to change them; off, no menu item.
+  debug?: { options: DebugOptions; onChange: (change: Partial<DebugOptions>) => void }
 }
 
 // Mounted only while shown, so React state always matches whether the dialog
@@ -50,12 +54,13 @@ function EndNightDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClos
   )
 }
 
-export default function NightControls({ locked, heldFilmChip }: Props) {
+export default function NightControls({ locked, heldFilmChip, debug }: Props) {
   const { night, endNight, newNight } = useApp()
   const [confirming, setConfirming] = useState(false)
   const [editing, setEditing] = useState(false)
   const [showingCredits, setShowingCredits] = useState(false)
   const menu = useRef<HTMLDivElement>(null)
+  const [debugging, setDebugging] = useState(false)
   const gear = useRef<HTMLButtonElement>(null)
   // The gear menu closes shortly after the pointer leaves it, once it has been inside.
   const menuInside = useRef(false)
@@ -72,6 +77,10 @@ export default function NightControls({ locked, heldFilmChip }: Props) {
   }, [])
   const closeDrawer = useCallback(() => {
     setEditing(false)
+    gear.current?.focus()
+  }, [])
+  const closeDebug = useCallback(() => {
+    setDebugging(false)
     gear.current?.focus()
   }, [])
   return (
@@ -138,8 +147,22 @@ export default function NightControls({ locked, heldFilmChip }: Props) {
         >
           Credits
         </button>
+        {debug && (
+          <button
+            type="button"
+            onClick={() => {
+              menu.current?.hidePopover()
+              setDebugging(true)
+            }}
+          >
+            Debug options
+          </button>
+        )}
       </div>
       {editing && <WheelEditor locked={locked} onClosed={closeDrawer} anchor={gear} />}
+      {debug && debugging && (
+        <DebugMenu options={debug.options} onChange={debug.onChange} locked={locked} onClosed={closeDebug} />
+      )}
       {showingCredits && <Credits onClosed={closeCredits} />}
       {confirming && (
         <EndNightDialog onConfirm={endNight} onClosed={closeDialog} />

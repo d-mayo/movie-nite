@@ -33,6 +33,7 @@ import {
   setCardsEnabled,
   restoreWheelSettings,
   setViewersHidden,
+  setDebugEnabled,
   setFffUnlocked,
   playGame,
   validWatched,
@@ -71,6 +72,7 @@ import { assignColors } from '../wheel/colors.ts'
 export interface AppActions {
   setViewersHidden(hidden: boolean): void
   setFffUnlocked(unlocked: boolean): void
+  setDebugEnabled(enabled: boolean): void
   playGame(effect: CardEffect, game: GameEntry): void
   addViewer(name: string): void
   removeViewer(id: string): void
@@ -227,6 +229,7 @@ function mergeOverDefaults(stored: AppState | null): AppState {
       ...defaultState.settings,
       ...storedSettings,
       fffUnlocked: storedSettings.fffUnlocked === true,
+      debugEnabled: storedSettings.debugEnabled === true,
       wheel: mergeWheel(stored.settings?.wheel),
     },
     night,
@@ -250,6 +253,7 @@ export function createAppStore(persistence: Persistence): AppStore {
       ...mergeOverDefaults(persistence.load()),
       setViewersHidden: (hidden) => update((s) => setViewersHidden(s, hidden)),
       setFffUnlocked: (unlocked) => update((s) => setFffUnlocked(s, unlocked)),
+      setDebugEnabled: (enabled) => update((s) => setDebugEnabled(s, enabled)),
       playGame: (effect, game) => update((s) => playGame(s, effect, game)),
       addViewer: (name) => update((s) => addViewer(s, name, newId())),
       removeViewer: (id) => update((s) => removeViewer(s, id)),

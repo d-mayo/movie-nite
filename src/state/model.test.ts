@@ -512,6 +512,7 @@ describe('setViewersHidden', () => {
     expect(hidden.settings).toEqual({
       viewersHidden: true,
       fffUnlocked: false,
+      debugEnabled: false,
       wheel: defaultWheelSettings,
     })
     expect(hidden.roster).toBe(s.roster)

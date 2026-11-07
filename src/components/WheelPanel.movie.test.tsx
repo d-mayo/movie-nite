@@ -9,6 +9,7 @@ import { defaultWheelSettings, deriveSlices } from '../wheel/edit.ts'
 import { cards } from '../wildcards/cards.ts'
 import { dealCards } from '../wildcards/deal.ts'
 import { recordStage } from '../test/phases.ts'
+import { toggleForce } from '../test/debug.ts'
 
 // The deal is the real one unless a test forces a card with `forceCard`.
 vi.mock('../wildcards/deal.ts', async (importOriginal) => {
@@ -886,7 +887,7 @@ test('a movie card after a close call plays the cheer at the landing', async () 
   window.history.pushState({}, '', '/?debug')
   forceCard('genre-night')
   const { sound } = setup({ fetchFn: tmdbFetch({ ids: [11, 12, 13] }).fetchFn })
-  fireEvent.click(screen.getByLabelText('Force close calls'))
+  toggleForce('Force close calls')
   await openCard()
   expect(sound.log.events).toContain('landed-quiet-close')
   expect(count(sound, 'fanfare')).toBe(0)

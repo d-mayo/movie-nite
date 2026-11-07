@@ -73,7 +73,7 @@ export interface Viewer {
 
 export interface AppState {
   version: 1
-  settings: { viewersHidden: boolean; fffUnlocked?: boolean; wheel: WheelSettings }
+  settings: { viewersHidden: boolean; fffUnlocked?: boolean; debugEnabled?: boolean; wheel: WheelSettings }
   roster: Viewer[]
   night: {
     presentIds: string[]
@@ -95,7 +95,7 @@ export interface AppState {
 
 export const defaultState: AppState = {
   version: 1,
-  settings: { viewersHidden: false, fffUnlocked: false, wheel: defaultWheelSettings },
+  settings: { viewersHidden: false, fffUnlocked: false, debugEnabled: false, wheel: defaultWheelSettings },
   roster: [],
   night: {
     presentIds: [],
@@ -116,6 +116,11 @@ export function setViewersHidden(state: AppState, hidden: boolean): AppState {
 }
 
 // Unlocks the FFF cards for good; nothing locks them again.
+export function setDebugEnabled(state: AppState, enabled: boolean): AppState {
+  if (!!state.settings.debugEnabled === enabled) return state
+  return { ...state, settings: { ...state.settings, debugEnabled: enabled } }
+}
+
 export function setFffUnlocked(state: AppState, unlocked: boolean): AppState {
   if (state.settings.fffUnlocked === unlocked) return state
   return { ...state, settings: { ...state.settings, fffUnlocked: unlocked } }
