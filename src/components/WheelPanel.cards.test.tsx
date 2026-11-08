@@ -466,6 +466,21 @@ test('on the wildcard wheel, Force close calls makes a close call and Force catc
   expect(caught.log.ticks.filter((t) => t === catchTickShare).length).toBe(afterMain + 1)
 })
 
+test('with Close calls off, neither wheel makes a close call even with Force close calls checked', async () => {
+  withDebug()
+  const { engine, log } = recordingSound()
+  const { store } = setup({ sound: engine, wheel: { spinSeconds: 6 } })
+  toggleForce('Force close calls')
+  act(() => store.getState().setCloseCalls(false))
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
+  fireEvent.click(spinButton())
+  await screen.findByRole('dialog')
+  expect(log.cues).toBe(0)
+  expect(log.landedClose).toEqual([false])
+  expect(screen.queryByText('Close call')).toBeNull()
+})
+
 test('on the wildcard wheel, Force countdowns shows the dial and calls musicStart again only when the count ends', async () => {
   withDebug()
   const { engine, log } = recordingSound()
@@ -752,6 +767,7 @@ test('the viewer key and the reel back stay through the blind spin and its revea
 test('Blind Spin: the wheel comes back blind, stays blind through the next main spin, and shows at the landing', async () => {
   forceCard('blind-spin')
   const { store } = setup({
+    wheel: { showLabels: true },
     nominations: { a: posterFilm(1), b: posterFilm(2), c: posterFilm(3) },
   })
   expect(wheelImages()).toBe(3 * 3)

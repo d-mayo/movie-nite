@@ -78,6 +78,7 @@ async function sampleFlapper(ms: number): Promise<number[]> {
 function setupCrowd(
   extra: { random?: () => number; spinMs?: number; sound?: SoundEngine },
   spinSeconds = 2,
+  wheel: Partial<typeof defaultWheelSettings> = {},
 ) {
   const roster = [
     { id: 'a', name: 'Ann', color: '#e6194b' },
@@ -95,6 +96,7 @@ function setupCrowd(
           wildcardCount: 0,
           defaultSlices: 12,
           spinSeconds,
+          ...wheel,
         },
       },
       roster,
@@ -106,6 +108,7 @@ function setupCrowd(
     }),
   )
   render(<App store={store} fetchFn={vi.fn()} {...extra} />)
+  return store
 }
 
 const spinButton = () => screen.getByRole('button', { name: 'Spin' })
@@ -338,7 +341,7 @@ test('React commits nothing while the wheel drifts, and a spin costs a fixed few
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: { ...defaultWheelSettings, showLabels: true } },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },
@@ -1020,6 +1023,44 @@ test('close calls are off at a spin Length under 5 s, even with the debug box, w
     expect(log.cues).toEqual([])
     expect(log.landedClose).toEqual([false])
     expect(screen.queryByText('Close call')).toBeNull()
+  } finally {
+    restore()
+  }
+})
+
+test('with Close calls off, a spin that would be a close call is ordinary, even with the debug box checked', async () => {
+  const restore = withQuery('?debug')
+  try {
+    const sequence = (...values: number[]) => {
+      let i = 0
+      return () => values[Math.min(i++, values.length - 1)]
+    }
+    const { engine, log } = recordingSound()
+    // The sequence of the share test above, which is a close call with the switch on.
+    const store = setupCrowd({ random: sequence(0.5, 0.5, 0.1, 0.5, 0.5), spinMs: 40, sound: engine }, 6, { closeCalls: false })
+    expect(debugControl(/Force close calls/)).toBeDisabled()
+    expect(debugControl(/Force close calls/).parentElement).toHaveTextContent('needs Close calls on in Wheel settings')
+    closeDebug()
+    fireEvent.click(spinButton())
+    await screen.findByRole('dialog')
+    expect(log.cues).toEqual([])
+    expect(log.landedClose).toEqual([false])
+    expect(screen.queryByText('Close call')).toBeNull()
+    const slices = deriveSlices(['a', 'b', 'c'], { ...defaultWheelSettings, wildcardsPerViewer: false, wildcardCount: 0, defaultSlices: 12 }, {})
+    const arcs = sliceArcs(slices)
+    const drawn = drawSlice(slices, () => 0.5)
+    const rest = angleUnderPointer(wheelRotation())
+    expect(rest).toBeGreaterThanOrEqual(arcs[drawn].start)
+    expect(rest).toBeLessThan(arcs[drawn].end)
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    // A box checked while the setting was on forces nothing once it is turned off.
+    act(() => store.getState().setCloseCalls(true))
+    toggleForce('Force close calls')
+    act(() => store.getState().setCloseCalls(false))
+    fireEvent.click(spinButton())
+    await screen.findByRole('dialog')
+    expect(log.cues).toEqual([])
+    expect(log.landedClose).toEqual([false, false])
   } finally {
     restore()
   }

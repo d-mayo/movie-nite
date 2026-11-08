@@ -20,6 +20,7 @@ import {
   setSoundEffects,
   setSoundVolume,
   restoreWheelSettings,
+  setCloseCalls,
   setCardEnabled,
   setCardsEnabled,
   setWildcardCount,
@@ -250,8 +251,9 @@ describe('global wheel settings', () => {
       soundEffects: 100,
       soundVolume: 70,
       soundMuted: false,
-      showLabels: true,
+      showLabels: false,
       wildcardWheel: true,
+      closeCalls: true,
       seasonalThemes: true,
       disabledCards: [],
     })
@@ -300,13 +302,22 @@ describe('global wheel settings', () => {
     expect(restoreWheelSettings(muted).settings.wheel.soundMuted).toBe(false)
   })
 
+  test('the Close calls setter changes its field, ignores an unchanged value, survives New night and is restored', () => {
+    expect(defaultState.settings.wheel.closeCalls).toBe(true)
+    const off = setCloseCalls(defaultState, false)
+    expect(off.settings.wheel.closeCalls).toBe(false)
+    expect(setCloseCalls(off, false)).toBe(off)
+    expect(newNight(off).settings.wheel.closeCalls).toBe(false)
+    expect(restoreWheelSettings(off).settings.wheel.closeCalls).toBe(true)
+  })
+
   test('the Show labels setter changes its field, ignores an unchanged value and is restored', () => {
-    expect(defaultState.settings.wheel.showLabels).toBe(true)
-    const hidden = setShowLabels(defaultState, false)
-    expect(hidden.settings.wheel.showLabels).toBe(false)
-    expect(setShowLabels(hidden, false)).toBe(hidden)
-    expect(setShowLabels(hidden, true).settings.wheel.showLabels).toBe(true)
-    expect(restoreWheelSettings(hidden).settings.wheel.showLabels).toBe(true)
+    expect(defaultState.settings.wheel.showLabels).toBe(false)
+    const shown = setShowLabels(defaultState, true)
+    expect(shown.settings.wheel.showLabels).toBe(true)
+    expect(setShowLabels(shown, true)).toBe(shown)
+    expect(setShowLabels(shown, false).settings.wheel.showLabels).toBe(false)
+    expect(restoreWheelSettings(shown).settings.wheel.showLabels).toBe(false)
   })
 
   test('restoring the wheel settings resets the sound ones too', () => {

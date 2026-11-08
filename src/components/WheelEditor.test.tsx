@@ -292,11 +292,15 @@ describe('Restore All Defaults', () => {
       s.setDefaultWeight(7)
       s.setSpinSeconds(10)
       s.setSpinTurnsPerSecond(1.5)
+      s.setShowLabels(true)
+      s.setCloseCalls(false)
     })
     openEditor()
     fireEvent.click(restore())
     fireEvent.click(within(confirmation()!).getByRole('button', { name: 'Restore' }))
     expect(store.getState().settings.wheel).toEqual(defaultWheelSettings)
+    expect(store.getState().settings.wheel.showLabels).toBe(false)
+    expect(store.getState().settings.wheel.closeCalls).toBe(true)
     expect(store.getState().night.adjustments).toEqual({ a: { slices: 5 } })
     expect(confirmation()).toBeNull()
     expect(screen.getByRole('dialog', { name: 'Wheel settings' })).toHaveFocus()
@@ -532,11 +536,28 @@ test('Restore All Defaults is enabled by a sound setting alone, and resets it', 
   expect(restore).toBeDisabled()
 })
 
+test('the Spin card has a Close calls switch, on by default, that sets the setting', () => {
+  const store = setup()
+  openEditor()
+  const card = screen.getByRole('heading', { name: 'Spin' }).closest('fieldset')!
+  const toggle = within(card as HTMLElement).getByRole('switch', { name: 'Close calls' })
+  expect(toggle).toBeChecked()
+  fireEvent.click(toggle)
+  expect(store.getState().settings.wheel.closeCalls).toBe(false)
+  expect(toggle).not.toBeChecked()
+  fireEvent.click(toggle)
+  expect(store.getState().settings.wheel.closeCalls).toBe(true)
+})
+
 test('the Show labels switch hides every viewer label but keeps the wedges and the wildcard word', () => {
   const store = setup()
   openEditor()
   const card = screen.getByRole('heading', { name: 'Viewer Defaults' }).closest('fieldset')!
   const toggle = within(card as HTMLElement).getByRole('switch', { name: 'Show labels' })
+  expect(toggle).not.toBeChecked()
+  expect(screen.queryAllByTestId('label-tag')).toHaveLength(0)
+  fireEvent.click(toggle)
+  expect(store.getState().settings.wheel.showLabels).toBe(true)
   expect(toggle).toBeChecked()
   const wedgeCount = screen.getAllByTestId('wedge').length
   expect(screen.getAllByTestId('label-tag').length).toBeGreaterThan(0)
@@ -564,6 +585,7 @@ test('a locked drawer disables every control but the Sound card, tick clicks inc
   expect(screen.getByRole('switch', { name: 'One per viewer' })).toBeDisabled()
   expect(screen.getByLabelText('Wildcard weight')).toBeDisabled()
   expect(screen.getByRole('switch', { name: 'Show labels' })).toBeDisabled()
+  expect(screen.getByRole('switch', { name: 'Close calls' })).toBeDisabled()
   expect(screen.getByRole('switch', { name: 'Wildcard wheel' })).toBeDisabled()
   expect(screen.getByLabelText('Weight per viewer')).toBeDisabled()
   expect(screen.getByLabelText('Length')).toBeDisabled()

@@ -380,8 +380,8 @@ export default function WheelPanel({
     const natural = restRotation(from, arcs, drawn, random, plan.turns)
     // A share of spins (all of them with the debug checkbox) rest in a close-call zone of the
     // drawn slice, when it has one: the winner is the same, only where in the slice it stops.
-    // Close calls need a long enough spin: a shorter one is still turning when the zoom would begin.
-    const closeCallsOn = !subSpin && settings.wheel.spinSeconds >= closeCallMinSpinSeconds
+    // Close calls need the Close calls setting on and a long enough spin: a shorter one is still turning when the zoom would begin.
+    const closeCallsOn = !subSpin && settings.wheel.closeCalls && settings.wheel.spinSeconds >= closeCallMinSpinSeconds
     const steer =
       closeCallsOn &&
       (debug.closeCalls || (!isCloseCall(slices, arcs, drawn, angleUnderPointer(natural)) && random() < closeCallChance))
