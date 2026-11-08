@@ -32,6 +32,8 @@ import {
   setCloseCalls,
   setSeasonalThemes,
   setCardEnabled,
+  setCardFrequency,
+  setCardOutsideDates,
   setCardsEnabled,
   restoreWheelSettings,
   setViewersHidden,
@@ -111,6 +113,8 @@ export interface AppActions {
   setCloseCalls(on: boolean): void
   setSeasonalThemes(on: boolean): void
   setCardEnabled(cardId: string, enabled: boolean): void
+  setCardFrequency(cardId: string, n: number): void
+  setCardOutsideDates(cardId: string, on: boolean): void
   setCardsEnabled(cardIds: string[], enabled: boolean): void
   addCardEffect(effect: CardEffect, nomination?: Nomination): void
   restoreWheelSettings(): void
@@ -123,6 +127,16 @@ export type AppStore = StoreApi<AppState & AppActions>
 function soundLevel(stored: unknown, fallback: number): number {
   if (typeof stored === 'boolean') return stored ? 100 : 0
   return typeof stored === 'number' && isValidSoundVolume(stored) ? stored : fallback
+}
+
+// Stored card frequencies: whole numbers from 1 to 5 only; anything else drops (the card reads 3).
+function loadFrequencies(stored: unknown): Record<string, number> {
+  const out: Record<string, number> = {}
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return out
+  for (const [id, n] of Object.entries(stored)) {
+    if (typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 5) out[id] = n
+  }
+  return out
 }
 
 function mergeWheel(stored: Partial<WheelSettings> | undefined): WheelSettings {
@@ -169,6 +183,10 @@ function mergeWheel(stored: Partial<WheelSettings> | undefined): WheelSettings {
     disabledCards: Array.isArray(w.disabledCards)
       ? [...new Set(w.disabledCards.filter((id): id is string => typeof id === 'string'))]
       : d.disabledCards,
+    cardFrequencies: loadFrequencies(w.cardFrequencies),
+    outsideDatesCards: Array.isArray(w.outsideDatesCards)
+      ? [...new Set(w.outsideDatesCards.filter((id): id is string => typeof id === 'string'))]
+      : d.outsideDatesCards,
   }
 }
 
@@ -298,6 +316,8 @@ export function createAppStore(persistence: Persistence): AppStore {
       setCloseCalls: (on) => update((s) => setCloseCalls(s, on)),
       setSeasonalThemes: (on) => update((s) => setSeasonalThemes(s, on)),
       setCardEnabled: (cardId, enabled) => update((s) => setCardEnabled(s, cardId, enabled)),
+      setCardFrequency: (cardId, n) => update((s) => setCardFrequency(s, cardId, n)),
+      setCardOutsideDates: (cardId, on) => update((s) => setCardOutsideDates(s, cardId, on)),
       setCardsEnabled: (cardIds, enabled) => update((s) => setCardsEnabled(s, cardIds, enabled)),
       addCardEffect: (effect, nomination) => update((s) => addCardEffect(s, effect, nomination)),
       restoreWheelSettings: () => update(restoreWheelSettings),
