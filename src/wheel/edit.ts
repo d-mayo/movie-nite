@@ -21,6 +21,8 @@ export interface WheelSettings {
   showLabels: boolean
   // Whether a wildcard landing opens the wildcard wheel rather than the search.
   wildcardWheel: boolean
+  // Whether a spin can be steered into a close call.
+  closeCalls: boolean
   // Whether the app themes itself for the season the date falls in.
   seasonalThemes: boolean
   // The ids of the wildcard cards switched off; a card added later starts on.
@@ -52,6 +54,7 @@ export const defaultWheelSettings: WheelSettings = {
   soundMuted: false,
   showLabels: true,
   wildcardWheel: true,
+  closeCalls: true,
   seasonalThemes: true,
   disabledCards: [],
 }

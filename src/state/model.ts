@@ -387,6 +387,11 @@ export function setWildcardWheel(state: AppState, on: boolean): AppState {
   return withWheel(state, { wildcardWheel: on })
 }
 
+export function setCloseCalls(state: AppState, on: boolean): AppState {
+  if (state.settings.wheel.closeCalls === on) return state
+  return withWheel(state, { closeCalls: on })
+}
+
 export function setSeasonalThemes(state: AppState, on: boolean): AppState {
   if (state.settings.wheel.seasonalThemes === on) return state
   return withWheel(state, { seasonalThemes: on })

@@ -20,6 +20,7 @@ import {
   setSoundEffects,
   setSoundVolume,
   restoreWheelSettings,
+  setCloseCalls,
   setCardEnabled,
   setCardsEnabled,
   setWildcardCount,
@@ -252,6 +253,7 @@ describe('global wheel settings', () => {
       soundMuted: false,
       showLabels: true,
       wildcardWheel: true,
+      closeCalls: true,
       seasonalThemes: true,
       disabledCards: [],
     })
@@ -298,6 +300,15 @@ describe('global wheel settings', () => {
     expect(muted.settings.wheel.soundMuted).toBe(true)
     expect(setSoundMuted(muted, true)).toBe(muted)
     expect(restoreWheelSettings(muted).settings.wheel.soundMuted).toBe(false)
+  })
+
+  test('the Close calls setter changes its field, ignores an unchanged value, survives New night and is restored', () => {
+    expect(defaultState.settings.wheel.closeCalls).toBe(true)
+    const off = setCloseCalls(defaultState, false)
+    expect(off.settings.wheel.closeCalls).toBe(false)
+    expect(setCloseCalls(off, false)).toBe(off)
+    expect(newNight(off).settings.wheel.closeCalls).toBe(false)
+    expect(restoreWheelSettings(off).settings.wheel.closeCalls).toBe(true)
   })
 
   test('the Show labels setter changes its field, ignores an unchanged value and is restored', () => {
