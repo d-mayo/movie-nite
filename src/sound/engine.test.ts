@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest'
-import { fakeAudio, type FakeGain } from '../test/fakeAudio.ts'
+import { fakeAudio, fakeDurations, type FakeGain } from '../test/fakeAudio.ts'
 import {
   ambienceLevel,
-  ambienceLoopEnd,
+  ambienceRate,
   beepHz,
   crossSeconds,
   cueBeepHz,
@@ -48,7 +48,7 @@ describe('unlocking on a gesture', () => {
     document.dispatchEvent(new Event('pointerup'))
     expect(audio.contexts).toHaveLength(1)
     expect(audio.ctx.resumes).toBe(1)
-    expect(audio.loaded).toEqual(['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer', 'dloop', 'ambience', 'runout', 'clunk', 'clap', 'knock'])
+    expect(audio.loaded).toEqual(['on', 'hum', 'off', 'loop', 'stinger', 'applause', 'gasp', 'drumroll', 'cymbal', 'cheer', 'runout', 'clunk', 'clap', 'knock'])
     detach()
   })
 
@@ -68,7 +68,7 @@ describe('unlocking on a gesture', () => {
     document.dispatchEvent(new Event('keydown'))
     expect(audio.contexts).toHaveLength(1)
     expect(audio.ctx.resumes).toBe(2)
-    expect(audio.loaded).toHaveLength(16)
+    expect(audio.loaded).toHaveLength(14)
     detach()
   })
 
@@ -79,7 +79,7 @@ describe('unlocking on a gesture', () => {
     const detach = sound.attach(document)
     document.dispatchEvent(new Event('pointerup'))
     expect(audio.contexts).toHaveLength(1)
-    expect(audio.loaded).toHaveLength(16)
+    expect(audio.loaded).toHaveLength(14)
     detach()
     document.dispatchEvent(new Event('keydown'))
     expect(audio.ctx.resumes).toBe(1)
@@ -588,12 +588,15 @@ describe('the wildcard wheel', () => {
     const marchGain = march.out[0] as FakeGain
     ctx.currentTime = 5
     sound.wildcardLanded()
-    const [twin] = ctx.sourcesOf('dloop')
+    // The twin is the loop's own buffer, started where the march has reached, through a worn-reel chain.
+    const [twin] = ctx.twinsOf('loop')
     expect(twin.loop).toBe(true)
     expect(twin.loopStart).toBe(loopStart)
     expect(twin.loopEnd).toBe(loopEnd)
     expect(twin.started!.offset).toBeCloseTo(5)
     expect(twin.reaches(ctx.music)).toBe(true)
+    expect(ctx.shapers.some((shaper) => twin.reaches(shaper))).toBe(true)
+    expect(twin.detune).toBeDefined()
     expect(marchGain.gain.calls.at(-1)).toEqual({ method: 'linearRampToValueAtTime', value: 0 })
     expect(march.stoppedAt!).toBeCloseTo(5 + crossSeconds, 1)
     expect((twin.out[0] as FakeGain).gain.calls.at(-1)).toEqual({ method: 'linearRampToValueAtTime', value: distortedLevel })
@@ -604,13 +607,13 @@ describe('the wildcard wheel', () => {
     sound.spinStart()
     ctx.currentTime = loopEnd + 3
     sound.wildcardLanded()
-    expect(ctx.sourcesOf('dloop')[0].started!.offset).toBeCloseTo(loopStart + 3 - 0, 0)
+    expect(ctx.twinsOf('loop')[0].started!.offset).toBeCloseTo(loopStart + 3 - 0, 0)
     const again = await ready()
     again.sound.spinStart()
     again.sound.closeCall(3)
     again.sound.closeCallBreak()
     again.sound.wildcardLanded()
-    expect(again.ctx.sourcesOf('dloop')).toHaveLength(0)
+    expect(again.ctx.twinsOf('loop')).toHaveLength(0)
     expect(again.ctx.sourcesOf('runout')).toHaveLength(1)
   })
 
@@ -618,7 +621,7 @@ describe('the wildcard wheel', () => {
     const { ctx, sound } = await ready()
     sound.spinStart()
     sound.wildcardLanded()
-    const [twin] = ctx.sourcesOf('dloop')
+    const [twin] = ctx.twinsOf('loop')
     const twinGain = twin.out[0] as FakeGain
     ctx.currentTime = 2
     sound.reelCut()
@@ -628,7 +631,7 @@ describe('the wildcard wheel', () => {
     expect(twin.stoppedAt!).toBeLessThan(2 + cutSeconds + 0.1)
     sound.beep()
     sound.cueBeep()
-    const [leader, cue] = ctx.oscillators
+    const [leader, cue] = ctx.oscillators.slice(-2)
     expect(leader.frequency.value).toBe(beepHz)
     expect(cue.frequency.value).toBe(cueBeepHz)
     expect(cueBeepHz).not.toBe(beepHz)
@@ -648,9 +651,10 @@ describe('the wildcard wheel', () => {
     const { ctx, sound } = await ready()
     sound.reelChange()
     expect(ctx.sourcesOf('clunk')[0].reaches(ctx.effects)).toBe(true)
-    const [ambience] = ctx.sourcesOf('ambience')
+    const [ambience] = ctx.ambiencesOf('loop')
     expect(ambience.loop).toBe(true)
-    expect(ambience.loopEnd).toBe(ambienceLoopEnd)
+    expect(ambience.loopEnd).toBe(loopEnd)
+    expect(ambience.playbackRate.value).toBe(ambienceRate)
     expect(ambience.reaches(ctx.music)).toBe(true)
     expect(ambience.reaches(ctx.effects)).toBe(false)
   })
@@ -660,21 +664,21 @@ describe('the wildcard wheel', () => {
     sound.reelChange()
     sound.reelChange()
     expect(ctx.sourcesOf('clunk')).toHaveLength(2)
-    expect(ctx.sourcesOf('ambience')).toHaveLength(1)
-    expect(ctx.sourcesOf('ambience')[0].stoppedAt).toBeNull()
+    expect(ctx.ambiencesOf('loop')).toHaveLength(1)
+    expect(ctx.ambiencesOf('loop')[0].stoppedAt).toBeNull()
   })
 
   test('its spin keeps the ambience and starts no loop, with or without a countdown; the projector and hum run as ever', async () => {
     const { ctx, sound } = await ready()
     sound.reelChange()
-    const [ambience] = ctx.sourcesOf('ambience')
+    const [ambience] = ctx.ambiencesOf('loop')
     sound.spinStart(false, true)
     sound.spinEnd()
     sound.spinStart(true, true)
     sound.musicStart()
     expect(ambience.stoppedAt).toBeNull()
     expect(ctx.sourcesOf('loop')).toHaveLength(0)
-    expect(ctx.sourcesOf('dloop')).toHaveLength(0)
+    expect(ctx.twinsOf('loop')).toHaveLength(0)
     expect(ctx.sourcesOf('on')).toHaveLength(2)
     expect(ctx.sourcesOf('hum')).toHaveLength(2)
   })
@@ -683,7 +687,7 @@ describe('the wildcard wheel', () => {
     const { ctx, sound } = await ready()
     sound.reelChange()
     sound.spinStart(false, true)
-    const gain = ctx.sourcesOf('ambience')[0].out[0] as FakeGain
+    const gain = ctx.bedGainOf(ctx.ambiencesOf('loop')[0])
     sound.closeCall(3)
     expect(gain.gain.calls.at(-1)).toEqual({ method: 'linearRampToValueAtTime', value: 0 })
     expect(ctx.sourcesOf('gasp')).toHaveLength(1)
@@ -696,7 +700,7 @@ describe('the wildcard wheel', () => {
   test('a landing that leaves the win sounds for later plays no stinger and settles the ambience', async () => {
     const { ctx, sound } = await ready()
     sound.reelChange()
-    const gain = ctx.sourcesOf('ambience')[0].out[0] as FakeGain
+    const gain = ctx.bedGainOf(ctx.ambiencesOf('loop')[0])
     sound.landedQuiet()
     for (const name of ['stinger', 'applause', 'cheer'] as const) expect(ctx.sourcesOf(name)).toHaveLength(0)
     expect(gain.gain.calls.at(-1)).toEqual({ method: 'linearRampToValueAtTime', value: ambienceLevel })
@@ -706,7 +710,7 @@ describe('the wildcard wheel', () => {
     const { ctx, sound } = await ready()
     sound.reelChange()
     sound.spinStart(false, true)
-    const gain = ctx.sourcesOf('ambience')[0].out[0] as FakeGain
+    const gain = ctx.bedGainOf(ctx.ambiencesOf('loop')[0])
     sound.closeCall(3)
     sound.closeCallBreak()
     sound.landedQuiet(true)
@@ -719,7 +723,7 @@ describe('the wildcard wheel', () => {
   test('the fanfare plays the stinger, its hit on the reveal, and the applause with no cheer, the ambience dipping under them', async () => {
     const { ctx, sound } = await ready()
     sound.reelChange()
-    const gain = ctx.sourcesOf('ambience')[0].out[0] as FakeGain
+    const gain = ctx.bedGainOf(ctx.ambiencesOf('loop')[0])
     ctx.currentTime = 5
     sound.fanfare(0)
     const [stinger] = ctx.sourcesOf('stinger')
@@ -739,7 +743,7 @@ describe('the wildcard wheel', () => {
   test('the slam claps and ends the ambience and the win sounds, with no music after it', async () => {
     const { ctx, sound } = await ready()
     sound.reelChange()
-    const [ambience] = ctx.sourcesOf('ambience')
+    const [ambience] = ctx.ambiencesOf('loop')
     sound.fanfare(1)
     const wins = [...ctx.sourcesOf('stinger'), ...ctx.sourcesOf('applause')]
     ctx.currentTime = 10
@@ -747,14 +751,14 @@ describe('the wildcard wheel', () => {
     expect(ctx.sourcesOf('clap')[0].reaches(ctx.effects)).toBe(true)
     for (const source of [ambience, ...wins]) expect(source.stoppedAt).not.toBeNull()
     expect(ctx.sourcesOf('loop')).toHaveLength(0)
-    expect(ctx.sourcesOf('dloop')).toHaveLength(0)
+    expect(ctx.twinsOf('loop')).toHaveLength(0)
   })
 
   test('closing a reveal fades the ambience too', async () => {
     const { ctx, sound } = await ready()
     sound.reelChange()
     sound.revealClosed()
-    expect(ctx.sourcesOf('ambience')[0].stoppedAt).not.toBeNull()
+    expect(ctx.ambiencesOf('loop')[0].stoppedAt).not.toBeNull()
   })
 
   test('while it shows, the stinger, applause, cheer, gasp, drumroll and cymbal pass through the film-reel chain; the clap, run-out, clunk and knock do not', async () => {
@@ -802,9 +806,91 @@ describe('the wildcard wheel', () => {
   test('the ambience swells in rather than starting at full', async () => {
     const { ctx, sound } = await ready()
     sound.reelChange()
-    const gain = ctx.sourcesOf('ambience')[0].out[0] as FakeGain
+    const gain = ctx.bedGainOf(ctx.ambiencesOf('loop')[0])
     expect(gain.gain.value).toBe(ambienceLevel)
     expect(gain.gain.calls.at(-1)).toEqual({ method: 'linearRampToValueAtTime', value: ambienceLevel })
+  })
+
+  test('everything the twin chain started is stopped after the reel cut, a new spin, the slam and the reveal closing', async () => {
+    const cases: [string, (sound: SoundEngine) => void][] = [
+      ['reelCut', (sound) => sound.reelCut()],
+      ['a new spin', (sound) => sound.spinStart()],
+      ['the slam', (sound) => sound.slam()],
+      ['revealClosed', (sound) => sound.revealClosed()],
+    ]
+    for (const [name, end] of cases) {
+      const { ctx, sound } = await ready()
+      sound.spinStart()
+      const sources = ctx.sources.length
+      const oscillators = ctx.oscillators.length
+      sound.wildcardLanded()
+      const started = [...ctx.sources.slice(sources), ...ctx.oscillators.slice(oscillators)].filter((n) => n.started)
+      // The run-out is a plain effect, not part of the chain.
+      const chain = started.filter((n) => !ctx.sourcesOf('runout').includes(n as never))
+      expect(chain.length, name).toBeGreaterThan(5)
+      end(sound)
+      for (const node of chain) expect(node.stoppedAt, name).not.toBeNull()
+    }
+  })
+
+  test('the twin drops out within a second of the landing, so an ordinary landing is heard to', async () => {
+    const { ctx, sound } = await ready()
+    sound.spinStart()
+    ctx.currentTime = 5
+    const gains = ctx.gains.length
+    sound.wildcardLanded()
+    // The dropout gain dips to 0.1 on a ramp: the earliest dip must come soon after the landing.
+    const dips = ctx.gains
+      .slice(gains)
+      .flatMap((g) => g.gain.timed)
+      .filter((c) => c.method === 'linearRampToValueAtTime' && c.value === 0.1)
+    expect(dips.length).toBeGreaterThanOrEqual(2)
+    const first = Math.min(...dips.map((c) => c.at!))
+    expect(first - 5).toBeGreaterThan(0.1)
+    expect(first - 5).toBeLessThan(1)
+  })
+
+  test('the twin gate flickers at 24 fps and the speed wanders through the source detune', async () => {
+    const { ctx, sound } = await ready()
+    sound.spinStart()
+    const oscillators = ctx.oscillators.length
+    sound.wildcardLanded()
+    const hz = ctx.oscillators.slice(oscillators).map((o) => o.frequency.value)
+    expect(hz).toContain(24)
+  })
+
+  test('the ambience is built from the loop at half speed over a low-passed hum, hiss and dust', async () => {
+    const { ctx, sound } = await ready()
+    const sources = ctx.sources.length
+    sound.reelChange()
+    const made = ctx.sources.slice(sources).filter((n) => n.buffer?.duration !== fakeDurations.clunk)
+    // The loop at half speed, the hum, the hiss and the dust.
+    expect(made).toHaveLength(4)
+    const [hum] = ctx.sources.filter((n) => n.buffer?.duration === fakeDurations.hum && ctx.isLive(n))
+    expect(hum.reaches(ctx.music)).toBe(true)
+    expect(hum.reaches(ctx.effects)).toBe(false)
+    // The hum reaches the ambience's level through a low-pass at a fifth of the projector's level.
+    expect(ctx.bedGainOf(hum)).toBe(ctx.bedGainOf(ctx.ambiencesOf('loop')[0]))
+    expect(ctx.sourcesOf('hum')).toHaveLength(0)
+    for (const node of made) expect(node.stoppedAt).toBeNull()
+  })
+
+  test('the slam stops every source the ambience started', async () => {
+    const { ctx, sound } = await ready()
+    const sources = ctx.sources.length
+    sound.reelChange()
+    const made = ctx.sources.slice(sources).filter((n) => n.started && n.buffer?.duration !== fakeDurations.clunk)
+    sound.slam()
+    for (const node of made) expect(node.stoppedAt).not.toBeNull()
+  })
+
+  test('the ambience is made from the march after a march twin, and nothing loads a distorted loop or ambience file', async () => {
+    const { ctx, sound, loaded } = await ready()
+    sound.spinStart()
+    sound.wildcardLanded()
+    sound.reelChange()
+    expect(ctx.ambiencesOf('loop')).toHaveLength(1)
+    expect(loaded).toHaveLength(14)
   })
 
   test('every new call is a no-op before a gesture', () => {
@@ -830,7 +916,7 @@ describe('the wildcard wheel', () => {
     for (const name of ['runout', 'clunk', 'knock', 'clap'] as const) {
       expect(ctx.sourcesOf(name)[0].reaches(ctx.effects), name).toBe(true)
     }
-    expect(ctx.sourcesOf('ambience')[0].reaches(ctx.music)).toBe(true)
+    expect(ctx.ambiencesOf('loop')[0].reaches(ctx.music)).toBe(true)
   })
 
   test('musicResume ramps a close-call-silenced loop back to its level with no stinger', async () => {

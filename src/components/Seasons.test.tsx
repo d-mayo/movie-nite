@@ -6,12 +6,13 @@ import { createMemoryPersistence } from '../state/persistence.ts'
 import { createAppStore } from '../state/store.ts'
 import { debugControl, openDebug, closeDebug } from '../test/debug.ts'
 import { defaultWheelSettings } from '../wheel/edit.ts'
+import { silentSound, type SoundEngine } from '../sound/engine.ts'
 
 function film(id: number): Nomination {
   return { tmdbId: id, title: `Film ${id}`, year: 2000, posterPath: null, overview: 'A film.', runtime: 112, genres: [] }
 }
 
-function setup(today?: Date, wheel = {}) {
+function setup(today?: Date, wheel = {}, sound?: SoundEngine) {
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
@@ -23,7 +24,7 @@ function setup(today?: Date, wheel = {}) {
       night: { ...defaultState.night, presentIds: ['a', 'b'], nominations: { a: film(1), b: film(2) } },
     }),
   )
-  render(<App store={store} fetchFn={vi.fn()} random={() => 0.5} spinMs={20} today={today} />)
+  render(<App store={store} fetchFn={vi.fn()} random={() => 0.5} spinMs={20} today={today} sound={sound} />)
   return store
 }
 
@@ -165,4 +166,45 @@ test('turning Seasonal themes off brings back the plain logo, and on brings Chri
   expect(isPlain(banner())).toBe(true)
   fireEvent.click(toggle)
   expect(isChristmas(banner())).toBe(true)
+})
+
+// A recording sound engine: the seasons it was told, in order.
+function recordingSound() {
+  const seasons: (string | null)[] = []
+  const cues: (string | null)[] = []
+  const sound: SoundEngine = {
+    ...silentSound,
+    setSeason: (season) => void seasons.push(season),
+    // The season the engine was last told when a cue was asked for.
+    seasonCue: () => void cues.push(seasons.at(-1) ?? null),
+  }
+  return { sound, seasons, cues }
+}
+
+test('the sound engine is told the active theme: Christmas by date, none when the switch is off, and a forced season', () => {
+  const { sound, seasons } = recordingSound()
+  setup(dec10, {}, sound)
+  expect(seasons.at(-1)).toBe('christmas')
+  openEditor()
+  fireEvent.click(within(seasonsCard()).getByRole('switch', { name: 'Seasonal themes' }))
+  expect(seasons.at(-1)).toBeNull()
+  cleanup()
+  window.history.pushState({}, '', '/?debug')
+  const forced = recordingSound()
+  setup(nov7, {}, forced.sound)
+  expect(forced.seasons.at(-1)).toBeNull()
+  fireEvent.change(debugControl('Force season'), { target: { value: 'christmas' } })
+  expect(forced.seasons.at(-1)).toBe('christmas')
+})
+
+test('forcing a season in the debug menu plays its cue, after the engine is told; By date and None play none', () => {
+  window.history.pushState({}, '', '/?debug')
+  const { sound, cues } = recordingSound()
+  setup(nov7, {}, sound)
+  expect(cues).toEqual([])
+  fireEvent.change(debugControl('Force season'), { target: { value: 'christmas' } })
+  expect(cues).toEqual(['christmas'])
+  fireEvent.change(debugControl('Force season'), { target: { value: 'none' } })
+  fireEvent.change(debugControl('Force season'), { target: { value: '' } })
+  expect(cues).toEqual(['christmas'])
 })

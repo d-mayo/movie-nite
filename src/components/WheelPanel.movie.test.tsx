@@ -59,6 +59,8 @@ function recordingSound() {
   const engine: SoundEngine = {
     attach: () => () => {},
     apply: () => {},
+    setSeason: () => {},
+    seasonCue: () => {},
     spinStart: () => {},
     musicStart: () => {},
     musicResume: () => {},
