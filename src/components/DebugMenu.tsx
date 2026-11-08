@@ -36,7 +36,8 @@ export default function DebugMenu({ options, onChange, locked, onClosed }: Props
     const r = ref.current?.getBoundingClientRect()
     return !!r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
   }
-  const closeCallsAvailable = settings.wheel.spinSeconds >= closeCallMinSpinSeconds
+  const longEnough = settings.wheel.spinSeconds >= closeCallMinSpinSeconds
+  const closeCallsAvailable = longEnough && settings.wheel.closeCalls
   return (
     <dialog
       ref={ref}
@@ -70,7 +71,9 @@ export default function DebugMenu({ options, onChange, locked, onClosed }: Props
               onChange={(e) => onChange({ closeCalls: e.target.checked })}
             />
             Force close calls
-            {!closeCallsAvailable && ` (needs a spin Length of ${closeCallMinSpinSeconds} s or more)`}
+            {!longEnough
+              ? ` (needs a spin Length of ${closeCallMinSpinSeconds} s or more)`
+              : !closeCallsAvailable && ' (needs Close calls on in Wheel settings)'}
           </label>
           <label className="switch">
             <input

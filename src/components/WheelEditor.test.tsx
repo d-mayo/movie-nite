@@ -532,6 +532,19 @@ test('Restore All Defaults is enabled by a sound setting alone, and resets it', 
   expect(restore).toBeDisabled()
 })
 
+test('the Spin card has a Close calls switch, on by default, that sets the setting', () => {
+  const store = setup()
+  openEditor()
+  const card = screen.getByRole('heading', { name: 'Spin' }).closest('fieldset')!
+  const toggle = within(card as HTMLElement).getByRole('switch', { name: 'Close calls' })
+  expect(toggle).toBeChecked()
+  fireEvent.click(toggle)
+  expect(store.getState().settings.wheel.closeCalls).toBe(false)
+  expect(toggle).not.toBeChecked()
+  fireEvent.click(toggle)
+  expect(store.getState().settings.wheel.closeCalls).toBe(true)
+})
+
 test('the Show labels switch hides every viewer label but keeps the wedges and the wildcard word', () => {
   const store = setup()
   openEditor()
@@ -564,6 +577,7 @@ test('a locked drawer disables every control but the Sound card, tick clicks inc
   expect(screen.getByRole('switch', { name: 'One per viewer' })).toBeDisabled()
   expect(screen.getByLabelText('Wildcard weight')).toBeDisabled()
   expect(screen.getByRole('switch', { name: 'Show labels' })).toBeDisabled()
+  expect(screen.getByRole('switch', { name: 'Close calls' })).toBeDisabled()
   expect(screen.getByRole('switch', { name: 'Wildcard wheel' })).toBeDisabled()
   expect(screen.getByLabelText('Weight per viewer')).toBeDisabled()
   expect(screen.getByLabelText('Length')).toBeDisabled()

@@ -83,6 +83,7 @@ export default function WheelEditor({ locked = false, seasonNow = null, onClosed
     setSoundMuted,
     setShowLabels,
     setWildcardWheel,
+    setCloseCalls,
     setSeasonalThemes,
     restoreWheelSettings,
   } = useApp()
@@ -194,6 +195,15 @@ export default function WheelEditor({ locked = false, seasonNow = null, onClosed
             <fieldset className="inset-card" disabled={locked} aria-labelledby="spin-heading">
               <div className="card-head">
                 <h3 id="spin-heading">Spin</h3>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={wheel.closeCalls}
+                    onChange={(e) => setCloseCalls(e.target.checked)}
+                  />
+                  Close calls
+                </label>
               </div>
               <Slider
                 label="Length"

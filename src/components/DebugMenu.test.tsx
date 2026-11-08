@@ -106,6 +106,20 @@ test('the controls lock during a spin while the overlay still opens, and Force c
   expect(close.parentElement).toHaveTextContent('needs a spin Length of 5 s or more')
 })
 
+test('Force close calls is disabled while Close calls is off, and the Length note wins when both apply', () => {
+  setup({ closeCalls: false })
+  const close = within(openDebug()).getByLabelText(/Force close calls/)
+  expect(close).toBeDisabled()
+  expect(close.parentElement).toHaveTextContent('Force close calls (needs Close calls on in Wheel settings)')
+  closeDebug()
+  cleanup()
+  setup({ closeCalls: false, spinSeconds: 4 })
+  const both = within(openDebug()).getByLabelText(/Force close calls/)
+  expect(both).toBeDisabled()
+  expect(both.parentElement).toHaveTextContent('needs a spin Length of 5 s or more')
+  expect(both.parentElement).not.toHaveTextContent('Close calls on')
+})
+
 test('a value persists across closing and reopening, and is off again after a remount', () => {
   setup()
   fireEvent.click(within(openDebug()).getByLabelText('Force catches'))
