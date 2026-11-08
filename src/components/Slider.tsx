@@ -10,11 +10,13 @@ interface SliderProps {
   // How the value is shown and announced; the plain number by default.
   format?: (n: number) => string
   disabled?: boolean
+  // An accessible name for the input where the visible label is not enough on its own.
+  ariaLabel?: string
 }
 
 // A range slider that applies every change at once: the label and its value on
 // one row, the full-width track under them, filled up to the thumb.
-export default function Slider({ label, value, step, min, max, onChange, format, disabled }: SliderProps) {
+export default function Slider({ label, value, step, min, max, onChange, format, disabled, ariaLabel }: SliderProps) {
   const id = useId()
   const shown = format ? format(value) : String(value)
   const fill = max > min ? ((value - min) / (max - min)) * 100 : 0
@@ -34,6 +36,7 @@ export default function Slider({ label, value, step, min, max, onChange, format,
         max={max}
         value={value}
         disabled={disabled}
+        aria-label={ariaLabel}
         aria-valuetext={format ? shown : undefined}
         style={{ '--fill': `${fill}%` } as CSSProperties}
         onChange={(e) => onChange(Number(e.target.value))}

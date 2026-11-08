@@ -1,5 +1,6 @@
 import { useEffect, useRef, type RefCallback } from 'react'
 import { useApp } from '../state/store.ts'
+import Slider from './Slider.tsx'
 import { cards, type CardType } from '../wildcards/cards.ts'
 
 // The cards the overlay lists: the registry's, the FFF ones only once they are unlocked.
@@ -16,8 +17,8 @@ const groups: { id: string; type: CardType; fff: boolean; heading: string }[] = 
 // Mounted only while shown, like Credits: Done unmounts it directly and Escape does so
 // through the native `close` event. A press outside its box closes it too.
 export default function CardSwitches({ onClosed }: { onClosed: () => void }) {
-  const { settings, setCardEnabled, setCardsEnabled } = useApp()
-  const { disabledCards } = settings.wheel
+  const { settings, setCardEnabled, setCardsEnabled, setCardFrequency, setCardOutsideDates } = useApp()
+  const { disabledCards, cardFrequencies, outsideDatesCards } = settings.wheel
   const ref = useRef<HTMLDialogElement>(null)
   // True from a press on the backdrop, outside the box, until its click.
   const outsidePress = useRef(false)
@@ -87,7 +88,10 @@ export default function CardSwitches({ onClosed }: { onClosed: () => void }) {
               </label>
             </div>
             <ul>
-              {group.map((card) => (
+              {group.map((card) => {
+                const off = disabledCards.includes(card.id)
+                const outside = outsideDatesCards.includes(card.id)
+                return (
                   <li key={card.id}>
                     <label className="switch">
                       <input
@@ -100,8 +104,33 @@ export default function CardSwitches({ onClosed }: { onClosed: () => void }) {
                       {card.name}
                     </label>
                     <p id={`card-desc-${card.id}`}>{card.description}</p>
+                    <div className="card-tuning">
+                      <Slider
+                        label="Frequency"
+                        ariaLabel={`Frequency, ${card.name}`}
+                        value={cardFrequencies[card.id] ?? 3}
+                        min={1}
+                        max={5}
+                        step={1}
+                        disabled={off || (!!card.guaranteed && !outside)}
+                        onChange={(n) => setCardFrequency(card.id, n)}
+                      />
+                      {card.guaranteed && (
+                        <label className="switch">
+                          <input
+                            type="checkbox"
+                            role="switch"
+                            aria-label={`Outside its dates, ${card.name}`}
+                            checked={outside}
+                            onChange={(e) => setCardOutsideDates(card.id, e.target.checked)}
+                          />
+                          Outside its dates
+                        </label>
+                      )}
+                    </div>
                   </li>
-              ))}
+                )
+              })}
             </ul>
           </section>
           )

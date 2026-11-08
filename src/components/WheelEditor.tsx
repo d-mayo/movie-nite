@@ -44,7 +44,7 @@ function RestoreDialog({ onConfirm, onClosed }: { onConfirm: () => void; onClose
   return (
     <dialog ref={ref} className="card confirm" aria-labelledby="restore-heading">
       <h2 id="restore-heading">Restore all wheel settings?</h2>
-      <p>Every wildcard, card switch, spin, default and sound setting goes back to its factory value. Adjustments made for a viewer stay.</p>
+      <p>Every wildcard, card switch, card frequency, spin, default and sound setting goes back to its factory value. Adjustments made for a viewer stay.</p>
       <div className="confirm-actions">
         <button
           type="button"
@@ -116,6 +116,11 @@ export default function WheelEditor({ locked = false, seasonNow = null, onClosed
     const factory = defaultWheelSettings[k]
     if (Array.isArray(now) && Array.isArray(factory)) {
       return now.length === factory.length && now.every((v, i) => v === factory[i])
+    }
+    if (now && factory && typeof now === 'object' && typeof factory === 'object') {
+      const a = Object.entries(now)
+      const b = factory as Record<string, unknown>
+      return a.length === Object.keys(b).length && a.every(([key, v]) => b[key] === v)
     }
     return now === factory
   })
