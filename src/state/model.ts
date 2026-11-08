@@ -406,6 +406,24 @@ export function setCardEnabled(state: AppState, cardId: string, enabled: boolean
   })
 }
 
+// Sets how often a card is dealt, 1 to 5; 3 is the default and leaves the map.
+export function setCardFrequency(state: AppState, cardId: string, n: number): AppState {
+  if (!Number.isInteger(n) || n < 1 || n > 5) return state
+  const map = state.settings.wheel.cardFrequencies
+  if ((map[cardId] ?? 3) === n) return state
+  const next = { ...map }
+  if (n === 3) delete next[cardId]
+  else next[cardId] = n
+  return withWheel(state, { cardFrequencies: next })
+}
+
+// Switches a seasonal card's Outside its dates setting.
+export function setCardOutsideDates(state: AppState, cardId: string, on: boolean): AppState {
+  const ids = state.settings.wheel.outsideDatesCards
+  if (ids.includes(cardId) === on) return state
+  return withWheel(state, { outsideDatesCards: on ? [...ids, cardId] : ids.filter((id) => id !== cardId) })
+}
+
 // Switches a whole group of wildcard cards on or off at once.
 export function setCardsEnabled(state: AppState, cardIds: string[], enabled: boolean): AppState {
   const disabled = state.settings.wheel.disabledCards

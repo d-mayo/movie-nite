@@ -27,6 +27,10 @@ export interface WheelSettings {
   seasonalThemes: boolean
   // The ids of the wildcard cards switched off; a card added later starts on.
   disabledCards: string[]
+  // How often each card comes up, 1 to 5; only cards the host moved are here, a missing card is at 3.
+  cardFrequencies: Record<string, number>
+  // The ids of the seasonal cards whose Outside its dates switch is on.
+  outsideDatesCards: string[]
 }
 
 // What the host changed for one viewer tonight; a field is present only when set.
@@ -57,6 +61,8 @@ export const defaultWheelSettings: WheelSettings = {
   closeCalls: true,
   seasonalThemes: true,
   disabledCards: [],
+  cardFrequencies: {},
+  outsideDatesCards: [],
 }
 
 export const minWeight = 0.5

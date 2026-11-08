@@ -155,6 +155,8 @@ test('wheel settings and adjustments survive a reload', () => {
     closeCalls: true,
     seasonalThemes: true,
     disabledCards: [],
+    cardFrequencies: {},
+    outsideDatesCards: [],
   })
 })
 
@@ -535,6 +537,25 @@ test('the disabled cards load empty unless stored as an array, keep only unique 
   store.getState().restoreWheelSettings()
   expect(store.getState().settings.wheel.disabledCards).toEqual([])
   expect(store.getState().settings.wheel.wildcardWheel).toBe(true)
+})
+
+test('card frequencies load only whole numbers from 1 to 5, and outside-dates ids load like the disabled cards', () => {
+  const load = (wheelPart: Record<string, unknown>) => {
+    const persistence = createMemoryPersistence()
+    const wheel = { ...defaultWheelSettings, ...wheelPart } as never
+    persistence.save({ ...defaultState, settings: { ...defaultState.settings, wheel } })
+    return createAppStore(persistence).getState().settings.wheel
+  }
+  expect(
+    load({ cardFrequencies: { reshuffle: 5, 'gone-card': 1, a: 0, b: 7, c: 2.5, d: '4', blind: 4 } }).cardFrequencies,
+  ).toEqual({ reshuffle: 5, 'gone-card': 1, blind: 4 })
+  expect(load({ cardFrequencies: 'x' }).cardFrequencies).toEqual({})
+  expect(load({ cardFrequencies: [5] }).cardFrequencies).toEqual({})
+  expect(load({ outsideDatesCards: ['christmas', 3, 'christmas', 'gone', null] }).outsideDatesCards).toEqual([
+    'christmas',
+    'gone',
+  ])
+  expect(load({ outsideDatesCards: 'christmas' }).outsideDatesCards).toEqual([])
 })
 
 test('fffUnlocked loads false unless stored as true, and Restore All Defaults leaves it on', () => {

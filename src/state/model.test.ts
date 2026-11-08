@@ -22,6 +22,8 @@ import {
   restoreWheelSettings,
   setCloseCalls,
   setCardEnabled,
+  setCardFrequency,
+  setCardOutsideDates,
   setCardsEnabled,
   setWildcardCount,
   setWildcardsPerViewer,
@@ -256,6 +258,8 @@ describe('global wheel settings', () => {
       closeCalls: true,
       seasonalThemes: true,
       disabledCards: [],
+      cardFrequencies: {},
+      outsideDatesCards: [],
     })
   })
 
@@ -663,6 +667,33 @@ describe('setCardEnabled', () => {
     expect(setCardEnabled(defaultState, 'blind-spin', true)).toBe(defaultState)
     expect(setCardEnabled(off, 'blind-spin', true).settings.wheel.disabledCards).toEqual([])
     expect(restoreWheelSettings(off).settings.wheel.disabledCards).toEqual([])
+  })
+})
+
+describe('card frequencies and Outside its dates', () => {
+  test('setCardFrequency sets, refuses bad values, drops the entry at 3 and is a no-op when unchanged', () => {
+    const four = setCardFrequency(defaultState, 'blind-spin', 4)
+    expect(four.settings.wheel.cardFrequencies).toEqual({ 'blind-spin': 4 })
+    for (const bad of [0, 6, 2.5, NaN]) expect(setCardFrequency(defaultState, 'blind-spin', bad)).toBe(defaultState)
+    expect(setCardFrequency(four, 'blind-spin', 4)).toBe(four)
+    expect(setCardFrequency(defaultState, 'blind-spin', 3)).toBe(defaultState)
+    expect(setCardFrequency(four, 'blind-spin', 3).settings.wheel.cardFrequencies).toEqual({})
+  })
+
+  test('setCardOutsideDates switches on and off and is a no-op when unchanged', () => {
+    const on = setCardOutsideDates(defaultState, 'christmas', true)
+    expect(on.settings.wheel.outsideDatesCards).toEqual(['christmas'])
+    expect(setCardOutsideDates(on, 'christmas', true)).toBe(on)
+    expect(setCardOutsideDates(defaultState, 'christmas', false)).toBe(defaultState)
+    expect(setCardOutsideDates(on, 'christmas', false).settings.wheel.outsideDatesCards).toEqual([])
+  })
+
+  test('New night keeps both and Restore empties them', () => {
+    const s = setCardOutsideDates(setCardFrequency(defaultState, 'blind-spin', 1), 'christmas', true)
+    expect(newNight(s).settings.wheel.cardFrequencies).toEqual({ 'blind-spin': 1 })
+    expect(newNight(s).settings.wheel.outsideDatesCards).toEqual(['christmas'])
+    expect(restoreWheelSettings(s).settings.wheel.cardFrequencies).toEqual({})
+    expect(restoreWheelSettings(s).settings.wheel.outsideDatesCards).toEqual([])
   })
 })
 

@@ -18,7 +18,7 @@ import { chooseForceCard, closeDebug, debugControl, toggleForce } from '../test/
 // The deal is the real one unless a test forces a card with `forceCard`.
 vi.mock('../wildcards/deal.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../wildcards/deal.ts')>()
-  return { ...actual, dealCards: vi.fn(actual.dealCards) }
+  return { ...actual, dealCards: vi.fn(actual.dealCards), dealSubBoard: vi.fn(actual.dealSubBoard) }
 })
 
 // A March day, so no seasonal card is guaranteed onto the deal and these tests do not depend on the date.
@@ -1015,4 +1015,49 @@ test('the viewer key hides while the wildcard wheel shows and comes back after t
   fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Back to the main wheel' }))
   await waitFor(() => expect(wedgeKinds()).not.toContain('card'))
   await waitFor(() => expect(key()).not.toBeNull())
+})
+
+test('the saved frequencies and Outside its dates ids reach the deal as its tuning', async () => {
+  const frequencies = { 'blind-spin': 5, 'genre-night': 1 }
+  setup({ wheel: { cardFrequencies: frequencies, outsideDatesCards: ['christmas'] } })
+  vi.mocked(dealCards).mockClear()
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
+  expect(vi.mocked(dealCards).mock.calls[0][4]).toEqual({ frequencies, outsideDates: ['christmas'] })
+  expect(screen.getByTestId('negative-face')).toBeTruthy()
+})
+
+test('with every card off but Christmas, a March wildcard opens the wildcard wheel only with its Outside its dates switch on', async () => {
+  const disabledCards = cards.map((c) => c.id).filter((id) => id !== 'christmas')
+  setup({ wheel: { disabledCards, outsideDatesCards: ['christmas'] } })
+  fireEvent.click(spinButton())
+  await waitFor(() => expect(wedgeKinds()).toEqual(Array(8).fill('card')))
+  expect(wheelText()).toMatch(/CHRISTMAS/)
+  cleanup()
+  setup({ wheel: { disabledCards } })
+  fireEvent.click(spinButton())
+  const dialog = await screen.findByRole('dialog')
+  expect(within(dialog).getByRole('heading')).toHaveTextContent('Wildcard!')
+  expect(wedgeKinds()).not.toContain('card')
+})
+
+test('a sub-board is dealt with the saved frequencies', async () => {
+  const { dealSubBoard } = await import('../wildcards/deal.ts')
+  setup({ wheel: { cardFrequencies: { 'everyone-weight': 5 } } })
+  forceCard('wildcard-spins')
+  vi.mocked(dealSubBoard).mockClear()
+  const dialog = await openCard()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Deal the spins' }))
+  await waitFor(() => expect(screen.getByTestId('spin-counter')).toBeInTheDocument())
+  expect(vi.mocked(dealSubBoard).mock.calls[0][3]).toEqual({ frequencies: { 'everyone-weight': 5 }, outsideDates: [] })
+  expect(wheelText()).toMatch(/EVERYONE/)
+})
+
+test('the debug Force card is still eight copies of the forced card whatever the frequencies', async () => {
+  window.history.pushState({}, '', '/?debug')
+  setup({ wheel: { cardFrequencies: { 'blind-spin': 1, 'genre-night': 5 } } })
+  toggleForce('Force wildcards')
+  chooseForceCard('blind-spin')
+  await openCard()
+  expect(wheelText().match(/BLIND/g)).toHaveLength(8)
 })
