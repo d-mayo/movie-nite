@@ -290,6 +290,11 @@ export default function WheelPanel({
       ? `Waiting for ${nameList.format(missing)} to nominate.`
       : null
 
+  // The host's card frequencies and Outside its dates switches, for every deal.
+  function dealTuning() {
+    return { frequencies: settings.wheel.cardFrequencies, outsideDates: settings.wheel.outsideDatesCards }
+  }
+
   // What the cards are dealt against: the viewers on the wheel as it is now, cards included.
   function dealContext(): DealContext {
     const ordered = roster.filter((v) => onWheel.includes(v.id))
@@ -366,7 +371,7 @@ export default function WheelPanel({
       !onCards &&
       slices[drawn].kind === 'wildcard' &&
       settings.wheel.wildcardWheel &&
-      (canDeal(dealContext(), settings.wheel.disabledCards, settings.fffUnlocked) || forcedCardEligible())
+      (canDeal(dealContext(), settings.wheel.disabledCards, settings.fffUnlocked, dealTuning()) || forcedCardEligible())
     const blindPress = !onCards && isBlind(night)
     const reduced = prefersReducedMotion()
     // A sub-board's spins are plain: no close call, catch or countdown, and a capped length.
@@ -567,7 +572,7 @@ export default function WheelPanel({
       const deal =
         forced && (!forced.fff || settings.fffUnlocked) && forced.eligible(context)
           ? Array.from({ length: dealSize }, () => ({ ...forced.roll(context, random), weight: 1 }))
-          : dealCards(context, random, settings.wheel.disabledCards, !!settings.fffUnlocked)
+          : dealCards(context, random, settings.wheel.disabledCards, !!settings.fffUnlocked, dealTuning())
       if (deal.length === 0) {
         setSpin((s) => s && { ...s, revealedAt: new Date(), zoom: null })
         return
@@ -738,7 +743,7 @@ export default function WheelPanel({
   // A wildcard-spins card's sub-board is dealt once, against the wheel as it is now, and rolls in over the gate
   // (a crossfade with reduced motion); it waits for its press like the wildcard wheel.
   function enterSubBoard(total: number) {
-    const deal = dealSubBoard(dealContext(), random, settings.wheel.disabledCards)
+    const deal = dealSubBoard(dealContext(), random, settings.wheel.disabledCards, dealTuning())
     if (deal.length === 0) {
       leave()
       return

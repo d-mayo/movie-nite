@@ -247,3 +247,308 @@ describe('the wildcard-spins sub-board', () => {
     expect(spinsDealt(context, subBoardPool.filter((id) => id !== 'wildcards'))).toBe(true)
   })
 })
+
+// Deals recorded from the code before card frequencies existed (seeds 1, 2, 3, 7 and 11).
+const golden = {
+  march: [
+    [
+      'genre-night|Action night|3',
+      'world-cinema|Russian cinema|2',
+      'genre-night|Mystery night|3',
+      'world-cinema|Korean cinema|3',
+      'viewer-slices|B +1 slices|3',
+      'viewer-weight|B −1 weight|1',
+      'viewer-weight|B −3 weight|2',
+      'everyone-weight|Everyone −2 weight|4'
+    ],
+    [
+      "critics-darlings|Critics' darlings 7.3|2",
+      'wildcard-spins|5× wildcard spins|4',
+      'blind-spin|Blind spin|2',
+      "so-bad-its-good|So bad it's good 4.1|4",
+      'everyone-weight|Everyone +3 weight|3',
+      'viewer-slices|C +3 slices|1',
+      'decade-roulette|1950s|1',
+      'genre-night|Western night|2'
+    ],
+    [
+      "critics-darlings|Critics' darlings 7.0|3",
+      'viewer-weight|C +2 weight|1',
+      'everyone-slices|Everyone −1 slices|1',
+      "critics-darlings|Critics' darlings 7.5|4",
+      'decade-roulette|1970s|4',
+      'everyone-slices|Everyone −2 slices|5',
+      'wildcard-spins|2× wildcard spins|5',
+      'blind-spin|Blind spin|4'
+    ],
+    [
+      'viewer-weight|A −3 weight|3',
+      'wildcards|+2 wildcards|2',
+      'wildcard-spins|4× wildcard spins|2',
+      'viewer-slices|C −1 slices|2',
+      'everyone-slices|Everyone −1 slices|5',
+      'everyone-weight|Everyone −1 weight|1',
+      'viewer-slices|A −2 slices|1',
+      'decade-roulette|1980s|4'
+    ],
+    [
+      'wildcard-spins|4× wildcard spins|4',
+      'genre-night|Thriller night|3',
+      'viewer-weight|B −2 weight|3',
+      'decade-roulette|1970s|4',
+      "critics-darlings|Critics' darlings 7.1|1",
+      'everyone-slices|Everyone +2 slices|3',
+      'viewer-slices|B −1 slices|5',
+      "so-bad-its-good|So bad it's good 5.2|2"
+    ]
+  ],
+  dec: [
+    [
+      'viewer-weight|B −3 weight|2',
+      'genre-night|Mystery night|3',
+      'world-cinema|Korean cinema|3',
+      'viewer-slices|B +1 slices|3',
+      'viewer-weight|B −1 weight|1',
+      'christmas|Christmas|1',
+      'blind-spin|Blind spin|3',
+      "so-bad-its-good|So bad it's good 4.4|2"
+    ],
+    [
+      'wildcards|+1 wildcard|3',
+      'decade-roulette|1990s|3',
+      'wildcards|+3 wildcards|1',
+      "so-bad-its-good|So bad it's good 4.3|3",
+      "so-bad-its-good|So bad it's good 4.9|1",
+      'christmas|Christmas|4',
+      'viewer-weight|C +1 weight|1',
+      'viewer-weight|C +2 weight|5'
+    ],
+    [
+      'viewer-weight|B +3 weight|3',
+      'wildcard-spins|2× wildcard spins|2',
+      'genre-night|Comedy night|1',
+      "critics-darlings|Critics' darlings 7.5|4",
+      'decade-roulette|1970s|4',
+      'christmas|Christmas|2',
+      'wildcard-spins|5× wildcard spins|3',
+      'viewer-weight|C +3 weight|4'
+    ],
+    [
+      'christmas|Christmas|1',
+      'world-cinema|Swedish cinema|3',
+      'blind-spin|Blind spin|3',
+      'everyone-slices|Everyone −2 slices|2',
+      'everyone-weight|Everyone −2 weight|1',
+      'wildcards|+1 wildcard|3',
+      'everyone-slices|Everyone −1 slices|5',
+      'everyone-weight|Everyone +1 weight|2'
+    ],
+    [
+      'wildcard-spins|4× wildcard spins|3',
+      'decade-roulette|1980s|1',
+      'blind-spin|Blind spin|3',
+      "so-bad-its-good|So bad it's good 4.6|4",
+      'christmas|Christmas|4',
+      'everyone-weight|Everyone +1 weight|2',
+      'wildcards|+2 wildcards|1',
+      'genre-night|Horror night|3'
+    ]
+  ],
+  sub: [
+    [
+      'everyone-slices|Everyone +2 slices|5',
+      'wildcards|+1 wildcard|4',
+      'everyone-slices|Everyone +3 slices|3',
+      'everyone-weight|Everyone +2 weight|2',
+      'viewer-weight|B +2 weight|4',
+      'viewer-slices|A +2 slices|3',
+      'everyone-slices|Everyone +1 slices|4',
+      'everyone-weight|Everyone −1 weight|4'
+    ],
+    [
+      'everyone-slices|Everyone +1 slices|3',
+      'wildcards|+2 wildcards|3',
+      'viewer-slices|C +3 slices|2',
+      'everyone-weight|Everyone −2 weight|1',
+      'everyone-slices|Everyone +3 slices|1',
+      'wildcards|+1 wildcard|1',
+      'viewer-weight|A −2 weight|4',
+      'everyone-weight|Everyone +1 weight|3'
+    ],
+    [
+      'everyone-slices|Everyone +2 slices|1',
+      'viewer-weight|A −1 weight|1',
+      'everyone-slices|Everyone +3 slices|5',
+      'viewer-slices|C +3 slices|3',
+      'wildcards|+2 wildcards|1',
+      'wildcards|+1 wildcard|5',
+      'viewer-weight|B −1 weight|1',
+      'everyone-weight|Everyone −2 weight|4'
+    ],
+    [
+      'viewer-weight|A −3 weight|3',
+      'everyone-weight|Everyone +1 weight|3',
+      'everyone-slices|Everyone +1 slices|4',
+      'everyone-weight|Everyone +2 weight|2',
+      'everyone-weight|Everyone +3 weight|2',
+      'wildcards|+1 wildcard|1',
+      'viewer-weight|C −2 weight|4',
+      'wildcards|+2 wildcards|5'
+    ],
+    [
+      'everyone-weight|Everyone −2 weight|3',
+      'wildcards|+2 wildcards|1',
+      'everyone-slices|Everyone −1 slices|1',
+      'viewer-slices|B +2 slices|1',
+      'wildcards|+3 wildcards|4',
+      'viewer-slices|B +1 slices|4',
+      'wildcards|+1 wildcard|1',
+      'everyone-slices|Everyone +2 slices|3'
+    ]
+  ]
+}
+const goldenViewers = ['a', 'b', 'c'].map((id) => ({ id, name: id.toUpperCase(), slices: 3, weight: 5, film: null, canReshuffle: false, canBacklog: false }))
+const goldenContext = (day: Date): DealContext => ({ viewers: goldenViewers, wildcardCount: 3, today: day, commonGround: false })
+const summarize = (deal: { cardId: string; label: string; weight: number }[]) => deal.map((c) => `${c.cardId}|${c.label}|${c.weight}`)
+
+describe('golden deals', () => {
+  const seeds = [1, 2, 3, 7, 11]
+  const allThree = { frequencies: Object.fromEntries(cards.map((c) => [c.id, 3])), outsideDates: [] }
+  for (const [name, tuning] of [['no tuning', undefined], ['every card at 3', allThree]] as const) {
+    it(`March, December 10 and the sub-board are unchanged with ${name}`, () => {
+      seeds.forEach((seed, i) => {
+        expect(summarize(dealCards(goldenContext(new Date(2026, 2, 15)), seeded(seed), [], false, tuning))).toEqual(golden.march[i])
+        expect(summarize(dealCards(goldenContext(new Date(2026, 11, 10)), seeded(seed), [], false, tuning))).toEqual(golden.dec[i])
+        expect(summarize(dealSubBoard(goldenContext(new Date(2026, 2, 15)), seeded(seed), [], tuning))).toEqual(golden.sub[i])
+      })
+    })
+  }
+})
+
+describe('card frequencies', () => {
+  const ids = cards.map((c) => c.id)
+  const everyone = (n: number, except: Record<string, number> = {}) => ({
+    frequencies: { ...Object.fromEntries(ids.map((id) => [id, n])), ...except },
+  })
+  const december: DealContext = { ...context, today: new Date(2026, 11, 10) }
+  const countDeals = (ctx: DealContext, tuning: Parameters<typeof dealCards>[4], id: string, n = 2000) => {
+    let deals = 0
+    for (let seed = 1; seed <= n; seed++) if (dealCards(ctx, seeded(seed), [], false, tuning).some((c) => c.cardId === id)) deals++
+    return deals
+  }
+  const dealtIds = (ctx: DealContext, seed: number, tuning: Parameters<typeof dealCards>[4], disabled: string[] = []) =>
+    dealCards(ctx, seeded(seed), disabled, false, tuning).map((c) => c.cardId)
+
+  it('makes a higher frequency likelier and a card at 1 rare but possible', () => {
+    const at = (n: number) => countDeals(context, { frequencies: { 'genre-night': n } }, 'genre-night')
+    const [one, three, four] = [at(1), at(3), at(4)]
+    expect(four).toBeGreaterThan(three)
+    expect(three).toBeGreaterThan(one)
+    expect(one).toBeGreaterThanOrEqual(1)
+    expect(one).toBeLessThan(400)
+  })
+
+  it('gives a card at 5 a slot in every deal, and a random selection when they outnumber the slots', () => {
+    const open: DealContext = { ...context, viewers: context.viewers.map((v) => ({ ...v, canBacklog: true })), commonGround: true }
+    for (let seed = 1; seed < 100; seed++) expect(dealtIds(context, seed, { frequencies: { 'blind-spin': 5 } })).toContain('blind-spin')
+    const tenIds = cards.filter((c) => c.eligible(open) && !c.fff).slice(0, 10).map((c) => c.id)
+    expect(tenIds).toHaveLength(10)
+    const tuning = { frequencies: Object.fromEntries(tenIds.map((id) => [id, 5])) }
+    const sets = new Set<string>()
+    for (let seed = 1; seed < 40; seed++) {
+      const dealt = dealtIds(open, seed, tuning)
+      expect(dealt).toHaveLength(8)
+      expect(new Set(dealt).size).toBe(8)
+      for (const id of dealt) expect(tenIds).toContain(id)
+      sets.add([...dealt].sort().join())
+    }
+    expect(sets.size).toBeGreaterThan(1)
+  })
+
+  it('deals only the eligible cards, eight of them, when every card is at 5', () => {
+    const empty: DealContext = { viewers: [], wildcardCount: 12, today, commonGround: false }
+    const eligible = cards.filter((c) => !c.fff && c.eligible(empty)).map((c) => c.id)
+    for (let seed = 1; seed < 40; seed++) {
+      const dealt = dealtIds(empty, seed, everyone(5))
+      expect(dealt).toHaveLength(8)
+      for (const id of dealt) expect(eligible).toContain(id)
+      expect(eligible.length).toBeLessThan(8)
+      for (const id of eligible) expect(dealt).toContain(id)
+    }
+    const few: DealContext = { ...empty, wildcardCount: 12 }
+    const tuning = { frequencies: { 'blind-spin': 5, 'genre-night': 5 } }
+    for (let seed = 1; seed < 20; seed++) expect(dealtIds(few, seed, tuning)).toEqual(expect.arrayContaining(['blind-spin', 'genre-night']))
+  })
+
+  it('never deals a card at 5 that is switched off or ineligible', () => {
+    const tuning = { frequencies: { 'blind-spin': 5, 'picks-again': 5, halloween: 5 } }
+    for (let seed = 1; seed < 60; seed++) {
+      const dealt = dealtIds(context, seed, tuning, ['blind-spin'])
+      expect(dealt).toHaveLength(8)
+      expect(dealt).not.toContain('blind-spin')
+      expect(dealt).not.toContain('picks-again')
+      expect(dealt).not.toContain('halloween')
+    }
+  })
+
+  it('deals a seasonal card outside its dates only with Outside its dates on, at its frequency', () => {
+    const off = { frequencies: { christmas: 5 }, outsideDates: [] }
+    const on = { frequencies: { christmas: 5 }, outsideDates: ['christmas'] }
+    for (let seed = 1; seed < 80; seed++) {
+      expect(dealtIds(context, seed, off)).not.toContain('christmas')
+      expect(dealtIds(context, seed, on)).toContain('christmas')
+    }
+    const mid = countDeals(context, { frequencies: {}, outsideDates: ['christmas'] }, 'christmas', 500)
+    expect(mid).toBeGreaterThan(0)
+    expect(mid).toBeLessThan(500)
+    const others = cards.filter((c) => c.id !== 'christmas').map((c) => c.id)
+    expect(canDeal(context, others)).toBe(false)
+    expect(canDeal(context, others, false, { outsideDates: ['christmas'] })).toBe(true)
+    expect(canDeal(context, [...others, 'christmas'], false, { outsideDates: ['christmas'] })).toBe(false)
+  })
+
+  it('ignores a stored frequency for a seasonal card within its dates while Outside its dates is off', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      expect(dealCards(december, seeded(seed), [], false, { frequencies: { christmas: 1 } })).toEqual(dealCards(december, seeded(seed)))
+    }
+  })
+
+  it('always gives a seasonal card within its dates its slot, ahead of the cards at 5', () => {
+    const low = { frequencies: { christmas: 1 }, outsideDates: ['christmas'] }
+    for (let seed = 1; seed < 60; seed++) expect(dealtIds(december, seed, low)).toContain('christmas')
+    const nine = cards.filter((c) => !c.fff && c.id !== 'christmas' && c.eligible(december)).slice(0, 9).map((c) => c.id)
+    const tuning = { frequencies: { christmas: 1, ...Object.fromEntries(nine.map((id) => [id, 5])) }, outsideDates: ['christmas'] }
+    for (let seed = 1; seed < 40; seed++) {
+      const dealt = dealtIds(december, seed, tuning)
+      expect(dealt.filter((id) => id === 'christmas')).toHaveLength(1)
+      expect(dealt.filter((id) => nine.includes(id))).toHaveLength(7)
+    }
+  })
+
+  it('keeps wedge weights random from 1 to 5, and Blind Spin keeps the deal from being empty', () => {
+    const tuning = everyone(5, { 'genre-night': 1, 'blind-spin': 2 })
+    const weights = new Set<number>()
+    for (let seed = 1; seed < 60; seed++) {
+      for (const c of dealCards(context, seeded(seed), [], false, tuning)) {
+        expect(Number.isInteger(c.weight) && c.weight >= 1 && c.weight <= 5).toBe(true)
+        weights.add(c.weight)
+      }
+    }
+    expect(weights.size).toBe(5)
+    const empty: DealContext = { viewers: [], wildcardCount: 12, today, commonGround: false }
+    const others = cards.filter((c) => c.eligible(empty) && c.id !== 'blind-spin').map((c) => c.id)
+    expect(dealtIds(empty, 1, { frequencies: { 'blind-spin': 1 } }, others)).toEqual(Array(8).fill('blind-spin'))
+  })
+
+  it('tunes the sub-board by the same rules', () => {
+    const board = (seed: number, tuning: Parameters<typeof dealSubBoard>[3]) => dealSubBoard(context, seeded(seed), [], tuning).map((c) => c.cardId)
+    for (let seed = 1; seed < 60; seed++) expect(board(seed, { frequencies: { 'everyone-weight': 5 } })).toContain('everyone-weight')
+    let one = 0
+    let three = 0
+    for (let seed = 1; seed <= 500; seed++) {
+      if (board(seed, { frequencies: { wildcards: 1 } }).includes('wildcards')) one++
+      if (board(seed, {}).includes('wildcards')) three++
+    }
+    expect(one).toBeLessThan(three)
+  })
+})
