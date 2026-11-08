@@ -215,8 +215,9 @@ test('stored sound settings that are missing or invalid load as the factory valu
     soundEffects: 100,
   })
   expect(load({ soundMuted: 'yes' }).soundMuted).toBe(false)
-  expect(load({}).showLabels).toBe(true)
-  expect(load({ showLabels: 'no' }).showLabels).toBe(true)
+  expect(load({}).showLabels).toBe(false)
+  expect(load({ showLabels: 'no' }).showLabels).toBe(false)
+  expect(load({ showLabels: true }).showLabels).toBe(true)
   expect(load({ showLabels: false }).showLabels).toBe(false)
   expect(load({ soundVolume: 150 }).soundVolume).toBe(70)
   expect(load({ soundVolume: 7.5 }).soundVolume).toBe(70)

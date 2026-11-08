@@ -251,7 +251,7 @@ describe('global wheel settings', () => {
       soundEffects: 100,
       soundVolume: 70,
       soundMuted: false,
-      showLabels: true,
+      showLabels: false,
       wildcardWheel: true,
       closeCalls: true,
       seasonalThemes: true,
@@ -312,12 +312,12 @@ describe('global wheel settings', () => {
   })
 
   test('the Show labels setter changes its field, ignores an unchanged value and is restored', () => {
-    expect(defaultState.settings.wheel.showLabels).toBe(true)
-    const hidden = setShowLabels(defaultState, false)
-    expect(hidden.settings.wheel.showLabels).toBe(false)
-    expect(setShowLabels(hidden, false)).toBe(hidden)
-    expect(setShowLabels(hidden, true).settings.wheel.showLabels).toBe(true)
-    expect(restoreWheelSettings(hidden).settings.wheel.showLabels).toBe(true)
+    expect(defaultState.settings.wheel.showLabels).toBe(false)
+    const shown = setShowLabels(defaultState, true)
+    expect(shown.settings.wheel.showLabels).toBe(true)
+    expect(setShowLabels(shown, true)).toBe(shown)
+    expect(setShowLabels(shown, false).settings.wheel.showLabels).toBe(false)
+    expect(restoreWheelSettings(shown).settings.wheel.showLabels).toBe(false)
   })
 
   test('restoring the wheel settings resets the sound ones too', () => {

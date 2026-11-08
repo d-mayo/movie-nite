@@ -767,6 +767,7 @@ test('the viewer key and the reel back stay through the blind spin and its revea
 test('Blind Spin: the wheel comes back blind, stays blind through the next main spin, and shows at the landing', async () => {
   forceCard('blind-spin')
   const { store } = setup({
+    wheel: { showLabels: true },
     nominations: { a: posterFilm(1), b: posterFilm(2), c: posterFilm(3) },
   })
   expect(wheelImages()).toBe(3 * 3)

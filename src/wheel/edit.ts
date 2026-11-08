@@ -52,7 +52,7 @@ export const defaultWheelSettings: WheelSettings = {
   soundEffects: 100,
   soundVolume: 70,
   soundMuted: false,
-  showLabels: true,
+  showLabels: false,
   wildcardWheel: true,
   closeCalls: true,
   seasonalThemes: true,

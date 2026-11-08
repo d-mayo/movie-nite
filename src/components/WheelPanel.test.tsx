@@ -341,7 +341,7 @@ test('React commits nothing while the wheel drifts, and a spin costs a fixed few
   const store = createAppStore(
     createMemoryPersistence({
       ...defaultState,
-      settings: { viewersHidden: false, wheel: defaultWheelSettings },
+      settings: { viewersHidden: false, wheel: { ...defaultWheelSettings, showLabels: true } },
       roster: [
         { id: 'a', name: 'Ann', color: '#e6194b' },
         { id: 'b', name: 'Bo', color: '#f58231' },

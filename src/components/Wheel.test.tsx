@@ -75,8 +75,17 @@ test('the wheel follows viewers and nominations live', () => {
   expect(wedges()).toHaveLength(0)
 })
 
-test('a long viewer name shrinks to its room and is set in capitals, a short one is not', () => {
+test('with the default settings the wheel shows no viewer name but still the wildcard word', () => {
   setup()
+  addViewers(['Ann', 'Bo'])
+  expect(defaultWheelSettings.showLabels).toBe(false)
+  expect(screen.queryAllByTestId('label-tag')).toHaveLength(0)
+  expect(document.querySelectorAll('svg.wheel text.wheel-label:not(.wheel-label-word)')).toHaveLength(0)
+  expect(screen.getAllByTestId('wildcard-word').length).toBeGreaterThan(0)
+})
+
+test('a long viewer name shrinks to its room and is set in capitals, a short one is not', () => {
+  act(() => setup().getState().setShowLabels(true))
   addViewers(['wwwwwwwwwwwwwwwwwwww', 'Ann', 'Bo', 'Cy', 'Di'])
   const texts = Array.from(document.querySelectorAll('svg.wheel text.wheel-label'))
   const long = texts.find((t) => t.textContent === 'W'.repeat(20))!
@@ -94,6 +103,7 @@ function addViewers(names: string[]) {
 
 test('every label sits on a solid film-stock tag, white name and cream title, in a light and a dark color', () => {
   const store = setup()
+  act(() => store.getState().setShowLabels(true))
   addViewers(['Ann', 'Bo'])
   const [ann, bo] = store.getState().roster
   act(() => store.getState().setViewerColor(ann.id, '#ffe119'))
