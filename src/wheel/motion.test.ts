@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, test } from 'vitest'
 import { maxBendDegrees, pinPastPointer, pushEnd, pushStart } from './pins.ts'
 import { angleUnderPointer, edgeMargins, restRotation } from './draw.ts'

@@ -56,6 +56,16 @@ export function createLocalStoragePersistence(
   }
 }
 
+/** Deletes the saved state, for the error screen's reset; true when it is gone. */
+export function clearSavedState(storage: Storage = window.localStorage, key: string = defaultKey): boolean {
+  try {
+    storage.removeItem(key)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function createMemoryPersistence(
   initial: AppState | null = null,
 ): Persistence & { emitRemoteChange(state: AppState): void } {

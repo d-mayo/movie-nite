@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { expect, test } from 'vitest'
 import { catchWidth, catchZone, forcedCatchRotation, isCatch } from './catch.ts'
 import { slipClearance } from './closeCall.ts'

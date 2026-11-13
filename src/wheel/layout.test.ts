@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { expect, test } from 'vitest'
 import { sliceArcs, type Slice } from './layout.ts'
 import { defaultWheelSettings, deriveSlices } from './edit.ts'

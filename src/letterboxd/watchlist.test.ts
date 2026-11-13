@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
 import type { LetterboxdClient, WatchlistPageResult } from './client.ts'
 import { canBeReshuffled, createWatchlistMemory, drawFilmsFromWatchlist, drawFromWatchlist, ensureWalk, MAX_WATCHLIST_PAGES, subscribeToSettled } from './watchlist.ts'

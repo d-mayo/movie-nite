@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { seasonOf } from '../seasons/seasons.ts'
 import { describe, expect, it } from 'vitest'
 import { seeded } from './seeded.ts'

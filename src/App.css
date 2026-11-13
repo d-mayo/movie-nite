@@ -3476,3 +3476,19 @@ dialog.card-switches::backdrop {
   justify-content: space-between;
   gap: var(--space-3);
 }
+
+/* The error screen: what shows in place of the app after a crash. */
+.error-screen .card {
+  display: block;
+  max-width: 32rem;
+  margin: 10vh auto 0;
+  padding: var(--space-5);
+  text-align: left;
+}
+
+.error-screen-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}

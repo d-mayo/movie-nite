@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { expect, test } from 'vitest'
 import { defaultState, type Nomination } from '../state/model.ts'
 import { movieExclusions, rewindExclusions } from './drawing.ts'
