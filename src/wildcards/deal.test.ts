@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest'
 import { cards, type DealContext } from './cards.ts'
 import { canDeal, dealCards, dealSubBoard, subBoardPool } from './deal.ts'

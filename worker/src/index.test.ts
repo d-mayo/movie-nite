@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import worker, { isAllowedOrigin, parseFilmTmdbId, readListPage, readTmdbRedirect, readWatchlistPage, type Env } from './index.ts'

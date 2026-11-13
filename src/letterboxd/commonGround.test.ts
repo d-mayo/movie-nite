@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
 import type { LetterboxdClient } from './client.ts'
 import { canCommonGround, canHaveBacklog, commonGroundGroup, drawCommonGround, sharedSlugs } from './commonGround.ts'

@@ -5,7 +5,8 @@ import './index.css'
 import App from './App.tsx'
 import { createBrowserSound } from './sound/browser.ts'
 import { applyFffLink } from './state/fffLink.ts'
-import { createLocalStoragePersistence } from './state/persistence.ts'
+import ErrorScreen from './components/ErrorScreen.tsx'
+import { clearSavedState, createLocalStoragePersistence } from './state/persistence.ts'
 import { createAppStore } from './state/store.ts'
 
 const store = createAppStore(createLocalStoragePersistence())
@@ -14,6 +15,8 @@ const sound = createBrowserSound()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App store={store} sound={sound} />
+    <ErrorScreen onReset={clearSavedState}>
+      <App store={store} sound={sound} />
+    </ErrorScreen>
   </StrictMode>,
 )

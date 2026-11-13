@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { expect, test, vi } from 'vitest'
 import type { LetterboxdClient, ListPageResult } from './client.ts'
 import { drawFilmsFromList } from './listDraw.ts'

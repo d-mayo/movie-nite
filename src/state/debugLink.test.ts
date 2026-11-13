@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { expect, test, vi } from 'vitest'
 import { applyDebugLink } from './debugLink.ts'
 import { createMemoryPersistence } from './persistence.ts'

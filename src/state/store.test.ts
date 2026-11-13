@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, expect, test, vi } from 'vitest'
 import { defaultState, isBlind, watchedFilms, type Nomination } from './model.ts'
 import { createMemoryPersistence } from './persistence.ts'

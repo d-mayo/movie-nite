@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, test } from 'vitest'
 import { marchSet, setFiles, soundSets, type SoundSet } from './seasons.ts'
 

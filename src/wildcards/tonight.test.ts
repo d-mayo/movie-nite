@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest'
 import type { CardEffect } from './cards.ts'
 import { chipEffects, viewerCardLabels } from './tonight.ts'

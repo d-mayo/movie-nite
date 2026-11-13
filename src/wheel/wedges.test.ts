@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, test } from 'vitest'
 import { addViewer, defaultState, newNight, setPresent } from '../state/model.ts'
 import { createMemoryPersistence } from '../state/persistence.ts'

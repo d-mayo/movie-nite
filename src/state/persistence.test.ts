@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from 'vitest'
 import { addViewer, defaultState, nominate } from './model.ts'
 import {
+  clearSavedState,
   createLocalStoragePersistence,
   createMemoryPersistence,
 } from './persistence.ts'
@@ -62,4 +63,12 @@ describe('memory persistence', () => {
     p.save(sample)
     expect(p.load()).toEqual(sample)
   })
+})
+
+test('clearSavedState deletes the saved state and leaves other keys', () => {
+  createLocalStoragePersistence(localStorage, 'k').save(sample)
+  localStorage.setItem('other', 'kept')
+  expect(clearSavedState(localStorage, 'k')).toBe(true)
+  expect(createLocalStoragePersistence(localStorage, 'k').load()).toBeNull()
+  expect(localStorage.getItem('other')).toBe('kept')
 })
